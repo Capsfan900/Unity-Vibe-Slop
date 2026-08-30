@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6796e5535f7379f4dbc5abfced874667, type: 3}
+  m_Name: PlayerStats
+  m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.PlayerStatsData
+  baseHP: 100
+  hpPerVitality: 10
+  parryPerfectWindow: 0.15
+  parryLateWindow: 0.2
+  parryWhiffRecovery: 0.25
+  parrySuccessRecovery: 0.08
+  blockDamageMultiplier: 0.3
+  facingConeDeg: 75
+  maxJuice: 100
+  baseJuicePerPerfect: 25
+  juicePerArcane: 1
+  ultSlowScale: 0.25
+  ultSlowSeconds: 1.6
+  ultRadius: 10
+  ultBaseDamage: 80
+  ultDamagePerArcane: 4
+  ultBossPostureFraction: 0.5
+  flaskBaseCharges: 3
+  flaskBaseHeal: 45
+  flaskHealPerLevel: 10
+  flaskDrinkSeconds: 0.8
+  damagePerStatPoint: 0.03

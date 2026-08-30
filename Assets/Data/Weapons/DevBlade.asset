@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce1fe6d462959d4f879b04f78fe535b, type: 3}
+  m_Name: DevBlade
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.WeaponData
+  displayName: Oathbreaker (TEST)
+  neon: {r: 0.49803922, g: 1, b: 0.6039216, a: 1}
+  viewmodelPrefab: {fileID: 8455776851365528002, guid: 319a41557d845b14bbbecf5501aba3f1, type: 3}
+  viewmodelScale: 0.5
+  baseDamage: 60
+  postureDamage: 40
+  executeDamage: 1000
+  strScale: 0.5
+  dexScale: 0.5
+  arcScale: 0.5
+  comboLength: 3
+  comboMultipliers:
+  - 1
+  - 1
+  - 1.6
+  attackDuration: 0.3
+  hitDelay: 0.08
+  comboWindow: 0.4
+  hitOffset: 1.8
+  hitRadius: 1.4
+  hitStopSeconds: 0.06
+  parryWindowMultiplier: 1.6
+  parryPostureDamage: 60
+  juiceBonus: 25
+  idle:
+    pos: {x: 0.45, y: -0.35, z: 0.7}
+    euler: {x: 0, y: -10, z: 0}
+  windup:
+    pos: {x: 0.6, y: -0.2, z: 0.5}
+    euler: {x: -20, y: -60, z: 30}
+  swingEnd:
+    pos: {x: -0.3, y: -0.45, z: 0.8}
+    euler: {x: 20, y: 40, z: -40}
+  parry:
+    pos: {x: 0.05, y: -0.15, z: 0.6}
+    euler: {x: 0, y: 90, z: 80}
+  drink:
+    pos: {x: 0.7, y: -0.6, z: 0.5}
+    euler: {x: 30, y: -40, z: 0}
+  executeWindup:
+    pos: {x: 0.5, y: 0.3, z: 0.5}
+    euler: {x: -70, y: -30, z: 20}
+  executeEnd:
+    pos: {x: 0.1, y: -0.6, z: 0.9}
+    euler: {x: 60, y: 0, z: 0}

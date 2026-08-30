@@ -1,0 +1,428 @@
+using UnityEngine;
+
+namespace VibeGame1
+{
+    public enum Sfx { Tick, Parry, Block, Hit, Swing, Execute, Heal, Ultimate, Checkpoint, Death, Jump, Dash, Souls, Stagger, Hurt, Click, Roar, Drone }
+
+    /// <summary>
+    /// Procedurally synthesized dark-fantasy placeholder sound effects (no audio assets needed).
+    /// Low, heavy, metallic and noisy on purpose: growls, clangs, sub booms, bells and drones.
+    /// </summary>
+    public static class ProceduralSfx
+    {
+        const int Rate = 44100;
+        const float TwoPi = Mathf.PI * 2f;
+
+        public static AudioClip Build(Sfx s)
+        {
+            switch (s)
+            {
+                case Sfx.Tick: return Tick();
+                case Sfx.Parry: return Parry();
+                case Sfx.Block: return Block();
+                case Sfx.Hit: return Hit();
+                case Sfx.Swing: return Whoosh("Swing", 0.3f, 0.35f, 0.02f, 0.14f, 0.7f);
+                case Sfx.Execute: return Execute();
+                case Sfx.Heal: return Heal();
+                case Sfx.Ultimate: return Ultimate();
+                case Sfx.Checkpoint: return Bell();
+                case Sfx.Death: return Death();
+                case Sfx.Jump: return Jump();
+                case Sfx.Dash: return Whoosh("Dash", 0.2f, 0.4f, 0.03f, 0.2f, 0.6f);
+                case Sfx.Souls: return Souls();
+                case Sfx.Stagger: return Stagger();
+                case Sfx.Hurt: return Hurt();
+                case Sfx.Click: return Click();
+                case Sfx.Roar: return Roar();
+                case Sfx.Drone: return Drone();
+            }
+            return Click();
+        }
+
+        // ------------------------------------------------------------------ building blocks
+
+        /// <summary>Simple attack/decay envelope in seconds.</summary>
+        static float Env(float t, float attack, float decay)
+        {
+            float a = attack <= 0f ? 1f : Mathf.Clamp01(t / attack);
+            float d = decay <= 0f ? 1f : Mathf.Exp(-Mathf.Max(0f, t - attack) / decay);
+            return a * d;
+        }
+
+        /// <summary>Tanh-style soft clipper, keeps things loud without harsh digital clipping.</summary>
+        static float SoftClip(float x)
+        {
+            return x / (1f + Mathf.Abs(x));
+        }
+
+        /// <summary>Sum of inharmonic partials (metal / bell tones) with per-partial decay.</summary>
+        static float Partials(float t, float baseFreq, float[] ratios, float[] amps, float decay, float phaseSeed)
+        {
+            float v = 0f;
+            for (int i = 0; i < ratios.Length; i++)
+            {
+                float f = baseFreq * ratios[i];
+                float a = amps != null && i < amps.Length ? amps[i] : 1f / (i + 1);
+                // higher partials die faster
+                float d = decay / (1f + i * 0.6f);
+                v += Mathf.Sin(TwoPi * f * t + phaseSeed * (i + 1)) * a * Mathf.Exp(-t / d);
+            }
+            return v;
+        }
+
+        /// <summary>Stateful one-pole lowpass over white noise. Call once per sample with a cutoff in Hz.</summary>
+        class LowpassNoise
+        {
+            readonly System.Random rng;
+            float state;
+            public LowpassNoise(int seed) { rng = new System.Random(seed); }
+            public float Next(float cutoffHz)
+            {
+                float w = (float)(rng.NextDouble() * 2.0 - 1.0);
+                float k = 1f - Mathf.Exp(-TwoPi * Mathf.Clamp(cutoffHz, 5f, 12000f) / Rate);
+                state += k * (w - state);
+                return state;
+            }
+        }
+
+        /// <summary>Crude bandpass: lowpass minus a lower lowpass.</summary>
+        class BandpassNoise
+        {
+            readonly LowpassNoise lo, hi;
+            public BandpassNoise(int seed) { lo = new LowpassNoise(seed); hi = new LowpassNoise(seed); }
+            public float Next(float low, float high)
+            {
+                // both filters see the same random stream because they share the seed
+                return hi.Next(high) - lo.Next(low);
+            }
+        }
+
+        static float[] Buffer(float seconds) => new float[Mathf.CeilToInt(seconds * Rate)];
+
+        static AudioClip Make(string name, float[] data, float peak = 0.9f)
+        {
+            float max = 0f;
+            for (int i = 0; i < data.Length; i++) max = Mathf.Max(max, Mathf.Abs(data[i]));
+            if (max > 0f)
+            {
+                float g = peak / max;
+                for (int i = 0; i < data.Length; i++) data[i] *= g;
+            }
+            var clip = AudioClip.Create(name, data.Length, 1, Rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        static int Seed(string name) => name.GetHashCode();
+
+        // ------------------------------------------------------------------ one shots
+
+        static AudioClip Tick()
+        {
+            const string name = "Tick";
+            var d = Buffer(0.25f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 0.25f;
+                float cutoff = Mathf.Lerp(300f, 80f, k);
+                float tremolo = 0.55f + 0.45f * Mathf.Sin(TwoPi * 25f * t);
+                float growl = noise.Next(cutoff) * 3f;
+                // a little tonal grit so it reads as a "voice" instead of just wind
+                float grit = Mathf.Sin(TwoPi * Mathf.Lerp(140f, 60f, k) * t) * 0.35f;
+                d[i] = SoftClip((growl + grit) * 1.6f) * tremolo * Env(t, 0.01f, 0.12f);
+            }
+            return Make(name, d, 0.85f);
+        }
+
+        static readonly float[] ClangRatios = { 1f, 1.42f, 2.13f, 2.77f, 3.6f };
+        static readonly float[] ClangAmps = { 1f, 0.7f, 0.5f, 0.35f, 0.25f };
+
+        static AudioClip Parry()
+        {
+            const string name = "Parry";
+            var d = Buffer(0.4f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float clang = Partials(t, 480f, ClangRatios, ClangAmps, 0.09f, 0.7f);
+                float transient = t < 0.02f ? noise.Next(6000f) * (1f - t / 0.02f) * 1.2f : 0f;
+                float thump = Mathf.Sin(TwoPi * 65f * t) * Mathf.Exp(-t / 0.08f) * 0.5f;
+                d[i] = SoftClip(clang * 1.3f + transient + thump);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        static AudioClip Block()
+        {
+            const string name = "Block";
+            var d = Buffer(0.22f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float tone = Mathf.Sin(TwoPi * 90f * t) * Env(t, 0.002f, 0.06f);
+                float thud = noise.Next(Mathf.Lerp(900f, 150f, t / 0.22f)) * Env(t, 0.002f, 0.05f) * 1.5f;
+                d[i] = SoftClip((tone + thud) * 1.4f);
+            }
+            return Make(name, d, 0.8f);
+        }
+
+        static AudioClip Hit()
+        {
+            const string name = "Hit";
+            var d = Buffer(0.2f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 0.2f;
+                float chop = noise.Next(Mathf.Lerp(2500f, 300f, k)) * Env(t, 0.001f, 0.045f) * 2f;
+                float thump = Mathf.Sin(TwoPi * 70f * t) * Env(t, 0.002f, 0.07f);
+                d[i] = SoftClip((chop + thump) * 1.5f);
+            }
+            return Make(name, d, 0.85f);
+        }
+
+        /// <summary>Dark lowpassed noise sweep. Cutoff opens from lowStart to lowEnd then falls again.</summary>
+        static AudioClip Whoosh(string name, float dur, float vol, float attack, float decay, float peak)
+        {
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float shape = Mathf.Sin(k * Mathf.PI);
+                float cutoff = Mathf.Lerp(120f, 1100f, shape);
+                d[i] = noise.Next(cutoff) * shape * shape * 3f * vol * Env(t, attack, dur);
+            }
+            return Make(name, d, peak);
+        }
+
+        static AudioClip Execute()
+        {
+            const string name = "Execute";
+            var d = Buffer(0.9f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float boom = Mathf.Sin(TwoPi * 40f * t) * Env(t, 0.003f, 0.35f) * 1.4f;
+                float crunch = noise.Next(Mathf.Lerp(3000f, 200f, Mathf.Clamp01(t / 0.25f))) * Env(t, 0.001f, 0.12f) * 4f;
+                float tail = noise.Next(90f) * Env(t, 0.05f, 0.5f) * 2f;
+                d[i] = SoftClip(boom + SoftClip(crunch * 2f) * 0.8f + tail);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        static AudioClip Heal()
+        {
+            const string name = "Heal";
+            var d = Buffer(0.7f);
+            float[] freqs = { 220f, 221.5f, 330f, 328.6f, 442f, 444f };
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float vib = 1f + 0.006f * Mathf.Sin(TwoPi * 4.5f * t);
+                float v = 0f;
+                for (int f = 0; f < freqs.Length; f++) v += Mathf.Sin(TwoPi * freqs[f] * vib * t) / (1f + f * 0.4f);
+                d[i] = v * Env(t, 0.25f, 0.3f);
+            }
+            return Make(name, d, 0.5f);
+        }
+
+        static AudioClip Ultimate()
+        {
+            const string name = "Ultimate";
+            var d = Buffer(1.3f);
+            var noise = new LowpassNoise(Seed(name));
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 1.3f;
+                float f = Mathf.Lerp(140f, 28f, 1f - (1f - k) * (1f - k));
+                phase += TwoPi * f / Rate;
+                float sub = SoftClip(Mathf.Sin(phase) * 3f) * Env(t, 0.01f, 0.9f);
+                float wash = noise.Next(Mathf.Lerp(2000f, 120f, k)) * Env(t, 0.05f, 0.5f) * 1.5f;
+                d[i] = SoftClip(sub * 1.2f + wash);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        static readonly float[] BellRatios = { 0.5f, 1f, 1.183f, 1.506f, 2f, 2.514f, 2.662f, 3.011f };
+        static readonly float[] BellAmps = { 0.5f, 1f, 0.6f, 0.5f, 0.35f, 0.25f, 0.2f, 0.15f };
+
+        static AudioClip Bell()
+        {
+            const string name = "Checkpoint";
+            var d = Buffer(1.8f);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float v = Partials(t, 260f, BellRatios, BellAmps, 0.9f, 1.3f);
+                // "distant": soften the strike, keep the hum
+                d[i] = v * Env(t, 0.004f, 1.2f);
+            }
+            return Make(name, d, 0.4f);
+        }
+
+        static AudioClip Death()
+        {
+            const string name = "Death";
+            var d = Buffer(2f);
+            float[] detune = { 1f, 1.007f, 0.994f };
+            float[] phase = new float[3];
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 2f;
+                float f = Mathf.Lerp(200f, 55f, k * k);
+                float vib = 1f + 0.01f * Mathf.Sin(TwoPi * 3f * t);
+                float v = 0f;
+                for (int p = 0; p < 3; p++)
+                {
+                    phase[p] += TwoPi * f * detune[p] * vib / Rate;
+                    v += Mathf.Sin(phase[p]) + 0.3f * Mathf.Sin(phase[p] * 2f);
+                }
+                d[i] = SoftClip(v * 0.6f) * Env(t, 0.08f, 0.9f);
+            }
+            return Make(name, d, 0.8f);
+        }
+
+        static AudioClip Jump()
+        {
+            const string name = "Jump";
+            var d = Buffer(0.08f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float thump = Mathf.Sin(TwoPi * 110f * t) * Env(t, 0.002f, 0.025f);
+                float cloth = noise.Next(500f) * Env(t, 0.001f, 0.03f) * 1.5f;
+                d[i] = (thump + cloth) * 0.6f;
+            }
+            return Make(name, d, 0.35f);
+        }
+
+        static AudioClip Souls()
+        {
+            const string name = "Souls";
+            var d = Buffer(0.4f);
+            var band = new BandpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 0.4f;
+                float whisper = band.Next(600f, 2400f) * Env(t, 0.03f, 0.18f) * 4f;
+                float sparkle = Mathf.Sin(TwoPi * Mathf.Lerp(1800f, 2600f, k) * t) * Env(t, 0.05f, 0.2f) * 0.12f;
+                d[i] = whisper + sparkle;
+            }
+            return Make(name, d, 0.45f);
+        }
+
+        static AudioClip Stagger()
+        {
+            const string name = "Stagger";
+            var d = Buffer(0.6f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float crack = Partials(t, 720f, ClangRatios, ClangAmps, 0.05f, 2.1f) * 1.2f;
+                float transient = t < 0.015f ? noise.Next(8000f) * 1.5f : 0f;
+                float rumble = noise.Next(70f) * Env(t, 0.02f, 0.3f) * 4f + Mathf.Sin(TwoPi * 48f * t) * Env(t, 0.01f, 0.25f) * 0.8f;
+                d[i] = SoftClip(crack + transient + rumble);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        static AudioClip Hurt()
+        {
+            const string name = "Hurt";
+            var d = Buffer(0.3f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float thump = Mathf.Sin(TwoPi * 60f * t) * Env(t, 0.002f, 0.09f) * 1.3f;
+                float punch = noise.Next(Mathf.Lerp(1500f, 200f, t / 0.3f)) * Env(t, 0.001f, 0.06f) * 2.5f;
+                float tone = Mathf.Sin(TwoPi * Mathf.Lerp(260f, 90f, t / 0.3f) * t) * Env(t, 0.005f, 0.08f) * 0.5f;
+                d[i] = SoftClip(thump + punch + tone);
+            }
+            return Make(name, d, 0.85f);
+        }
+
+        static AudioClip Click()
+        {
+            const string name = "Click";
+            var d = Buffer(0.04f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                d[i] = (Mathf.Sin(TwoPi * 320f * t) * 0.5f + noise.Next(1200f)) * Env(t, 0.001f, 0.012f);
+            }
+            return Make(name, d, 0.3f);
+        }
+
+        static AudioClip Roar()
+        {
+            const string name = "Roar";
+            var d = Buffer(1.3f);
+            var noise = new LowpassNoise(Seed(name));
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 1.3f;
+                // 60 -> 140 -> 50 Hz
+                float f = k < 0.35f ? Mathf.Lerp(60f, 140f, k / 0.35f) : Mathf.Lerp(140f, 50f, (k - 0.35f) / 0.65f);
+                phase += TwoPi * f / Rate;
+                float growl = Mathf.Sin(phase) + 0.5f * Mathf.Sin(phase * 2f) + 0.25f * Mathf.Sin(phase * 3f);
+                float rasp = noise.Next(Mathf.Lerp(400f, 1400f, Mathf.Sin(k * Mathf.PI))) * 2.5f;
+                float tremolo = 0.75f + 0.25f * Mathf.Sin(TwoPi * 18f * t);
+                d[i] = SoftClip(SoftClip(growl * 2.5f) + rasp * 0.7f) * tremolo * Env(t, 0.06f, 0.6f);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        // ------------------------------------------------------------------ ambient loop
+
+        static AudioClip Drone()
+        {
+            const string name = "Drone";
+            const float dur = 6f;
+            var d = Buffer(dur);
+            int n = d.Length;
+            var wind = new LowpassNoise(Seed(name));
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)Rate;
+                float beat = 0.7f + 0.3f * Mathf.Sin(TwoPi * 0.12f * t);
+                float a = Mathf.Sin(TwoPi * 55f * t) * 0.8f;
+                float b = Mathf.Sin(TwoPi * 82.4f * t) * 0.6f * beat;
+                float sub = Mathf.Sin(TwoPi * 41f * t) * 0.9f;
+                float lfo = 0.5f + 0.5f * Mathf.Sin(TwoPi * 0.15f * t);
+                float gust = wind.Next(Mathf.Lerp(120f, 600f, lfo)) * (0.6f + 1.4f * lfo) * 2f;
+                d[i] = SoftClip(a + b + sub + gust);
+            }
+            // seamless loop: crossfade the last 0.5 s into the first 0.5 s
+            int fade = Mathf.CeilToInt(0.5f * Rate);
+            var outp = new float[n - fade];
+            for (int i = 0; i < outp.Length; i++)
+            {
+                if (i < fade)
+                {
+                    float k = i / (float)fade;
+                    outp[i] = d[i] * k + d[n - fade + i] * (1f - k);
+                }
+                else outp[i] = d[i];
+            }
+            return Make(name, outp, 0.6f);
+        }
+    }
+}

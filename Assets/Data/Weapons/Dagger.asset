@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce1fe6d462959d4f879b04f78fe535b, type: 3}
+  m_Name: Dagger
+  m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.WeaponData
+  displayName: Rosethorn
+  neon: {r: 0.37254903, g: 0.8392157, b: 0.41568628, a: 1}
+  viewmodelPrefab: {fileID: 3050010489944845851, guid: 8ca2df59fbcb95745af140d6cea814c4, type: 3}
+  viewmodelScale: 0.5
+  baseDamage: 12
+  postureDamage: 6
+  executeDamage: 250
+  strScale: 0
+  dexScale: 1
+  arcScale: 0.4
+  comboLength: 4
+  comboMultipliers:
+  - 1
+  - 1
+  - 1
+  - 1.3
+  attackDuration: 0.22
+  hitDelay: 0.06
+  comboWindow: 0.3
+  hitOffset: 1.3
+  hitRadius: 0.9
+  hitStopSeconds: 0.03
+  parryWindowMultiplier: 1.35
+  parryPostureDamage: 18
+  juiceBonus: -5
+  idle:
+    pos: {x: 0.4, y: -0.3, z: 0.6}
+    euler: {x: 0, y: -5, z: 0}
+  windup:
+    pos: {x: 0.5, y: -0.2, z: 0.45}
+    euler: {x: -10, y: -40, z: 20}
+  swingEnd:
+    pos: {x: -0.1, y: -0.35, z: 0.8}
+    euler: {x: 10, y: 30, z: -30}
+  parry:
+    pos: {x: 0.05, y: -0.15, z: 0.6}
+    euler: {x: 0, y: 90, z: 80}
+  drink:
+    pos: {x: 0.7, y: -0.6, z: 0.5}
+    euler: {x: 30, y: -40, z: 0}
+  executeWindup:
+    pos: {x: 0.5, y: 0.3, z: 0.5}
+    euler: {x: -70, y: -30, z: 20}
+  executeEnd:
+    pos: {x: 0.1, y: -0.6, z: 0.9}
+    euler: {x: 60, y: 0, z: 0}

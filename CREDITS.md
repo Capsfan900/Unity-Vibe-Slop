@@ -1,0 +1,18 @@
+# Audio credits
+
+All audio in `Assets/Resources/Audio/` is **CC0 (public domain)** — no attribution required, listed here anyway.
+
+| Used for | Pack | Author | Source |
+|---|---|---|---|
+| Ambient music loop | Loopable Dungeon Ambience | IgnasD | https://opengameart.org/content/loopable-dungeon-ambience |
+| Boss music | Dungeon Ambience | Creomoto | https://opengameart.org/content/dungeon-ambience |
+| Parry (sword clash), Hit (sword attack) | 20 Sword Sound Effects (Attacks and Clashes) | StarNinjas | https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes |
+| Swing (whoosh) | Swishes Sound Pack | qubodup | https://opengameart.org/content/swishes-sound-pack |
+| Dash, Heal (bottle), Ultimate (spell/magic), Death (shade), Souls (beads/coin) | RPG Sound Pack | artisticdude | https://opengameart.org/content/rpg-sound-pack |
+| Tick (grunt), Stagger (hurt), Roar | 80 CC0 creature SFX | rubberduck | https://opengameart.org/content/80-cc0-creature-sfx |
+| Roar (deep) | CC0 Deep Monster Roar | — | https://opengameart.org/content/cc0-deep-monster-roar |
+| Block, Execute, Checkpoint (bell), Hurt (punch) | Impact Sounds | Kenney | https://kenney.nl/assets/impact-sounds |
+| Jump (cloth) | RPG Audio | Kenney | https://kenney.nl/assets/rpg-audio |
+| Click | UI Audio | Kenney | https://kenney.nl/assets/ui-audio |
+
+Everything else (fallbacks when a folder is empty) is synthesized at runtime in `Assets/Scripts/Feel/ProceduralSfx.cs`.

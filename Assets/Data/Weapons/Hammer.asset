@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce1fe6d462959d4f879b04f78fe535b, type: 3}
+  m_Name: Hammer
+  m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.WeaponData
+  displayName: Sunbreaker
+  neon: {r: 0.8784314, g: 0.4, b: 0.101960786, a: 1}
+  viewmodelPrefab: {fileID: 5162901324134690919, guid: 310351ac8eee4dc4fb35e0fcb9dcc049, type: 3}
+  viewmodelScale: 0.5
+  baseDamage: 40
+  postureDamage: 30
+  executeDamage: 400
+  strScale: 1
+  dexScale: 0
+  arcScale: 0.2
+  comboLength: 2
+  comboMultipliers:
+  - 1
+  - 1.6
+  attackDuration: 0.7
+  hitDelay: 0.3
+  comboWindow: 0.5
+  hitOffset: 1.8
+  hitRadius: 1.4
+  hitStopSeconds: 0.09
+  parryWindowMultiplier: 0.8
+  parryPostureDamage: 40
+  juiceBonus: 5
+  idle:
+    pos: {x: 0.5, y: -0.4, z: 0.75}
+    euler: {x: 0, y: -15, z: 0}
+  windup:
+    pos: {x: 0.65, y: 0.1, z: 0.4}
+    euler: {x: -60, y: -40, z: 20}
+  swingEnd:
+    pos: {x: -0.2, y: -0.6, z: 0.9}
+    euler: {x: 45, y: 30, z: -30}
+  parry:
+    pos: {x: 0.05, y: -0.2, z: 0.6}
+    euler: {x: 0, y: 90, z: 80}
+  drink:
+    pos: {x: 0.7, y: -0.6, z: 0.5}
+    euler: {x: 30, y: -40, z: 0}
+  executeWindup:
+    pos: {x: 0.5, y: 0.5, z: 0.4}
+    euler: {x: -90, y: -20, z: 10}
+  executeEnd:
+    pos: {x: 0.1, y: -0.6, z: 0.9}
+    euler: {x: 60, y: 0, z: 0}

@@ -1,0 +1,58 @@
+using System.Collections;
+using UnityEngine;
+
+namespace VibeGame1
+{
+    public class PlayerDeath : MonoBehaviour
+    {
+        public float respawnDelay = 1.6f;
+
+        Health health;
+        FirstPersonMotor motor;
+        WeaponController weapons;
+        WeaponViewmodel viewmodel;
+        bool dying;
+
+        void Awake()
+        {
+            health = GetComponent<Health>();
+            motor = GetComponent<FirstPersonMotor>();
+            weapons = GetComponent<WeaponController>();
+            viewmodel = GetComponentInChildren<WeaponViewmodel>();
+        }
+
+        void OnEnable() { health.OnDied += OnDied; }
+        void OnDisable() { health.OnDied -= OnDied; }
+
+        void OnDied()
+        {
+            if (dying) return;
+            StartCoroutine(DieCo());
+        }
+
+        IEnumerator DieCo()
+        {
+            dying = true;
+            GameManager.I.SetState(GameState.Dead);
+            if (weapons != null) weapons.CancelAttack();
+            if (viewmodel != null) viewmodel.Interrupt();
+            if (motor != null) motor.CanMove = false;
+
+            int souls = SoulsWallet.I != null ? SoulsWallet.I.TakeAll() : 0;
+            if (souls > 0 && LevelManager.I != null)
+                LevelManager.I.SpawnBloodstain(motor != null ? motor.LastGroundedPosition : transform.position, souls);
+
+            if (ScreenFlash.I) ScreenFlash.I.Flash(new Color(0.6f, 0f, 0.1f), 0.85f, respawnDelay);
+            if (CameraFX.I) CameraFX.I.VignettePulse(0.5f, respawnDelay);
+            AudioManager.Play(Sfx.Death);
+            GameEvents.RaisePlayerDied();
+
+            yield return new WaitForSecondsRealtime(respawnDelay);
+
+            if (motor != null) motor.CanMove = true;
+            if (LevelManager.I != null) LevelManager.I.Respawn();
+            else { health.ResetFull(); GameManager.I.SetState(GameState.Playing); }
+            dying = false;
+        }
+    }
+}

@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce1fe6d462959d4f879b04f78fe535b, type: 3}
+  m_Name: Sword
+  m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.WeaponData
+  displayName: Cerulean Edge
+  neon: {r: 0.56078434, g: 0.70980394, b: 0.8509804, a: 1}
+  viewmodelPrefab: {fileID: 5872092951120182316, guid: 8f65a56eb9228a9409d6884c6f1bae17, type: 3}
+  viewmodelScale: 0.5
+  baseDamage: 22
+  postureDamage: 12
+  executeDamage: 300
+  strScale: 0.5
+  dexScale: 0.5
+  arcScale: 0.2
+  comboLength: 3
+  comboMultipliers:
+  - 1
+  - 1
+  - 1.5
+  attackDuration: 0.38
+  hitDelay: 0.12
+  comboWindow: 0.35
+  hitOffset: 1.6
+  hitRadius: 1.1
+  hitStopSeconds: 0.05
+  parryWindowMultiplier: 1
+  parryPostureDamage: 25
+  juiceBonus: 0
+  idle:
+    pos: {x: 0.45, y: -0.35, z: 0.7}
+    euler: {x: 0, y: -10, z: 0}
+  windup:
+    pos: {x: 0.6, y: -0.2, z: 0.5}
+    euler: {x: -20, y: -60, z: 30}
+  swingEnd:
+    pos: {x: -0.3, y: -0.45, z: 0.8}
+    euler: {x: 20, y: 40, z: -40}
+  parry:
+    pos: {x: 0.05, y: -0.15, z: 0.6}
+    euler: {x: 0, y: 90, z: 80}
+  drink:
+    pos: {x: 0.7, y: -0.6, z: 0.5}
+    euler: {x: 30, y: -40, z: 0}
+  executeWindup:
+    pos: {x: 0.5, y: 0.3, z: 0.5}
+    euler: {x: -70, y: -30, z: 20}
+  executeEnd:
+    pos: {x: 0.1, y: -0.6, z: 0.9}
+    euler: {x: 60, y: 0, z: 0}
