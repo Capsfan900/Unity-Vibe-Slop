@@ -69,8 +69,22 @@ namespace VibeGame1
             bool ready = !menuOpen && GameManager.IsPlaying && inRange != null && IsLookedAt();
             ShowPrompt(ready);
 
-            if (!ready || InputReader.I == null || !InputReader.I.InteractPressed) return;
+            if (InputReader.I == null || !InputReader.I.InteractPressed) return;
+            TryInteract();
+        }
+
+        /// <summary>
+        /// The body of the interact press, with the input read left in <see cref="Update"/> (rule 2:
+        /// InputReader is the only script that touches the Input System). Public so the feature suite
+        /// can exercise the real gating — readiness, range, look direction — rather than skipping it,
+        /// which is what every input-polled behaviour in this project used to do.
+        /// </summary>
+        public bool TryInteract()
+        {
+            bool menuOpen = WandSelectMenu.I != null && WandSelectMenu.I.IsOpen;
+            if (menuOpen || !GameManager.IsPlaying || inRange == null || !IsLookedAt()) return false;
             Open(inRange);
+            return true;
         }
 
         /// <summary>

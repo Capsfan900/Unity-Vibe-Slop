@@ -94,7 +94,19 @@ namespace VibeGame1
             // item is never held in this hand — R only ever cycles between the wands themselves.
             if (!GameManager.IsPlaying || InputReader.I == null) return;
             Broadcast(false);
-            if (InputReader.I.WandCyclePressed) Next();
+            if (InputReader.I.WandCyclePressed) TryCycle();
+        }
+
+        /// <summary>
+        /// The body of the cycle press, with the input read left in <see cref="Update"/> (rule 2:
+        /// InputReader is the only script that touches the Input System). Public so the feature suite
+        /// can exercise cycling instead of skipping it.
+        /// </summary>
+        public bool TryCycle()
+        {
+            if (!GameManager.IsPlaying) return false;
+            Next();
+            return true;
         }
 
         /// <summary>The offhand always displays the equipped wand. Nothing else is ever put in it.</summary>

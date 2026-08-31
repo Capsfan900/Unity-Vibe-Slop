@@ -1495,8 +1495,18 @@ namespace VibeGame1
                 }
 
                 GameEvents.PromptChanged -= onPrompt;
-                Skip("WandPedestal_FOpensMenu",
-                    "InteractPressed is polled from InputReader inside Update; no script entry point (Open() is exercised below)");
+
+                // The press itself, through the same TryInteract() body Update calls. It must REFUSE
+                // while looking away (we are still turned away from the previous check) and succeed
+                // once aimed at the altar — proving the gating, not just that Open() works.
+                Check("WandPedestal_InteractRefusedWhenLookingAway", !pedestal.TryInteract() && !menu.IsOpen);
+                FacePoint(pedestal.transform.position + Vector3.up * 1.5f);
+                yield return null;
+                bool opened = pedestal.TryInteract();
+                yield return null;
+                Check("WandPedestal_FOpensMenu", opened && menu.IsOpen, "TryInteract opened=" + opened);
+                menu.Close();
+                yield return null;
             }
 
             if (wandCtl == null || wandCtl.loadout == null || wandCtl.loadout.Length < 2)
@@ -1547,8 +1557,21 @@ namespace VibeGame1
             yield return null;
             Check("WandPedestal_DoubleCloseIsSafe", !menu.IsOpen && menu.TimeHandle < 0);
 
-            // R cycling stays as a debug convenience alongside the pedestal (deliberate decision).
-            Skip("WandPedestal_RCyclingStillWorks", "WandCyclePressed is polled in Update; no script entry point");
+            // R cycling stays as a debug convenience alongside the pedestal (deliberate decision),
+            // so it has to keep working after the pedestal has equipped something.
+            var wandsForCycle = combat.GetComponent<WandController>();
+            int wandCount = wandsForCycle != null && wandsForCycle.loadout != null ? wandsForCycle.loadout.Length : 0;
+            if (wandCount < 2)
+                Skip("WandPedestal_RCyclingStillWorks", "fewer than two wands in the loadout to cycle between");
+            else
+            {
+                int idxBefore = wandsForCycle.Index;
+                bool cycled = wandsForCycle.TryCycle();
+                yield return null;
+                Check("WandPedestal_RCyclingStillWorks",
+                    cycled && wandsForCycle.Index != idxBefore,
+                    "index " + idxBefore + " -> " + wandsForCycle.Index + " of " + wandCount);
+            }
         }
 
         // ================================================================ 6c. WAND READABILITY
@@ -1939,7 +1962,11 @@ namespace VibeGame1
                 // path AND ground at the destination; triggers are ignored so the clone's own trigger
                 // does not read as a wall.
                 Vector3 pickDir = combat.transform.forward;
-                const float pickWalk = 1.2f;
+                // 2.4 m, not 1.2: the pickup trigger is ~1.2 m and the player capsule ~0.4 m, so a clone
+                // dropped at 1.2 m is ALREADY overlapping and is collected on the first frame — held0
+                // then reads 1, the walk has nothing left to collect, and the check fails as "held 1 -> 1"
+                // while the feature works perfectly. Spawn outside the trigger and walk in.
+                const float pickWalk = 2.4f;
                 for (int step = 0; step < 8; step++)
                 {
                     Vector3 probe = Quaternion.Euler(0f, step * 45f, 0f) * combat.transform.forward;
@@ -1952,6 +1979,9 @@ namespace VibeGame1
                 }
                 Vector3 target = combat.transform.position + pickDir * pickWalk + Vector3.up * 0.4f;
                 clone.transform.position = target;
+                yield return null;
+                // Clear AFTER the clone has settled: staging this test can itself collect something.
+                ClearItems();
                 yield return null;
 
                 int held0 = items.Held.Count;

@@ -13,7 +13,7 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 | Suite | Scope | Result |
 |---|---|---|
 | EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath` | **20 / 20 pass** |
-| `FeatureTests` | Behavioural, real systems in play mode | **518 passed · 1 failed · 2 skipped** (30.2 s), fresh play-mode session — the failure is a known staging race, see BACKLOG §4 |
+| `FeatureTests` | Behavioural, real systems in play mode | **522 passed · 0 failed · 0 skipped** (28.8 s), fresh play-mode session on `Level_01.unity` |
 
 Green, run from a fresh play-mode session on `Assets/Scenes/Level_01.unity`. The `Deathblow` section —
 the marker, the marked/unmarked press split and the marker's material separation from `M_AlertTell` — is

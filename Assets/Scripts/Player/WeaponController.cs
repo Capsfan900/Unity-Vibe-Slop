@@ -33,7 +33,10 @@ namespace VibeGame1
         {
             look = GetComponent<PlayerLook>();
             stats = GetComponent<PlayerStats>();
-            viewmodel = GetComponentInChildren<WeaponViewmodel>();
+            // includeInactive: the default overload skips disabled objects, so hiding the viewmodel root
+            // (a menu, a cutscene, a test) and reloading the scene left this null — and Equip() then
+            // silently stopped swapping weapon models with nothing logged.
+            viewmodel = GetComponentInChildren<WeaponViewmodel>(true);
             exec = GetComponent<ExecuteInteractor>();
             parry = GetComponent<ParryController>();
             flask = GetComponent<FlaskAbility>();

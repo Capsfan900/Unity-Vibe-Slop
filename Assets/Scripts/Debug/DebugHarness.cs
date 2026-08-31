@@ -101,6 +101,16 @@ namespace VibeGame1
             string suffix = spawnerName.StartsWith("Spawn_") ? spawnerName.Substring(6) : spawnerName;
             foreach (var s in all)
                 if (s.Instance != null && s.name.EndsWith(suffix)) return s.Instance.GetComponent<EnemyController>();
+
+            // Last resort: match on the ENEMY KIND alone. The campaign level renamed its spawners per
+            // tile (Spawn_GruntA -> Spawn_T1_GruntA), which the suffix pass above handles, but the
+            // sandbox names them by kind only (Spawn_Grunt), so "GruntA" matched nothing there and the
+            // harness printed "no grunt A" and exited REPORTING SUCCESS. A scene-specific naming
+            // dialect must degrade to finding the right kind of enemy, never to a silent no-op.
+            string kind = suffix.TrimEnd('A', 'B', 'C', 'D');
+            foreach (var s in all)
+                if (s.Instance != null && s.name.IndexOf(kind, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return s.Instance.GetComponent<EnemyController>();
             return null;
         }
 

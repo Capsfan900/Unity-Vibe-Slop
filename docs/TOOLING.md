@@ -58,7 +58,7 @@ hitstop scoping, parry maths, live parry outcomes, player posture, enemy posture
 wand pedestal, viewmodel arms, tell readability, deathblow, lock-on, items, flask, Pyre + super,
 progression, level flow, **level structure**, **the arena gate loop**, boss, HUD bars, audio, **the main menu**.
 
-**Last run: 518 passed · 1 failed · 2 skipped (~30 s), on `Assets/Scenes/Level_01.unity`
+**Last run: 522 passed · 0 failed · 0 skipped — `SUITE PASS` (~29 s), on `Assets/Scenes/Level_01.unity`
 from a fresh play-mode session.** It has found five real shipping bugs; full write-up in
 [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md).
 
