@@ -10,8 +10,13 @@ namespace VibeGame1
         {
             if (!facing || unblockable) return ParryResult.Hit;
             if (elapsedSincePress < 0f) return ParryResult.Hit;
-            if (elapsedSincePress <= perfectWindow) return ParryResult.Perfect;
-            if (elapsedSincePress <= perfectWindow + lateWindow) return ParryResult.Blocked;
+            // Epsilon so a press landing exactly on a window boundary resolves in the PLAYER's favour.
+            // Without it the comparison is float-fragile: the caller's `perfect + late` and ours can
+            // differ in the last bit (constant folding vs runtime addition), which silently turned an
+            // exact-boundary deflect into a full hit.
+            const float e = 1e-4f;
+            if (elapsedSincePress <= perfectWindow + e) return ParryResult.Perfect;
+            if (elapsedSincePress <= perfectWindow + lateWindow + e) return ParryResult.Blocked;
             return ParryResult.Hit;
         }
     }

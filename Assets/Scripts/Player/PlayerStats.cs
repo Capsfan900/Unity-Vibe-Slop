@@ -12,7 +12,8 @@ namespace VibeGame1
         PlayerResources resources;
 
         public float MaxHP => data.baseHP + Vitality * data.hpPerVitality;
-        public float JuicePerPerfect => data.baseJuicePerPerfect + Arcane * data.juicePerArcane;
+        /// <summary>Pyre gained by a perfect parry, before the weapon's own pyreBonus.</summary>
+        public float PyrePerPerfect => data.basePyrePerPerfect + Arcane * data.pyrePerArcane;
         public int FlaskCharges => data.flaskBaseCharges + FlaskLevel / 2;
         public float FlaskHeal => data.flaskBaseHeal + ((FlaskLevel + 1) / 2) * data.flaskHealPerLevel;
         public int TotalLevel => Vitality + Strength + Dexterity + Arcane + FlaskLevel;

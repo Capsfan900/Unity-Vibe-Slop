@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Heavy_Sweep
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Heavy_Sweep
-  windup: 0.6
+  windup: 0.55
   impactDelay: 0.05
   strikeDuration: 0.2
-  recovery: 0.6
-  range: 2.8
+  recovery: 0.35
+  range: 3.1
   coneDeg: 110
-  damage: 25
-  lungeDistance: 0.4
+  damage: 23
+  lungeDistance: 0.8
   comboGap: 0.2
   parryPostureMultiplier: 1
   unblockable: 0

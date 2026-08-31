@@ -92,7 +92,7 @@ namespace VibeGame1
                 case StatType.Vitality: return "VITALITY   +10 max HP";
                 case StatType.Strength: return "STRENGTH   hammer / sword damage";
                 case StatType.Dexterity: return "DEXTERITY  dagger / sword damage";
-                case StatType.Arcane: return "ARCANE     parry juice + ultimate";
+                case StatType.Arcane: return "ARCANE     pyre gain + super damage";
                 case StatType.Flask: return "FLASK      +heal / +charge";
             }
             return t.ToString();

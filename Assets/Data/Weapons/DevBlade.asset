@@ -35,7 +35,20 @@ MonoBehaviour:
   hitStopSeconds: 0.06
   parryWindowMultiplier: 1.6
   parryPostureDamage: 60
-  juiceBonus: 25
+  pyreBonus: 25
+  superName: Oathbreaker
+  superKind: 3
+  superDamage: 600
+  superPostureDamage: 400
+  superRadius: 12
+  superArcDeg: 360
+  superHits: 1
+  superWindup: 0.06
+  superActive: 0.1
+  superRecover: 0.24
+  superHitStop: 0.14
+  superShake: 0.7
+  superKnockback: 4
   idle:
     pos: {x: 0.45, y: -0.35, z: 0.7}
     euler: {x: 0, y: -10, z: 0}

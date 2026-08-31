@@ -6,10 +6,14 @@ namespace VibeGame1
     public static class GameEvents
     {
         public static event Action<float, float> PlayerHealthChanged;
-        public static event Action<float, float> JuiceChanged;
+        /// <summary>The Pyre meter changed: (current, max). Fires on every successful parry and on spend.</summary>
+        public static event Action<float, float> PyreChanged;
+        /// <summary>Wand cooldown ticked: (secondsRemaining, totalSeconds). 0 remaining = ready.</summary>
+        public static event Action<float, float> WandCooldownChanged;
         public static event Action<int, int> FlaskChanged;
         public static event Action<int> SoulsChanged;
         public static event Action<WeaponData> WeaponChanged;
+        public static event Action<WandData> WandChanged;
         public static event Action<ParryResult> ParryResolved;
         public static event Action<float> PlayerDamaged;
         public static event Action PlayerDied;
@@ -22,12 +26,24 @@ namespace VibeGame1
         public static event Action BossDefeated;
         public static event Action<string> PromptChanged;
         public static event Action UltimateUsed;
+        public static event Action<float, float> PlayerPostureChanged;
+        public static event Action PlayerPostureBroken;
+        /// <summary>True when a staggered enemy is in deathblow range (drives the big HUD banner).</summary>
+        public static event Action<bool> DeathblowReady;
+        /// <summary>Fires whenever the carried item list changes (pickup, use, respawn reset).</summary>
+        public static event Action<ItemData[]> ItemsChanged;
+        public static event Action<ItemData> ItemPickedUp;
+        public static event Action<ItemData> ItemUsed;
+        /// <summary>A riposte (deathblow/critical attack) landed on this enemy.</summary>
+        public static event Action<EnemyController> RiposteLanded;
 
         public static void RaisePlayerHealthChanged(float c, float m) => PlayerHealthChanged?.Invoke(c, m);
-        public static void RaiseJuiceChanged(float v) => JuiceChanged?.Invoke(v, 100f);
+        public static void RaisePyreChanged(float v, float max) => PyreChanged?.Invoke(v, max);
+        public static void RaiseWandCooldownChanged(float remaining, float total) => WandCooldownChanged?.Invoke(remaining, total);
         public static void RaiseFlaskChanged(int c, int m) => FlaskChanged?.Invoke(c, m);
         public static void RaiseSoulsChanged(int s) => SoulsChanged?.Invoke(s);
         public static void RaiseWeaponChanged(WeaponData w) => WeaponChanged?.Invoke(w);
+        public static void RaiseWandChanged(WandData w) => WandChanged?.Invoke(w);
         public static void RaiseParryResolved(ParryResult r) => ParryResolved?.Invoke(r);
         public static void RaisePlayerDamaged(float d) => PlayerDamaged?.Invoke(d);
         public static void RaisePlayerDied() => PlayerDied?.Invoke();
@@ -40,15 +56,23 @@ namespace VibeGame1
         public static void RaiseBossDefeated() => BossDefeated?.Invoke();
         public static void RaisePromptChanged(string s) => PromptChanged?.Invoke(s);
         public static void RaiseUltimateUsed() => UltimateUsed?.Invoke();
+        public static void RaisePlayerPostureChanged(float c, float m) => PlayerPostureChanged?.Invoke(c, m);
+        public static void RaisePlayerPostureBroken() => PlayerPostureBroken?.Invoke();
+        public static void RaiseDeathblowReady(bool ready) => DeathblowReady?.Invoke(ready);
+        public static void RaiseItemsChanged(ItemData[] items) => ItemsChanged?.Invoke(items);
+        public static void RaiseItemPickedUp(ItemData i) => ItemPickedUp?.Invoke(i);
+        public static void RaiseItemUsed(ItemData i) => ItemUsed?.Invoke(i);
+        public static void RaiseRiposteLanded(EnemyController e) => RiposteLanded?.Invoke(e);
 
         /// <summary>Clear all subscribers (domain reload safety when Enter Play Mode options disable reload).</summary>
         public static void ClearAll()
         {
-            PlayerHealthChanged = null; JuiceChanged = null; FlaskChanged = null; SoulsChanged = null;
-            WeaponChanged = null; ParryResolved = null; PlayerDamaged = null; PlayerDied = null;
+            PlayerHealthChanged = null; PyreChanged = null; WandCooldownChanged = null; FlaskChanged = null; SoulsChanged = null;
+            WeaponChanged = null; WandChanged = null; ParryResolved = null; PlayerDamaged = null; PlayerDied = null;
             PlayerRespawned = null; CheckpointReached = null; EnemyKilled = null; BossStarted = null;
             BossHealthChanged = null; BossPostureChanged = null; BossDefeated = null; PromptChanged = null;
-            UltimateUsed = null;
+            UltimateUsed = null; PlayerPostureChanged = null; PlayerPostureBroken = null; DeathblowReady = null;
+            ItemsChanged = null; ItemPickedUp = null; ItemUsed = null; RiposteLanded = null;
         }
     }
 }

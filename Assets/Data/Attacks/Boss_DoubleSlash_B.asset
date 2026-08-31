@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Boss_DoubleSlash_B
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Boss_DoubleSlash_B
-  windup: 0.3
+  windup: 0.45
   impactDelay: 0.05
   strikeDuration: 0.2
   recovery: 0.7
-  range: 3.2
+  range: 3.9
   coneDeg: 80
   damage: 25
-  lungeDistance: 0.7
+  lungeDistance: 1.3
   comboGap: 0.2
   parryPostureMultiplier: 1
   unblockable: 0

@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Grunt_Slash
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Grunt_Slash
-  windup: 0.55
+  windup: 0.5
   impactDelay: 0.05
   strikeDuration: 0.2
-  recovery: 0.7
-  range: 2.4
+  recovery: 0.35
+  range: 2.7
   coneDeg: 70
-  damage: 20
-  lungeDistance: 0.5
+  damage: 18
+  lungeDistance: 0.75
   comboGap: 0.2
   parryPostureMultiplier: 1
   unblockable: 0

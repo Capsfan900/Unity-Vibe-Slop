@@ -25,6 +25,7 @@ namespace VibeGame1
         ExecuteInteractor exec;
         ParryController parry;
         FlaskAbility flask;
+        PlayerCombat combat;
         readonly Collider[] hits = new Collider[16];
         readonly HashSet<EnemyController> hitSet = new HashSet<EnemyController>();
 
@@ -36,7 +37,11 @@ namespace VibeGame1
             exec = GetComponent<ExecuteInteractor>();
             parry = GetComponent<ParryController>();
             flask = GetComponent<FlaskAbility>();
+            combat = GetComponent<PlayerCombat>();
         }
+
+        void OnEnable() { GameEvents.PlayerPostureBroken += CancelAttack; }
+        void OnDisable() { GameEvents.PlayerPostureBroken -= CancelAttack; }
 
         void Start()
         {
@@ -64,16 +69,26 @@ namespace VibeGame1
             else if (input.NextPressed) Equip((Index + 1) % loadout.Length);
             else if (input.PrevPressed) Equip((Index - 1 + loadout.Length) % loadout.Length);
 
-            if (input.AttackPressed)
-            {
-                if (exec != null && exec.TryExecute()) { CancelAttack(); return; }
-                if (exec != null && exec.IsExecuting) return;
-                if (flask != null && flask.IsDrinking) return;
-                if (parry != null && parry.IsActive) return;
+            if (input.AttackPressed) TryAttack();
+        }
 
-                if (IsAttacking) { queued = true; }
-                else StartSwing();
-            }
+        /// <summary>
+        /// One attack press: execute a staggered target if one is in reach, otherwise start a swing or
+        /// queue the next combo step. <see cref="Update"/> calls this when <see cref="InputReader"/>
+        /// reports the press — input is still read only there. Returns whether the press was consumed.
+        /// </summary>
+        public bool TryAttack()
+        {
+            if (Current == null) return false;
+            if (combat != null && combat.IsStaggered) return false;
+            if (exec != null && exec.TryExecute()) { CancelAttack(); return true; }
+            if (exec != null && exec.IsExecuting) return false;
+            if (flask != null && flask.IsDrinking) return false;
+            if (parry != null && parry.IsActive) return false;
+
+            if (IsAttacking) queued = true;
+            else StartSwing();
+            return true;
         }
 
         void StartSwing()
@@ -97,7 +112,8 @@ namespace VibeGame1
             IsAttacking = false;
             swing = null;
             comboWindowEnd = Time.time + w.comboWindow;
-            if (queued && combo + 1 < w.comboLength && GameManager.IsPlaying) StartSwing();
+            bool staggered = combat != null && combat.IsStaggered;
+            if (queued && combo + 1 < w.comboLength && GameManager.IsPlaying && !staggered) StartSwing();
             else queued = false;
         }
 

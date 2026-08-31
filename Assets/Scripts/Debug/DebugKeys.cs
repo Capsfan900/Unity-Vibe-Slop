@@ -6,14 +6,14 @@ namespace VibeGame1
     /// <summary>
     /// Developer hotkeys (editor / development builds only). Lives on the Managers prefab.
     ///   F5  warp to the boss arena entrance and equip the test blade (slot 4)
-    ///   F6  full heal, refill flasks, fill parry juice
+    ///   F6  full heal, refill flasks, fill the Pyre meter
     ///   F7  +1000 souls
     ///   F8  toggle god mode (invulnerable)
     /// </summary>
     public class DebugKeys : MonoBehaviour
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        static readonly Vector3 ArenaEntrance = new Vector3(0f, 18.2f, 150f);
+        static readonly Vector3 ArenaEntrance = new Vector3(0f, 28.2f, 296f);
         const int TestWeaponSlot = 3;
 
         Coroutine promptRoutine;
@@ -36,8 +36,9 @@ namespace VibeGame1
             var player = Player();
             if (player == null || LevelManager.I == null) return;
 
-            // Registers checkpoint 2 as the respawn point (also heals / refills), then step to the gate.
-            LevelManager.I.Warp("Checkpoint_2");
+            // Registers the boss checkpoint as the respawn point (also heals / refills), then step to the
+            // gate. Checkpoint_4 is the boss tile: one checkpoint per tile, so this is the last of four.
+            LevelManager.I.Warp("Checkpoint_4");
             var motor = player.GetComponent<FirstPersonMotor>();
             var look = player.GetComponent<PlayerLook>();
             if (motor != null) motor.Teleport(ArenaEntrance, 0f);
@@ -56,8 +57,10 @@ namespace VibeGame1
             if (player == null) return;
             player.Health.ResetFull();
             var res = player.GetComponent<PlayerResources>();
-            if (res != null) { res.RefillFlask(); res.AddJuice(1000f); }
-            Say("DEBUG: HEALED / FLASKS / JUICE");
+            if (res != null) { res.RefillFlask(); res.AddPyre(1000f); }
+            var wc = player.GetComponent<WandController>();
+            if (wc != null) wc.ResetCooldown();
+            Say("DEBUG: HEALED / FLASKS / PYRE / WAND");
         }
 
         void GiveSouls()

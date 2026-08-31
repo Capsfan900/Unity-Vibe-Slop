@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e21a596daad07f7498bdd915254f0c9d, type: 3}
+  m_Name: SoulLantern
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ItemData
+  displayName: Soul Lantern
+  shortLabel: LANTERN
+  description: Restores flesh, composure and flask in one breath.
+  effect: 1
+  color: {r: 4.392157, g: 3.137255, b: 0.9411765, a: 1}
+  viewmodelPrefab: {fileID: 9045612283823977247, guid: cbed04327617d3f4ba7838ae509a6a42, type: 3}
+  viewmodelScale: 0.5
+  radius: 12
+  damage: 250
+  power: 18
+  duration: 2.5

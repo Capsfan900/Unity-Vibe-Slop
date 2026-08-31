@@ -14,6 +14,7 @@ namespace VibeGame1
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
                     debugWarpBoss, debugRestore, debugSouls, debugGodMode;
+        InputAction useItem, testMenu, wandCycle, interact;
 
         void Awake()
         {
@@ -42,6 +43,10 @@ namespace VibeGame1
             slot3 = map.FindAction("WeaponSlot3", true);
             levelUp = map.FindAction("LevelUpMenu", true);
             pause = map.FindAction("Pause", true);
+            useItem = map.FindAction("UseItem", false);
+            testMenu = map.FindAction("TestMenu", false);
+            wandCycle = map.FindAction("WandCycle", false);
+            interact = map.FindAction("Interact", false);
             // optional actions: missing ones must not crash startup
             slot4 = map.FindAction("WeaponSlot4", false);
             debugWarpBoss = map.FindAction("DebugWarpBoss", false);
@@ -67,6 +72,12 @@ namespace VibeGame1
         public bool NextPressed => next != null && next.WasPressedThisFrame();
         public bool LevelUpPressed => levelUp != null && levelUp.WasPressedThisFrame();
         public bool PausePressed => pause != null && pause.WasPressedThisFrame();
+        public bool UseItemPressed => useItem != null && useItem.WasPressedThisFrame();
+        public bool TestMenuPressed => testMenu != null && testMenu.WasPressedThisFrame();
+        public bool WandCyclePressed => wandCycle != null && wandCycle.WasPressedThisFrame();
+
+        /// <summary>F (or gamepad north): deliberate world interaction, e.g. the wand pedestal.</summary>
+        public bool InteractPressed => interact != null && interact.WasPressedThisFrame();
 
         // Debug keys (F5-F8). Consumed by DebugKeys in editor / development builds only.
         public bool DebugWarpBossPressed => debugWarpBoss != null && debugWarpBoss.WasPressedThisFrame();

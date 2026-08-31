@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Heavy_Overhead
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Heavy_Overhead
-  windup: 0.85
+  windup: 0.75
   impactDelay: 0.05
   strikeDuration: 0.2
-  recovery: 1
-  range: 2.8
+  recovery: 0.5
+  range: 3.2
   coneDeg: 60
-  damage: 35
-  lungeDistance: 0.8
-  comboGap: 0.25
-  parryPostureMultiplier: 1
+  damage: 32
+  lungeDistance: 1.3
+  comboGap: 0.22
+  parryPostureMultiplier: 1.3
   unblockable: 0

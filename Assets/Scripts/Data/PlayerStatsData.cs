@@ -10,22 +10,57 @@ namespace VibeGame1
         public float hpPerVitality = 10f;
 
         [Header("Parry")]
-        public float parryPerfectWindow = 0.15f;
-        public float parryLateWindow = 0.20f;
-        public float parryWhiffRecovery = 0.25f;
+        public float parryPerfectWindow = 0.13f;
+        public float parryLateWindow = 0.12f;
+        [Tooltip("Recovery after a parry pressed at NOTHING. Long on purpose: this is the mash tax.")]
+        public float parryWhiffRecovery = 0.5f;
         public float parrySuccessRecovery = 0.08f;
         public float blockDamageMultiplier = 0.3f;
         public float facingConeDeg = 75f;
 
-        [Header("Juice / Ultimate")]
-        public float maxJuice = 100f;
-        public float baseJuicePerPerfect = 25f;
-        public float juicePerArcane = 1f;
+        [Header("Parry responsiveness")]
+        [Tooltip("A parry press is remembered for this long and spent the instant the player can act again, " +
+                 "so input is never silently dropped mid-flurry. Costs no latency when already idle.")]
+        public float parryInputBuffer = 0.2f;
+        [Tooltip("Recovery after a parry that MISSED its window while an attack was genuinely incoming. " +
+                 "Far shorter than the mash tax: a mistimed deflect is a mistake, not spam, and eating the " +
+                 "full penalty would lock the player out of the next hit of a combo.")]
+        public float parryMistimeRecovery = 0.2f;
+        [Tooltip("How far ahead to look for a scheduled impact when deciding whether a press was contested.")]
+        public float parryIncomingLookahead = 0.6f;
+        [Tooltip("Recovery is clamped so it always ends this long BEFORE the next parry cue fires.")]
+        public float parryCueSafetyMargin = 0.04f;
+        [Tooltip("Floor for a clamped recovery, so a deflect still reads as a distinct beat.")]
+        public float parryMinRecovery = 0.05f;
+
+        [Header("Posture (Sekiro)")]
+        public float basePosture = 100f;
+        public float posturePerVitality = 4f;
+        public float postureRegenPerSecond = 22f;
+        public float postureRegenDelay = 1.2f;
+        public float postureStaggerSeconds = 1.5f;
+        [Tooltip("Posture gained per point of incoming damage when the hit is BLOCKED (late parry).")]
+        public float blockPostureMultiplier = 0.9f;
+        [Tooltip("Posture gained per point of incoming damage when the hit lands clean.")]
+        public float hitPostureMultiplier = 0.5f;
+        [Tooltip("Damage amplification while the player's posture is broken.")]
+        public float staggeredDamageMultiplier = 1.6f;
+
+        [Header("Pyre (the parry charge meter) / Super attack")]
+        [Tooltip("Full bar. At full the equipped weapon's super attack unlocks on Q.")]
+        public float maxPyre = 100f;
+        [Tooltip("Pyre gained by a PERFECT parry, before the weapon's pyreBonus and Arcane.")]
+        public float basePyrePerPerfect = 25f;
+        [Tooltip("Fraction of the perfect gain awarded for a BLOCK (late parry). A block survives a " +
+                 "hit; it is not mastery, so it stokes the fire far more slowly.")]
+        public float pyreBlockFraction = 0.35f;
+        [Tooltip("Extra Pyre per perfect parry per point of Arcane.")]
+        public float pyrePerArcane = 1f;
+        [Tooltip("The Pyre bar does NOT decay. It is spent, in full, by the super attack.")]
         public float ultSlowScale = 0.25f;
         public float ultSlowSeconds = 1.6f;
-        public float ultRadius = 10f;
-        public float ultBaseDamage = 80f;
-        public float ultDamagePerArcane = 4f;
+        [Tooltip("Fraction of a BOSS's posture bar a super fills. Ordinary enemies take the weapon's " +
+                 "full superPostureDamage instead.")]
         public float ultBossPostureFraction = 0.5f;
 
         [Header("Flask")]

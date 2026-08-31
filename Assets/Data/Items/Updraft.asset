@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e21a596daad07f7498bdd915254f0c9d, type: 3}
+  m_Name: Updraft
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ItemData
+  displayName: Updraft
+  shortLabel: LIFT
+  description: Hurls you skyward. For roads that go up.
+  effect: 0
+  color: {r: 3.019608, g: 4.392157, b: 2.3921568, a: 1}
+  viewmodelPrefab: {fileID: 2872277088637826703, guid: 7490a281e4691d94fafb29827ddcd0b7, type: 3}
+  viewmodelScale: 0.5
+  radius: 12
+  damage: 250
+  power: 20
+  duration: 2.5

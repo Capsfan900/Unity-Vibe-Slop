@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Legendary_Spellsword
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
+  displayName: THE ASHEN CHORISTER
+  maxHP: 300
+  maxPosture: 210
+  postureRegen: 8
+  postureRegenDelay: 3
+  staggerSeconds: 3.6
+  moveSpeed: 5.2
+  turnSpeed: 320
+  aggroRange: 22
+  attackRange: 3
+  attackCooldown: 0.25
+  parryRecoilSeconds: 0.5
+  aggression: 0.7
+  windupTurnMultiplier: 0.3
+  stepSpeedMultiplier: 0.42
+  stepAcceleration: 7
+  stepDeadzone: 0.95
+  comboBreathSeconds: 0.45
+  readyDistanceMultiplier: 1.75
+  preferredRange: 4.3
+  commitTolerance: 0.8
+  repositionDeadzone: 0.5
+  backStepSpeedMultiplier: 0.36
+  strafeSpeedMultiplier: 0.34
+  lungeMinDistance: 1.6
+  soulValue: 900
+  bodyColor: {r: 0.043137256, g: 0.023529412, b: 0.0627451, a: 1}
+  emission: {r: 0.8117647, g: 0.24705884, b: 1.3117647, a: 1.5}
+  scale: 1.5
+  moveset: {fileID: 11400000, guid: 19b21762274a1f24aab3f4ac22a41f3a, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 05db1d54169f3e0418cf68085286ffbe, type: 2}
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    - {fileID: 11400000, guid: 9aa75bf482f09cf4a9e1b23e823e897e, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: ea786f9de7d40e34184678ce274181d7, type: 2}
+    - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+    - {fileID: 11400000, guid: 05db1d54169f3e0418cf68085286ffbe, type: 2}
+    - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}

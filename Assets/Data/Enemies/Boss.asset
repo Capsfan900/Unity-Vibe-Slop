@@ -24,10 +24,24 @@ MonoBehaviour:
   attackRange: 3
   attackCooldown: 0.5
   parryRecoilSeconds: 0.6
+  aggression: 0
+  windupTurnMultiplier: 0.45
+  stepSpeedMultiplier: 0.35
+  stepAcceleration: 6
+  stepDeadzone: 0.95
+  comboBreathSeconds: 0.5
+  readyDistanceMultiplier: 1.6
+  preferredRange: 4.6
+  commitTolerance: 0.8
+  repositionDeadzone: 0.55
+  backStepSpeedMultiplier: 0.32
+  strafeSpeedMultiplier: 0.3
+  lungeMinDistance: 1.8
   soulValue: 1500
   bodyColor: {r: 0.050980393, g: 0.023529412, b: 0.07058824, a: 1}
   emission: {r: 0.76549023, g: 0.10039216, b: 0.3011765, a: 1.6}
   scale: 2.2
+  moveset: {fileID: 11400000, guid: 317715a9dd2819346b381edabf3e0262, type: 2}
   combos:
   - hits:
     - {fileID: 11400000, guid: 2f3058e2e67a5144180fae72a4bf662d, type: 2}

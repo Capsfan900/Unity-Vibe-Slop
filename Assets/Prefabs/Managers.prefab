@@ -89,8 +89,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecf846fe4af211d41ac8c4fad3e81bf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.AudioManager
-  masterVolume: 0.6
-  droneVolume: 0.22
+  masterVolume: 0.7
+  musicVolume: 0.45
+  musicFadeSeconds: 1.5
 --- !u!114 &1080047369039275882
 MonoBehaviour:
   m_ObjectHideFlags: 0

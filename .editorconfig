@@ -1,0 +1,107 @@
+# EditorConfig for vibegame1 (Unity 6 / C#)
+# Tuned to MATCH the existing codebase rather than fight it: Allman braces, 4-space indent,
+# explicit types in most places. Style rules are mostly `silent` so nobody gets a wall of
+# squiggles for code that is already consistent.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = crlf
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+# Unity-generated YAML: never reformat these by hand.
+[*.{unity,prefab,asset,mat,meta,controller,anim,physicMaterial,inputactions}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[*.cs]
+indent_size = 4
+end_of_line = crlf
+
+#### Brace / newline style (Allman — matches every file in Assets/Scripts) ####
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+#### Indentation ####
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+
+#### Spacing ####
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+
+#### Wrapping — the codebase uses single-line guard clauses heavily (`if (x) return;`) ####
+csharp_preserve_single_line_statements = true
+csharp_preserve_single_line_blocks = true
+
+#### `var` — codebase mixes both deliberately, so express a preference without nagging ####
+csharp_style_var_for_built_in_types = false:silent
+csharp_style_var_when_type_is_apparent = true:silent
+csharp_style_var_elsewhere = false:silent
+
+#### Expression-bodied members — used for one-line properties/raisers (GameEvents.cs) ####
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_expression_bodied_properties = true:silent
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_expression_bodied_constructors = false:silent
+
+#### Modern C# niceties, suggested not enforced ####
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_style_throw_expression = true:silent
+csharp_prefer_braces = when_multiline:silent
+csharp_using_directive_placement = outside_namespace:silent
+
+#### Naming / qualification — Unity convention is no `this.` ####
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_predefined_type_for_member_access = true:suggestion
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+# Unity overloads == for UnityEngine.Object (destroyed-object checks), so `is null` is NOT equivalent.
+dotnet_style_prefer_is_null_check_over_reference_equality_method = false:silent
+
+#### Noise suppression for Unity patterns ####
+# Serialized private fields look "unused" to the analyzer but are set in the Inspector.
+dotnet_diagnostic.IDE0044.severity = none   # make field readonly
+dotnet_diagnostic.IDE0051.severity = none   # unused private member (Awake/Start/Update, [SerializeField])
+dotnet_diagnostic.IDE0052.severity = none   # unread private member
+
+#### Generated / vendored code: leave it alone ####
+[{Library,Temp,Obj,Build,Builds,Logs,UserSettings}/**]
+generated_code = true
+
+[Assets/Scripts/**.cs]
+# Game code — same rules as above, listed explicitly so IDEs scope correctly.
+indent_size = 4

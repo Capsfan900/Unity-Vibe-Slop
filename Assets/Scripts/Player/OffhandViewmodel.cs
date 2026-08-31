@@ -1,0 +1,491 @@
+using System.Collections;
+using UnityEngine;
+
+namespace VibeGame1
+{
+    /// <summary>
+    /// The persistent left-hand viewmodel. Unlike the weapon viewmodel this is ALWAYS on screen —
+    /// the previous build only spawned the wand for the length of a riposte, which is why the blast
+    /// read as an explosion with no visible source.
+    ///
+    /// Sits camera-left and slightly low so it frames without covering the crosshair.
+    /// </summary>
+    public class OffhandViewmodel : MonoBehaviour
+    {
+        [Header("Placement (local to the camera)")]
+        // Held close to the lens. At 95° FOV a wand a metre out is a matchstick; the readable distance
+        // for a 0.5m prop is around half a metre, which is why these are all well under 0.7.
+        public Vector3 restPosition = new Vector3(-0.34f, -0.30f, 0.52f);
+        public Vector3 restEuler = new Vector3(10f, 18f, -10f);
+        public Vector3 raisedPosition = new Vector3(-0.24f, -0.17f, 0.46f);
+        public Vector3 raisedEuler = new Vector3(-4f, 6f, -6f);
+
+        [Header("Riposte thrust")]
+        // Drawn back and out of the way, wrist cocked, charge building at the tip. Deliberately further
+        // from centre than the rest pose so the stab that follows travels a visible distance.
+        public Vector3 cockedPosition = new Vector3(-0.48f, -0.32f, 0.38f);
+        public Vector3 cockedEuler = new Vector3(24f, 42f, -22f);
+        // Full extension: inward toward screen centre and PITCHED FORWARD so the wand visibly points at
+        // the victim. Two things were wrong before. The pose kept the wand upright, so it never aimed at
+        // anything; and it pushed z out to 1.0, which shrank the wand to a splinter and parked it inside
+        // the enemy's silhouette — a dark prop on a dark body is an invisible prop. Held near the lens and
+        // angled, the wand keeps its full length on screen and the blast has a visible muzzle.
+        public Vector3 thrustPosition = new Vector3(-0.17f, -0.12f, 0.66f);
+        public Vector3 thrustEuler = new Vector3(58f, -10f, 6f);
+        /// <summary>Follow speed during the stab itself. High: the commit must be near-instant.</summary>
+        public float thrustFollow = 30f;
+
+        [Header("Tip light")]
+        // The world is near-black and the wand shaft is a dark material, so without its own light the
+        // prop silhouettes into the background and only the emissive tip survives. This light is what
+        // makes the wand READ as an object in the hand — and, on the discharge frame, what lights the
+        // victim from the wand rather than from nowhere.
+        public bool tipLightEnabled = true;
+        public float tipLightIdle = 1.6f;
+        public float tipLightCharged = 9f;
+        public float tipLightMuzzle = 26f;
+        public float tipLightRange = 10f;
+
+        [Header("Feel")]
+        public float swayAmount = 0.0016f;
+        public float bobAmount = 0.018f;
+        public float followSpeed = 12f;
+
+        [Header("Arm rig")]
+        /// <summary>Posed node the wand/item hangs off. Serialized so PrefabFactory can hang a hand on it.</summary>
+        public Transform model;
+        /// <summary>The gauntleted left hand, a rigid child of <see cref="model"/>.</summary>
+        public Transform hand;
+        /// <summary>Child of <see cref="hand"/>. Wands and items parent HERE, never to model.</summary>
+        public Transform grip;
+        /// <summary>Solves the left arm from a camera-fixed shoulder to the hand. Lives under the Camera,
+        /// NOT under this transform, because this transform is itself swung around by the poses.</summary>
+        public ViewmodelArm arm;
+
+        GameObject instance;
+        FirstPersonMotor motor;
+        Coroutine anim;
+        Vector3 sway;
+        float bobT;
+        Vector3 curPos;
+        Quaternion curRot;
+        bool raised;
+        Color currentTint = Color.white;   // hue of whatever is currently in hand, for tip FX
+
+        // While a thrust is running the pose is driven by the coroutine instead of the idle rest/raised
+        // targets. LateUpdate still owns the actual transform write, so sway and easing stay in one place.
+        bool poseOverride;
+        Vector3 overridePos;
+        Quaternion overrideRot = Quaternion.identity;
+        float overrideFollow = 14f;
+
+        Light tipLight;
+        float charge;      // 0..1, mirrors what is pushed into EnergyGlow
+        float muzzle;      // decaying 0..1 discharge kick on the tip light
+
+        static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
+        static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+
+        void Awake()
+        {
+            motor = GetComponentInParent<FirstPersonMotor>();
+            if (model == null)
+            {
+                var go = new GameObject("OffhandModel");
+                go.transform.SetParent(transform, false);
+                model = go.transform;
+            }
+            if (grip == null) grip = hand != null ? hand : model;
+            curPos = restPosition;
+            curRot = Quaternion.Euler(restEuler);
+
+            if (tipLightEnabled)
+            {
+                var lg = new GameObject("TipLight");
+                lg.transform.SetParent(transform, false);
+                tipLight = lg.AddComponent<Light>();
+                tipLight.type = LightType.Point;
+                tipLight.range = tipLightRange;
+                tipLight.intensity = tipLightIdle;
+                tipLight.shadows = LightShadows.None;
+                tipLight.renderMode = LightRenderMode.ForcePixel;
+            }
+        }
+
+        public void ShowWand(WandData wand)
+        {
+            Clear();
+            if (wand == null) return;
+            Spawn(wand.viewmodelPrefab, wand.viewmodelScale, wand.color);
+        }
+
+        public void ShowItem(ItemData item)
+        {
+            Clear();
+            if (item == null) return;
+
+            // Each spell has its own model, so a swapped-in item tells you WHICH spell is queued at a
+            // glance. Every item showing the same tinted cube made the three read as one.
+            if (item.viewmodelPrefab != null)
+            {
+                Spawn(item.viewmodelPrefab, item.viewmodelScale, item.color);
+                return;
+            }
+
+            // Fallback only: an item with no authored viewmodel still gets a readable emissive shard.
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var col = go.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            go.name = "ItemShard";
+            go.transform.SetParent(grip != null ? grip : model, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
+            go.transform.localScale = Vector3.one * 0.16f;
+            instance = go;
+            currentTint = item.color;
+            Tint(item.color);
+            StripShadows(go);
+        }
+
+        void Spawn(GameObject prefab, float scale, Color tint)
+        {
+            if (prefab == null) return;
+            instance = Instantiate(prefab, grip != null ? grip : model);
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale = Vector3.one * Mathf.Max(0.01f, scale);
+            currentTint = tint;
+            Tint(tint);
+            StripShadows(instance);
+            CloseHandOn(instance);
+        }
+
+        /// <summary>
+        /// Slide the HAND onto the wand's grip without moving the wand. Same trick as the weapon hand:
+        /// the hand moves to the prefab's <c>Grip*</c> part and the grip node moves by the exact
+        /// opposite, so every readability-tuned pose still puts the wand on the same pixels. An item
+        /// shard with no authored grip is simply held in the middle of the palm.
+        /// </summary>
+        void CloseHandOn(GameObject inst)
+        {
+            if (hand == null || grip == null || model == null || grip == model || grip == hand) return;
+            hand.localPosition = Vector3.zero;
+            grip.localPosition = Vector3.zero;
+            if (inst == null) return;
+            Transform g = WeaponViewmodel.FindGrip(inst.transform);
+            if (g == null) return;
+            Vector3 p = model.InverseTransformPoint(g.position);
+            hand.localPosition = p;
+            grip.localPosition = -p;
+        }
+
+        static void StripShadows(GameObject go)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+        }
+
+        /// <summary>
+        /// ONE WRITER PER MATERIAL CHANNEL. When the model carries an <see cref="EnergyGlow"/> it owns
+        /// `_EmissionColor` and rewrites it every frame, so a property block written here would be
+        /// erased on the next LateUpdate — the hue must go through the glow instead. The direct write
+        /// below is only for legacy models that have no glow component.
+        /// </summary>
+        void Tint(Color c)
+        {
+            if (instance == null) return;
+
+            var glow = instance.GetComponent<EnergyGlow>();
+            if (glow != null)
+            {
+                glow.Collect();       // the model was just instantiated; bind its Seg*/Tip*/Float* parts
+                glow.SetTint(c);
+                return;
+            }
+
+            var mpb = new MaterialPropertyBlock();
+            mpb.SetColor(EmissionId, c);
+            mpb.SetColor(BaseColorId, Color.black);
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in renderers)
+            {
+                // Only recolour the emissive tip; the shaft stays dark.
+                if (r.name.StartsWith("Tip") || renderers.Length == 1)
+                    r.SetPropertyBlock(mpb);
+            }
+        }
+
+        /// <summary>Drive the in-hand charge tell, when the model supports it.</summary>
+        void SetGlowCharge(float value)
+        {
+            charge = Mathf.Clamp01(value);   // the tip light reads this too, so it brightens with the wind-up
+            if (instance == null) return;
+            var glow = instance.GetComponent<EnergyGlow>();
+            if (glow != null) glow.SetCharge(value);
+        }
+
+        /// <summary>
+        /// Blow the tip light out for a moment. Called on the discharge frame so the blast is lit FROM
+        /// the wand — the light travelling outward from the hand is what tells the player where the
+        /// magic came from, and it costs nothing that a screen-wide white flash was previously doing
+        /// far more crudely.
+        /// </summary>
+        public void MuzzleFlash() { muzzle = 1f; }
+
+        void Clear()
+        {
+            // Swapping what is in the hand cancels any pose the old model was holding, or the new one
+            // spawns already stuck at the end of the previous thrust.
+            CancelAnim();
+            if (instance != null) Destroy(instance);
+            instance = null;
+            CloseHandOn(null);   // empty hand returns to the neutral palm position
+        }
+
+        /// <summary>Bring the offhand up into frame (riposte charge, item use).</summary>
+        public void Raise(bool value) => raised = value;
+
+        /// <summary>
+        /// Stops whatever animation is running AND releases the thrust pose. These have to move together:
+        /// ThrustCo is the only animation that hands LateUpdate an override, so cancelling it without
+        /// clearing the override would strand the wand at full extension for the rest of the run.
+        /// </summary>
+        void CancelAnim()
+        {
+            if (anim != null) StopCoroutine(anim);
+            anim = null;
+            poseOverride = false;
+        }
+
+        /// <summary>
+        /// World position of the wand's emissive tip, so callers can originate a blast where the wand
+        /// actually is. Falls back to the model root for item shards, which have no named tip.
+        /// </summary>
+        public Vector3 TipWorldPosition
+        {
+            get
+            {
+                if (instance != null)
+                {
+                    foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
+                        if (r.name.StartsWith("Tip")) return r.bounds.center;
+                    return instance.transform.position;
+                }
+                return model != null ? model.position : transform.position;
+            }
+        }
+
+        /// <summary>
+        /// The charge tell. A glint that builds at the tip over the wind-up, so a riposte reads as
+        /// "the wand did that" instead of an explosion with no visible source — which is exactly how
+        /// it read when the wand only existed for the length of the blast.
+        /// </summary>
+        public void PlayCharge(float seconds, Color c)
+        {
+            CancelAnim();
+            anim = StartCoroutine(ChargeCo(Mathf.Max(0.05f, seconds), c));
+        }
+
+        IEnumerator ChargeCo(float seconds, Color c)
+        {
+            raised = true;
+            float t = 0f;
+            float nextGlint = 0f;
+            while (t < seconds)
+            {
+                // Glints accelerate as the charge builds: the cadence itself signals the release.
+                float k = Mathf.Clamp01(t / seconds);
+                // The model itself winds up: flow accelerates and the tip brightens as release nears.
+                SetGlowCharge(k);
+                if (t >= nextGlint)
+                {
+                    nextGlint = t + Mathf.Lerp(0.10f, 0.035f, k);
+                    SlashFx.Flare(TipWorldPosition, c, Mathf.Lerp(0.10f, 0.34f, k), 0.13f);
+                }
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            SetGlowCharge(0f);   // discharged — drop straight back to idle
+            anim = null;
+        }
+
+        /// <summary>
+        /// The riposte stab. Four beats: COCK (draw back over <paramref name="windup"/> while the charge
+        /// builds at the tip), STAB (snap to full extension — the impact frame), HOLD (buried in the
+        /// victim for <paramref name="hold"/>), WITHDRAW (hand the pose back to the idle easing, which
+        /// takes <paramref name="recover"/> to settle).
+        ///
+        /// <para>The caller times damage to land at <c>windup</c>, so the wand is at full extension on the
+        /// exact frame the enemy is hit — that is the whole point of the rework: you see the wand go in.</para>
+        ///
+        /// <para>Owns the full animation, so nothing else may call PlayCharge/PlayFire while it runs —
+        /// they share <c>anim</c> and would cancel the hold mid-stab.</para>
+        /// </summary>
+        public void PlayThrust(float windup, float hold, float recover)
+        {
+            CancelAnim();
+            anim = StartCoroutine(ThrustCo(Mathf.Max(0.05f, windup), Mathf.Max(0.02f, hold), Mathf.Max(0.05f, recover)));
+        }
+
+        IEnumerator ThrustCo(float windup, float hold, float recover)
+        {
+            raised = true;
+
+            // ---- 1. COCK ---------------------------------------------------------------------------
+            // Eased rather than snapped, so the draw-back reads as winding up and telegraphs the stab.
+            poseOverride = true;
+            overridePos = cockedPosition;
+            overrideRot = Quaternion.Euler(cockedEuler);
+            overrideFollow = 13f;
+
+            float t = 0f;
+            float nextGlint = 0f;
+            while (t < windup)
+            {
+                float k = Mathf.Clamp01(t / windup);
+                SetGlowCharge(k);
+                if (t >= nextGlint)
+                {
+                    // Same accelerating cadence as ChargeCo: the rhythm of the glints IS the timer.
+                    nextGlint = t + Mathf.Lerp(0.11f, 0.035f, k);
+                    SlashFx.Flare(TipWorldPosition, currentTint, Mathf.Lerp(0.09f, 0.32f, k), 0.13f);
+                }
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            // ---- 2. STAB ---------------------------------------------------------------------------
+            // No interpolation window of its own: the target flips and the follow speed more than doubles,
+            // so the hand crosses the whole distance in two or three frames. A committed thrust should
+            // arrive, not travel.
+            overridePos = thrustPosition;
+            overrideRot = Quaternion.Euler(thrustEuler);
+            overrideFollow = thrustFollow;
+            SetGlowCharge(1f);
+
+            // ---- 3. HOLD ---------------------------------------------------------------------------
+            // The wand sits in the wound. This beat is what sells the stab as a commitment rather than a
+            // poke, and it is where the mist and the camera punch play.
+            t = 0f;
+            while (t < hold) { t += Time.unscaledDeltaTime; yield return null; }
+
+            // ---- 4. WITHDRAW -----------------------------------------------------------------------
+            // Releasing the override drops back to the ordinary raised/rest easing, which pulls the wand
+            // out at followSpeed — slower than it went in, so the recovery is readable.
+            SetGlowCharge(0f);
+            poseOverride = false;
+            t = 0f;
+            while (t < recover) { t += Time.unscaledDeltaTime; yield return null; }
+            raised = false;
+            anim = null;
+        }
+
+        public void PlayUse()
+        {
+            CancelAnim();
+            anim = StartCoroutine(PulseCo());
+        }
+
+        public void PlayFire()
+        {
+            CancelAnim();
+            anim = StartCoroutine(RecoilCo());
+        }
+
+        IEnumerator PulseCo()
+        {
+            raised = true;
+            // A single glint at the tip so spending an item visibly happens IN YOUR HAND.
+            SlashFx.Flare(TipWorldPosition, currentTint, 0.26f, 0.16f);
+            float t = 0f;
+            while (t < 0.35f) { t += Time.unscaledDeltaTime; yield return null; }
+            raised = false;
+            anim = null;
+        }
+
+        IEnumerator RecoilCo()
+        {
+            raised = true;
+            // Muzzle spray forward off the tip: the blast leaves the wand rather than appearing on top
+            // of the enemy with nothing connecting the two.
+            Vector3 fwd = transform.parent != null ? transform.parent.forward : Vector3.forward;
+            SlashFx.Sparks(TipWorldPosition, fwd, currentTint, 10, 7f, 18f);
+            SlashFx.Flare(TipWorldPosition, currentTint, 0.42f, 0.14f);
+            float t = 0f;
+            while (t < 0.12f)
+            {
+                curPos += Vector3.back * (0.9f * Time.unscaledDeltaTime);
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            t = 0f;
+            while (t < 0.4f) { t += Time.unscaledDeltaTime; yield return null; }
+            raised = false;
+            anim = null;
+        }
+
+        void LateUpdate()
+        {
+            float udt = Time.unscaledDeltaTime;
+
+            Vector2 look = InputReader.I != null && InputReader.I.LookIsMouse ? InputReader.I.LookDelta : Vector2.zero;
+            // Offhand sways opposite the weapon hand so the two do not move as one rigid block.
+            Vector3 targetSway = Vector3.ClampMagnitude(new Vector3(look.x, look.y, 0f) * swayAmount, 0.05f);
+            sway = Vector3.Lerp(sway, targetSway, 10f * udt);
+
+            Vector3 bob = Vector3.zero;
+            if (motor != null && motor.IsGrounded && motor.HorizontalSpeed > 0.5f)
+            {
+                // RULE 1: player-driven, so hitstop must not freeze it — the whole left arm rides this.
+                bobT += TimeScaleController.PlayerDelta * motor.HorizontalSpeed * 1.2f;
+                float k = Mathf.Clamp01(motor.HorizontalSpeed / 11f);
+                bob = new Vector3(-Mathf.Sin(bobT) * bobAmount, -Mathf.Abs(Mathf.Cos(bobT)) * bobAmount * 0.6f, 0f) * k;
+            }
+
+            Vector3 targetPos;
+            Quaternion targetRot;
+            float follow;
+            if (poseOverride)
+            {
+                // A fraction of the sway is kept: a completely rigid hand during the stab looks like the
+                // viewmodel froze rather than like the player committed.
+                targetPos = overridePos + sway * 0.3f;
+                targetRot = overrideRot;
+                follow = overrideFollow;
+            }
+            else
+            {
+                targetPos = (raised ? raisedPosition : restPosition) + sway + bob;
+                targetRot = Quaternion.Euler(raised ? raisedEuler : restEuler);
+                follow = followSpeed;
+            }
+
+            curPos = Vector3.Lerp(curPos, targetPos, follow * udt);
+            curRot = Quaternion.Slerp(curRot, targetRot, follow * udt);
+            transform.localPosition = curPos;
+            transform.localRotation = curRot;
+
+            DriveTipLight(udt);
+        }
+
+        /// <summary>
+        /// The light rides the tip and is written AFTER the pose, so it never lags a frame behind the
+        /// wand during the stab — a light trailing the prop it belongs to is what makes a viewmodel
+        /// look detached.
+        /// </summary>
+        void DriveTipLight(float udt)
+        {
+            if (tipLight == null) return;
+
+            muzzle = Mathf.Max(0f, muzzle - udt * 6f);
+            tipLight.transform.position = TipWorldPosition;
+            tipLight.color = SlashFx.NormaliseColor(currentTint);
+            tipLight.range = tipLightRange * (1f + muzzle * 1.5f);
+            tipLight.intensity =
+                Mathf.Lerp(tipLightIdle, tipLightCharged, charge) + tipLightMuzzle * muzzle * muzzle;
+        }
+    }
+}

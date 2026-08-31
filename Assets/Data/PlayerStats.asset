@@ -14,20 +14,31 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.PlayerStatsData
   baseHP: 100
   hpPerVitality: 10
-  parryPerfectWindow: 0.15
-  parryLateWindow: 0.2
-  parryWhiffRecovery: 0.25
+  parryPerfectWindow: 0.13
+  parryLateWindow: 0.12
+  parryWhiffRecovery: 0.5
   parrySuccessRecovery: 0.08
   blockDamageMultiplier: 0.3
   facingConeDeg: 75
-  maxJuice: 100
-  baseJuicePerPerfect: 25
-  juicePerArcane: 1
+  parryInputBuffer: 0.2
+  parryMistimeRecovery: 0.2
+  parryIncomingLookahead: 0.6
+  parryCueSafetyMargin: 0.04
+  parryMinRecovery: 0.05
+  basePosture: 100
+  posturePerVitality: 4
+  postureRegenPerSecond: 22
+  postureRegenDelay: 1.2
+  postureStaggerSeconds: 1.5
+  blockPostureMultiplier: 0.9
+  hitPostureMultiplier: 0.5
+  staggeredDamageMultiplier: 1.6
+  maxPyre: 100
+  basePyrePerPerfect: 25
+  pyreBlockFraction: 0.35
+  pyrePerArcane: 1
   ultSlowScale: 0.25
   ultSlowSeconds: 1.6
-  ultRadius: 10
-  ultBaseDamage: 80
-  ultDamagePerArcane: 4
   ultBossPostureFraction: 0.5
   flaskBaseCharges: 3
   flaskBaseHeal: 45

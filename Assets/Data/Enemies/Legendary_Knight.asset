@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Legendary_Knight
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
+  displayName: THE IRON PENITENT
+  maxHP: 260
+  maxPosture: 190
+  postureRegen: 4
+  postureRegenDelay: 3.5
+  staggerSeconds: 4.2
+  moveSpeed: 3.4
+  turnSpeed: 210
+  aggroRange: 18
+  attackRange: 2.9
+  attackCooldown: 0.5
+  parryRecoilSeconds: 0.75
+  aggression: 0.35
+  windupTurnMultiplier: 0.16
+  stepSpeedMultiplier: 0.26
+  stepAcceleration: 4.5
+  stepDeadzone: 0.95
+  comboBreathSeconds: 0.85
+  readyDistanceMultiplier: 1.6
+  preferredRange: 4
+  commitTolerance: 0.8
+  repositionDeadzone: 0.5
+  backStepSpeedMultiplier: 0.2
+  strafeSpeedMultiplier: 0.2
+  lungeMinDistance: 1.5
+  soulValue: 600
+  bodyColor: {r: 0.039215688, g: 0.02745098, b: 0.03137255, a: 1}
+  emission: {r: 1.0541177, g: 0.4501961, b: 0.14274509, a: 1.4}
+  scale: 1.6
+  moveset: {fileID: 11400000, guid: abe6b8341b531d745b5a055129d49fad, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
+    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
+    - {fileID: 11400000, guid: 73c1e651dbaa0f9439f14c71377510e0, type: 2}

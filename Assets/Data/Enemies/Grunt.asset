@@ -18,16 +18,42 @@ MonoBehaviour:
   postureRegen: 6
   postureRegenDelay: 2.5
   staggerSeconds: 3
-  moveSpeed: 4.5
-  turnSpeed: 360
-  aggroRange: 14
+  moveSpeed: 5.6
+  turnSpeed: 400
+  aggroRange: 16
   attackRange: 2.2
-  attackCooldown: 0.4
-  parryRecoilSeconds: 0.5
+  attackCooldown: 0.15
+  parryRecoilSeconds: 0.42
+  aggression: 0.9
+  windupTurnMultiplier: 0.32
+  stepSpeedMultiplier: 0.38
+  stepAcceleration: 8
+  stepDeadzone: 0.95
+  comboBreathSeconds: 0.4
+  readyDistanceMultiplier: 1.8
+  preferredRange: 3
+  commitTolerance: 0.6
+  repositionDeadzone: 0.4
+  backStepSpeedMultiplier: 0.3
+  strafeSpeedMultiplier: 0.34
+  lungeMinDistance: 1.1
   soulValue: 40
   bodyColor: {r: 0.039215688, g: 0.02745098, b: 0.03137255, a: 1}
   emission: {r: 0.49882355, g: 0.07058824, b: 0.09411766, a: 1.2}
   scale: 1
+  moveset: {fileID: 11400000, guid: 78cd427c827643142ae64ec09cd63bf9, type: 2}
   combos:
   - hits:
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
     - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: 7d2bf04b868ca584db8448a09b38d1c5, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+    - {fileID: 11400000, guid: 7d2bf04b868ca584db8448a09b38d1c5, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}

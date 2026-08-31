@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_Spellsword_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Ashen Chorister
+  entries:
+  - label: arc-thrust (the plain rhythm it teaches you)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+      - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+    weight: 2.5
+    minRange: 0
+    maxRange: 99
+  - label: thrust-arc-arc (pressure)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 99
+  - label: FEINT...arc-thrust (the pause is a lie)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 05db1d54169f3e0418cf68085286ffbe, type: 2}
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+      - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+    weight: 1.8
+    minRange: 0
+    maxRange: 99
+  - label: arc-GRASP (punishes stepping in)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+      - {fileID: 11400000, guid: 9aa75bf482f09cf4a9e1b23e823e897e, type: 2}
+    weight: 1.2
+    minRange: 3
+    maxRange: 99
+  - label: EMBERFALL-thrust (ranged opener, then closes)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: ea786f9de7d40e34184678ce274181d7, type: 2}
+      - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+    weight: 1.2
+    minRange: 4.5
+    maxRange: 99
+  - label: arc-thrust-FEINT-arc (the long unreadable one)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+      - {fileID: 11400000, guid: aa2302ef1791b854bba7b42ad054cc50, type: 2}
+      - {fileID: 11400000, guid: 05db1d54169f3e0418cf68085286ffbe, type: 2}
+      - {fileID: 11400000, guid: 021b3a278f3e3814cbaecc48ec9c8c91, type: 2}
+    weight: 1
+    minRange: 0
+    maxRange: 99

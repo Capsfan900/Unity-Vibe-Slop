@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Boss_Thrust
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Boss_Thrust
-  windup: 0.7
+  windup: 0.85
   impactDelay: 0.05
   strikeDuration: 0.2
   recovery: 0.9
   range: 4.5
   coneDeg: 30
   damage: 55
-  lungeDistance: 2
+  lungeDistance: 2.9
   comboGap: 0.2
   parryPostureMultiplier: 1
   unblockable: 1

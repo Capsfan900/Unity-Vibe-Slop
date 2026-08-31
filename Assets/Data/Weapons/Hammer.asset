@@ -34,7 +34,20 @@ MonoBehaviour:
   hitStopSeconds: 0.09
   parryWindowMultiplier: 0.8
   parryPostureDamage: 40
-  juiceBonus: 5
+  pyreBonus: 5
+  superName: Sunbreak
+  superKind: 2
+  superDamage: 200
+  superPostureDamage: 130
+  superRadius: 7.5
+  superArcDeg: 360
+  superHits: 1
+  superWindup: 0.52
+  superActive: 0.12
+  superRecover: 0.46
+  superHitStop: 0.2
+  superShake: 0.9
+  superKnockback: 6
   idle:
     pos: {x: 0.5, y: -0.4, z: 0.75}
     euler: {x: 0, y: -15, z: 0}

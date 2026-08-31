@@ -20,6 +20,9 @@ namespace VibeGame1
         {
             if (I != null && I != this) { Destroy(gameObject); return; }
             I = this;
+            // Keep the game loop ticking when the window loses focus. Without this the editor stalls
+            // play mode the moment you alt-tab, which also blocks all automated play-mode testing.
+            Application.runInBackground = true;
         }
 
         void Start()

@@ -34,7 +34,10 @@ namespace VibeGame1
 
         void OnZeroHealth()
         {
+            // HP hitting 0 does not kill the boss — it opens the deathblow window. Hold that window
+            // open longer than a normal stagger so the player has time to read the banner and close in.
             Posture.Break();
+            Posture.HoldStagger(5f);
         }
 
         public void Activate()
@@ -55,15 +58,15 @@ namespace VibeGame1
             var p = Boss.phases[Mathf.Clamp(Phase, 0, Boss.phases.Length - 1)];
             windupMult = p.windupMultiplier;
             speedMult = p.speedMultiplier;
-            agent.speed = data.moveSpeed * speedMult;
+            if (locomotion != null) locomotion.SetSpeed(data.moveSpeed * speedMult);
             if (visuals != null) visuals.SetAccent(p.accent);
         }
 
-        protected override AttackCombo ChooseCombo()
+        protected override AttackCombo ChooseCombo(float distanceToTarget)
         {
-            if (Boss == null || Boss.phases == null || Boss.phases.Length == 0) return base.ChooseCombo();
+            if (Boss == null || Boss.phases == null || Boss.phases.Length == 0) return base.ChooseCombo(distanceToTarget);
             var p = Boss.phases[Mathf.Clamp(Phase, 0, Boss.phases.Length - 1)];
-            if (p.patterns == null || p.patterns.Length == 0) return base.ChooseCombo();
+            if (p.patterns == null || p.patterns.Length == 0) return base.ChooseCombo(distanceToTarget);
             return p.patterns[Random.Range(0, p.patterns.Length)];
         }
 

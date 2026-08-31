@@ -17,16 +17,69 @@ namespace VibeGame1.EditorTools
         const string MatDir = "Assets/Materials/";
         const string PrefabDir = "Assets/Prefabs/";
 
-        static Material mGround, mPlatform, mPink, mCyan, mYellow, mGate, mStone, mTorch;
+        const string ItemsDir = "Assets/Data/Items/";
+
+        // mPink is the EMBER accent, mCyan the BONE trim. The old gold (M_NeonYellow) is gone from
+        // the level: three hues was the rainbow. The material asset still exists for other builders.
+        static Material mGround, mPlatform, mPink, mCyan, mGate, mStone, mTorch;
         static int torchCount;
-        static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pCheckpoint;
+        static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pCheckpoint, pItemPickup;
 
-        static int boxCount, trimCount, spawnerCount;
+        static int boxCount, trimCount, spawnerCount, pickupCount;
 
+        /// <summary>
+        /// The canonical level, as data. While this asset exists it is the SOURCE OF TRUTH and the menu
+        /// item below merely forwards to it; the literal coordinates in BuildHardcoded() are kept only as
+        /// the reference implementation and the fallback for a project with no definitions yet.
+        /// </summary>
+        public const string CanonicalDefinitionPath = "Assets/Data/Levels/Level_01_Level.asset";
+
+        /// <summary>
+        /// Builds the canonical level. Delegates to <see cref="LevelDefinitionBuilder"/> whenever the
+        /// definition asset exists, so "6. Build Level" and "8. Build Level From Definition" can never
+        /// produce two different levels. Two builders that can disagree is how a level rework gets
+        /// silently reverted by the next Rebuild Everything.
+        /// </summary>
         [MenuItem("VibeGame1/6. Build Level")]
         public static void Build()
         {
-            boxCount = trimCount = spawnerCount = torchCount = 0;
+            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                UnityEngine.Debug.LogError("["+nameof(LevelGreyboxBuilder)+"] Refusing to build during play mode. Exit play mode and try again.");
+                return;
+            }
+
+            var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(CanonicalDefinitionPath);
+            if (def != null)
+            {
+                LevelDefinitionBuilder.Build(def);
+                return;
+            }
+
+            Debug.LogWarning($"[LevelGreyboxBuilder] No level definition at {CanonicalDefinitionPath}; " +
+                             "building the hard-coded greybox instead. Run 'VibeGame1/Export Current Level " +
+                             "To Definition' afterwards to make the level data again.");
+            BuildHardcoded();
+        }
+
+        /// <summary>
+        /// The original hand-coded greybox: ~200 lines of literal coordinates. Superseded by the level
+        /// definition above and kept as the reference implementation - the thing the data format has to
+        /// be able to express. Do not author new content here.
+        /// </summary>
+        [MenuItem("VibeGame1/Legacy: Build Hard-Coded Greybox", priority = 400)]
+        public static void BuildHardcoded()
+        {
+            // PLAY MODE GUARD: this method destroys the Level root before rebuilding it.
+            // In play mode the EditorSceneManager calls throw, leaving the scene wiped and
+            // unsaveable - which is exactly how the level was lost once already.
+            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                UnityEngine.Debug.LogError("["+nameof(LevelGreyboxBuilder)+"] Refusing to build during play mode. Exit play mode and try again.");
+                return;
+            }
+
+            boxCount = trimCount = spawnerCount = torchCount = pickupCount = 0;
             LoadAssets();
 
             // ---- clear previous build (never touch Level_Manual) ----------------------------------
@@ -44,6 +97,10 @@ namespace VibeGame1.EditorTools
             Trim(Box("Ground_Start", new Vector3(0, -0.5f, 0), new Vector3(14, 1, 14), mPlatform, root), mPink);
             var startSpawn = Empty("StartSpawn", new Vector3(0, 1.2f, -4), Quaternion.identity, root);
 
+            // Wand altar, two metres ahead of the start and with a trigger wide enough to already cover
+            // the spawn point: the loadout is chosen before the run, not cycled during it.
+            WandAltar("WandPedestal_Start", new Vector3(0f, 0f, -2f), 3f, root);
+
             // ---- B. Jump gaps -----------------------------------------------------------------------
             Trim(Box("Plat_B1", new Vector3(0, -0.5f, 14), new Vector3(4, 1, 4), mPlatform, root), mCyan);
             Trim(Box("Plat_B2", new Vector3(4, 0.5f, 22), new Vector3(4, 1, 4), mPlatform, root), mCyan);
@@ -54,17 +111,17 @@ namespace VibeGame1.EditorTools
             Box("Walk_C", new Vector3(0, 3, 54), new Vector3(6, 1, 26), mPlatform, root);
             Box("Rail_C_L", new Vector3(-3.1f, 4, 54), new Vector3(0.2f, 1.2f, 26), mPink, root);
             Box("Rail_C_R", new Vector3(3.1f, 4, 54), new Vector3(0.2f, 1.2f, 26), mPink, root);
-            Box("Pillar_C1", new Vector3(2, 5, 56), new Vector3(1, 4, 1), mCyan, root);
-            Box("Pillar_C2", new Vector3(-2, 5, 62), new Vector3(1, 4, 1), mCyan, root);
+            Box("Pillar_C1", new Vector3(2, 5, 56), new Vector3(1, 4, 1), mStone, root);
+            Box("Pillar_C2", new Vector3(-2, 5, 62), new Vector3(1, 4, 1), mStone, root);
             Spawner("Spawn_GruntA", new Vector3(0, 3.6f, 50), pGrunt, false, root);
             Spawner("Spawn_GruntB", new Vector3(1.5f, 3.6f, 60), pGrunt, false, root);
 
             // ---- D. Pillar hop ----------------------------------------------------------------------
             // Reachability rule (jump 2.4 m, run 11 m/s): rise <= 1.5 m with gap <= 4.5 m; rise <= 1 m with gap <= 6 m.
             // Pillars are 10 m tall columns whose TOP is at center.y + 5.
-            Trim(Box("Pil_D1", new Vector3(0, 0, 71.5f), new Vector3(2.5f, 10, 2.5f), mPlatform, root), mYellow);      // top 5.0  (walkway top 3.5, gap 3.25)
-            Trim(Box("Pil_D2", new Vector3(3, 1.5f, 76.5f), new Vector3(2.5f, 10, 2.5f), mPlatform, root), mYellow);   // top 6.5  (gap 2.5)
-            Trim(Box("Pil_D3", new Vector3(-1, 3, 81.5f), new Vector3(2.5f, 10, 2.5f), mPlatform, root), mYellow);     // top 8.0  (gap 2.9)
+            Trim(Box("Pil_D1", new Vector3(0, 0, 71.5f), new Vector3(2.5f, 10, 2.5f), mPlatform, root), mCyan);      // top 5.0  (walkway top 3.5, gap 3.25)
+            Trim(Box("Pil_D2", new Vector3(3, 1.5f, 76.5f), new Vector3(2.5f, 10, 2.5f), mPlatform, root), mCyan);   // top 6.5  (gap 2.5)
+            Trim(Box("Pil_D3", new Vector3(-1, 3, 81.5f), new Vector3(2.5f, 10, 2.5f), mPlatform, root), mCyan);     // top 8.0  (gap 2.9)
             Trim(Box("Plat_CP1", new Vector3(0, 8.5f, 92), new Vector3(10, 1, 10), mPlatform, root), mPink);           // top 9.0  (gap 4.25)
             Checkpoint("Checkpoint_1", new Vector3(0, 9, 92), root);
 
@@ -74,7 +131,7 @@ namespace VibeGame1.EditorTools
             Trim(Box("Led_E3", new Vector3(-6, 13, 110), new Vector3(4, 1, 4), mPlatform, root), mCyan);      // top 13.5
             Trim(Box("Led_E4", new Vector3(0, 14.5f, 115), new Vector3(4, 1, 4), mPlatform, root), mCyan);    // top 15.0
             Trim(Box("Led_E5", new Vector3(5, 16, 119), new Vector3(4, 1, 4), mPlatform, root), mCyan);       // top 16.5
-            Trim(Box("Tower_E", new Vector3(0, 10, 111), new Vector3(3, 14, 3), mGround, root), mYellow);     // visual anchor, top 17
+            Trim(Box("Tower_E", new Vector3(0, 10, 111), new Vector3(3, 14, 3), mGround, root), mCyan);     // visual anchor, top 17
             Trim(Box("Landing_E", new Vector3(0, 17.5f, 128), new Vector3(16, 1, 12), mPlatform, root), mPink); // top 18, z 122..134
             Box("Rail_E_L", new Vector3(-8.1f, 18.6f, 128), new Vector3(0.2f, 1.2f, 12), mPink, root);
             Box("Rail_E_R", new Vector3(8.1f, 18.6f, 128), new Vector3(0.2f, 1.2f, 12), mPink, root);
@@ -94,10 +151,10 @@ namespace VibeGame1.EditorTools
             Box("Wall_S_R", new Vector3(10, 20, 153), new Vector3(14, 4, 0.5f), mGround, root);
             Box("Wall_E", new Vector3(17, 20, 170), new Vector3(0.5f, 4, 34), mGround, root);
             Box("Wall_W", new Vector3(-17, 20, 170), new Vector3(0.5f, 4, 34), mGround, root);
-            Box("Pillar_G_SW", new Vector3(-14, 21, 158), new Vector3(1.5f, 8, 1.5f), mYellow, root);
-            Box("Pillar_G_SE", new Vector3(14, 21, 158), new Vector3(1.5f, 8, 1.5f), mYellow, root);
-            Box("Pillar_G_NW", new Vector3(-14, 21, 182), new Vector3(1.5f, 8, 1.5f), mYellow, root);
-            Box("Pillar_G_NE", new Vector3(14, 21, 182), new Vector3(1.5f, 8, 1.5f), mYellow, root);
+            Box("Pillar_G_SW", new Vector3(-14, 21, 158), new Vector3(1.5f, 8, 1.5f), mStone, root);
+            Box("Pillar_G_SE", new Vector3(14, 21, 158), new Vector3(1.5f, 8, 1.5f), mStone, root);
+            Box("Pillar_G_NW", new Vector3(-14, 21, 182), new Vector3(1.5f, 8, 1.5f), mStone, root);
+            Box("Pillar_G_NE", new Vector3(14, 21, 182), new Vector3(1.5f, 8, 1.5f), mStone, root);
 
             var gateOpen = new Vector3(0, 15.5f, 153);
             var gateClosed = new Vector3(0, 20, 153);
@@ -113,6 +170,27 @@ namespace VibeGame1.EditorTools
             arena.gateClosedPosition = gateClosed;
 
             Spawner("Spawn_Boss", new Vector3(0, 18.1f, 176), pBoss, true, root);
+
+            // ---- Sky --------------------------------------------------------------------------------
+            // A deep-space backdrop that also LIGHTS the level: the gradient dome and star field give the
+            // course somewhere to be, and the Trilight ambient set in ProjectSetup (cool from above, ember
+            // from the eclipse's side) is what actually raises the light level. One mesh, one draw call.
+            //
+            // The eclipse now lives INSIDE this sky rather than as world quads at z=268. Two reasons:
+            //   1. FOG. At 268 units the old quads sat far past fogEndDistance, so linear fog blended them
+            //      100% to fogColor - the "focal image" was a flat fog-coloured slab, and worse, it would
+            //      have blanked out a 320-unit-wide rectangle of the new star field behind it.
+            //   2. PARALLAX. A celestial body should hold the same angular size wherever you stand. The
+            //      old quads grew as you ran toward them, which read as a wall, not a sun.
+            // It is still framed dead ahead down +Z and directly behind the boss, and is still drawn as
+            // corona-then-black-disc so only a burning rim shows.
+            var skyGroup = new GameObject("Sky");
+            skyGroup.transform.SetParent(root, false);
+            // Layer SkyLayer keeps this out of the NavMesh bake below, which collects RenderMeshes on
+            // layer 0 from the Level root's children - a 25-unit sphere would otherwise be bake input.
+            Starfield.Build(skyGroup.transform, starCount: 1200, radius: 25f, seed: 20260830,
+                            includeEclipse: true, eclipseYawDeg: 0f, eclipsePitchDeg: 13f,
+                            eclipseDiameterDeg: 19f);
 
             // ---- Torches (dark fantasy light sources; basePos = platform top surface) ---------------
             var torches = new GameObject("Torches");
@@ -149,6 +227,29 @@ namespace VibeGame1.EditorTools
             Torch("Torch_Arena_N", new Vector3(0, 18, 185), torchRoot);
             Torch("Torch_Arena_Gate_L", new Vector3(-8, 18, 154), torchRoot);
             Torch("Torch_Arena_Gate_R", new Vector3(8, 18, 154), torchRoot);
+
+            // ---- Pickups (single-use items; y = platform top + 1.2) ---------------------------------
+            var pickups = new GameObject("Pickups");
+            pickups.transform.SetParent(root, false);
+            Transform pickupRoot = pickups.transform;
+            // Start platform (top 0.0), a few metres in front of StartSpawn at (0, 1.2, -4).
+            // Deliberately the very first thing you can touch, so the headline item is testable
+            // immediately instead of only appearing deep in the course.
+            ItemAt("Pickup_Lantern_Spawn", new Vector3(2f, 1.2f, 0f), "SoulLantern", pickupRoot);
+            ItemAt("Pickup_Updraft_Spawn", new Vector3(-2f, 1.2f, 0f), "Updraft", pickupRoot);
+            // Walkway far end (top 3.5) — pays for the pillar hop that follows.
+            ItemAt("Pickup_Updraft_1", new Vector3(-2f, 4.7f, 64f), "Updraft", pickupRoot);
+            // Checkpoint 1 platform (top 9.0). Moved off (3,*,92) which is inside Torch_CP1_R,
+            // and kept away from the checkpoint's respawn point at (0, 9.2, 90).
+            ItemAt("Pickup_Lantern_1", new Vector3(-3.5f, 10.2f, 95f), "SoulLantern", pickupRoot);
+            // Landing (top 18.0) — the headline item, right before the Heavy + 2 Grunts.
+            // Nudged off (-6,*,124) which sat 1.4 m from Torch_Land_SW.
+            ItemAt("Pickup_Phantom_2", new Vector3(-4f, 19.2f, 126f), "PhantomStep", pickupRoot);
+            // Checkpoint 2 platform (top 18.0). Moved off (-2.5,*,146) which overlapped Torch_CP2_L,
+            // and clear of the checkpoint trigger box (z 144.5..147.5).
+            ItemAt("Pickup_Phantom_1", new Vector3(0f, 19.2f, 148.5f), "PhantomStep", pickupRoot);
+            // Boss arena near the entrance (top 18.0) — lets the player open with a stagger.
+            ItemAt("Pickup_Lantern_2", new Vector3(-7f, 19.2f, 160f), "SoulLantern", pickupRoot);
 
             // ---- Global -----------------------------------------------------------------------------
             var kill = Empty("KillZone", new Vector3(0, -25, 95), Quaternion.identity, root);
@@ -188,7 +289,7 @@ namespace VibeGame1.EditorTools
             EditorSceneManager.SaveOpenScenes();
 
             Debug.Log($"[LevelGreyboxBuilder] Built level: {boxCount} boxes, {trimCount} trims, {spawnerCount} spawners, {torchCount} torches, " +
-                      $"navmesh built={surface.navMeshData != null}, scene saved '{scene.path}'.");
+                      $"{pickupCount} pickups, navmesh built={surface.navMeshData != null}, scene saved '{scene.path}'.");
         }
 
         [MenuItem("VibeGame1/Rebuild NavMesh")]
@@ -214,7 +315,6 @@ namespace VibeGame1.EditorTools
             mPlatform = LoadMat("M_Platform");
             mPink = LoadMat("M_NeonPink");
             mCyan = LoadMat("M_NeonCyan");
-            mYellow = LoadMat("M_NeonYellow");
             mGate = LoadMat("M_Gate");
             mStone = LoadMat("M_Stone");
             mTorch = LoadMat("M_Torch");
@@ -226,6 +326,7 @@ namespace VibeGame1.EditorTools
             pHeavy = LoadPrefab("Enemy_Heavy");
             pBoss = LoadPrefab("Boss");
             pCheckpoint = LoadPrefab("Checkpoint");
+            pItemPickup = LoadPrefab("ItemPickup");
         }
 
         static Material LoadMat(string name)
@@ -359,6 +460,58 @@ namespace VibeGame1.EditorTools
             }
         }
 
+        /// <summary>
+        /// The wand altar: a stone plinth on Default (so it still bakes as level geometry) plus a
+        /// floating crystal on Interactable carrying the trigger. <paramref name="groundPos"/> is the
+        /// floor surface it stands on; <paramref name="triggerRadius"/> is how far out the menu opens,
+        /// deliberately wide enough to reach the player start so the choice happens before the run.
+        /// </summary>
+        static GameObject WandAltar(string name, Vector3 groundPos, float triggerRadius, Transform parent)
+        {
+            Box(name + "_Plinth", groundPos + Vector3.up * 0.4f, new Vector3(1.8f, 0.8f, 1.8f), mStone, parent);
+
+            var root = new GameObject(name);
+            root.transform.SetParent(parent, false);
+            root.transform.position = groundPos;
+
+            var sc = root.AddComponent<SphereCollider>();
+            sc.center = new Vector3(0f, 1.2f, 0f);
+            sc.radius = triggerRadius;
+            sc.isTrigger = true;
+
+            var pedestal = root.AddComponent<WandPedestal>();
+
+            var visual = Empty("Visual", groundPos + Vector3.up * 1.5f, Quaternion.identity, root.transform);
+            pedestal.visual = visual.transform;
+
+            var crystal = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            crystal.name = "Crystal";
+            Object.DestroyImmediate(crystal.GetComponent<Collider>());
+            crystal.transform.SetParent(visual.transform, false);
+            crystal.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+            crystal.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
+            if (mCyan != null) crystal.GetComponent<Renderer>().sharedMaterial = mCyan;
+
+            var lightGo = Empty("Glow", groundPos + Vector3.up * 1.6f, Quaternion.identity, root.transform);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = 8f;
+            light.intensity = 2.2f;
+            light.shadows = LightShadows.None;
+            if (mCyan != null) light.color = mCyan.HasProperty("_BaseColor") ? mCyan.GetColor("_BaseColor") : Color.cyan;
+
+            // Interactable keeps the trigger out of the NavMesh bake (Default layer only), exactly as
+            // ItemPickup does. The plinth above stays on Default because it IS walkable geometry.
+            SetLayerRecursively(root, Layers.Interactable);
+            return root;
+        }
+
+        static void SetLayerRecursively(GameObject go, int layer)
+        {
+            go.layer = layer;
+            foreach (Transform child in go.transform) SetLayerRecursively(child.gameObject, layer);
+        }
+
         static GameObject Empty(string name, Vector3 pos, Quaternion rot, Transform parent)
         {
             var go = new GameObject(name);
@@ -384,6 +537,34 @@ namespace VibeGame1.EditorTools
             if (go == null) return null;
             go.transform.position = pos;
             go.transform.rotation = Quaternion.identity;
+            return go;
+        }
+
+        /// <summary>Places an ItemPickup instance carrying the named ItemData from Assets/Data/Items.</summary>
+        static GameObject ItemAt(string name, Vector3 pos, string itemAssetName, Transform parent)
+        {
+            if (pItemPickup == null)
+            {
+                Debug.LogWarning($"[LevelGreyboxBuilder] ItemPickup prefab missing; skipping {name}.");
+                return null;
+            }
+            var data = AssetDatabase.LoadAssetAtPath<ItemData>(ItemsDir + itemAssetName + ".asset");
+            if (data == null)
+            {
+                Debug.LogWarning($"[LevelGreyboxBuilder] Missing item data {ItemsDir}{itemAssetName}.asset (run DataFactory first); skipping {name}.");
+                return null;
+            }
+
+            var go = InstantiatePrefab(pItemPickup, name, parent);
+            if (go == null) return null;
+            go.transform.position = pos;
+            go.transform.rotation = Quaternion.identity;
+
+            var pickup = go.GetComponent<ItemPickup>();
+            if (pickup != null) pickup.item = data;
+            else Debug.LogWarning($"[LevelGreyboxBuilder] {name} has no ItemPickup component.");
+
+            pickupCount++;
             return go;
         }
 

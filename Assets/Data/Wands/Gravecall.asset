@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfea8885c360cdc43a1b6e36dd43893c, type: 3}
+  m_Name: Gravecall
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.WandData
+  displayName: Gravecall
+  shortLabel: GRAVE
+  description: Vents a cloud of grave-rot. Slow to bring to bear, but nothing nearby
+    is spared.
+  color: {r: 1.1952941, g: 2.1082354, b: 0.6964706, a: 1}
+  viewmodelPrefab: {fileID: 2082197721791507133, guid: 074974dbd5572cf44b1f3b4de71b7dfe, type: 3}
+  viewmodelScale: 0.82
+  kind: 1
+  damage: 120
+  blastRadius: 7
+  splashDamage: 90
+  chainTargets: 3
+  windup: 0.38
+  recover: 0.34
+  cooldown: 7
+  knockback: 5
+  hitStop: 0.14
+  shake: 0.4

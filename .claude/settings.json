@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__UnityMCP__read_console",
+      "mcp__UnityMCP__refresh_unity",
+      "mcp__UnityMCP__manage_editor",
+      "mcp__UnityMCP__manage_scene",
+      "mcp__UnityMCP__run_tests",
+      "mcp__UnityMCP__get_test_job",
+      "mcp__UnityMCP__find_gameobjects",
+      "mcp__UnityMCP__manage_camera",
+      "mcp__UnityMCP__manage_gameobject",
+      "mcp__UnityMCP__manage_components",
+      "mcp__UnityMCP__manage_prefabs",
+      "mcp__UnityMCP__manage_material",
+      "mcp__UnityMCP__unity_docs",
+      "mcp__UnityMCP__validate_script",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Bash(pwd)",
+      "Bash(echo:*)"
+    ]
+  }
+}

@@ -1,81 +1,101 @@
 # vibegame1
 
-Unity game project. Claude drives the Unity Editor through MCP.
+First-person, **melee-only**, parry-focused speedrun platformer. Neon White level flow, Sekiro / Lies of P
+deflect combat, dark-fantasy presentation. All code is namespace `VibeGame1`.
+
+**This file is an index, deliberately small — it is loaded into every session.** Depth lives in `docs/`;
+read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md).
+
+## Where to look
+
+| Read this | When |
+|---|---|
+| [docs/ENGINEERING-LOG.md](docs/ENGINEERING-LOG.md) | **Anything behaves strangely.** Every past gotcha, its root cause and the invariant. Check here first. |
+| `docs/DATAFLOW.md` | How each system actually flows, end to end. Read before changing any system. |
+| `docs/BACKLOG.md` | Requested but not yet built, with the intended shape. |
+| [docs/TOOLING.md](docs/TOOLING.md) | Before building any tool — it probably exists. Menus, tests, harness, debug keys, sandbox, configs. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Changing systems or combat. Module map, event bus, singletons, feel contracts, art direction, audio. |
+| [docs/AUTHORING.md](docs/AUTHORING.md) | **Adding a level, enemy, moveset or item.** Content is data — ScriptableObjects plus a menu item, not new code. |
+| [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md) | Session start/end checklist and token discipline. |
+| [docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md) | What is proven vs unproven, current test results, and what still needs a human playtest. |
+| [docs/multiplayer-system-design.md](docs/multiplayer-system-design.md) | Networking or backend work. Design only, not implemented. |
+| [README.md](README.md) | Human-facing overview: controls, how to add content. |
+| [CREDITS.md](CREDITS.md) | CC0 audio sources and licences. |
 
 ## Environment
 
 - **Unity 6000.5.10f1** (Unity 6.5) — `C:\Program Files\Unity\Hub\Editor\6000.5.10f1\Editor\Unity.exe`
-- **Render pipeline: URP** (`com.unity.render-pipelines.universal`). Materials must use URP shaders
-  (`Universal Render Pipeline/Lit`, not `Standard`) or they render magenta.
-- **Input: the new Input System** (`com.unity.inputsystem`). Actions live in
-  `Assets/InputSystem_Actions.inputactions`. Do not use legacy `Input.GetAxis`.
-- Build modules installed: **Windows Standalone** and **WebGL** only. No Android/iOS unless added in Hub.
+- **C# 9.** No `ref`-to-`in`, file-scoped namespaces, `required` members or list patterns.
+- **URP.** Materials must use `Universal Render Pipeline/*` shaders — `Standard` renders **magenta**.
+- **New Input System** only, via `Assets/InputSystem_Actions.inputactions`. No legacy `Input.GetAxis`.
+- Build modules: **Windows Standalone** and **WebGL** only.
+- `Library/` is gitignored — never commit it. Commit before large refactors.
+
+## Hard rules
+- **Adding or changing a system means updating its map in `docs/DATAFLOW.md` in the same change.** A map that lies is worse than no map.
+- **New content is authored as data, not code.** New levels, enemies and movesets are assets built by a menu item — see `docs/AUTHORING.md` before writing another hardcoded builder.
+
+1. **`TimeScaleController` is the only writer of `Time.timeScale`.** Player movement reads
+   `TimeScaleController.PlayerDelta`, **never** `Time.deltaTime` — hitstop must never freeze the player.
+2. **`InputReader` is the only script touching the Input System.**
+3. **All combat resolves through `PlayerCombat.ReceiveAttack`.**
+4. **Everything is regenerable.** Nothing in the scene is hand-authored — a wiped scene is a rebuild, not
+   data loss. Hand-placed extras go under a `Level_Manual` / `Sandbox_Manual` root, which builders never touch.
+5. **Never use `Image.fillAmount`** — a null-sprite UGUI `Image` silently ignores it. `BarView` drives
+   RectTransform anchors.
+6. **Never `IgnoreLayerCollision` a pair that needs triggers** — it suppresses `OnTriggerEnter` too.
+7. **`Sfx` enum names are folder names** under `Resources/Audio/Sfx/`. Append only; never reorder or rename.
+8. **Exit play mode before running any editor generator.**
+9. **A code default is not a shipped value.** Changing a field initialiser does nothing to a
+   ScriptableObject that already exists — rewrite it in `DataFactory` and assert it in `FeatureTests`.
+
+## Rebuild pipeline — `VibeGame1/…`
+
+`0. Rebuild Everything` runs steps 1-6 in the only order that works. Prefer it.
+
+| Step | Function | Produces |
+|---|---|---|
+| 1. Project Setup | `ProjectSetup.Run()` | Layers (Player 6, Enemy 7, Interactable 8), physics matrix, HDR grading, volume profile, fog/light, `runInBackground` |
+| 2. Create Materials | `MaterialFactory.CreateAll()` | `Assets/Materials/M_*.mat` |
+| 3. Create Data | `DataFactory.CreateAll()` | ScriptableObjects — **overwrites Inspector tuning** |
+| 4. Build Prefabs | `PrefabFactory.BuildAll()` | Player, Managers, enemies, boss, weapons, pickups |
+| 5. Build HUD | `HudBuilder.Build()` | `Assets/Prefabs/HUD.prefab` |
+| 6. Build Level | `LevelGreyboxBuilder.Build()` | `Level` root, NavMesh bake, scene instances |
+| 7. Build Sandbox | `SandboxBuilder.Build()` | `Assets/Scenes/Sandbox.unity` |
+
+Also: `Health Check` (read-only validator — run after any rebuild), `Run Feature Tests`,
+`Open Test Level`, `Open Sandbox Scene`, `Rebuild NavMesh`.
+
+Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
+
+## Verification
+
+| Layer | How |
+|---|---|
+| Project state | `VibeGame1/Health Check` |
+| Pure logic | MCP `run_tests`, `mode: EditMode` (`Assets/Editor/Tests/`) — works unfocused |
+| Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
+| Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
+
+Current: EditMode **20/20**, feature suite **265 passed / 0 failed / 2 skipped**
+([report](docs/VERIFICATION-REPORT.md)).
+
+`DebugHarness` and `FeatureTests` parry on a state transition — frame-perfect information no human has.
+They prove the state machine, **never** that the game feels good or is fair.
+
+## Dev keys — editor / development builds only
+
+`4` dev blade · `F1` test menu · `F5` warp to boss · `F6` full restore · `F7` +1000 souls ·
+`F8` god mode · `E` use item
 
 ## MCP workflow
 
-Tools come from `com.coplaydev.unity-mcp` (MCP for Unity), a UPM package that runs a bridge inside the
-Editor.
-
-- **The Unity Editor must be open on this project for any MCP tool to work.** If tools start erroring or
-  timing out, check that first before debugging anything else.
-- Prefer MCP tools over blind file writes for scenes, prefabs, and component wiring — they go through
-  Unity's serialization. Hand-editing `.unity` / `.prefab` YAML or `.meta` GUIDs corrupts references.
-- C# scripts may be written as files, but expect a **domain reload** afterward; the next tool call can
-  time out while Unity recompiles. Re-issue it rather than assuming failure.
-- After writing scripts, read the Unity console to confirm a clean compile before continuing.
-
-## Layout
-
-- `Assets/Scenes/` — scenes (`SampleScene.unity` is the template default)
-- `Assets/Settings/` — URP pipeline assets and renderers (PC + Mobile variants)
-- `Assets/Scripts/` — game code (create as needed)
-- `Assets/TutorialInfo/` — template readme boilerplate, safe to delete
-
-## Conventions
-
-- Commit before large refactors. `Library/` is gitignored — never commit it.
-
-## Game: vibegame1 (first-person parry-parkour prototype)
-
-Neon White level flow + Sekiro/Lies of P parry combat, first-person, **melee only**. All code is in namespace
-`VibeGame1`. Tuning lives in ScriptableObjects under `Assets/Data/` (weapons, enemies, attacks, player stats,
-upgrade table, game feel) — tweak in the Inspector; re-running `VibeGame1/3. Create Data` resets weapon/enemy/attack
-assets to the values coded in `Assets/Editor/DataFactory.cs`.
-
-### Rebuild pipeline (Unity menu `VibeGame1/…`, or `execute_code` calling `VibeGame1.EditorTools.X.Y()`)
-1. `ProjectSetup.Run()` — layers (Player=6, Enemy=7, Interactable=8), HDR grading, volume profile, fog/light.
-2. `MaterialFactory.CreateAll()` — `Assets/Materials/M_*.mat` (URP/Lit, `_EMISSION` on).
-3. `DataFactory.CreateAll()` — ScriptableObjects.
-4. `PrefabFactory.BuildAll()` — Player, Managers, enemies, boss, weapon viewmodels, checkpoint, bloodstain.
-5. `HudBuilder.Build()` — `Assets/Prefabs/HUD.prefab` (UGUI + TMP; EventSystem uses InputSystemUIInputModule).
-6. `LevelGreyboxBuilder.Build()` — rebuilds the `Level` root in the open scene, bakes NavMesh, places Player/Managers/HUD.
-   Never deletes a sibling root named `Level_Manual` — put hand-placed extras there.
-
-### Key runtime scripts
-- `Assets/Scripts/Player/PlayerCombat.cs` — every enemy hit resolves here (Perfect / Blocked / Hit) via `ParryController` + `ParryMath`.
-- `Assets/Scripts/Enemies/EnemyController.cs` — FSM Idle/Chase/Windup/Strike/Recover/Staggered/Executed/Dead; `BossController` adds segments + phases.
-- `Assets/Scripts/Core/TimeScaleController.cs` — the only thing that touches `Time.timeScale` (hitstop, ultimate, pause).
-- `Assets/Scripts/Core/GameEvents.cs` — static event bus; HUD subscribes here.
-- `Assets/Scripts/Core/InputReader.cs` — only script that touches the Input System (`InputSystem.actions`).
-
-### Verification
-- EditMode tests: `Assets/Editor/Tests/` (`run_tests` mode EditMode) — parry window edges, posture, upgrade cost.
-- Scripted play-mode scenarios (no input needed): in play mode run
-  `VibeGame1.DebugHarness.Run("parry" | "boss" | "death")` via `execute_code`, then read `VibeGame1.DebugHarness.Log`.
-  Don't click the Game view while a scenario runs — mouse input feeds the real player.
-- Editor console: `[Parry]` logs print elapsed ms vs window for every parry resolution (editor only).
-
-### Art direction: dark fantasy
-Void-black violet background + fog, cold moonlight, blood/ember/ghost-teal accents, flickering torches (`FlickerLight`),
-film grain + heavy vignette. Palette lives in `Assets/Editor/MaterialFactory.cs` (material names are kept stable —
-`M_NeonPink` = blood, `M_NeonCyan` = ghost teal, `M_NeonYellow` = ember) and `HudBuilder.cs` color constants.
-Audio: real **CC0** clips live in `Assets/Resources/Audio/Sfx/<SfxName>/*` (random variant per play) and
-`Assets/Resources/Audio/Music/{ambient,boss}.ogg` (crossfades on BossStarted / BossDefeated / respawn). Sources and
-licenses are listed in `CREDITS.md`. To swap a sound, drop files into the matching folder — no code changes.
-`ProceduralSfx.cs` is only a fallback for empty folders (the user found it harsh — prefer sourced clips).
-Gotcha: an `AudioSource` added and `Play()`ed inside the same scene-load `Awake` never starts — start it in `Start()`.
-
-### Dev / test keys (editor + development builds only, `Assets/Scripts/Debug/DebugKeys.cs`)
-- **4** — equip "Oathbreaker (TEST)" dev blade (60 dmg, huge parry window, 1000 execute).
-- **F5** — warp to the boss arena entrance with the dev blade equipped. **F6** — full heal + flasks + juice.
-- **F7** — +1000 souls. **F8** — toggle god mode.
+- **The Unity Editor must be open on this project** or no MCP tool works. If tools error, time out or
+  return `no_unity_session`, check that before debugging anything else.
+- Prefer MCP tools over blind file writes for scenes, prefabs and component wiring — hand-editing
+  `.unity` / `.prefab` YAML or `.meta` GUIDs corrupts references.
+- Scripts may be written as files, but expect a **domain reload**; the next call can time out while Unity
+  recompiles. Re-issue rather than assuming failure.
+- **Read the console after every script batch.** One compile error puts Unity in Safe Mode, which
+  presents as "the project won't open, the scene is blank".
+- `execute_code` compiles as **C# 6** — keep snippets plain.

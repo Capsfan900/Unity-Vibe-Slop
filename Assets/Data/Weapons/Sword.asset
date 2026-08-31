@@ -35,7 +35,20 @@ MonoBehaviour:
   hitStopSeconds: 0.05
   parryWindowMultiplier: 1
   parryPostureDamage: 25
-  juiceBonus: 0
+  pyreBonus: 0
+  superName: Emberfall Arc
+  superKind: 0
+  superDamage: 150
+  superPostureDamage: 70
+  superRadius: 5.5
+  superArcDeg: 170
+  superHits: 1
+  superWindup: 0.3
+  superActive: 0.14
+  superRecover: 0.3
+  superHitStop: 0.1
+  superShake: 0.45
+  superKnockback: 2.5
   idle:
     pos: {x: 0.45, y: -0.35, z: 0.7}
     euler: {x: 0, y: -10, z: 0}

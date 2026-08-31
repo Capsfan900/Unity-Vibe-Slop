@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Legendary_Ninja
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
+  displayName: THE THIRTEENTH SHADE
+  maxHP: 150
+  maxPosture: 120
+  postureRegen: 7
+  postureRegenDelay: 2.5
+  staggerSeconds: 3.2
+  moveSpeed: 6.4
+  turnSpeed: 430
+  aggroRange: 18
+  attackRange: 2.4
+  attackCooldown: 0.1
+  parryRecoilSeconds: 0.34
+  aggression: 1
+  windupTurnMultiplier: 0.36
+  stepSpeedMultiplier: 0.5
+  stepAcceleration: 10
+  stepDeadzone: 0.95
+  comboBreathSeconds: 0.3
+  readyDistanceMultiplier: 1.8
+  preferredRange: 3.2
+  commitTolerance: 0.7
+  repositionDeadzone: 0.4
+  backStepSpeedMultiplier: 0.4
+  strafeSpeedMultiplier: 0.46
+  lungeMinDistance: 1.05
+  soulValue: 400
+  bodyColor: {r: 0.02745098, g: 0.03529412, b: 0.039215688, a: 1}
+  emission: {r: 0.17019607, g: 1.0486275, b: 0.92235297, a: 1.4}
+  scale: 0.95
+  moveset: {fileID: 11400000, guid: 4042e2e0b254c104bb8e3ed68c69a1ae, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: 9ac72e14fe958254ba892508576f91ae, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: 1c541d33b97cb344e9cb70b7c7db70ce, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: 9ac72e14fe958254ba892508576f91ae, type: 2}
+    - {fileID: 11400000, guid: ec12eb14bf90074499c14aa8bac90c5f, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: a089876609a29e84cae9057607934b58, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: 9ac72e14fe958254ba892508576f91ae, type: 2}
+    - {fileID: 11400000, guid: b7340c8786ac3cd4a9cb3567db944b31, type: 2}
+    - {fileID: 11400000, guid: 1c541d33b97cb344e9cb70b7c7db70ce, type: 2}

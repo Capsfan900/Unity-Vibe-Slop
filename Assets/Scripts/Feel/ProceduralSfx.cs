@@ -2,7 +2,13 @@ using UnityEngine;
 
 namespace VibeGame1
 {
-    public enum Sfx { Tick, Parry, Block, Hit, Swing, Execute, Heal, Ultimate, Checkpoint, Death, Jump, Dash, Souls, Stagger, Hurt, Click, Roar, Drone }
+    public enum Sfx
+    {
+        Tick, Parry, Block, Hit, Swing, Execute, Heal, Ultimate, Checkpoint, Death, Jump, Dash, Souls, Stagger, Hurt, Click, Roar, Drone,
+        // Appended (never reorder — folder names under Resources/Audio/Sfx/ follow these names)
+        ParryCue, Footstep, Land, PostureBreak,
+        Thunder, ItemPickup, ItemUse
+    }
 
     /// <summary>
     /// Procedurally synthesized dark-fantasy placeholder sound effects (no audio assets needed).
@@ -35,6 +41,13 @@ namespace VibeGame1
                 case Sfx.Click: return Click();
                 case Sfx.Roar: return Roar();
                 case Sfx.Drone: return Drone();
+                case Sfx.ParryCue: return ParryCue();
+                case Sfx.Footstep: return Footstep();
+                case Sfx.Land: return Land();
+                case Sfx.PostureBreak: return PostureBreak();
+                case Sfx.Thunder: return Thunder();
+                case Sfx.ItemPickup: return ItemPickupChime();
+                case Sfx.ItemUse: return ItemUseSwell();
             }
             return Click();
         }
@@ -388,6 +401,150 @@ namespace VibeGame1
                 d[i] = SoftClip(SoftClip(growl * 2.5f) + rasp * 0.7f) * tremolo * Env(t, 0.06f, 0.6f);
             }
             return Make(name, d, 0.9f);
+        }
+
+        static readonly float[] CueRatios = { 1f, 2.05f, 3.14f };
+        static readonly float[] CueAmps = { 1f, 0.45f, 0.22f };
+
+        /// <summary>
+        /// The "parry NOW" ping. Bright, short and deliberately the most cutting sound in the mix —
+        /// everything else here is dark and low, so this sits in a clear frequency band of its own.
+        /// </summary>
+        static AudioClip ParryCue()
+        {
+            const string name = "ParryCue";
+            var d = Buffer(0.12f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float ping = Partials(t, 1600f, CueRatios, CueAmps, 0.035f, 0.4f);
+                float strike = t < 0.006f ? noise.Next(9000f) * (1f - t / 0.006f) * 1.4f : 0f;
+                d[i] = SoftClip((ping * 1.4f + strike) * 1.2f) * Env(t, 0.0008f, 0.05f);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        static AudioClip Footstep()
+        {
+            const string name = "Footstep";
+            var d = Buffer(0.09f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float scuff = noise.Next(Mathf.Lerp(1400f, 250f, t / 0.09f)) * Env(t, 0.001f, 0.025f) * 2f;
+                float body = Mathf.Sin(TwoPi * 95f * t) * Env(t, 0.002f, 0.02f) * 0.5f;
+                d[i] = SoftClip(scuff + body);
+            }
+            return Make(name, d, 0.3f);
+        }
+
+        static AudioClip Land()
+        {
+            const string name = "Land";
+            var d = Buffer(0.18f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float thud = Mathf.Sin(TwoPi * Mathf.Lerp(90f, 45f, t / 0.18f) * t) * Env(t, 0.002f, 0.06f) * 1.5f;
+                float grit = noise.Next(Mathf.Lerp(1800f, 180f, t / 0.18f)) * Env(t, 0.001f, 0.04f) * 2f;
+                d[i] = SoftClip(thud + grit);
+            }
+            return Make(name, d, 0.6f);
+        }
+
+        /// <summary>Guard broken: a descending metallic crack. Should read as "something just gave way".</summary>
+        static AudioClip PostureBreak()
+        {
+            const string name = "PostureBreak";
+            var d = Buffer(0.7f);
+            var noise = new LowpassNoise(Seed(name));
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / 0.7f;
+                float f = Mathf.Lerp(900f, 180f, k * k);
+                phase += TwoPi * f / Rate;
+                float crack = (Mathf.Sin(phase) + 0.6f * Mathf.Sin(phase * 1.47f) + 0.35f * Mathf.Sin(phase * 2.13f))
+                              * Env(t, 0.001f, 0.16f);
+                float shatter = t < 0.03f ? noise.Next(7000f) * (1f - t / 0.03f) * 2f : 0f;
+                float tail = noise.Next(110f) * Env(t, 0.03f, 0.3f) * 2.5f;
+                d[i] = SoftClip(crack * 1.5f + shatter + tail);
+            }
+            return Make(name, d, 0.9f);
+        }
+
+        /// <summary>
+        /// The Stormbreak item. Two halves: a broadband crack with a brutal attack, then a long dark
+        /// rumble that wanders in level as it decays. This is the loudest thing in the game on purpose.
+        /// </summary>
+        static AudioClip Thunder()
+        {
+            const string name = "Thunder";
+            const float dur = 2.2f;
+            var d = Buffer(dur);
+            var crack = new LowpassNoise(Seed(name));
+            var rumble = new LowpassNoise(Seed(name) + 7);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                // the strike: near full range noise, gone in about a tenth of a second
+                float snap = crack.Next(11000f) * Env(t, 0.0006f, 0.045f) * 3f;
+                // sub underneath so it lands in the chest as well as the ears
+                float thump = Mathf.Sin(TwoPi * 42f * t) * Env(t, 0.003f, 0.25f) * 1.3f;
+                // the roll: two slow oscillators beating against each other keep it from sounding static
+                float wobble = 0.5f + 0.5f * Mathf.Sin(TwoPi * 2.7f * t) * Mathf.Sin(TwoPi * 1.1f * t + 0.6f);
+                float roll = rumble.Next(Mathf.Lerp(420f, 70f, k)) * Env(t, 0.02f, 0.75f) * wobble * 5f;
+                d[i] = SoftClip(snap + thump + roll);
+            }
+            return Make(name, d, 0.95f);
+        }
+
+        static readonly float[] ChimeRatios = { 1f, 2f, 3.01f };
+        static readonly float[] ChimeAmps = { 1f, 0.4f, 0.18f };
+
+        /// <summary>Bright two note rise — deliberately clean and high, so a pickup cuts through the murk.</summary>
+        static AudioClip ItemPickupChime()
+        {
+            const string name = "ItemPickup";
+            var d = Buffer(0.35f);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float lo = Partials(t, 880f, ChimeRatios, ChimeAmps, 0.11f, 0.2f) * Env(t, 0.003f, 0.2f);
+                float t2 = t - 0.09f;
+                float hi = t2 > 0f
+                    ? Partials(t2, 1320f, ChimeRatios, ChimeAmps, 0.11f, 1.1f) * Env(t2, 0.003f, 0.2f)
+                    : 0f;
+                d[i] = (lo + hi) * 0.8f;
+            }
+            return Make(name, d, 0.7f);
+        }
+
+        /// <summary>Spending a charge: a short swell that falls away.</summary>
+        static AudioClip ItemUseSwell()
+        {
+            const string name = "ItemUse";
+            const float dur = 0.3f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float shape = Mathf.Sin(k * Mathf.PI);
+                float f = Mathf.Lerp(900f, 180f, k * k);
+                phase += TwoPi * f / Rate;
+                float tone = Mathf.Sin(phase) * 0.5f;
+                float air = noise.Next(Mathf.Lerp(2200f, 400f, k)) * 2.5f;
+                d[i] = SoftClip((tone + air) * shape * 1.3f);
+            }
+            return Make(name, d, 0.7f);
         }
 
         // ------------------------------------------------------------------ ambient loop

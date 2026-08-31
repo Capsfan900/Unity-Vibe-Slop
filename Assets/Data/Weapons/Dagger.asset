@@ -36,7 +36,20 @@ MonoBehaviour:
   hitStopSeconds: 0.03
   parryWindowMultiplier: 1.35
   parryPostureDamage: 18
-  juiceBonus: -5
+  pyreBonus: -5
+  superName: Thornstorm
+  superKind: 1
+  superDamage: 34
+  superPostureDamage: 26
+  superRadius: 4
+  superArcDeg: 70
+  superHits: 9
+  superWindup: 0.14
+  superActive: 0.52
+  superRecover: 0.18
+  superHitStop: 0.02
+  superShake: 0.25
+  superKnockback: 0.4
   idle:
     pos: {x: 0.4, y: -0.3, z: 0.6}
     euler: {x: 0, y: -5, z: 0}

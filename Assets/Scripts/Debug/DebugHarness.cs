@@ -29,6 +29,9 @@ namespace VibeGame1
             Log = "";
             Done = false;
             inst.StopAllCoroutines();
+            // The wand pedestal sits on the spawn point, so a scenario can start with its menu open
+            // and time frozen at zero. Close it before scripting anything.
+            WandSelectMenu.ForceClose();
             switch (scenario)
             {
                 case "parry": inst.StartCoroutine(inst.Wrap(inst.ParryScenario())); break;
@@ -80,10 +83,24 @@ namespace VibeGame1
             Face(target);
         }
 
+        /// <summary>
+        /// Exact spawner name first, then a suffix match.
+        ///
+        /// <para>The four-tile level rework renamed every spawner (<c>Spawn_GruntA</c> →
+        /// <c>Spawn_T1_GruntA</c>) and the whole harness silently answered "no grunt A" and passed — a
+        /// scripted run that finds nothing to fight reports success just as loudly as one that wins.
+        /// The fallback keeps the harness alive across a level rename, which is a thing that will keep
+        /// happening while levels are data.</para>
+        /// </summary>
         static EnemyController FindSpawned(string spawnerName)
         {
-            foreach (var s in FindObjectsByType<EnemySpawner>())
+            var all = FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None);
+            foreach (var s in all)
                 if (s.name == spawnerName && s.Instance != null) return s.Instance.GetComponent<EnemyController>();
+
+            string suffix = spawnerName.StartsWith("Spawn_") ? spawnerName.Substring(6) : spawnerName;
+            foreach (var s in all)
+                if (s.Instance != null && s.name.EndsWith(suffix)) return s.Instance.GetComponent<EnemyController>();
             return null;
         }
 
@@ -115,12 +132,17 @@ namespace VibeGame1
                     L($"  stagger -> execute {(ok ? "OK" : "FAILED (target=" + (exec.Target ? exec.Target.name : "null") + ")")}");
                     if (ok) yield return new WaitForSecondsRealtime(1.5f);
                 }
-                if (cheatHeal && player.Health.Current < 40f) { player.Health.Heal(100f); L("  (cheat heal)"); }
+                if (cheatHeal)
+                {
+                    if (player.Health.Current < 70f) player.Health.Heal(200f);
+                    var pp = player.GetComponent<PlayerPosture>();
+                    if (pp != null && pp.Current > 0f) pp.ResetFull();
+                }
                 if (e != null) last = e.Current;
                 yield return null;
             }
             GameEvents.ParryResolved -= h;
-            L($"fight done: perfect={perfect} blocked={blocked} hit={hit} enemyAlive={(e != null && e.IsAlive)} playerHP={player.Health.Current:F0} juice={res.Juice:F0}");
+            L($"fight done: perfect={perfect} blocked={blocked} hit={hit} enemyAlive={(e != null && e.IsAlive)} playerHP={player.Health.Current:F0} pyre={res.Pyre:F0}");
         }
 
         IEnumerator ParryScenario()
@@ -149,7 +171,7 @@ namespace VibeGame1
         {
             Bind();
             yield return null;
-            LevelManager.I.Warp("Checkpoint_2");
+            LevelManager.I.Warp("Checkpoint_4");
             yield return null;
             var boss = FindAnyObjectByType<BossController>();
             if (boss == null) { L("no boss"); yield break; }

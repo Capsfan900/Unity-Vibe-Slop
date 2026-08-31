@@ -25,7 +25,9 @@ namespace VibeGame1
             { Sfx.Tick, 0.55f }, { Sfx.Swing, 0.45f }, { Sfx.Dash, 0.5f }, { Sfx.Jump, 0.4f }, { Sfx.Click, 0.35f },
             { Sfx.Souls, 0.5f }, { Sfx.Roar, 0.9f }, { Sfx.Parry, 0.9f }, { Sfx.Hit, 0.8f }, { Sfx.Checkpoint, 0.6f },
             { Sfx.Death, 0.8f }, { Sfx.Heal, 0.7f }, { Sfx.Stagger, 0.8f }, { Sfx.Hurt, 0.9f }, { Sfx.Execute, 1f },
-            { Sfx.Ultimate, 0.9f }, { Sfx.Block, 0.8f }
+            { Sfx.Ultimate, 0.9f }, { Sfx.Block, 0.8f },
+            { Sfx.ParryCue, 0.75f }, { Sfx.Footstep, 0.3f }, { Sfx.Land, 0.5f }, { Sfx.PostureBreak, 0.9f },
+            { Sfx.Thunder, 1f }, { Sfx.ItemPickup, 0.6f }, { Sfx.ItemUse, 0.7f }
         };
 
         AudioSource[] pool;

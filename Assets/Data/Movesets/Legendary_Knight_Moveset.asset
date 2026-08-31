@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_Knight_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Iron Penitent
+  entries:
+  - label: cleave-OVERHEAD (the bread and butter)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+    weight: 3
+    minRange: 0
+    maxRange: 99
+  - label: OVERHEAD (single, huge, free punish after)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+    weight: 1.5
+    minRange: 0
+    maxRange: 99
+  - label: cleave-cleave-OVERHEAD (two, then the break)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 99
+  - label: shove-cleave (closes, then commits)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
+      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+    weight: 2
+    minRange: 3.8
+    maxRange: 99
+  - label: shove-QUAKE (unblockable - run, then punish)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
+      - {fileID: 11400000, guid: 73c1e651dbaa0f9439f14c71377510e0, type: 2}
+    weight: 1
+    minRange: 3.4
+    maxRange: 99

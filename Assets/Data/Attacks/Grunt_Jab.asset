@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73622ab688f94484da8caecbba544857, type: 3}
+  m_Name: Grunt_Jab
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
+  attackName: Grunt_Jab
+  windup: 0.45
+  impactDelay: 0.04
+  strikeDuration: 0.16
+  recovery: 0.3
+  range: 2.6
+  coneDeg: 70
+  damage: 13
+  lungeDistance: 0.7
+  comboGap: 0.16
+  parryPostureMultiplier: 1
+  unblockable: 0

@@ -5,7 +5,12 @@ namespace VibeGame1
 {
     public class PlayerDeath : MonoBehaviour
     {
-        public float respawnDelay = 1.6f;
+        [Tooltip("Kept short on purpose: a speedrun platformer must not punish a fall with dead air.")]
+        public float respawnDelay = 0.35f;
+
+        [Header("Void fall")]
+        [Tooltip("Falling this far below the last grounded position kills instantly, instead of waiting for the kill plane far below the level.")]
+        public float voidFallDistance = 9f;
 
         Health health;
         FirstPersonMotor motor;
@@ -23,6 +28,22 @@ namespace VibeGame1
 
         void OnEnable() { health.OnDied += OnDied; }
         void OnDisable() { health.OnDied -= OnDied; }
+
+        void Update()
+        {
+            // Waiting for the y=-25 kill plane cost ~1.7s of silent falling from the arena. Fail fast instead.
+            if (dying || health == null || health.IsDead || motor == null) return;
+            if (!GameManager.IsPlaying || motor.IsGrounded) return;
+            if (transform.position.y >= motor.LastGroundedPosition.y - voidFallDistance) return;
+
+            if (health.Invulnerable)
+            {
+                // god mode: don't die, just put us back on solid ground
+                if (LevelManager.I != null) LevelManager.I.Respawn();
+                return;
+            }
+            health.TakeDamage(new DamageInfo { damage = 99999f, source = gameObject });
+        }
 
         void OnDied()
         {

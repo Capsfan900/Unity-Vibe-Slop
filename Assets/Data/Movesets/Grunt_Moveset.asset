@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Grunt_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: Grunt
+  entries:
+  - label: jab-slash (the common rhythm)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+      - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+    weight: 3
+    minRange: 0
+    maxRange: 99
+  - label: jab-jab-HEAVY (the signature bait)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+      - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+      - {fileID: 11400000, guid: 7d2bf04b868ca584db8448a09b38d1c5, type: 2}
+    weight: 1
+    minRange: 0
+    maxRange: 99
+  - label: slash-heavy (slow, slower)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+      - {fileID: 11400000, guid: 7d2bf04b868ca584db8448a09b38d1c5, type: 2}
+    weight: 1.5
+    minRange: 0
+    maxRange: 99
+  - label: jab-slash-jab (fast, slow, fast)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+      - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+      - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 99

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73622ab688f94484da8caecbba544857, type: 3}
+  m_Name: Knight_Shove
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
+  attackName: Knight_Shove
+  windup: 0.6
+  impactDelay: 0.05
+  strikeDuration: 0.2
+  recovery: 0.55
+  range: 3.6
+  coneDeg: 60
+  damage: 20
+  lungeDistance: 2.2
+  comboGap: 0.3
+  parryPostureMultiplier: 1
+  unblockable: 0

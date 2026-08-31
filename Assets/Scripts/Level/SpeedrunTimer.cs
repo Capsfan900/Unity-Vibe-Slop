@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace VibeGame1
@@ -11,6 +12,15 @@ namespace VibeGame1
         public bool Running { get; private set; }
         public bool Finished { get; private set; }
 
+        /// <summary>
+        /// Run lifecycle, for anything that must span exactly one run — currently the ghost recorder.
+        /// These are instance events rather than <see cref="GameEvents"/> entries because a run belongs to
+        /// a timer, and the design doc's §9 Phase 0 item 5 calls for de-singletoning per-player state:
+        /// when there are two players there are two timers, and a static event could not tell them apart.
+        /// </summary>
+        public event Action RunStarted;
+        public event Action RunFinished;
+
         void Awake() { I = this; }
         void OnDestroy() { if (I == this) I = null; }
 
@@ -23,13 +33,33 @@ namespace VibeGame1
             var state = GameManager.I != null ? GameManager.I.State : GameState.Playing;
             if (!Running)
             {
-                if (state == GameState.Playing && InputReader.I != null && InputReader.I.AnyMovementInput) Running = true;
+                if (state == GameState.Playing && InputReader.I != null && InputReader.I.AnyMovementInput)
+                    TryStartRun();
                 return;
             }
             if (state == GameState.Playing || state == GameState.Dead) Elapsed += Time.unscaledDeltaTime;
         }
 
-        void Stop() { Running = false; Finished = true; }
+        /// <summary>
+        /// Starts the run and raises <see cref="RunStarted"/>. <see cref="Update"/> calls this on the
+        /// first movement input — input is still read only there. Idempotent: a run that is already
+        /// running, or already finished, is left alone. Returns whether this call started the run.
+        /// </summary>
+        public bool TryStartRun()
+        {
+            if (Running || Finished) return false;
+            Running = true;
+            if (RunStarted != null) RunStarted();
+            return true;
+        }
+
+        void Stop()
+        {
+            if (Finished) return;
+            Running = false;
+            Finished = true;
+            if (RunFinished != null) RunFinished();
+        }
 
         public static string Format(float seconds)
         {

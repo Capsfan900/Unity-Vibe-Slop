@@ -1,0 +1,121 @@
+# ============================================================================
+# vibegame1 — Git attributes
+#
+# WHY THIS FILE EXISTS
+# Unity serialises scenes, prefabs and assets as YAML. Git's default line-based
+# merge mangles them (silently producing a file Unity can open but that has lost
+# component references). Two things guard against that:
+#
+#   1. `eol=lf` on Unity YAML  — keeps diffs stable across Windows/macOS.
+#   2. `merge=unityyamlmerge`  — routes conflicts through Unity's SmartMerge tool.
+#
+# ENABLING SMARTMERGE (once per machine — .gitattributes alone is not enough):
+#
+#   git config --global merge.unityyamlmerge.name "Unity SmartMerge"
+#   git config --global merge.unityyamlmerge.driver \
+#     '"C:/Program Files/Unity/Hub/Editor/6000.5.10f1/Editor/Data/Tools/UnityYAMLMerge.exe" merge -p "$BASE" "$REMOTE" "$LOCAL" "$MERGED"'
+#
+# On macOS/Linux the tool lives at:
+#   <UnityInstall>/Unity.app/Contents/Tools/UnityYAMLMerge
+#
+# Until that config exists Git falls back to a normal merge for these files, so
+# prefer to avoid two people editing the same scene/prefab simultaneously.
+#
+# GIT LFS
+# Not configured. Audio under Assets/Resources/Audio is committed as plain binary
+# (~8 MB of CC0 .ogg/.wav today). That is fine at this size, but if the repo grows
+# — more audio, textures, or any FBX/PSD source art — move the binary patterns
+# below to LFS before the history gets large, because converting is retroactive
+# and rewrites history:
+#   git lfs install && git lfs track "*.ogg" "*.wav" "*.png" "*.psd" "*.fbx"
+# ============================================================================
+
+# Normalise text files in the repository; check out with native line endings.
+* text=auto
+
+# ---------------------------------------------------------------------------
+# Unity YAML — merge with SmartMerge, always LF in the repo
+# ---------------------------------------------------------------------------
+*.unity           merge=unityyamlmerge eol=lf
+*.prefab          merge=unityyamlmerge eol=lf
+*.asset           merge=unityyamlmerge eol=lf
+*.mat             merge=unityyamlmerge eol=lf
+*.meta            merge=unityyamlmerge eol=lf
+*.controller      merge=unityyamlmerge eol=lf
+*.anim            merge=unityyamlmerge eol=lf
+*.overrideController merge=unityyamlmerge eol=lf
+*.physicMaterial  merge=unityyamlmerge eol=lf
+*.physicsMaterial merge=unityyamlmerge eol=lf
+*.mask            merge=unityyamlmerge eol=lf
+*.playable        merge=unityyamlmerge eol=lf
+*.mixer           merge=unityyamlmerge eol=lf
+*.terrainlayer    merge=unityyamlmerge eol=lf
+*.lighting        merge=unityyamlmerge eol=lf
+*.renderTexture   merge=unityyamlmerge eol=lf
+
+# JSON-backed Unity assets: plain text, but never line-merge them either.
+*.inputactions    text eol=lf merge=unityyamlmerge
+*.shadergraph     text eol=lf -merge
+*.shadersubgraph  text eol=lf -merge
+
+# ---------------------------------------------------------------------------
+# Source and config — explicit so `text=auto` never guesses wrong
+# ---------------------------------------------------------------------------
+*.cs              text diff=csharp
+*.shader          text
+*.hlsl            text
+*.cginc           text
+*.compute         text
+*.json            text
+*.md              text
+*.txt             text
+*.xml             text
+*.yml             text eol=lf
+*.yaml            text eol=lf
+*.editorconfig    text
+*.gitattributes   text
+*.gitignore       text
+*.sh              text eol=lf
+*.bat             text eol=crlf
+*.ps1             text eol=crlf
+
+# ---------------------------------------------------------------------------
+# Binary — never diff, never merge, never touch line endings
+# ---------------------------------------------------------------------------
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.tga    binary
+*.tif    binary
+*.tiff   binary
+*.bmp    binary
+*.exr    binary
+*.hdr    binary
+*.psd    binary
+*.ai     binary
+*.ogg    binary
+*.wav    binary
+*.mp3    binary
+*.aif    binary
+*.aiff   binary
+*.fbx    binary
+*.obj    binary
+*.blend  binary
+*.dae    binary
+*.3ds    binary
+*.ttf    binary
+*.otf    binary
+*.dll    binary
+*.so     binary
+*.dylib  binary
+*.pdb    binary
+*.mp4    binary
+*.mov    binary
+*.unitypackage binary
+*.cubemap binary
+
+# Keep generated project scaffolding out of diffs and language stats.
+*.csproj  linguist-generated=true
+*.sln     linguist-generated=true
+*.slnx    linguist-generated=true
