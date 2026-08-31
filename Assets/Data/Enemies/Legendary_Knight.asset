@@ -14,47 +14,62 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
   displayName: THE IRON PENITENT
   maxHP: 260
-  maxPosture: 190
-  postureRegen: 4
-  postureRegenDelay: 3.5
-  staggerSeconds: 4.2
-  moveSpeed: 3.4
-  turnSpeed: 210
+  maxPosture: 260
+  postureRegen: 3.5
+  postureRegenDelay: 4
+  staggerSeconds: 5
+  moveSpeed: 3.8
+  turnSpeed: 240
   aggroRange: 18
-  attackRange: 2.9
+  attackRange: 3.4
   attackCooldown: 0.5
   parryRecoilSeconds: 0.75
-  aggression: 0.35
-  windupTurnMultiplier: 0.16
+  aggression: 0.55
+  windupTurnMultiplier: 0.35
   stepSpeedMultiplier: 0.26
   stepAcceleration: 4.5
   stepDeadzone: 0.95
-  comboBreathSeconds: 0.85
+  comboBreathSeconds: 0.18
   readyDistanceMultiplier: 1.6
-  preferredRange: 4
+  preferredRange: 4.2
   commitTolerance: 0.8
   repositionDeadzone: 0.5
-  backStepSpeedMultiplier: 0.2
+  backStepSpeedMultiplier: 0.35
   strafeSpeedMultiplier: 0.2
-  lungeMinDistance: 1.5
+  lungeMinDistance: 3
   soulValue: 600
-  bodyColor: {r: 0.039215688, g: 0.02745098, b: 0.03137255, a: 1}
+  bodyColor: {r: 0.26666668, g: 0.22745098, b: 0.20392157, a: 1}
   emission: {r: 1.0541177, g: 0.4501961, b: 0.14274509, a: 1.4}
   scale: 1.6
   moveset: {fileID: 11400000, guid: abe6b8341b531d745b5a055129d49fad, type: 2}
   combos:
   - hits:
-    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
-    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+    - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
   - hits:
-    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
-  - hits:
-    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
-    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
-    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+    - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
   - hits:
     - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
-    - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+    - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
   - hits:
+    - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 9c41232d9a62a6f428b2c1b6fe8c8bb2, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 9c41232d9a62a6f428b2c1b6fe8c8bb2, type: 2}
     - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
-    - {fileID: 11400000, guid: 73c1e651dbaa0f9439f14c71377510e0, type: 2}
+    - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+    - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}

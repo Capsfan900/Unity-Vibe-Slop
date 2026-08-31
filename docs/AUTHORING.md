@@ -103,9 +103,54 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Grunt` | `Enemy_Grunt` | `Grunt_Moveset` | `EnemyController` | Filler; teaches the basic deflect |
 | `Heavy` | `Enemy_Heavy` | `Heavy_Moveset` | `EnemyController` | Slow filler; tempo change |
 | `Legendary_Ninja` — *The Thirteenth Shade* | `Legendary_Ninja` | `Legendary_Ninja_Moveset` | `EnemyController` | Mini-boss; sustained cadence + an unblockable sweep |
-| `Legendary_Knight` — *The Iron Penitent* | `Legendary_Knight` | `Legendary_Knight_Moveset` | `EnemyController` | Mini-boss; patience, huge commitment both ways |
-| `Legendary_Spellsword` — *The Ashen Chorister* | `Legendary_Spellsword` | `Legendary_Spellsword_Moveset` | `EnemyController` | Mini-boss; feint/transition + ranged opener + grab |
+| `Legendary_Knight` — *The Iron Penitent* | `Legendary_Knight` | `Legendary_Knight_Moveset` | `EnemyController` | Mini-boss; the spinning furnace — a sustained parry cadence with an outsized payoff. **Imported body** (`Assets/Enemies/IronPenitent.fbx`) |
+| `Legendary_Spellsword` — *The Ashen Chorister* | `Legendary_Spellsword` | `Legendary_Spellsword_Moveset` | `EnemyController` | Mini-boss; feint/transition + ranged opener + grab. **Imported body** (`Assets/Enemies/AshenChorister.fbx`) |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
+
+### 2a. Importing a forge model — and the one source-art exception
+
+**Hard rule 4 says everything in the scene is regenerable. `Assets/Enemies/` is the documented
+exception.** An FBX exported from `enemy-forge` is *authored art*, like the CC0 audio under
+`Resources/Audio` — no menu item can rebuild it. So it is a **committed asset**, and
+`MiniBossFactory` references it **by path and fails loudly** if it is missing: a clear `Debug.LogError`
+naming the file and how to restore it, and the prefab is abandoned. There is deliberately **no silent
+fallback to primitives**, because a boxy stand-in in a shipped build reads as a bug rather than as a
+missing file. That folder holds `AshenChorister.fbx` and `IronPenitent.fbx` plus the `*_source.png`
+drawing each was generated from, kept alongside for provenance.
+
+To bring in a new one:
+
+1. **Copy the FBX into a path containing `/Enemies/`**, with a sane name — not the generator's
+   timestamp. `Assets/Editor/EnemyForgeImporter.cs` (the tool's own `AssetPostprocessor`, vendored
+   as-is under its `EnemyForge.Editor` namespace) applies metre scale and sane mesh defaults to
+   anything matching that path. Copy the source drawing in beside it.
+2. **Check the rig type is Generic.** The postprocessor asks for Humanoid, which is wrong here and
+   often does not run at all — see ENGINEERING-LOG. Nothing in this project is animated by an
+   `Animator`; `EnemyVisuals` drives plain transforms, so a Humanoid avatar buys nothing and a legless
+   silhouette cannot produce a valid one.
+3. **Verify the facing by rendering it**, from ±X and ±Z, and looking. Forge output is "Unity axes",
+   which fixes the scale and the ground plane but says nothing about which way the figure looks. Both
+   shipped models face **+Z**; do not assume the next one does.
+4. **Add a `ModelSpec` to `MiniBossFactory.ModelFor`**: the file name, the hover lift, a yaw correction
+   if needed, and the local positions of the glowing slot, the shoulder, the hand and the weapon-FX
+   marker. Everything else — collider, agent, `EnemyVisuals`, posture bar, alert cube — is shared with
+   the primitive path and needs no per-model work.
+5. Run **VibeGame1 → 4b. Build Mini-Bosses** and look at it at `preferredRange` in the real lighting.
+
+Three things that will look broken if you skip them:
+
+- **Physics stays on the prefab root.** The collider, the `NavMeshAgent` and `EnemyData.scale` belong to
+  the root; the art is parented under `Visual/LungeRoot`. A legless model **hovers by lifting the mesh**
+  (`ModelSpec.yLift`, 0.10 m on the Chorister), never by touching `agent.baseOffset` — that would move
+  the agent, the capsule and the distance/cone impact test with it.
+- **The material must be `Universal Render Pipeline/*`** or it renders magenta. Forge FBXs carry vertex
+  colours and no texture, and `EnemyVisuals` overwrites `_BaseColor` from `EnemyData` every frame
+  anyway, so the shared `M_Boss` is the right answer and no new material is needed.
+- **Every `EnemyVisuals` binding must be non-null.** They are all null-guarded at runtime, so a missed
+  one is silent — the enemy just quietly stops telegraphing. `MiniBossFactory` logs an error if any of
+  the seven is null, and `FeatureTests` → `Legendaries` asserts all of them plus the URP material.
+
+---
 
 The three mini-bosses are prefabs built by **VibeGame1 → 4b. Build Mini-Bosses**
 (`Editor/MiniBossFactory.cs`), *not* by `4. Build Prefabs` — so re-tuning them never rebuilds the player

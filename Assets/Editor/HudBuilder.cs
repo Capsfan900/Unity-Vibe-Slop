@@ -215,7 +215,8 @@ namespace VibeGame1.EditorTools
 
             pause.resumeButton = Btn("ResumeButton", pausePanel.transform, "RESUME", new Vector2(0f, 40f), new Vector2(320f, 56f));
             pause.restartButton = Btn("RestartButton", pausePanel.transform, "RESTART FROM CHECKPOINT", new Vector2(0f, -30f), new Vector2(320f, 56f));
-            pause.quitButton = Btn("QuitButton", pausePanel.transform, "QUIT", new Vector2(0f, -100f), new Vector2(320f, 56f));
+            pause.mainMenuButton = Btn("MainMenuButton", pausePanel.transform, "MAIN MENU", new Vector2(0f, -100f), new Vector2(320f, 56f));
+            pause.quitButton = Btn("QuitButton", pausePanel.transform, "QUIT", new Vector2(0f, -170f), new Vector2(320f, 56f));
             pausePanel.gameObject.SetActive(false);
 
             // ---------------- Level-up menu ----------------

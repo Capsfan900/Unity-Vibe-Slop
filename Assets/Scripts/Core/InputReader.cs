@@ -14,7 +14,7 @@ namespace VibeGame1
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
                     debugWarpBoss, debugRestore, debugSouls, debugGodMode;
-        InputAction useItem, testMenu, wandCycle, interact;
+        InputAction useItem, testMenu, wandCycle, interact, lockOn;
 
         void Awake()
         {
@@ -47,6 +47,7 @@ namespace VibeGame1
             testMenu = map.FindAction("TestMenu", false);
             wandCycle = map.FindAction("WandCycle", false);
             interact = map.FindAction("Interact", false);
+            lockOn = map.FindAction("LockOn", false);
             // optional actions: missing ones must not crash startup
             slot4 = map.FindAction("WeaponSlot4", false);
             debugWarpBoss = map.FindAction("DebugWarpBoss", false);
@@ -75,6 +76,14 @@ namespace VibeGame1
         public bool UseItemPressed => useItem != null && useItem.WasPressedThisFrame();
         public bool TestMenuPressed => testMenu != null && testMenu.WasPressedThisFrame();
         public bool WandCyclePressed => wandCycle != null && wandCycle.WasPressedThisFrame();
+
+        /// <summary>
+        /// Middle mouse (or right stick click): Souls target lock. One key acquires, switches and
+        /// releases — <see cref="LockOnController.TryLockOn"/> resolves which by where you are aiming.
+        /// Middle mouse was free; the scroll wheel, the other Souls convention, is Previous/Next weapon
+        /// cycling and could not be shared.
+        /// </summary>
+        public bool LockOnPressed => lockOn != null && lockOn.WasPressedThisFrame();
 
         /// <summary>F (or gamepad north): deliberate world interaction, e.g. the wand pedestal.</summary>
         public bool InteractPressed => interact != null && interact.WasPressedThisFrame();

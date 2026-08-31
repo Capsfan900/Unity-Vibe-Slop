@@ -40,6 +40,14 @@ namespace VibeGame1
         void HitFlash();
         void Slump(bool on);
 
+        /// <summary>
+        /// Raise or drop the deathblow glyph on the body itself. <see cref="Slump"/> drives it for the
+        /// ordinary break/recover pair; the brain calls it directly when the window closes for any other
+        /// reason. An implementation with no marker may no-op, but a posture break that shows the player
+        /// nothing ON THE ENEMY is the bug this exists to prevent.
+        /// </summary>
+        void SetDeathblowReady(bool ready);
+
         /// <summary>The visible breath after a combo — the player's window to act.</summary>
         void Settle(float seconds);
 

@@ -40,8 +40,11 @@ namespace VibeGame1.EditorTools
             // tell want opposite intensities.
             // Names are stable - other builders reference them, so the hues changed, not the keys.
 
-            new Spec("M_Ground",        Hex("#151011"), Color.black),                 // stone
-            new Spec("M_Platform",      Hex("#48423D"), Hex("#48423D") * 0.10f),      // ash, lifted so footing reads
+            // #151011 -> #262023. The old value was ~0.008 LINEAR reflectance - darker than any real
+            // material - and it covers most of the structural surface area, so the whole world was one
+            // multiplicative near-zero (dark ambient x dark albedo) with nothing for light to land on.
+            new Spec("M_Ground",        Hex("#262023"), Color.black),                 // stone
+            new Spec("M_Platform",      Hex("#56504A"), Hex("#56504A") * 0.10f),      // ash, lifted so footing reads
             new Spec("M_NeonPink",      Color.black,    Hex("#C4400F") * 1.15f),      // TILE 3 - EMBER accent
             new Spec("M_NeonCyan",      Color.black,    Hex("#1FB9D6") * 1.00f),      // TILE 1 - cold ghost teal
             new Spec("M_NeonYellow",    Color.black,    Hex("#D8C22A") * 0.85f),      // TILE 2 - brass gold
@@ -61,8 +64,50 @@ namespace VibeGame1.EditorTools
             // colour. The blue lift makes it desaturate toward hot pink-white instead, which nothing
             // else in the palette occupies. ~2.9x the 1.05 bloom threshold.
             new Spec("M_AlertTell",     Color.black,    Hex("#FF0A28") * 3.00f),
+            // ---- Deathblow marker --------------------------------------------------------------
+            // The Sekiro "this one is ready to be killed" glyph, raised over an enemy whose posture is
+            // broken. Same brief as the tell above - loud, read in a glance, allowed to bloom - and for
+            // that reason it gets its OWN key rather than borrowing M_AlertTell: those two markers sit in
+            // the same place on screen and mean OPPOSITE things ("an attack you cannot block is coming"
+            // versus "kill this one now"). A shared read there is worse than no marker at all.
+            // ARC VIOLET-BLUE. Hue picked by elimination: the four navigational trims own teal, gold,
+            // crimson and ember; the alert tell owns red desaturating to hot pink-white; the Pyre fire
+            // owns orange-gold. Violet is the one loud hue nothing else in the palette occupies.
+            // THE RED CHANNEL IS THE WHOLE FIGHT. The first attempt was #7A2BFF * 2.60, i.e.
+            // (1.24, 0.44, 2.60) - and that shipped a marker indistinguishable from the alert tell,
+            // because a channel over 1.0 CLIPS: red and blue both pinned at full and the glyph rendered
+            // MAGENTA. Loud is not a hue. To stay violet the marker must be loud in blue while its red
+            // stays UNDER 1.0 after scaling. #3A18FF * 2.60 = (0.59, 0.24, 2.60) was the second attempt
+            // and still read as light ORCHID beside the tell in a side-by-side capture - close enough to
+            // pink to hesitate over. Red had to come down again: #2A0BFF * 2.60 = (0.43, 0.11, 2.60)
+            // renders as an unmistakable blue-violet. Verified by screenshot, three hues in one frame;
+            // arithmetic got this wrong twice.
+            // 2.60 is ~2.5x the shipped 1.05 bloom threshold - unmissable - but deliberately below the
+            // tell's 3.00, because when both could be on screen the thing that can kill YOU must win.
+            new Spec("M_DeathblowMark", Color.black,    Hex("#2A0BFF") * 2.60f),
+            // ---- Lock-on dot -------------------------------------------------------------------
+            // The Dark Souls target reticle: one small pale mote on the CHEST of whatever the player has
+            // locked. Third combat marker in the palette, and the only quiet one.
+            // IT IS INFORMATION, NOT AN ALARM. The tell means "danger" and the deathblow glyph means
+            // "opportunity"; both are meant to grab you and both sit ~2.5-3x over the 1.05 bloom
+            // threshold. Lock-on means neither - it says "this one" and then must be ignorable for the
+            // whole fight. So it is the one combat marker held UNDER the bloom threshold: 0.78 peak
+            // channel never blooms, never smears and never desaturates, and a marker that does not
+            // bloom cannot be mistaken for one that does even in peripheral vision.
+            // DESATURATED ON PURPOSE. Every saturated slot is spoken for - teal, gold, crimson and
+            // ember for the four navigational trims, hot pink-white for the tell, arc violet for the
+            // deathblow, orange-gold for the Pyre fire. Pale bone-grey is the only thing left that
+            // carries no meaning, and in Dark Souls the reticle is a plain pale dot for exactly that
+            // reason. A faint cool cast (blue > red) keeps it off the warm ember world so it separates
+            // by hue as well as level, without ever reading as coloured.
+            new Spec("M_LockOnDot",     Color.black,    Hex("#CBD2D8") * 0.95f),
             // Enemies are UNLIT. Emission black: EnemyVisuals drives base colour and only emits on a parry.
-            new Spec("M_Enemy",         Hex("#0B0809"), Color.black),
+            // #0B0809 -> #1F1D24. Still the darkest character surface in the game and still NON-EMISSIVE
+            // ("enemies do not glow" - light on an enemy means you deflected), but 0.003 linear albedo made
+            // a backlit grunt a flat black CUTOUT with no interior shading at all. The new value is a cool
+            // near-black: it separates by HUE from the warm ember-lit floor, so the silhouette holds
+            // without the enemy becoming a light source.
+            new Spec("M_Enemy",         Hex("#1F1D24"), Color.black),
             new Spec("M_EnemyEye",      Hex("#180400"), Hex("#FF5A18") * 0.9f),       // faint ember, findable in the dark
             new Spec("M_Boss",          Hex("#0D0709"), Color.black),
             new Spec("M_Weapon_Sword",  Hex("#0A0C10"), Hex("#9FB4C6") * 0.9f),
@@ -73,7 +118,10 @@ namespace VibeGame1.EditorTools
             new Spec("M_Bloodstain",    Color.black,    Hex("#B8D08A") * 1.1f),
             new Spec("M_Gate",          Hex("#090607"), Hex("#C4400F") * 0.8f),
             new Spec("M_Torch",         Hex("#2A1206"), Hex("#FF7A1A") * 1.15f),      // flame, not a white slab
-            new Spec("M_Stone",         Hex("#1E1819"), Color.black),
+            // #1E1819 -> #3A3134. Walls, pillars and obelisks - i.e. VERTICAL faces, which Trilight
+            // ambient lights with the equator term only. Kept just above M_Ground so a wall separates
+            // from the floor it meets.
+            new Spec("M_Stone",         Hex("#3A3134"), Color.black),
             new Spec("M_Lightning",     Color.black,    Hex("#7FD4FF") * 3.5f),
             new Spec("M_Item",          Color.black,    Color.white * 1.2f),
             new Spec("M_Spark",         Color.black,    Color.white * 2.4f),

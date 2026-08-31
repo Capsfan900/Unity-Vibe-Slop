@@ -38,7 +38,7 @@ MonoBehaviour:
   strafeSpeedMultiplier: 0.3
   lungeMinDistance: 1.8
   soulValue: 1500
-  bodyColor: {r: 0.050980393, g: 0.023529412, b: 0.07058824, a: 1}
+  bodyColor: {r: 0.2509804, g: 0.1882353, b: 0.29803923, a: 1}
   emission: {r: 0.76549023, g: 0.10039216, b: 0.3011765, a: 1.6}
   scale: 2.2
   moveset: {fileID: 11400000, guid: 317715a9dd2819346b381edabf3e0262, type: 2}

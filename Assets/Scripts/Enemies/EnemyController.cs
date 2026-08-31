@@ -688,11 +688,30 @@ namespace VibeGame1
             transform.localScale = s0 * 0.02f;
         }
 
+        EnemyVisuals markVisuals;
+
+        /// <summary>
+        /// The single point every part of the deathblow beat aims at: the deathblow glyph on this
+        /// enemy's sternum, pushed off the body surface toward <paramref name="eye"/> so it is never
+        /// inside the mesh. The commit burst, the wand's blast and the marker itself all read this, so
+        /// the shatter, the bolt and the explosion land on the same pixels.
+        /// </summary>
+        public Vector3 DeathblowPoint(Vector3 eye)
+        {
+            if (markVisuals == null) markVisuals = GetComponentInChildren<EnemyVisuals>(true);
+            if (markVisuals != null) return markVisuals.DeathblowPoint(eye);
+            float s = Mathf.Max(0.01f, transform.localScale.x);
+            return transform.position + Vector3.up * (1.45f * s);
+        }
+
         public void BeginExecuted(Transform executor)
         {
             if (Current == State.Dead) return;
             SetState(State.Executed);
             combo = null;
+            // The window is spent the instant the blow is committed. A glyph still hanging over a body
+            // that is already being killed invites a second press that can never land.
+            if (visuals != null) visuals.SetDeathblowReady(false);
             Posture.HoldStagger(3f);
             Vector3 dir = executor.position - transform.position; dir.y = 0f;
             if (dir.sqrMagnitude > 0.01f) transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);

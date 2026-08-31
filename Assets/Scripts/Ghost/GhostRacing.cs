@@ -27,8 +27,27 @@ namespace VibeGame1
         static readonly Color Gold = new Color(1f, 0.84f, 0.35f);
         static readonly Color Plain = new Color(0.85f, 0.87f, 0.92f);
 
+        /// <summary>
+        /// Runs ONCE per application start, after the FIRST scene loads. Since the game boots into
+        /// MainMenu (build index 0) that first scene is never a level, so this also subscribes to
+        /// sceneLoaded — without it, a level entered from the menu would silently have no ghost, no
+        /// recorder and no leaderboard, and nothing would say so.
+        /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+            TryCreate();
+        }
+
+        static void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene,
+                                  UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            TryCreate();
+        }
+
+        static void TryCreate()
         {
             // Only in a playable scene. SpeedrunTimer lives on the Managers prefab, so its presence is a
             // reliable "this is a level, not a menu" test.

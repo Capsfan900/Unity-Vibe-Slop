@@ -28,7 +28,7 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 | `Player/` | 16 | `FirstPersonMotor`, `PlayerLook`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
 | `Enemies/` | 5 | `EnemyController` (FSM), `BossController`, `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
 | `Level/` | 6 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer` |
-| `UI/` | 7 | `HUDController`, `BarView`, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu` |
+| `UI/` | 10 | `HUDController`, `BarView`, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, **`MainMenuController`** |
 | `Feel/` | 7 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx` |
 | `Progression/` | 4 | `SoulsWallet`, `Bloodstain`, `UpgradeMath`, `LevelUpMenu` |
 | `Data/` | 9 | ScriptableObject definitions (see below) |
@@ -40,7 +40,7 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Path | Contents |
 |---|---|
-| `Assets/Scenes/` | `Level_01.unity` (the campaign test level) and `Sandbox.unity` |
+| `Assets/Scenes/` | `MainMenu.unity` (**build index 0** — the game boots here), `Level_01.unity` (the campaign level) and `Sandbox.unity` |
 | `Assets/Settings/` | URP pipeline assets and renderers — `PC_RPAsset` / `PC_Renderer` and `Mobile_*` variants, plus the volume profiles |
 | `Assets/Data/` | All ScriptableObject tuning (see below) |
 | `Assets/Materials/` | Generated `M_*.mat`, all URP/Lit |
@@ -134,6 +134,33 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   `damage × 0.9` posture, a raw hit `damage × 0.5`, unblockables ×1.5. Player break = 1.5 s stagger,
   0.4× move speed, no jump/dash/attack/parry/flask/super, and 1.6× damage taken. Enemy break opens the
   deathblow window.
+- **Deathblow (Sekiro).** Breaking an enemy's posture makes the body **buckle** — it leans back, sags
+  and throws its guard open, and it never moves toward the player — and raises a **mark on that enemy**,
+  a small flat violet spot on its sternum. The deathblow then happens only when the player deliberately
+  attacks that marked enemy. An attack press with nothing marked is an ordinary
+  swing; against a marked enemy the same press is consumed by `ExecuteInteractor`, and `CommitCue`
+  bursts violet sparks out of the victim's sternum, runs a beam from the weapon tip to it and plays the
+  execute stinger *on the press frame* so the player can feel that the button did something different.
+  The prompt names the input (`DEATHBLOW [ATTACK]`) rather than just the verb. Before this the press was
+  already deliberate and nothing on screen said so, which is why it played as automatic.
+- **The mark is a small flat glowing spot on the sternum.** One billboarded quad of `M_DeathblowMark`
+  (violet, peak 2.60, blooms), rolled to a diamond, stepped onto the body surface toward the eye because
+  a mark at the centre of mass renders inside the mesh. It began as a crossed diamond of three cubes
+  over the head — an object in the world rather than a mark on a body, and at deathblow range a blob the
+  camera runs into. Its size is **angular**, not fixed: the spot stands off the chest toward the viewer,
+  so it is always nearer than the body and a fixed-size quad grows faster than the enemy does as the
+  player closes. And it is **dropped on the press frame** by `BeginExecuted`, so it can never be between
+  the wand tip and the body at contact — the commit shatter takes over that same point.
+- **Two spots on one torso.** The lock-on dot lives at the centre of mass (1.05) and the deathblow mark
+  at the sternum (1.45), and they are separated on five axes at once: height, size (~5% of the frame
+  against ~1%, both angular so neither grows into the other), hue (violet against pale bone-grey),
+  brightness (2.60, blooms hard, against 0.81, deliberately under the 1.05 threshold) and motion (rolls
+  and breathes against dead still). `FeatureTests > Deathblow` fails if the hues or the heights converge.
+- **The riposte is a shot, and the victim has to stay in it.** The stagger pose is signed entirely away
+  from the camera, the wand's full extension finishes near screen centre so the tip visually lands on
+  the chest, the blast blooms from the chest **surface** (a point at the centre of mass renders inside
+  the mesh), and the death animation falls **backwards** — a corpse pitching forward at `stabStandoff`
+  drops a whole body through the lens on the frame the player is watching the blast.
 - **Boss deathblow.** HP 0 does **not** kill — it breaks posture and opens a 5 s window; only
   `isExecute` damage removes a segment. Missing the window restores 12% HP. The `DeathblowReady` HUD
   banner exists because players could not tell this was happening.
@@ -150,6 +177,11 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   a single ember at a sliver of charge to a blaze at full. This is the player's *primary* read on their
   own charge; the HUD bar only confirms it. Intensities are deliberately conservative — see the art
   direction note below.
+- **The super leaves the weapon.** Every element of a super's VFX is anchored to
+  `WeaponViewmodel.TipWorldPosition` — the main-hand twin of the wand's `OffhandViewmodel.TipWorldPosition`
+  — so the blast is visibly authored by the blade, head or point that swung. The quake traces the hammer
+  head down to the floor and radiates from *that* contact point. An effect centred on the player reads as
+  something happening to them, not something they did.
 - **Super attack (`Q`, full Pyre).** One per weapon, authored entirely as `WeaponData.super*` fields.
   Sword *Emberfall Arc* (one 170° sweep), dagger *Thornstorm* (nine stabs in a 70° cone, posture-heavy),
   hammer *Sunbreak* (0.52 s wind-up into a 360° quake, 130 posture, 6 m knockback), dev blade
@@ -159,6 +191,17 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
 - **Wand cooldown.** The riposte blast is a resource: Emberlance 3.5 s, Stormneedle 5.5 s, Gravecall 7 s,
   Voidspine 9 s. It gates the **blast**, never the deathblow — a cooling wand degrades to the melee
   execute and the prompt says so, because every cooldown is longer than the boss's 5 s deathblow window.
+- **Lock-on (Souls, in first person).** `MMB` acquires the enemy nearest the crosshair, raises a small
+  pale dot on its chest, and then **softly keeps it framed while the mouse is still**. There is no camera
+  to orbit here and the mouse is the parry hand, so the contract is one line: *the mouse is always
+  authoritative and the assist only spends frames the player is not using.* Nothing scales or filters the
+  look delta — `PlayerLook.Update` applies it untouched and `LockOnController` adds a correction
+  afterwards in `LateUpdate`, multiplied by a gate that reaches zero as soon as the mouse moves. The
+  correction is proportional (`4 deg/s` per degree of error, capped at `90 deg/s`, dead inside `2.2 deg`)
+  so it eases rather than snaps, and it runs on `PlayerDelta` so hitstop cannot lurch it. Mousing more
+  than `62 deg` off the target **drops** the lock rather than dragging you back. One key does all three
+  verbs, chosen by where you aim: release if you are still looking at what you hold, switch if you are
+  not. It also drops on death, out of range (`32 m`) and 0.7 s of unbroken occlusion.
 - **Movement feedback** lives in `Feel/PlayerFeedback.cs` — footsteps, jump/land/dash audio, landing dip
   scaled to fall speed. It subscribes to `FirstPersonMotor`'s `OnJumped` / `OnLanded` / `OnDashed`.
 
@@ -199,15 +242,32 @@ They are plain **`EnemyController`s, not `BossController`s** — deliberately. `
 deathblow segments, `Health.deathIsStagger`, the HUD boss bar and `RaiseBossDefeated`, and that last one
 stops the speedrun timer and clears the level. A mini-boss wired as a boss would end the run three times
 before the Warden. They read as legendary through their data — scale, palette, souls, moveset length —
-and through a distinct silhouette on the shared enemy rig. Feedback is the world-space
-`EnemyPostureBar`, as on Grunt and Heavy.
+and through a distinct silhouette. Feedback is the world-space `EnemyPostureBar`, as on Grunt and Heavy.
+
+**Two of the three now carry an imported body** rather than the primitive rig. `Legendary_Spellsword`
+uses `Assets/Enemies/AshenChorister.fbx` (a hooded scythe wraith with a tentacle skirt) and
+`Legendary_Knight` uses `Assets/Enemies/IronPenitent.fbx` (a furnace-bellied iron figure); the Ninja
+still uses the primitives, which remain the reference implementation. Both are ~12 000 triangles,
+`Universal Render Pipeline/Lit` on the shared `M_Boss`, and both went in through the seam described in
+*Swapping enemy models* below without one line of gameplay change: `EnemyVisuals` is still the plain
+primitive component, its bindings simply point at the imported mesh instead. Two consequences worth
+knowing:
+
+- **`EnemyVisuals.eye` is where the model's signature light lives.** It is the one sanctioned always-on
+  enemy emissive and it is already driven by `Posture.Ratio`, so the Chorister's eye slot and the
+  Penitent's furnace grate are the *same* channel every other enemy uses — smouldering at rest, flaring
+  ember-orange as the posture bar fills. Nothing new glows; the Penitent's grate going white-hot at the
+  break is simply that ramp reaching the top, and it is the most legible "kill me now" tell in the game.
+- **`armPivot` / `weaponPivot` are empty transforms, not the model's bones.** The forge auto-rig is
+  placed by proportion and does not follow the art, so the wind-up reads through `LungeRoot`'s whole-body
+  lean and the base-colour sink-and-snap rather than through a swinging limb. See ENGINEERING-LOG.
 
 Each one exists to teach one parry skill, and the next assumes you have it:
 
 | | Name | Shape | Teaches |
 |---|---|---|---|
 | `Legendary_Ninja` | **THE THIRTEENTH SHADE** | 3–5 hit strings of 0.45 s cuts, aggression `1.0`, recoveries at `0.22`, `preferredRange 3.2` | **Ride the cadence.** Sustained deflect rhythm — and `Ninja_Reap`, an unblockable sweep inside that rhythm, teaches that holding the cadence is not the same as holding parry. |
-| `Legendary_Knight` | **THE IRON PENITENT** | 0.8–1.1 s wind-ups, aggression `0.35`, recoveries up to `1.4`, `1.6×` scale at `preferredRange 4.0` | **Wait, then commit.** Huge posture payoff (`parryPostureMultiplier 1.9` on the overhead) against huge punishment for a panicked early parry, and `Knight_Quake` is an unblockable you walk out of and then punish. |
+| `Legendary_Knight` | **THE IRON PENITENT** | the spinning furnace: a 1.15 s spool-up into 3–4 beats of `Knight_SpinHit` on a steady ~0.94 s interval, then `Knight_SpinOut` and its 2.2 s recovery. aggression `0.55`, `comboBreathSeconds 0.18`, `1.6×` scale at `preferredRange 4.2` | **Hold a cadence under pressure.** Every beat is parryable and the interval never changes, so the fight is one sustained rhythm rather than a series of separate reads — and the payoff is deliberately outsized: each deflected beat is `parryPostureMultiplier 1.3` (32.5 posture with the sword), so **8 clean deflects break his 260 bar**, and the break is a **5.0 s** stagger straight into a deathblow that kills him outright. Blocking is worth *zero* enemy posture, so it must be real deflects. `Knight_Overhead` survives as a rare 1.0 s tempo break, and `Knight_Vent` — a wide unblockable out to 8 m, gated to the far band — exists so that backing off and waiting the spin out is never the optimal line. |
 | `Legendary_Spellsword` | **THE ASHEN CHORISTER** | hybrid; `Spellsword_Emberfall` opens at range, `Spellsword_Feint` fakes the end of a phrase, `Spellsword_Grasp` punishes greed | **Do not trust the phrase.** Champion-Gundyr shaped: the feint's short `recovery` plus a long `comboGap` makes the breath after the heavy a lie, and stepping in to punish it is what `Grasp` is for. The hardest of the three. |
 
 The Shade is fast through **combo density and short recoveries only**. No wind-up in the set is below
@@ -378,6 +438,52 @@ Palette lives in `Editor/MaterialFactory.cs` and the colour constants in `Editor
 **Material names are historical and no longer describe their colour** — they are kept stable because the
 builders reference them by name:
 
+**Lighting and structural albedo — shipped values.** Ambient and the key light live in
+`Editor/ProjectSetup.SetupSceneEnvironment` (mirrored in `Editor/SandboxBuilder.EnsureEnvironment`), the
+structural albedos in `Editor/MaterialFactory.Table`, and the enemy body albedos in
+`Editor/DataFactory` — never in the Inspector or on a `.mat` (rules 4 and 9).
+
+| Knob | Shipped | Reasoning |
+|---|---|---|
+| ambient mode | `Trilight` | three-way by surface normal, costs nothing |
+| ambient sky | `#3E4A6B × 1.35` | cool starlight, lifts platform **tops** — the surfaces you land on |
+| ambient equator | `#7A5540 × 1.35` | warm eclipse ember — lifts every **vertical** face and every enemy |
+| ambient ground | `#191424 × 1.35` | dim violet bounce; undersides stay heavy so shapes keep weight |
+| `ambientIntensity` | **1.0 — it is a no-op here** | Unity applies it to *Skybox* ambient only; in Trilight the multiplier must live in the colours |
+| key directional | `#C9663A`, **1.05**, Euler `(10, 180, 0)` | one dying sun low behind the arena, backlighting the course |
+| `M_Ground` | `#262023` | ~0.020 linear — most of the structural surface area |
+| `M_Stone` | `#3A3134` | ~0.033 linear — walls, pillars, obelisks; above ground so a wall separates from the floor |
+| `M_Platform` | `#56504A` | ~0.082 linear — ash top, footing legibility, never trim |
+| `M_Enemy` | `#1F1D24` | material default only — **the body albedo comes from `EnemyData.bodyColor`** |
+| `EnemyData.bodyColor` | grunt `#3A3340` · heavy `#423630` · boss `#40304C` · ninja `#2E363C` · knight `#443A34` · spellsword `#3A3050` | ~8–10/255 on screen against a ~36/255 floor |
+| vignette / film grain | 0.27 / 0.26 | still a vignette, no longer a footing tax |
+
+**The equator term is the ambient budget.** Trilight lights by *normal*: the sky colour only reaches
+up-facing faces and the ground colour only down-facing ones, so in a first-person platformer — walls,
+pillars, risers, and every enemy torso — **almost everything the player aims at is lit by the equator
+alone**. And an enemy walking toward the eclipse is *backlit*, so the side facing the player gets no key
+light at all: the equator is the only thing rendering it. Three independent passes each reported "the
+frame is black outside the trims" and each blamed the tonemapper. **The surfaces were dark going in.**
+Full write-up, including the two traps that made the first attempt at this fix a no-op:
+[`ENGINEERING-LOG.md`](ENGINEERING-LOG.md).
+
+Four things that pass came with:
+
+- **A dark world is not a black world.** Structural albedo under ~0.02 linear (~`#1A1A1A`) is darker than
+  any real material and gives light nothing to land on. `M_Ground` was `#151011` — about **0.008 linear**,
+  darker than coal — over most of the level's surface area.
+- **Judge an albedo by what it renders as, never by the hex.** `EnemyData.bodyColor` reads like a mid
+  grey now and renders at 8–10/255, four times darker than the ground the enemy stands on. Measured on a
+  grunt at 4.5 m: `#1E1A20` → 1.6/255 (still a cutout), `#2E2836` → 4.2, `#3C3446` → 8.5, `#4A4256` → 14.3.
+- **The world came up and no emissive moved.** Bloom threshold (1.05), bloom intensity (0.60), ACES and
+  every trim value are exactly as they were. Across the whole pass the gate emissive measured 154.1 →
+  155.2 and the alert tell 204 → 211 — i.e. unchanged — while the ground went 23 → 36 and a backlit grunt
+  went 0 → ~9. Compensating for a brighter world by pushing emissives up walks straight back into the ACES
+  desaturation trap below.
+- **Enemies still do not glow.** The lift is *albedo*, and each enemy's is hue-separated — cool slate,
+  warm iron, violet — so it reads against the warm ember-lit floor by colour as well as by value.
+  Emission is still `black` at rest: light on an enemy means you deflected.
+
 **Trim colour is the level's per-tile identity.** The course is four tiles and the only thing that tells
 you which one you are in — from across the map, in the dark — is the colour of the platform trim. The
 four accents are therefore chosen to be separable by *hue*, at similar luminance, and are the shipped
@@ -390,6 +496,8 @@ values in `MaterialFactory.Table`:
 | `M_NeonRed` | tile 3 trim (navigation only) | `#FF1010 × 1.10` → `(1.10, 0.07, 0.07)` | saturated crimson |
 | `M_NeonPink` | boss court trim, checkpoints, gates | `#C4400F × 1.15` → `(0.88, 0.29, 0.07)` | ember orange |
 | `M_AlertTell` | **unblockable / alert cube** — combat only, never level trim | `#FF0A28 × 3.00` → `(3.00, 0.12, 0.47)` | hot pink-white, blooms hard |
+| `M_DeathblowMark` | **deathblow spot** on a posture-broken enemy's sternum, and the commit shatter thrown at that same point — combat only | `#2A0BFF × 2.60` → `(0.43, 0.11, 2.60)` | arc violet-blue, blooms hard |
+| `M_LockOnDot` | **lock-on dot** on the chest of the locked target — combat only | `#CBD2D8 × 0.95` → `(0.76, 0.78, 0.81)` | pale bone-grey, **never blooms** |
 
 Two traps are baked into those numbers:
 
@@ -401,6 +509,32 @@ Two traps are baked into those numbers:
   indistinguishable from the ember boss court. All four navigational trims are held at or under 1.25 (peak
   channel 0.72–1.10) so they stay saturated and do not smear. Loudness comes from **hue separation**, not
   intensity.
+- **Loud is not a hue: a channel over 1.0 clips.** `M_DeathblowMark` first shipped as `#7A2BFF × 2.60`
+  = `(1.24, 0.44, 2.60)`. Both red *and* blue were over 1.0, both pinned at full, and the "violet" glyph
+  rendered **magenta** — near-identical to the alert tell it exists to be distinguished from. Dropping red
+  to 0.59 got it to orchid, still close enough to pink to hesitate over; 0.43 is where it finally reads as
+  blue-violet. When a marker must be both loud and a specific hue, only the dominant channel may exceed
+  1.0, and the rest have to come *down* — you cannot get a hue back by turning it up.
+- **The quiet marker is quiet on purpose.** `M_LockOnDot` is the only combat marker held *under* the
+  1.05 bloom threshold, and that is the whole design. The tell means danger and the glyph means
+  opportunity, so both are 2.5–3x over it and both are meant to grab you; lock-on means neither — it is
+  up for the entire fight and has to stay ignorable. "Does not bloom" is an axis of separation that
+  survives peripheral vision, and it cost nothing: at 0.78 against a `#1F1D24` enemy it is still ~60x the
+  albedo it sits on. It is also desaturated because every saturated slot is already spoken for (four
+  trims, the tell, the glyph, the Pyre fire), which is exactly why the Dark Souls reticle is a plain pale
+  dot. Raising it to "make it clearer" merges it with the two markers it exists to differ from.
+- **Three markers, three places.** The alert cube and the deathblow glyph hang above the head; the lock
+  dot sits on the **chest**, at ~9 cm against their 25 cm and 70 cm, and holds a constant angular size so
+  it cannot grow into them up close. Nothing else in the game marks centre of mass.
+- **A marker on the centre of mass is inside the body.** The first pass put the dot exactly on the chest
+  point and it was invisible at every distance — the enemy capsule is 0.45 m in radius and the dot was
+  rendering inside it. It is now pulled 0.75 m toward the eye. That is cheaper and far less fragile than
+  a depth-test-off overlay material, and it keeps the dot honestly occluded by real cover.
+- **Two markers over the same head must differ on more than colour.** The alert tell and the deathblow
+  glyph hang in the same place and mean opposite things, so they are separated three ways at once: hue
+  (pink-white vs violet-blue), silhouette (upright cube vs crossed diamond) and motion (still vs spinning
+  and breathing). Motion is the axis that survives bloom, peripheral vision and colour blindness.
+  `FeatureTests > Deathblow` asserts the hue separation and that the tell stays the louder of the two.
 - **Never share a material between a navigational trim and a combat tell.** They want opposite
   intensities — the trim under the desaturation ceiling, the tell far over the bloom threshold — so one
   number cannot serve both and tuning either silently detunes the other. `M_NeonRed` used to be both the
@@ -420,6 +554,28 @@ with heat *squared* so it stays out of the way until the fire genuinely rages, a
 pooled 12 mm cubes rather than a particle system. Escalation is carried by *rate and motion* — more
 embers, faster flow band, faster motes — not by raw brightness, because brightness is the one axis
 bloom will take away from you.
+
+
+### The main menu
+
+`Assets/Scenes/MainMenu.unity` is **build index 0**, so a built game starts at a title screen rather than
+inside a level. It is generated, like everything else: **VibeGame1 > 9. Build Main Menu**
+(`Editor/MainMenuBuilder.cs`) writes `Assets/Prefabs/MainMenu.prefab`, rebuilds the scene around one
+instance of it, and re-inserts the scene at build index 0 — keeping every other build-settings entry.
+A hand-placed `MainMenu_Manual` root is never touched.
+
+The menu owns no gameplay singletons. It carries a camera (solid dark + AudioListener), a standalone
+`AudioManager`, and the canvas. Deliberately **no Managers prefab**: that would bring a `SpeedrunTimer`,
+which is exactly the flag `GhostRacing` uses to decide "this is a level, not a menu".
+
+**The level list is `Assets/Data/LevelRegistry.asset`, not a literal.** One row per entry, each showing
+`displayName`, `parTime` and the personal best from `RunStore` (the same store the ghost races against),
+plus `LOCKED` / `CLEARED` from `LevelProgress`. A separate `SANDBOX` row, marked `DEV`, sits below a
+divider — a practice space, not a campaign level. Full map:
+[`DATAFLOW.md > Main menu`](DATAFLOW.md#main-menu).
+
+The palette is `HudBuilder`'s, copied as constants rather than shared: the menu must read as the same game
+as the HUD, but a HUD layout tweak must not silently move the menu.
 
 ### First-person arms
 The player has **visible gauntleted arms**, built from primitives by `PrefabFactory.BuildHand` /
@@ -464,9 +620,14 @@ rejected as harsh).
 no generated C# class. Optional actions are looked up with `throwIfNotFound: false` so a missing binding
 cannot crash startup. Legacy `Input.GetAxis` is forbidden.
 
-Player map: Move, Look, Attack, Parry, Jump, Dash, Heal, Ultimate, Previous, Next, WeaponSlot1-4,
+Player map: Move, Look, Attack, Parry, Jump, Dash, Heal, Ultimate, LockOn, Previous, Next, WeaponSlot1-4,
 UseItem, WandCycle, Interact, LevelUpMenu, Pause, TestMenu, DebugWarpBoss, DebugRestore, DebugSouls,
 DebugGodMode.
+
+`LockOn` is `<Mouse>/middleButton` + `<Gamepad>/rightStickPress`. Middle mouse is the Souls convention and
+was the only free pointer button; the scroll wheel — the other convention, and the obvious home for target
+CYCLING — is already `Previous`/`Next` weapon swapping, which is why switching targets is folded into the
+lock key (aim off the held target, press again) rather than given a binding of its own.
 
 `Interact` (`<Keyboard>/f` + `<Gamepad>/dpad/down`) is the deliberate world-use verb — today only the wand
 pedestal. It **shares `F` with `Heal`**: `WandPedestal.PromptActive` gives the altar priority and

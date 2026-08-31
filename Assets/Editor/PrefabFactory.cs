@@ -584,8 +584,14 @@ namespace VibeGame1.EditorTools
             offhand.raisedEuler = new Vector3(-4f, 6f, -6f);
             offhand.cockedPosition = new Vector3(-0.48f, -0.32f, 0.38f);
             offhand.cockedEuler = new Vector3(24f, 42f, -22f);
-            offhand.thrustPosition = new Vector3(-0.17f, -0.12f, 0.66f);
-            offhand.thrustEuler = new Vector3(58f, -10f, 6f);
+            // Full extension, aimed AT THE MARK. The victim is turned to face the player and the
+            // step-in parks it dead centre of the frame, so the sternum glyph projects on (or just
+            // under) the crosshair — the stab therefore has to finish near screen centre, not off to
+            // the left where the wand rests. Pushed out to 0.80 as well: the wand is a viewmodel prop
+            // and can never physically reach 2.2 m, so the stab is sold by the tip visually LANDING on
+            // the mark, and that only happens if it travels toward the centre of the frame.
+            offhand.thrustPosition = new Vector3(-0.07f, -0.09f, 0.80f);
+            offhand.thrustEuler = new Vector3(66f, -6f, 4f);
             offhand.tipLightEnabled = true;
             offhand.tipLightIdle = 1.6f;
             offhand.tipLightCharged = 9f;
@@ -626,7 +632,79 @@ namespace VibeGame1.EditorTools
             look.pivot = pivot.transform;
             look.cam = camGo.transform;
 
+            BuildLockOn(root);
+
             Save(root, $"{PrefabDir}/Player.prefab");
+        }
+
+        /// <summary>
+        /// The Dark Souls lock-on dot, plus the controller that drives it. CLAUDE.md rule 9: every
+        /// number here is written explicitly, because the Player prefab keeps whatever was serialised
+        /// the day it was built and a field initialiser on <see cref="LockOnController"/> would never
+        /// reach it.
+        ///
+        /// <para>ONE dot, owned by the PLAYER, not one per enemy. The alert cube and the deathblow glyph
+        /// are facts about an enemy so they are children of the enemy; "this is my target" is a fact
+        /// about the player and at most one thing is ever true, so a single mote travels. It therefore
+        /// also works on the three <c>Legendary_*</c> mini-bosses that a different factory builds,
+        /// with no prefab change of theirs.</para>
+        ///
+        /// <para>A bare sphere on the target's CHEST at 1.05 m. It does not spin, bob or breathe. The
+        /// head is already occupied by two loud markers that mean danger and opportunity; the lock dot
+        /// means neither, so it takes the one unoccupied place on the body and the one unoccupied
+        /// brightness band - <c>M_LockOnDot</c> peaks at 0.78, under the 1.05 bloom threshold, and is
+        /// the only combat marker in the game that never blooms.</para>
+        /// </summary>
+        static void BuildLockOn(GameObject root)
+        {
+            var dot = Empty("LockOnDot", root.transform, Vector3.zero);
+            var marker = dot.AddComponent<LockOnMarker>();
+
+            var core = Prim(PrimitiveType.Sphere, "DotCore", dot.transform, Vector3.zero, Vector3.one, Mat("M_LockOnDot"));
+            var rend = core.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                rend.receiveShadows = false;
+            }
+
+            marker.renderers = new[] { rend };
+            // Constant ANGULAR size: 0.0125 world units per metre is ~0.7 degrees across, which at the
+            // 3-4 m preferred fighting range is a ~4 cm mote. A fixed-size dot is a boulder in your face
+            // at 3 m and gone at 25 m, which is precisely the range band a lock has to survive.
+            marker.angularSize = 0.0125f;
+            marker.minScale = 0.045f;
+            marker.maxScale = 0.42f;
+            // The dot marks a point INSIDE a 0.45 m capsule. 0.75 m toward the eye clears the body
+            // with margin at every angle; the fraction cap stops it landing in the player's face when
+            // an enemy is on top of them.
+            marker.frontOffset = 0.75f;
+            marker.frontOffsetMaxFraction = 0.3f;
+            marker.acquireEase = 0.14f;
+            marker.acquirePop = 2.2f;
+
+            var lockOn = root.AddComponent<LockOnController>();
+            lockOn.marker = marker;
+            lockOn.markerHeight = 1.05f;
+            lockOn.acquireRange = 26f;
+            lockOn.dropRange = 32f;
+            lockOn.acquireConeDeg = 55f;
+            lockOn.switchAngleDeg = 14f;
+            lockOn.breakAngleDeg = 62f;
+            lockOn.occlusionGrace = 0.7f;
+            lockOn.distanceWeightDegPerMetre = 0.35f;
+            // Assist: proportional, capped, and gated to zero the instant the mouse moves. 4 deg/s per
+            // degree of error with a 90 deg/s ceiling recentres a 10-degree drift in about a quarter of
+            // a second - fast enough to keep a strafed target framed, slow enough that it can never
+            // out-run a hand on the mouse. Raising the ceiling past ~120 makes it read as a snap.
+            lockOn.assistGain = 4f;
+            lockOn.assistMaxRateDeg = 90f;
+            lockOn.assistDeadzoneDeg = 2.2f;
+            lockOn.assistFadeDeg = 8f;
+            lockOn.yieldMouseMin = 0.6f;
+            lockOn.yieldMouseMax = 5f;
+            lockOn.yieldStickMin = 0.12f;
+            lockOn.yieldStickMax = 0.5f;
         }
 
         // ------------------------------------------------------------------ C. managers
@@ -718,12 +796,99 @@ namespace VibeGame1.EditorTools
             visuals.armPivot = shoulder.transform;
             visuals.weaponPivot = hand.transform;
             visuals.alertMarker = alert;
+            visuals.deathblowMarker = BuildDeathblowMarker(visual.transform);
             flash.renderers = new[] { visuals.body, visuals.weapon };
 
             // ---- posture bar: small enemies only; the boss has the HUD bar -------------------------
             if (!isBoss) BuildPostureBar(visual.transform);
 
             Save(root, $"{PrefabDir}/{name}.prefab");
+        }
+
+        /// <summary>
+        /// The deathblow glyph: an arc-violet diamond crossed by a bar, spinning and breathing over the
+        /// head of an enemy whose posture is broken. CLAUDE.md rule 9 — the geometry, the material and
+        /// the animation constants are all written here, because a field initialiser on
+        /// <see cref="DeathblowMarker"/> would never reach a prefab that already exists.
+        ///
+        /// <para>Three things separate it from the Alert cube 20 cm above it, and they are deliberate,
+        /// not decoration: a different HUE (violet, not hot pink-white), a different SILHOUETTE (a
+        /// crossed diamond, not an upright cube) and MOTION (it spins; the alert is dead still). The two
+        /// markers hang in the same place and mean opposite things — "kill this one" against "you cannot
+        /// block what is coming" — so one axis of separation would not have been enough.</para>
+        ///
+        /// <para><b>It sits ON THE TORSO, not over the head.</b> It used to ride at 2.30, above the body
+        /// capsule, which on a 2.2x-scale boss is five metres in the air — out of the frame entirely at
+        /// deathblow range, the one moment it has to be readable, and a riposte whose explosion blooms
+        /// over the victim's head rather than out of its chest. <see cref="DeathblowMarker"/> pushes the
+        /// point off the centre line toward the eye every frame, because anything drawn at a body's
+        /// centre of mass renders inside the mesh and is never seen (ENGINEERING-LOG: the lock-on dot).
+        /// The same point is what <c>ExecuteInteractor.CommitCue</c> shatters and what
+        /// <c>WandController.FireRiposte</c> blooms the blast from.</para>
+        ///
+        /// <para>Which puts it on the same torso as the lock-on dot, so they are separated on five axes:
+        /// height (sternum 1.45 vs centre of mass 1.05), size (~5% of the frame vs ~1%), hue and
+        /// level (violet at peak 2.60, blooms hard, vs pale bone-grey under the 1.05 threshold, never
+        /// blooms), silhouette (a rolled diamond vs a plain round pip) and motion (rolls and breathes vs
+        /// dead still). Both are held to a constant ANGULAR size, so neither can grow into the other as
+        /// the player closes.</para>
+        ///
+        /// <para><b>It cannot foul the stab</b>: <c>BeginExecuted</c> drops it on the press frame, before
+        /// the melee commit and long before the wand reaches the body.</para>
+        ///
+        /// <para>Starts inactive; <see cref="EnemyVisuals.SetDeathblowReady"/> owns it from there.</para>
+        /// </summary>
+        internal static GameObject BuildDeathblowMarker(Transform visual)
+        {
+            return BuildDeathblowMarker(visual, 1.45f, 0.58f);
+        }
+
+        /// <summary>
+        /// <paramref name="bodyHeight"/> is the sternum in the visual root's local (pre-scale) units and
+        /// <paramref name="surfaceOffset"/> is how far in front of the centre line the glyph has to stand
+        /// to clear THIS silhouette. Both are parameters because two of the legendaries are imported
+        /// meshes — a hovering robed wraith and a squat wide-armed robot — whose chests are neither the
+        /// same height nor the same depth as a 0.45 m capsule. Rule 9: written here, never defaulted.
+        /// </summary>
+        internal static GameObject BuildDeathblowMarker(Transform visual, float bodyHeight, float surfaceOffset)
+        {
+            var mat = Mat("M_DeathblowMark");
+            var root = Empty("Deathblow", visual, new Vector3(0f, bodyHeight, 0f));
+
+            // ONE SMALL FLAT QUAD. It used to be a crossed diamond built from three cubes over the head:
+            // an object in the world rather than a mark on a body, and at deathblow range a solid violet
+            // mass the camera runs into as it closes. A single quad has no volume to run into, and
+            // DeathblowMarker billboards it so it is always square to the eye — a glowing SPOT sitting on
+            // the enemy, which is what the reference actually is.
+            //
+            // The quad is authored at 1.0 and DeathblowMarker drives the root's scale to a CONSTANT
+            // ANGULAR size every frame. A fixed size does not work here: the spot stands off the chest
+            // toward the viewer (it has to, or it renders inside the mesh), so it is always nearer than
+            // the body it marks and grows faster than the body does as the player closes — at 0.22 m
+            // fixed it filled a quarter of the frame at stabbing range while the grunt filled a fifth.
+            //
+            // Rolled 45 degrees so the spot is a diamond, which is the silhouette separation against the
+            // round lock-on dot on the same torso — and because DeathblowMarker rolls the billboard about
+            // the VIEW axis, the diamond's corners make that roll visible where a circle would hide it.
+            var core = Prim(PrimitiveType.Quad, "MarkSpot", root.transform, Vector3.zero, Vector3.one, mat);
+            core.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+            var mark = root.AddComponent<DeathblowMarker>();
+            mark.drawMark = true;
+            mark.angularSize = 0.115f;   // ~5% of the frame at 95 deg FOV, at any distance
+            mark.minScale = 0.10f;
+            mark.maxScale = 0.42f;
+            mark.frontOffsetMaxFraction = 0.35f;
+            mark.spinSpeed = 110f;
+            mark.bobAmount = 0.05f;
+            mark.bobSpeed = 3.2f;
+            mark.pulseAmount = 0.16f;
+            mark.pulseSpeed = 5.5f;
+            mark.bodyHeight = bodyHeight;
+            mark.surfaceOffset = surfaceOffset;
+
+            root.SetActive(false);
+            return root;
         }
 
         /// <summary>Two quads above the head: dark backing plus a left-anchored fill pivot scaled 0..1.</summary>

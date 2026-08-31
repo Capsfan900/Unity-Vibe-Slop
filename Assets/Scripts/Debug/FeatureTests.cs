@@ -138,6 +138,7 @@ namespace VibeGame1
         WeaponController weapons;
         WandController wandCtl;
         ExecuteInteractor exec;
+        LockOnController lockOn;
         PlayerItems items;
         FlaskAbility flask;
         UltimateAbility ult;
@@ -159,6 +160,7 @@ namespace VibeGame1
             weapons = combat.GetComponent<WeaponController>();
             wandCtl = combat.GetComponent<WandController>();
             exec = combat.GetComponent<ExecuteInteractor>();
+            lockOn = combat.GetComponent<LockOnController>();
             items = combat.GetComponent<PlayerItems>();
             flask = combat.GetComponent<FlaskAbility>();
             ult = combat.GetComponent<UltimateAbility>();
@@ -301,13 +303,19 @@ namespace VibeGame1
                 Test("WandReadability", TestWandReadability),
                 Test("ViewmodelArms",   TestViewmodelArms),
                 Test("TellReadability", TestTellReadability),
+                Test("Deathblow",       TestDeathblowMarker),
+                Test("LockOn",          TestLockOn),
                 Test("Items",           TestItems),
                 Test("Flask",           TestFlask),
                 Test("Ultimate",        TestUltimate),
                 Test("Progression",     TestProgression),
                 Test("LevelFlow",       TestLevelFlow),
+                Test("LevelStructure",  TestLevelStructure),
+                Test("Legendaries",     TestLegendaries),
+                Test("GateLoop",        TestGateLoop),
                 Test("Boss",            TestBoss),
                 Test("HUD",             TestHud),
+                Test("MainMenu",        TestMainMenu),
                 Test("Audio",           TestAudio),
             };
 
@@ -631,12 +639,18 @@ namespace VibeGame1
             hp0 = health.Current;
             res.ConsumePyre();
 
+            // Deterministic. Busy-waiting to the middle of the late window races the frame rate: one
+            // long editor frame steps past stateEnd, ParryController.Update closes the window before
+            // this coroutine resumes, and a legitimate block reads as a plain Hit. Back-date the press
+            // instead — no frame boundary between here and the resolve, so elapsed is exactly the value
+            // asserted on.
             parry.StartParry();
-            float pressAt = Time.time;
             float blockTarget = parry.PerfectWindow + D.parryLateWindow * 0.5f;   // mid-block window
-            while (Time.time - pressAt < blockTarget) yield return null;
+            BackdateParryPress(blockTarget);
             var r2 = combat.ReceiveAttack(MakeAttack(dummy, 30f, false));
-            Check("Parry_LateIsBlock", r2 == ParryResult.Blocked, "result=" + r2 + " elapsed=" + (Time.time - pressAt).ToString("0.000"));
+            Check("Parry_LateIsBlock", r2 == ParryResult.Blocked,
+                "result=" + r2 + " elapsed=" + blockTarget.ToString("0.000") +
+                " perfect=" + parry.PerfectWindow.ToString("0.000") + " late=" + parry.LateWindow.ToString("0.000"));
             if (r2 == ParryResult.Blocked)
             {
                 CheckApprox("Parry_BlockReducesDamage", hp0 - health.Current, 30f * D.blockDamageMultiplier, 1f);
@@ -744,14 +758,30 @@ namespace VibeGame1
             Check("Posture_StaggerEndsAutomatically", !waitTimedOut, "stillBroken=" + posture.IsBroken);
             CheckApprox("Posture_ResetsToZeroAfterStagger", posture.Current, 0f, 0.01f);
 
-            // Regeneration after the delay.
+            // Regeneration after the delay. PlayerPosture measures both the delay and the regen step in
+            // SCALED time, so a fixed REALTIME wait races any hitstop still ringing from the staggered-
+            // damage assert above — the delay simply has not elapsed yet and the test reads "no regen".
+            // Settle the clock, then wait on the condition with a bound instead of on the wall clock.
+            yield return SettleTimeScale();
             health.ResetFull();
             posture.ResetFull();
             posture.Add(posture.Max * 0.6f);
             float before = posture.Current;
-            yield return WaitRealtime(D.postureRegenDelay + 0.6f);
-            Check("Posture_RegeneratesAfterDelay", posture.Current < before,
-                $"{before:0.0} -> {posture.Current:0.0}");
+            // Watch for a FRAME-OVER-FRAME fall rather than for a net fall from `before`. A net
+            // comparison silently depends on nothing else touching posture for the whole wait, and a
+            // live enemy landing one hit in that window pushes the total back above the starting value
+            // - the assert then reads "posture never regenerates" for a reason that is not regen.
+            bool regenSeen = false;
+            float prev = posture.Current;
+            float deadline = Time.unscaledTime + D.postureRegenDelay + 3f;
+            while (Time.unscaledTime < deadline && !regenSeen)
+            {
+                yield return null;
+                if (posture.Current < prev - 0.0001f) regenSeen = true;
+                prev = posture.Current;
+            }
+            Check("Posture_RegeneratesAfterDelay", regenSeen,
+                $"{before:0.0} -> {posture.Current:0.0} delay={D.postureRegenDelay:0.00}");
 
             // Respawn clears it (PlayerPosture subscribes to PlayerRespawned).
             posture.Add(posture.Max * 0.5f);
@@ -830,6 +860,479 @@ namespace VibeGame1
 
             yield return SettleTimeScale();
             if (dummy != null) Destroy(dummy.gameObject);
+            yield return null;
+        }
+
+        // ================================================================ 5b. DEATHBLOW MARKER
+
+        /// <summary>
+        /// The Sekiro read: a posture break puts a MARKER ON THE ENEMY, and only an attack press aimed at
+        /// a marked enemy comes out as a deathblow. Everything here is about the player being able to tell
+        /// the difference — the suite previously proved the deathblow fired and was completely blind to
+        /// whether anything told the player it was about to. See docs/ENGINEERING-LOG.md.
+        /// </summary>
+        IEnumerator TestDeathblowMarker()
+        {
+            // ---- the marker is its own material, loud, and not the alert tell ------------------
+#if UNITY_EDITOR
+            var markMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_DeathblowMark.mat");
+            var tellMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_AlertTell.mat");
+            Check("Deathblow_MarkMaterialExists", markMat != null, "Assets/Materials/M_DeathblowMark.mat");
+            if (markMat != null)
+            {
+                float peak = PeakEmission(markMat);
+                Check("Deathblow_MarkBloomsHard", peak >= 1.05f * 2f,
+                    "peak=" + peak.ToString("0.###") + " (a marker under the bloom threshold is a marker " +
+                    "nobody sees mid-exchange)");
+                if (tellMat != null)
+                {
+                    Color a = markMat.GetColor("_EmissionColor");
+                    Color b = tellMat.GetColor("_EmissionColor");
+                    // Hue separation, measured on the NORMALISED colours so brightness cannot fake it.
+                    // These two markers hang in the same place and mean opposite things; if they ever
+                    // converge on a hue, the player is being told "kill this" and "you are about to die"
+                    // in the same colour.
+                    Vector3 na = new Vector3(a.r, a.g, a.b).normalized;
+                    Vector3 nb = new Vector3(b.r, b.g, b.b).normalized;
+                    Check("Deathblow_HueSeparatedFromAlertTell", Vector3.Distance(na, nb) > 0.5f,
+                        "mark=" + na.ToString("F2") + " tell=" + nb.ToString("F2"));
+                    Check("Deathblow_QuieterThanAlertTell", PeakEmission(markMat) < PeakEmission(tellMat),
+                        "mark=" + PeakEmission(markMat).ToString("0.##") + " tell=" + PeakEmission(tellMat).ToString("0.##") +
+                        " (the thing that can kill YOU must out-shout the thing you can kill)");
+                }
+
+                // The glyph now rides the TORSO, which is where the lock-on dot already lives, so these
+                // two must separate on their own axes and not merely on the height they sit at.
+                var dotMat0 = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_LockOnDot.mat");
+                if (dotMat0 != null)
+                {
+                    Color a = markMat.GetColor("_EmissionColor");
+                    Color b = dotMat0.GetColor("_EmissionColor");
+                    Vector3 na = new Vector3(a.r, a.g, a.b).normalized;
+                    Vector3 nb = new Vector3(b.r, b.g, b.b).normalized;
+                    // The mark itself is not drawn, but M_DeathblowMark is still the hue of the commit
+                    // shatter thrown at that point, and the lock-on dot is a pale spot in the same place.
+                    Check("Deathblow_HueSeparatedFromLockDot", Vector3.Distance(na, nb) > 0.5f,
+                        "mark=" + na.ToString("F2") + " dot=" + nb.ToString("F2") +
+                        " (this is my target must never look like this one dies now)");
+                    Check("Deathblow_LouderThanLockDot",
+                        PeakEmission(markMat) > 1.05f && PeakEmission(dotMat0) < 1.05f,
+                        "mark=" + PeakEmission(markMat).ToString("0.##") + " dot=" + PeakEmission(dotMat0).ToString("0.##") +
+                        " (bloom threshold 1.05: the glyph must cross it and the dot must not)");
+                }
+            }
+#else
+            Skip("Deathblow_MarkMaterial", "material assets are only readable in the editor");
+#endif
+
+            EnemyController dummy = null;
+            Vector3 spot = combat.transform.position + combat.transform.forward * 2.4f;
+            yield return SpawnDummy(spot, e => dummy = e);
+            if (dummy == null) { Skip("Deathblow_DummySpawned", "no enemy prefab"); yield break; }
+            FacePoint(dummy.transform.position);
+            yield return null;
+
+            var dv = dummy.GetComponentInChildren<EnemyVisuals>(true);
+            GameObject mark = dv != null ? dv.deathblowMarker : null;
+            Check("Deathblow_MarkerShippedOnPrefab", mark != null,
+                "EnemyVisuals.deathblowMarker (rule 9: PrefabFactory must write it)");
+            if (mark == null) { Destroy(dummy.gameObject); yield break; }
+            Check("Deathblow_MarkerHiddenBeforeBreak", !mark.activeInHierarchy,
+                "a marker up before the posture breaks is a lie");
+
+            // ---- it is ONE SMALL FLAT GLOWING SPOT, and it is DRAWN ------------------------------
+            // It started as a crossed diamond of three cubes over the head: an object in the world
+            // rather than a mark on a body, and at deathblow range a solid violet mass the camera runs
+            // into as it closes. Flat, small and on the chest is the whole fix, so each of those three
+            // words gets an assertion.
+            var markComp0 = mark.GetComponent<DeathblowMarker>();
+            Check("Deathblow_MarkIsDrawn", markComp0 != null && markComp0.drawMark,
+                "drawMark=" + (markComp0 != null ? markComp0.drawMark.ToString() : "no component") +
+                " (rule 9: PrefabFactory must SHIP it true, not rely on a field initialiser)");
+            var markRenderers = mark.GetComponentsInChildren<MeshRenderer>(true);
+            Check("Deathblow_MarkIsASingleRenderer", markRenderers.Length == 1,
+                "renderers=" + markRenderers.Length + " (a mark on a body is one spot, not an assembly)");
+            var markFilter = mark.GetComponentInChildren<MeshFilter>(true);
+            int markVerts = markFilter != null && markFilter.sharedMesh != null ? markFilter.sharedMesh.vertexCount : -1;
+            Check("Deathblow_MarkIsFlat", markVerts == 4,
+                "vertexCount=" + markVerts + " (4 = a quad; a cube is 24 and has depth for the camera " +
+                "and the wand to run into)");
+            if (markComp0 != null)
+            {
+                // A FIXED size is the bug this replaced. The spot stands off the chest toward the viewer
+                // — it has to, or it renders inside the mesh — so it is always nearer than the body it
+                // marks and grows faster than the body does as the player closes. At 0.22 m fixed it
+                // filled a quarter of the frame at stabbing range while the grunt filled a fifth.
+                Check("Deathblow_MarkIsAngularlySized",
+                    markComp0.angularSize > 0.02f && markComp0.angularSize <= 0.15f,
+                    "angularSize=" + markComp0.angularSize.ToString("0.###") +
+                    " (world units per metre of distance; ~0.115 is about 5% of the frame at 95 deg FOV)");
+                Check("Deathblow_MarkCannotBalloon", markComp0.maxScale <= 0.45f,
+                    "maxScale=" + markComp0.maxScale.ToString("0.00") +
+                    "m (a ceiling is what stops a mark on a distant boss growing into the head markers)");
+                Check("Deathblow_MarkStandoffCappedByDistance",
+                    markComp0.frontOffsetMaxFraction > 0f && markComp0.frontOffsetMaxFraction <= 0.5f,
+                    "fraction=" + markComp0.frontOffsetMaxFraction.ToString("0.00") +
+                    " (an uncapped stand-off puts the spot in the player's face when the body is on top " +
+                    "of them)");
+            }
+            if (markRenderers.Length > 0)
+            {
+                var mm = markRenderers[0].sharedMaterial;
+                Check("Deathblow_MarkGlows",
+                    mm != null && mm.HasProperty("_EmissionColor") && PeakEmission(mm) > 1.05f,
+                    "peak=" + (mm != null ? PeakEmission(mm).ToString("0.##") : "no material") +
+                    " (against a near-black enemy an unlit spot is a dim decal; it has to be over the " +
+                    "1.05 bloom threshold to read as a hot mark)");
+                Check("Deathblow_MarkShaderIsURP",
+                    mm != null && mm.shader != null && mm.shader.name.StartsWith("Universal Render Pipeline/"),
+                    "shader=" + (mm != null && mm.shader != null ? mm.shader.name : "none") +
+                    " (anything else renders magenta)");
+            }
+
+            // ---- a press with NO marked target must swing ---------------------------------------
+            // This is the whole "it ripostes automatically" complaint stated as a test: an attack press
+            // is an ATTACK unless there is something marked to deathblow.
+            Check("Deathblow_NoTargetBeforeBreak", !exec.HasMarkedTarget,
+                "target=" + (exec.Target != null ? exec.Target.name : "null"));
+            weapons.CancelAttack();
+            yield return null;
+            bool pressed = weapons.TryAttack();
+            yield return null;
+            Check("Deathblow_UnmarkedPressSwings", pressed && weapons.IsAttacking && !exec.IsExecuting,
+                "pressed=" + pressed + " swinging=" + weapons.IsAttacking + " executing=" + exec.IsExecuting);
+            weapons.CancelAttack();
+            yield return null;
+
+            // ---- posture break raises the marker ------------------------------------------------
+            dummy.Posture.Add(dummy.Posture.Max * 2f);
+            yield return null;
+            Check("Deathblow_BreakRaisesMarker", mark.activeInHierarchy,
+                "staggered=" + dummy.IsStaggered + " marker=" + mark.activeInHierarchy);
+
+            // ---- the marker clears when the window closes ---------------------------------------
+            dummy.Posture.EndStagger();
+            yield return null;
+            Check("Deathblow_RecoveryClearsMarker", !mark.activeInHierarchy && !dummy.IsStaggered,
+                "staggered=" + dummy.IsStaggered + " marker=" + mark.activeInHierarchy);
+
+            // ---- and only a MARKED target turns a press into a deathblow -------------------------
+            dummy.Posture.ResetFull();
+            dummy.Posture.Add(dummy.Posture.Max * 2f);
+            yield return WaitUntilOrTimeout(() => exec.HasMarkedTarget, 2f);
+            Check("Deathblow_InteractorMarksBrokenEnemy", !waitTimedOut,
+                "target=" + (exec.Target != null ? exec.Target.name : "null"));
+            Check("Deathblow_MarkerUpWhileTargetable", mark.activeInHierarchy);
+
+            // ---- the pose and the mark, judged at the SHIPPED standoff ---------------------------
+            // Both at ordinary scale and at the 2.2x the boss is built at, because scale multiplies a
+            // pose error: a lean that costs 0.9 m of clearance on a grunt costs 2 m on the Warden.
+            yield return DeathblowFraming(dummy, mark, 1f);
+            yield return DeathblowFraming(dummy, mark, 2.2f);
+            FacePoint(dummy.transform.position);
+            yield return null;
+
+            if (wandCtl != null) wandCtl.ResetCooldown();
+            bool consumed = weapons.TryAttack();
+            yield return null;
+            Check("Deathblow_MarkedPressExecutes", consumed && exec.IsExecuting && !weapons.IsAttacking,
+                "consumed=" + consumed + " executing=" + exec.IsExecuting + " swinging=" + weapons.IsAttacking);
+            // Committing spends the window: the glyph must go the instant the blow starts, or it invites
+            // a second press that can never land.
+            Check("Deathblow_CommitClearsMarker", !mark.activeInHierarchy,
+                "marker=" + mark.activeInHierarchy);
+
+            yield return WaitUntilOrTimeout(() => !exec.IsExecuting, exec.duration + 4f);
+            Check("Deathblow_Completes", !waitTimedOut);
+            yield return SettleTimeScale();
+            if (dummy != null) Destroy(dummy.gameObject);
+            yield return null;
+        }
+
+
+        /// <summary>
+        /// The riposte has to be LOOKABLE-AT. Two things had made it not so: the posture-break pose
+        /// pitched the body forward into the camera, and the glyph hung over the head, where a 2.2x boss
+        /// puts it five metres in the air. Both are geometry, so both can be measured.
+        ///
+        /// <para>Measured at the real <c>ExecuteInteractor.stabStandoff</c> for the given body scale,
+        /// because that is the only distance this frame is ever composed at.</para>
+        /// </summary>
+        IEnumerator DeathblowFraming(EnemyController dummy, GameObject mark, float bodyScale)
+        {
+            string tag = bodyScale > 1.5f ? "BossScale" : "GruntScale";
+            if (dummy == null || mark == null) { Skip("Deathblow_Framing_" + tag, "no dummy"); yield break; }
+
+            Vector3 s0 = dummy.transform.localScale;
+            dummy.transform.localScale = s0 * bodyScale;
+
+            // Stand exactly where the riposte actually happens. The step-in only CLOSES the gap and the
+            // press must be inside ExecuteInteractor.range, so for a big body the real distance is the
+            // RANGE, not stabStandoff * scale — on a 2.2x boss the standoff (4.84 m) is further out than
+            // the press is even legal from, and testing there would test the easy case.
+            float standoff = Mathf.Min(exec.stabStandoff * bodyScale, exec.range);
+            Vector3 away = combat.transform.position - dummy.transform.position;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.01f) away = Vector3.back;
+            Vector3 stand = dummy.transform.position + away.normalized * standoff;
+            stand.y = combat.transform.position.y;
+            motor.Teleport(stand, 0f);
+            FacePoint(dummy.transform.position);
+            yield return WaitRealtime(0.35f);          // let the stagger pose settle
+
+            Vector3 eye = look.Cam.position;
+
+            // ---- 1. NO ENEMY GEOMETRY IN THE PLAYER FACE --------------------------------------
+            // The camera near plane is 0.03. Anything inside it is clipped open and the frame fills
+            // with the enemy interior; anything within a few tens of centimetres of it is a wall of
+            // body where the riposte is supposed to be. Renderer bounds are world AABBs, so this is
+            // conservative in the safe direction.
+            float nearest = float.MaxValue;
+            bool inside = false;
+            foreach (var r in dummy.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || !r.enabled || r.transform.IsChildOf(mark.transform)) continue;
+                if (r.bounds.Contains(eye)) inside = true;
+                nearest = Mathf.Min(nearest, Vector3.Distance(r.bounds.ClosestPoint(eye), eye));
+            }
+            Check("Deathblow_StaggerPoseClearsNearPlane_" + tag,
+                !inside && nearest > 0.03f,
+                "nearest=" + nearest.ToString("0.00") + "m cameraInsideBody=" + inside +
+                " standoff=" + standoff.ToString("0.00") +
+                " (a break that pitches the body FORWARD walks the chest through the lens)");
+            // And a real margin, not just technically-not-clipping: the whole point of the standoff is
+            // that the victim stays framed.
+            Check("Deathblow_StaggerPoseStaysFramed_" + tag, nearest > 0.5f,
+                "nearest=" + nearest.ToString("0.00") + "m (under half a metre the body IS the frame)");
+
+            // ---- 2. THE MARK IS ON THE TORSO, NOT OVERHEAD ------------------------------------
+            var dm = mark.GetComponent<DeathblowMarker>();
+            if (dm == null) { Skip("Deathblow_MarkOnTorso_" + tag, "no DeathblowMarker component"); }
+            else
+            {
+                Check("Deathblow_MarkMountedOnTorso_" + tag,
+                    dm.bodyHeight > 0.7f && dm.bodyHeight < 2.0f,
+                    "bodyHeight=" + dm.bodyHeight.ToString("0.00") +
+                    " (the alert cube is at 2.5 and the posture bar at 2.6; a glyph up there is 5 m in " +
+                    "the air on a 2.2x boss and out of the frame at deathblow range)");
+
+                // The marker must not sit at the enemy centre of mass, which is INSIDE it. Same trap
+                // that hid the lock-on dot for a whole pass, and it fails silently: every assertion
+                // about position and visibility passes while nothing can be seen.
+                Vector3 axis = dummy.transform.position + Vector3.up * (dm.bodyHeight * dummy.transform.lossyScale.y);
+                Vector3 world = dm.SurfacePoint(eye);
+                // The offset is HORIZONTAL toward the eye, deliberately — lifting it vertically as well
+                // would slide the mark up the chest whenever the player looks down from a ledge. So the
+                // check is not the lock-on dot's "sits on the eye-to-chest ray": on a 2.2x boss the
+                // sternum is 3.2 m up and that ray climbs steeply, while the mark steps straight out
+                // sideways. The real invariant is that the step is TOWARD the eye and long enough to
+                // clear the body.
+                Vector3 outward = world - axis;
+                Vector3 flatOut = new Vector3(outward.x, 0f, outward.z);
+                Vector3 flatEye = eye - axis;
+                flatEye.y = 0f;
+                float aligned = flatOut.sqrMagnitude > 0.0001f && flatEye.sqrMagnitude > 0.0001f
+                    ? Vector3.Dot(flatOut.normalized, flatEye.normalized) : 0f;
+                Check("Deathblow_MarkSteppedTowardTheEye_" + tag, aligned > 0.99f,
+                    "alignment=" + aligned.ToString("0.000") + " step=" + flatOut.magnitude.ToString("0.00") +
+                    "m (a mark stepped anywhere but toward the viewer is still inside the body from " +
+                    "somewhere the player can stand)");
+                Check("Deathblow_MarkVerticallyOnTheSternum_" + tag, Mathf.Abs(outward.y) < 0.05f,
+                    "dy=" + outward.y.ToString("0.000") + " (horizontal only: a vertical lift slides the " +
+                    "mark up the chest as soon as the player looks down at it)");
+                Check("Deathblow_MarkClearsOwnBody_" + tag,
+                    flatOut.magnitude > 0.45f * dummy.transform.lossyScale.x,
+                    "step=" + flatOut.magnitude.ToString("0.00") + "m capsuleRadius=" +
+                    (0.45f * dummy.transform.lossyScale.x).ToString("0.00") +
+                    "m (a mark left on the centre line renders inside the mesh and is never seen)");
+
+                // ---- 3. AND IT IS NOT THE LOCK-ON DOT --------------------------------------------
+                var lc = FindAnyObjectByType<LockOnController>();
+                float lockH = lc != null ? lc.markerHeight : 1.05f;
+                Check("Deathblow_MarkHeightSeparatedFromLockDot_" + tag,
+                    Mathf.Abs(dm.bodyHeight - lockH) >= 0.3f,
+                    "mark=" + dm.bodyHeight.ToString("0.00") + " lockDot=" + lockH.ToString("0.00") +
+                    " (two spots on one torso: \"this is my target\" must never be confusable with " +
+                    "\"this one is ready to die\", and the blast blooms at the mark as well)");
+            }
+
+            dummy.transform.localScale = s0;
+            yield return null;
+        }
+
+        // ================================================================ 5b. LOCK-ON
+
+        /// <summary>
+        /// Souls target lock in first person. Covers the four things that make it a lock rather than a
+        /// toggle: acquire, switch, release, and the automatic drops (death, range). Also asserts the
+        /// dot's whole reason for existing - that it is the ONE combat marker held under the bloom
+        /// threshold, so it can never be confused with the alert tell or the deathblow glyph.
+        /// </summary>
+        IEnumerator TestLockOn()
+        {
+            if (lockOn == null)
+            {
+                Check("LockOn_ControllerShippedOnPlayer", false,
+                    "no LockOnController on the Player (rule 9: PrefabFactory.BuildLockOn must add it)");
+                yield break;
+            }
+            Check("LockOn_ControllerShippedOnPlayer", true);
+            Check("LockOn_MarkerShippedOnPlayer",
+                lockOn.marker != null && lockOn.marker.renderers != null && lockOn.marker.renderers.Length > 0,
+                "marker=" + (lockOn.marker != null) +
+                " renderers=" + (lockOn.marker != null && lockOn.marker.renderers != null ? lockOn.marker.renderers.Length : 0));
+
+            // ---- the dot is the QUIET marker ----------------------------------------------------
+#if UNITY_EDITOR
+            var dotMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_LockOnDot.mat");
+            var tellMat2 = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_AlertTell.mat");
+            var markMat2 = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_DeathblowMark.mat");
+            Check("LockOn_DotMaterialExists", dotMat != null, "Assets/Materials/M_LockOnDot.mat");
+            if (dotMat != null)
+            {
+                float peak = PeakEmission(dotMat);
+                // THE POINT OF THE WHOLE COLOUR CHOICE. The tell means danger and the glyph means
+                // opportunity, and both sit 2.5-3x over the 1.05 bloom threshold because they must grab
+                // you. The lock dot means neither - it is up for the whole fight and has to stay
+                // ignorable. Under the threshold it never blooms, and a marker that does not bloom is
+                // separable from two that do even in peripheral vision.
+                Check("LockOn_DotDoesNotBloom", peak > 0.4f && peak < 1.05f,
+                    "peak=" + peak.ToString("0.###") + " (visible, but under the 1.05 bloom threshold)");
+                Color dc = dotMat.GetColor("_EmissionColor");
+                float maxc = Mathf.Max(dc.r, Mathf.Max(dc.g, dc.b));
+                float minc = Mathf.Min(dc.r, Mathf.Min(dc.g, dc.b));
+                // Desaturated on purpose: every saturated slot in the palette already means something.
+                Check("LockOn_DotIsDesaturated", maxc > 0.0001f && (maxc - minc) / maxc < 0.15f,
+                    "rgb=" + dc.ToString("F2"));
+                if (tellMat2 != null)
+                    Check("LockOn_QuieterThanAlertTell", peak < PeakEmission(tellMat2) * 0.5f,
+                        "dot=" + peak.ToString("0.##") + " tell=" + PeakEmission(tellMat2).ToString("0.##"));
+                if (markMat2 != null)
+                    Check("LockOn_QuieterThanDeathblowMark", peak < PeakEmission(markMat2) * 0.5f,
+                        "dot=" + peak.ToString("0.##") + " mark=" + PeakEmission(markMat2).ToString("0.##"));
+            }
+#else
+            Skip("LockOn_DotMaterial", "material assets are only readable in the editor");
+#endif
+
+            lockOn.Release();
+
+            // ---- acquire -------------------------------------------------------------------------
+            EnemyController a = null, b = null;
+            Vector3 fwd = combat.transform.forward;
+            Vector3 right = combat.transform.right;
+            yield return SpawnDummy(combat.transform.position + fwd * 6f, e => a = e);
+            if (a == null) { Skip("LockOn_DummySpawned", "no enemy prefab"); yield break; }
+            yield return SpawnDummy(combat.transform.position + fwd * 6f + right * 5f, e => b = e);
+
+            FacePoint(a.transform.position);
+            yield return null;
+            bool got = lockOn.TryLockOn();
+            yield return null;
+            Check("LockOn_AcquiresEnemyInView", got && lockOn.Target == a,
+                "got=" + got + " target=" + (lockOn.Target != null ? lockOn.Target.name : "null"));
+            Check("LockOn_DotShownOnAcquire", lockOn.marker == null || lockOn.marker.IsShown);
+            if (lockOn.marker != null)
+            {
+                // The dot marks the CHEST, which is a point INSIDE a 0.45 m capsule, so it is pulled
+                // toward the eye to clear the body. It must stay on the eye-to-chest ray (or it is
+                // marking the wrong thing) and in front of the chest (or the enemy renders over it).
+                Vector3 eye = look.Cam.position;
+                Vector3 ray = (lockOn.TargetPoint - eye).normalized;
+                Vector3 rel = lockOn.marker.transform.position - eye;
+                float along = Vector3.Dot(rel, ray);
+                float off = (rel - ray * along).magnitude;
+                Check("LockOn_DotSitsOnLineToTargetChest", off < 0.05f, "lateral=" + off.ToString("0.000"));
+                Check("LockOn_DotClearsTargetBody",
+                    along < Vector3.Distance(eye, lockOn.TargetPoint) - 0.4f,
+                    "along=" + along.ToString("0.00") +
+                    " chest=" + Vector3.Distance(eye, lockOn.TargetPoint).ToString("0.00") +
+                    " (a dot left on the chest point renders inside the capsule and is never seen)");
+            }
+
+            // ---- the assist closes the gap while the mouse is idle -------------------------------
+            // No device is being driven here, so LookDelta is zero and the yield gate is fully open:
+            // this measures the assist itself. What it CANNOT prove is the half that matters most -
+            // that the gate shuts under a real hand. That is a playtest, not a test.
+            Vector3 flat = lockOn.TargetPoint - look.Cam.position;
+            flat.y = 0f;
+            float desiredYaw = Quaternion.LookRotation(flat.normalized).eulerAngles.y;
+            look.SetYaw(desiredYaw + 20f);
+            yield return null;
+            float before = Mathf.Abs(Mathf.DeltaAngle(look.Yaw, desiredYaw));
+            yield return WaitRealtime(0.6f);
+            float after = Mathf.Abs(Mathf.DeltaAngle(look.Yaw, desiredYaw));
+            Check("LockOn_AssistRecentresTarget", after < before * 0.4f,
+                "before=" + before.ToString("0.0") + " after=" + after.ToString("0.0"));
+
+            look.SetYaw(desiredYaw);
+            yield return null;
+            float settled = look.Yaw;
+            yield return WaitRealtime(0.3f);
+            Check("LockOn_AssistHasDeadzoneInYaw", Mathf.Abs(Mathf.DeltaAngle(look.Yaw, settled)) < 1f,
+                "drift=" + Mathf.DeltaAngle(look.Yaw, settled).ToString("0.00") +
+                " (an assist still nudging an on-target crosshair is a jitter)");
+
+            // ---- switch --------------------------------------------------------------------------
+            if (b != null)
+            {
+                FacePoint(b.transform.position);
+                yield return null;
+                bool switched = lockOn.TryLockOn();
+                yield return null;
+                Check("LockOn_SwitchesToTargetUnderCrosshair", switched && lockOn.Target == b,
+                    "target=" + (lockOn.Target != null ? lockOn.Target.name : "null") +
+                    " (a press with the aim OFF the held target must switch, not release)");
+
+                // ---- release: same key, still looking at what you hold ---------------------------
+                FacePoint(b.transform.position);
+                yield return null;
+                lockOn.TryLockOn();
+                yield return null;
+                Check("LockOn_ReleasesWhenAimedAtHeldTarget", !lockOn.HasTarget,
+                    "target=" + (lockOn.Target != null ? lockOn.Target.name : "null"));
+                Check("LockOn_DotHiddenOnRelease", lockOn.marker == null || !lockOn.marker.IsShown);
+                Destroy(b.gameObject);
+                yield return null;
+            }
+
+            // ---- auto-drop: the target dies ------------------------------------------------------
+            FacePoint(a.transform.position);
+            yield return null;
+            lockOn.TryLockOn();
+            yield return null;
+            Check("LockOn_ReacquiredForDeathTest", lockOn.Target == a);
+            a.Health.TakeDamage(new DamageInfo { damage = 999999f, isExecute = true });
+            yield return WaitUntilOrTimeout(() => !lockOn.HasTarget, 3f);
+            Check("LockOn_DropsWhenTargetDies", !waitTimedOut,
+                "target=" + (lockOn.Target != null ? lockOn.Target.name : "null") + " alive=" + a.IsAlive);
+            Check("LockOn_DotHiddenAfterTargetDies", lockOn.marker == null || !lockOn.marker.IsShown);
+            Destroy(a.gameObject);
+            yield return null;
+
+            // ---- auto-drop: out of range ---------------------------------------------------------
+            EnemyController c = null;
+            yield return SpawnDummy(combat.transform.position + fwd * 6f, e => c = e);
+            if (c != null)
+            {
+                FacePoint(c.transform.position);
+                yield return null;
+                lockOn.TryLockOn();
+                yield return null;
+                Check("LockOn_ReacquiredForRangeTest", lockOn.Target == c);
+                // The agent owns the transform; disable it or the dummy snaps straight back.
+                var nav = c.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (nav != null) nav.enabled = false;
+                c.transform.position = look.Cam.position + look.Cam.forward * (lockOn.dropRange + 12f);
+                yield return WaitUntilOrTimeout(() => !lockOn.HasTarget, 2f);
+                Check("LockOn_DropsWhenTargetLeavesRange", !waitTimedOut,
+                    "dropRange=" + lockOn.dropRange +
+                    " dist=" + Vector3.Distance(look.Cam.position, c.transform.position).ToString("0.0"));
+                Destroy(c.gameObject);
+                yield return null;
+            }
+
+            lockOn.Release();
             yield return null;
         }
 
@@ -1312,10 +1815,52 @@ namespace VibeGame1
                 "tell=" + tellPeak.ToString("0.###") + " loudest trim=" + loudestTrim.ToString("0.###"));
             var tellAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_AlertTell.mat");
             Check("Tell_MaterialAssetExists", tellAsset != null, "Assets/Materials/M_AlertTell.mat");
+
+            // ---- the world the tell has to be read AGAINST ------------------------------------
+            // Ambient and the structural albedos were lifted ~4x (see ENGINEERING-LOG, "Outside the
+            // trims and the eclipse, the frame was black"). Two failure directions are guarded here:
+            // sliding BACK to a near-black world makes everything a cutout again, and lifting FURTHER
+            // eventually closes the gap the tell needs. Rule 9: these are shipped values, so they are
+            // asserted, not just written in ProjectSetup.cs.
+            // NOT multiplied by ambientIntensity on purpose: that field is a NO-OP in Trilight mode
+            // (Unity applies it to Skybox ambient only), so the colour is the whole value. Asserting
+            // the product would silently pass a build where someone "raised the ambient" with a knob
+            // that does nothing.
+            float ambEq = Lum(RenderSettings.ambientEquatorColor.linear);
+            // Floor 0.15: the pre-fix value (#4E3325 at intensity 1) measures 0.040 and fails loudly;
+            // the shipped #7A5540 x 1.35 measures ~0.209, so there is room to tune without tripping it.
+            Check("Lighting_EquatorLitsVerticals", ambEq >= 0.15f,
+                "equator linear lum=" + ambEq.ToString("0.####") +
+                " (Trilight lights by NORMAL - this term alone lights every wall, pillar, and every " +
+                "BACKLIT enemy torso the player is looking at)");
+
+            float brightestStructural = 0f;
+            string[] structuralKeys = { "M_Ground", "M_Stone", "M_Platform", "M_Enemy" };
+            foreach (var key in structuralKeys)
+            {
+                var m = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/" + key + ".mat");
+                if (m == null) { Skip("Lighting_" + key + "_Exists", "material missing"); continue; }
+                float lum = Lum(m.GetColor("_BaseColor").linear);
+                if (lum > brightestStructural) brightestStructural = lum;
+                // ~0.010 linear is already darker than coal. Below that, ambient x albedo is a double
+                // zero and no amount of grading recovers detail that was never rendered.
+                Check("Lighting_" + key + "_AlbedoFloor", lum >= 0.010f,
+                    "linear lum=" + lum.ToString("0.####") + " floor=0.01");
+            }
+            Check("Lighting_TellClearsTheWorld", tellPeak >= brightestStructural * 20f,
+                "tell=" + tellPeak.ToString("0.###") + " brightest structural albedo=" +
+                brightestStructural.ToString("0.####") +
+                " (the tell must still be unmistakable against the lifted background)");
 #else
             Skip("Trim_UnderDesatCeiling", "trim materials are only readable in the editor");
 #endif
             yield return null;
+        }
+
+        /// <summary>Rec.709 relative luminance of an already-LINEAR colour.</summary>
+        static float Lum(Color linear)
+        {
+            return linear.r * 0.2126f + linear.g * 0.7152f + linear.b * 0.0722f;
         }
 
         /// <summary>Brightest emission channel of a material, or 0 if it does not emit.</summary>
@@ -1387,12 +1932,32 @@ namespace VibeGame1
                 foreach (var r in clone.GetComponentsInChildren<Renderer>(true)) r.enabled = true;
                 // Placed just inside contact range (pickup trigger ~1.2m + CC radius ~0.4m) and then
                 // walked into, so the collection genuinely goes through OnTriggerEnter.
-                Vector3 target = combat.transform.position + combat.transform.forward * 1.2f + Vector3.up * 0.4f;
+                // The direction is SWEPT, not assumed: the level start has the wand pedestal plinth
+                // 2 m in front of the spawn, so a blind forward shove walks the player into a wall and
+                // the clone is never reached — the same staging failure the bloodstain test hit, and
+                // the reason this check failed in a full run but passed in isolation. Require a clear
+                // path AND ground at the destination; triggers are ignored so the clone's own trigger
+                // does not read as a wall.
+                Vector3 pickDir = combat.transform.forward;
+                const float pickWalk = 1.2f;
+                for (int step = 0; step < 8; step++)
+                {
+                    Vector3 probe = Quaternion.Euler(0f, step * 45f, 0f) * combat.transform.forward;
+                    probe.y = 0f; probe.Normalize();
+                    bool blocked = Physics.Raycast(combat.transform.position + Vector3.up * 0.6f, probe,
+                                                   pickWalk + 0.6f, ~0, QueryTriggerInteraction.Ignore);
+                    bool ground = Physics.Raycast(combat.transform.position + probe * pickWalk + Vector3.up * 1.5f,
+                                                  Vector3.down, 4f, ~0, QueryTriggerInteraction.Ignore);
+                    if (!blocked && ground) { pickDir = probe; break; }
+                }
+                Vector3 target = combat.transform.position + pickDir * pickWalk + Vector3.up * 0.4f;
                 clone.transform.position = target;
                 yield return null;
 
                 int held0 = items.Held.Count;
-                motor.AddImpulse(combat.transform.forward * 6f);
+                // 14 m/s, not 6: ground friction (14/s) stops an impulse in about v/friction metres,
+                // so a 6 m/s shove only travels ~0.4 m and may never reach the trigger.
+                motor.AddImpulse(pickDir * 14f);
                 yield return WaitUntilOrTimeout(() => items.Held.Count > held0, 4f);
                 Check("Items_PhysicsPickup", !waitTimedOut,
                     $"held {held0} -> {items.Held.Count}");
@@ -1821,6 +2386,13 @@ namespace VibeGame1
                     "got=" + SpeedrunTimer.Format(65.5f));
                 // Start, through SpeedrunTimer.TryStartRun — the method Update calls on the first
                 // movement input. Idempotent, so a run already ticking must refuse a second start.
+                // The timer only accrues while the state is Playing or Dead, and the kill-zone assert
+                // directly above leaves the state machine mid-transition (and the spawn pedestal can be
+                // holding a menu open, which pauses). Pin both, then wait on the CONDITION rather than
+                // on a fixed slice of wall clock.
+                WandSelectMenu.ForceClose();
+                if (GameManager.I != null) GameManager.I.SetState(GameState.Playing);
+                yield return null;
                 var timer = SpeedrunTimer.I;
                 bool alreadyRunning = timer.Running;
                 bool runStartedEvent = false;
@@ -1828,7 +2400,7 @@ namespace VibeGame1
                 timer.RunStarted += onRunStarted;
                 bool accepted = timer.TryStartRun();
                 float elapsed0 = timer.Elapsed;
-                yield return WaitRealtime(0.25f);
+                yield return WaitUntilOrTimeout(() => timer.Elapsed > elapsed0, 2f);
                 timer.RunStarted -= onRunStarted;
                 bool startBehaviour = alreadyRunning ? (!accepted && !runStartedEvent)
                                                      : (accepted && runStartedEvent);
@@ -1980,6 +2552,185 @@ namespace VibeGame1
                 hud.healthText != null && hud.flaskText != null && hud.soulsText != null && hud.timerText != null);
         }
 
+        // ================================================================ MAIN MENU
+        //
+        // The suite runs in the LEVEL scene, so the menu cannot be loaded mid-run without ending the
+        // run. Everything here therefore asserts on the built ASSETS (scene list + MainMenu.prefab)
+        // and on a clone parented under an INACTIVE holder — no Awake, no second EventSystem, no
+        // full-screen canvas over the game view, no cursor unlock.
+        //
+        // The one thing worth guarding above all: the row count must track LevelRegistry, not a
+        // constant. A menu with a hardcoded list is the exact failure this feature exists to avoid.
+
+        IEnumerator TestMainMenu()
+        {
+            // ---- the game boots into the menu -------------------------------------------------
+            int sceneCount = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+            Check("MainMenu_BuildHasScenes", sceneCount >= 2, "count=" + sceneCount);
+
+            string first = sceneCount > 0 ? UnityEngine.SceneManagement.SceneUtility.GetScenePathByBuildIndex(0) : "";
+            Check("MainMenu_IsBuildIndexZero",
+                first.EndsWith("/MainMenu.unity", StringComparison.OrdinalIgnoreCase),
+                "buildIndex0=" + first);
+
+            bool levelInBuild = false;
+            for (int i = 0; i < sceneCount; i++)
+                if (UnityEngine.SceneManagement.SceneUtility.GetScenePathByBuildIndex(i)
+                        .EndsWith("/Level_01.unity", StringComparison.OrdinalIgnoreCase))
+                    levelInBuild = true;
+            Check("MainMenu_LevelStillInBuild", levelInBuild, "Level_01 must survive the reindex");
+
+#if UNITY_EDITOR
+            var sceneAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/Scenes/MainMenu.unity");
+            Check("MainMenu_SceneAssetExists", sceneAsset != null, "Assets/Scenes/MainMenu.unity");
+
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MainMenu.prefab");
+            Check("MainMenu_PrefabExists", prefab != null, "Assets/Prefabs/MainMenu.prefab");
+
+            var registry = UnityEditor.AssetDatabase.LoadAssetAtPath<LevelRegistry>("Assets/Data/LevelRegistry.asset");
+            Check("MainMenu_RegistryExists", registry != null, "Assets/Data/LevelRegistry.asset");
+
+            if (prefab != null)
+            {
+                var asset = prefab.GetComponent<MainMenuController>();
+                Check("MainMenu_ControllerOnPrefab", asset != null);
+                Check("MainMenu_CanvasOnPrefab", prefab.GetComponent<Canvas>() != null);
+                Check("MainMenu_RaycasterOnPrefab", prefab.GetComponent<UnityEngine.UI.GraphicRaycaster>() != null,
+                    "no raycaster = a menu you cannot click");
+                Check("MainMenu_HasEventSystem",
+                    prefab.GetComponentInChildren<UnityEngine.EventSystems.EventSystem>(true) != null);
+
+                if (asset != null)
+                {
+                    Check("MainMenu_TitlePanelWired", asset.titlePanel != null);
+                    Check("MainMenu_LevelPanelWired", asset.levelPanel != null);
+                    Check("MainMenu_PlayButtonWired", asset.playButton != null);
+                    Check("MainMenu_LevelSelectButtonWired", asset.levelSelectButton != null);
+                    Check("MainMenu_QuitButtonWired", asset.quitButton != null);
+                    Check("MainMenu_BackButtonWired", asset.backButton != null);
+                    Check("MainMenu_SandboxRowWired", asset.sandboxRow != null && asset.sandboxRow.button != null);
+                    Check("MainMenu_RegistryAssigned", asset.registry != null);
+
+                    int expected = registry != null ? registry.Ordered().Length : -1;
+                    Check("MainMenu_RowCountMatchesRegistry",
+                        asset.rows != null && expected >= 0 && asset.rows.Length == expected,
+                        "rows=" + (asset.rows != null ? asset.rows.Length : -1) + " registry=" + expected);
+                }
+            }
+
+            // ---- the row count TRACKS the registry, it is not a constant -----------------------
+            // Drive the real Refresh() with a synthetic three-level registry. A hardcoded list, or a
+            // list that only ever shows what the prefab was built with, fails here.
+            if (prefab != null)
+            {
+                var holder = new GameObject("FeatureTests_MainMenuProbe");
+                holder.SetActive(false);                      // inactive parent: no Awake, no side effects
+                var clone = Instantiate(prefab, holder.transform);
+                var menu = clone.GetComponent<MainMenuController>();
+
+                var fake = ScriptableObject.CreateInstance<LevelRegistry>();
+                fake.initiallyUnlocked = 1;
+                fake.levels = new LevelDefinition[3];
+                for (int i = 0; i < 3; i++)
+                {
+                    var d = ScriptableObject.CreateInstance<LevelDefinition>();
+                    d.levelId = "featuretest_fake_" + i;      // never a real id: no saved progress to inherit
+                    d.displayName = "Fake Level " + i;
+                    d.sceneName = "Level_01";
+                    d.parTime = 100f + i;
+                    d.orderIndex = i;
+                    fake.levels[i] = d;
+                }
+
+                if (menu == null)
+                {
+                    Check("MainMenu_ProbeHasController", false);
+                }
+                else
+                {
+                    menu.registry = fake;
+                    menu.Refresh();
+
+                    Check("MainMenu_RowsGrowWithRegistry", menu.rows != null && menu.rows.Length >= 3,
+                        "rows=" + (menu.rows != null ? menu.rows.Length : -1) + " (registry has 3)");
+                    Check("MainMenu_AllRegistryLevelsVisible", menu.VisibleRowCount == 3,
+                        "visible=" + menu.VisibleRowCount);
+
+                    if (menu.rows != null && menu.rows.Length >= 3)
+                    {
+                        Check("MainMenu_RowShowsDisplayName",
+                            menu.rows[1].title != null && menu.rows[1].title.text.Contains("FAKE LEVEL 1"),
+                            "title=" + (menu.rows[1].title != null ? menu.rows[1].title.text : "null"));
+                        Check("MainMenu_RowShowsPar",
+                            menu.rows[0].meta != null && menu.rows[0].meta.text.Contains("PAR"),
+                            "meta=" + (menu.rows[0].meta != null ? menu.rows[0].meta.text : "null"));
+                        Check("MainMenu_RowShowsBest",
+                            menu.rows[0].meta != null && menu.rows[0].meta.text.Contains("BEST"),
+                            "meta=" + (menu.rows[0].meta != null ? menu.rows[0].meta.text : "null"));
+
+                        // initiallyUnlocked = 1: the first is playable, the rest read as LOCKED rather
+                        // than silently vanishing.
+                        Check("MainMenu_FirstLevelUnlocked",
+                            menu.rows[0].button != null && menu.rows[0].button.interactable);
+                        Check("MainMenu_LaterLevelLocked",
+                            menu.rows[2].button != null && !menu.rows[2].button.interactable);
+                        Check("MainMenu_LockedRowSaysLocked",
+                            menu.rows[2].status != null && menu.rows[2].status.text == "LOCKED",
+                            "status=" + (menu.rows[2].status != null ? menu.rows[2].status.text : "null"));
+                    }
+
+                    Check("MainMenu_PlayTargetsFirstUnlocked", menu.PlayTargetSceneName == "Level_01",
+                        "target='" + menu.PlayTargetSceneName + "'");
+                }
+
+                for (int i = 0; i < fake.levels.Length; i++) Destroy(fake.levels[i]);
+                Destroy(fake);
+                Destroy(holder);
+            }
+#else
+            Skip("MainMenu_PrefabAssertions", "editor only (AssetDatabase)");
+#endif
+
+            // ---- a level entered from the menu still gets ghost racing --------------------------
+            // GhostRacing bootstraps with [RuntimeInitializeOnLoadMethod(AfterSceneLoad)], which fires
+            // ONCE per application start. Booting into MainMenu means that one shot lands on a scene
+            // with no SpeedrunTimer, so it must also hook sceneLoaded or every level reached from the
+            // menu silently has no recorder, no ghost and no leaderboard.
+            Check("MainMenu_GhostRacingPresentInLevel", FindAnyObjectByType<GhostRacing>() != null,
+                "no GhostRacing in the level scene");
+
+            // ---- pause -> menu releases its time handle ----------------------------------------
+            // A leaked 0-scale handle across a scene load is the classic "the next level starts
+            // frozen" bug. PrepareForSceneChange is everything ReturnToMainMenu does before the load.
+            var pause = FindAnyObjectByType<PauseMenu>();
+            if (pause == null)
+            {
+                Check("MainMenu_PauseMenuPresent", false, "no PauseMenu in the level scene");
+            }
+            else
+            {
+                Check("MainMenu_PauseHasMainMenuButton", pause.mainMenuButton != null,
+                    "a menu you cannot get back to is half a feature");
+
+                pause.Open();
+                yield return null;
+                Check("MainMenu_PauseHoldsHandle", pause.TimeHandle >= 0, "handle=" + pause.TimeHandle);
+                CheckApprox("MainMenu_PauseFreezesWorld", TimeScaleController.I.WorldScale, 0f, 0.01f);
+
+                pause.PrepareForSceneChange();
+                yield return null;
+                Check("MainMenu_ReturnReleasesHandle", pause.TimeHandle < 0, "handle=" + pause.TimeHandle);
+                Check("MainMenu_ReturnClosesPanel", !pause.IsOpen);
+                CheckApprox("MainMenu_TimeRunningAfterReturn", TimeScaleController.I.WorldScale, 1f, 0.01f);
+                Check("MainMenu_CursorUnlockedForMenu", Cursor.lockState == CursorLockMode.None,
+                    "lockState=" + Cursor.lockState);
+
+                // Put the level back the way the suite found it.
+                if (GameManager.I != null) GameManager.I.SetState(GameState.Playing);
+                yield return null;
+            }
+        }
+
         IEnumerator CheckBarTracks(string name, BarView bar, Action mutate, float expectedRatio)
         {
             if (bar == null) { Check(name, false, "bar not assigned on HUDController"); yield break; }
@@ -2041,6 +2792,483 @@ namespace VibeGame1
             Check("Audio_PlayOneShotDoesNotThrow", !threw);
 
             yield return null;
+        }
+
+        // ================================================================ LEVEL STRUCTURE
+        //
+        // Cheap asserts against a bad rebuild of Level_01. Everything here is authored in
+        // Assets/Data/Levels/Level_01_Level.asset and built by LevelDefinitionBuilder, so a failure
+        // here means the DATA or the BUILDER, never something a play session did.
+
+        static readonly string[] LegendarySpawnNames =
+        {
+            "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight", "Spawn_Legendary_Spellsword"
+        };
+
+        static EnemySpawner FindSpawner(string spawnerName)
+        {
+            foreach (var s in FindObjectsByType<EnemySpawner>())
+                if (s.name == spawnerName) return s;
+            return null;
+        }
+
+        static BossArenaTrigger FindBossArena()
+        {
+            foreach (var a in FindObjectsByType<BossArenaTrigger>())
+                if (a.clearSpawner == null) return a;
+            return null;
+        }
+
+        IEnumerator TestLevelStructure()
+        {
+            if (LevelManager.I == null) { Check("Structure_LevelManagerExists", false); yield break; }
+            Check("Structure_LevelManagerExists", true);
+
+            // ---- four named checkpoints, one per section ---------------------------------------
+            var checkpoints = new Dictionary<string, Checkpoint>();
+            foreach (var c in FindObjectsByType<Checkpoint>()) checkpoints[c.name] = c;
+            for (int i = 1; i <= 4; i++)
+            {
+                string n = "Checkpoint_" + i;
+                Check("Structure_" + n, checkpoints.ContainsKey(n),
+                    "present=" + string.Join(",", new List<string>(checkpoints.Keys).ToArray()));
+            }
+
+            // ---- F5 and the test menu's "Boss Arena" both go through Warp("Checkpoint_4") -------
+            var bossArena = FindBossArena();
+            Check("Structure_BossArenaExists", bossArena != null);
+            if (checkpoints.ContainsKey("Checkpoint_4") && bossArena != null)
+            {
+                LevelManager.I.Warp("Checkpoint_4");
+                yield return null;
+                Vector3 pp = combat.transform.position;
+                Vector3 ap = bossArena.transform.position;
+                float d = Vector3.Distance(pp, ap);
+                // Landed on the boss APPROACH: near the arena mouth, on the near side of it, at the
+                // boss tile's height. Anything else and F5 has quietly stopped working.
+                Check("Structure_WarpCheckpoint4LandsAtBossApproach",
+                    d < 30f && pp.z < ap.z && Mathf.Abs(pp.y - ap.y) < 8f,
+                    $"player={pp} arena={ap} dist={d:0.0}");
+                Check("Structure_WarpCheckpoint4SetsCheckpoint",
+                    LevelManager.I.Current != null && LevelManager.I.Current.name == "Checkpoint_4",
+                    "current=" + (LevelManager.I.Current != null ? LevelManager.I.Current.name : "null"));
+            }
+
+            // ---- the wand altar stands at the start, or the run has no loadout ------------------
+            var pedestal = FindAnyObjectByType<WandPedestal>();
+            Check("Structure_WandPedestalExists", pedestal != null);
+            if (pedestal != null)
+            {
+                Vector3 start = LevelManager.I.startSpawn != null
+                    ? LevelManager.I.startSpawn.position : Vector3.zero;
+                float d = Vector3.Distance(pedestal.transform.position, start);
+                Check("Structure_WandPedestalAtStart", d < 10f,
+                    $"pedestal={pedestal.transform.position} start={start} dist={d:0.0}");
+            }
+
+            // ---- the three legendaries resolve to real prefabs ----------------------------------
+            foreach (string n in LegendarySpawnNames)
+            {
+                var sp = FindSpawner(n);
+                Check("Structure_" + n + "_Exists", sp != null);
+                if (sp == null) continue;
+                Check("Structure_" + n + "_HasPrefab", sp.prefab != null);
+                Check("Structure_" + n + "_NotFlaggedBoss", !sp.isBoss);
+                if (sp.prefab == null) continue;
+                Check("Structure_" + n + "_PrefabIsAnEnemy",
+                    sp.prefab.GetComponentInChildren<EnemyController>(true) != null,
+                    "prefab=" + sp.prefab.name);
+                // THE guard: a mini-boss wired as a BossController would raise BossDefeated, stop the
+                // speedrun timer and end the run at the FIRST legendary - three times over before the
+                // real boss. Deliberately not BossControllers; see ARCHITECTURE.md.
+                Check("Structure_" + n + "_IsNotABossController",
+                    sp.prefab.GetComponentInChildren<BossController>(true) == null,
+                    "prefab=" + sp.prefab.name);
+                Check("Structure_" + n + "_SpawnedAtLevelStart", sp.Instance != null);
+                if (sp.Instance != null)
+                    Check("Structure_" + n + "_InstanceIsNotABossController",
+                        sp.Instance.GetComponentInChildren<BossController>(true) == null);
+            }
+
+            // ---- the kill plane sits below everything you can stand on --------------------------
+            var kill = FindAnyObjectByType<KillZone>();
+            Check("Structure_KillZoneExists", kill != null);
+            if (kill != null)
+            {
+                var kc = kill.GetComponent<Collider>();
+                float lowest = float.MaxValue;
+                string lowestName = "none";
+                foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+                {
+                    if (r.gameObject.layer != 0) continue;               // Sky and FX live elsewhere
+                    if (r.transform.root.name != "Level") continue;      // built geometry only
+                    if (r.bounds.min.y < lowest) { lowest = r.bounds.min.y; lowestName = r.name; }
+                }
+                if (kc == null || lowest == float.MaxValue)
+                    Skip("Structure_KillPlaneBelowLowestPlatform", "no kill collider or no level geometry");
+                else
+                    Check("Structure_KillPlaneBelowLowestPlatform", kc.bounds.max.y < lowest,
+                        $"killTop={kc.bounds.max.y:0.0} lowest={lowest:0.0} ({lowestName})");
+            }
+
+            // Leave the run where the rest of the suite expects it.
+            if (checkpoints.ContainsKey("Checkpoint_1")) LevelManager.I.Warp("Checkpoint_1");
+            yield return null;
+        }
+
+        // ================================================================ GATE LOOP
+        //
+        // The tile-to-tile progression, end to end, for every gated arena in the level. This is the
+        // loop a player spends the whole run inside, and the one thing that - if broken - either walls
+        // them in forever or hands them a straight line to the boss.
+
+        static bool AtPos(Transform t, Vector3 target)
+        {
+            return t != null && Vector3.Distance(t.position, target) <= 0.05f;
+        }
+
+        /// <summary>Enter an arena the way the level does - a real collider entry, not a poked flag.</summary>
+        IEnumerator EnterArena(BossArenaTrigger a)
+        {
+            var col = a.GetComponent<Collider>();
+            Vector3 p = col != null ? col.bounds.center : a.transform.position;
+            motor.Teleport(p, 0f);
+            yield return null;
+            // Teleport toggles the CharacterController, so the entry registers as a fresh OnTriggerEnter.
+            yield return WaitUntilOrTimeout(() => AtPos(a.gate, a.gateClosedPosition), 3f);
+        }
+
+        IEnumerator TestGateLoop()
+        {
+            if (LevelManager.I == null) { Check("Gate_LevelManagerExists", false); yield break; }
+            Check("Gate_LevelManagerExists", true);
+
+            var arenas = FindObjectsByType<BossArenaTrigger>();
+            var mini = new List<BossArenaTrigger>();
+            BossArenaTrigger bossArena = null;
+            foreach (var a in arenas)
+            {
+                if (a.clearSpawner != null) mini.Add(a);
+                else bossArena = a;
+            }
+            Check("Gate_ThreeMiniBossArenas", mini.Count == 3, "count=" + mini.Count);
+            Check("Gate_OneBossArena", bossArena != null, "arenas=" + arenas.Length);
+
+            // Nothing is open before the player has been anywhere. If this fails the run is a straight
+            // line to the boss and every gate assert below is moot.
+            foreach (var a in mini)
+                Check("Gate_" + a.name + "_NotClearedBeforeEntry", !a.Cleared);
+
+            // Respawns must land at the start, not inside the arena under test.
+            foreach (var c in FindObjectsByType<Checkpoint>())
+                if (c.name == "Checkpoint_1") { LevelManager.I.SetCheckpoint(c); break; }
+
+            // This section tests gates, not fights: the legendaries are real enemies and would
+            // otherwise spend it hitting the tester.
+            health.Invulnerable = true;
+
+            foreach (var a in mini) yield return ExerciseMiniBossArena(a);
+            if (bossArena != null) yield return ExerciseBossArena(bossArena);
+
+            health.Invulnerable = false;
+
+            // Leave the level playable: every enemy back, every gate back at its rest position.
+            LevelManager.I.ResetEnemies();
+            yield return null;
+        }
+
+        /// <summary>The whole gate loop for one mini-boss arena, from a deliberately hostile start.</summary>
+        IEnumerator ExerciseMiniBossArena(BossArenaTrigger a)
+        {
+            string tag = "Gate_" + a.name + "_";
+            var sp = a.clearSpawner;
+
+            // ---- fresh, and with NO keeper alive yet --------------------------------------------
+            // This is the "seen alive" latch under test. LevelManager.SpawnAll() runs a frame after the
+            // arenas wake, so an arena that reads "no instance" as "dead" unseals itself at level start.
+            a.ResetArena();
+            sp.Despawn();
+            yield return null;
+
+            Check(tag + "HasAnExitGate", a.exitGate != null);
+            if (a.exitGate == null) yield break;
+            Check(tag + "ExitGateRestsClosed", AtPos(a.exitGate, a.exitGateClosedPosition),
+                "pos=" + a.exitGate.position + " expected=" + a.exitGateClosedPosition);
+            Check(tag + "EntryGateRestsOpen", AtPos(a.gate, a.gateOpenPosition),
+                "pos=" + (a.gate != null ? a.gate.position.ToString() : "null"));
+
+            yield return EnterArena(a);
+            Check(tag + "EntryGateSealsOnEntry", !waitTimedOut,
+                "gate=" + (a.gate != null ? a.gate.position.ToString() : "null") +
+                " expected=" + a.gateClosedPosition);
+
+            for (int i = 0; i < 10; i++) yield return null;
+            Check(tag + "DoesNotOpenBeforeKeeperEverSpawns", !a.Cleared, "cleared=" + a.Cleared);
+            Check(tag + "ExitStaysClosedBeforeKeeperEverSpawns", AtPos(a.exitGate, a.exitGateClosedPosition),
+                "pos=" + a.exitGate.position);
+
+            // ---- the keeper arrives; the arena stays sealed --------------------------------------
+            sp.Spawn();
+            yield return null;
+            yield return null;
+            var keeper = sp.Instance;
+            Check(tag + "KeeperSpawned", keeper != null);
+            if (keeper == null) yield break;
+            var ke = keeper.GetComponent<EnemyController>();
+            if (ke != null) ke.aggroLocked = true;
+            Check(tag + "SealedWhileKeeperAlive", !a.Cleared, "cleared=" + a.Cleared);
+
+            // ---- kill the keeper: BOTH gates drop ------------------------------------------------
+            var kh = keeper.GetComponentInChildren<Health>();
+            Check(tag + "KeeperHasHealth", kh != null);
+            if (kh == null) yield break;
+            kh.TakeDamage(new DamageInfo { damage = 999999f });
+            yield return null;
+            // An enemy whose death is a stagger needs the deathblow, exactly as a player would land it.
+            if (!kh.IsDead) kh.TakeDamage(new DamageInfo { damage = 999999f, isExecute = true });
+
+            yield return WaitUntilOrTimeout(() => a.Cleared, 3f);
+            Check(tag + "ClearsWhenKeeperDies", !waitTimedOut, "cleared=" + a.Cleared);
+            yield return WaitUntilOrTimeout(
+                () => AtPos(a.exitGate, a.exitGateOpenPosition) && AtPos(a.gate, a.gateOpenPosition), 3f);
+            Check(tag + "BothGatesDrop", !waitTimedOut,
+                "exit=" + a.exitGate.position + "/" + a.exitGateOpenPosition +
+                " entry=" + (a.gate != null ? a.gate.position.ToString() : "null") + "/" + a.gateOpenPosition);
+
+            // ---- and stays open ------------------------------------------------------------------
+            yield return WaitRealtime(0.6f);
+            Check(tag + "StaysOpenAfterClearing",
+                a.Cleared && AtPos(a.exitGate, a.exitGateOpenPosition) && AtPos(a.gate, a.gateOpenPosition),
+                "cleared=" + a.Cleared + " exit=" + a.exitGate.position);
+
+            // ---- dying mid-tile re-seals the arena -----------------------------------------------
+            LevelManager.I.Respawn();
+            yield return null;
+            Check(tag + "ResealsOnDeath", !a.Cleared, "cleared=" + a.Cleared);
+            Check(tag + "ExitGateBackUpOnDeath", AtPos(a.exitGate, a.exitGateClosedPosition),
+                "pos=" + a.exitGate.position + " expected=" + a.exitGateClosedPosition);
+            Check(tag + "EntryGateBackDownOnDeath", AtPos(a.gate, a.gateOpenPosition),
+                "pos=" + (a.gate != null ? a.gate.position.ToString() : "null"));
+            Check(tag + "KeeperBackOnDeath", sp.Instance != null);
+        }
+
+        /// <summary>The boss arena is the other half of the same component: it seals, and never reopens.</summary>
+        IEnumerator ExerciseBossArena(BossArenaTrigger a)
+        {
+            const string tag = "Gate_Boss_";
+            Check(tag + "HasNoClearSpawner", a.clearSpawner == null);
+            Check(tag + "HasNoExitGate", a.exitGate == null,
+                a.exitGate != null ? "exitGate=" + a.exitGate.name : "null");
+
+            var boss = FindAnyObjectByType<BossController>();
+            Check(tag + "BossExists", boss != null);
+            if (boss == null) yield break;
+            Check(tag + "BossStartsAsleep", !boss.Activated, "activated=" + boss.Activated);
+
+            a.ResetArena();
+            yield return null;
+            yield return EnterArena(a);
+            Check(tag + "EntryGateSealsOnEntry", !waitTimedOut,
+                "gate=" + (a.gate != null ? a.gate.position.ToString() : "null") +
+                " expected=" + a.gateClosedPosition);
+            Check(tag + "WakesTheBoss", boss.Activated, "activated=" + boss.Activated);
+
+            // Removing the arena's occupant is exactly what opens a mini-boss arena. Here it must do
+            // nothing at all. (Executing the boss for real would raise BossDefeated and stop the run
+            // timer before the Boss section gets to assert on it, so the instance is removed instead.)
+            foreach (var s in FindObjectsByType<EnemySpawner>())
+                if (s.isBoss) s.Despawn();
+            yield return WaitRealtime(0.8f);
+            Check(tag + "NeverClears", !a.Cleared, "cleared=" + a.Cleared);
+            Check(tag + "GateStaysSealed", AtPos(a.gate, a.gateClosedPosition),
+                "gate=" + (a.gate != null ? a.gate.position.ToString() : "null") +
+                " expected=" + a.gateClosedPosition);
+        }
+
+        // ================================================================ LEGENDARY MINI-BOSSES
+        //
+        // Two of the three now carry an IMPORTED body (Assets/Enemies/*.fbx) instead of primitives, so
+        // these guard the two ways that swap can silently break a fight: a renderer that is not URP
+        // (magenta, or no telegraph at all because _BaseColor is not a property the shader has), and a
+        // null EnemyVisuals binding, which is invisible at build time and only shows up as a missing
+        // telegraph mid-exchange. The rest guards TUNING: an imported body must not have moved a number.
+
+        static EnemyData DataOf(GameObject prefab)
+        {
+            if (prefab == null) return null;
+            var c = prefab.GetComponentInChildren<EnemyController>(true);
+            return c != null ? c.data : null;
+        }
+
+        void CheckLegendaryBody(string tag, GameObject prefab)
+        {
+            if (prefab == null) { Check(tag + "_PrefabExists", false); return; }
+            Check(tag + "_PrefabExists", true);
+
+            var v = prefab.GetComponentInChildren<EnemyVisuals>(true);
+            Check(tag + "_HasEnemyVisuals", v != null);
+            if (v == null) return;
+
+            // All seven bindings. EnemyVisuals null-guards each of them at runtime, which is exactly why
+            // a null one is silent: the enemy simply stops telegraphing and nothing is logged.
+            Check(tag + "_Visuals_body", v.body != null);
+            Check(tag + "_Visuals_eye", v.eye != null);
+            Check(tag + "_Visuals_weapon", v.weapon != null);
+            Check(tag + "_Visuals_lungeRoot", v.lungeRoot != null);
+            Check(tag + "_Visuals_armPivot", v.armPivot != null);
+            Check(tag + "_Visuals_weaponPivot", v.weaponPivot != null);
+            Check(tag + "_Visuals_alertMarker", v.alertMarker != null);
+            Check(tag + "_Visuals_deathblowMarker", v.deathblowMarker != null);
+            // The two markers must never be the same object: they sit in the same place on screen and
+            // mean opposite things.
+            Check(tag + "_AlertIsNotDeathblow", v.alertMarker != v.deathblowMarker);
+
+            if (v.body != null)
+            {
+                var m = v.body.sharedMaterial;
+                Check(tag + "_BodyHasMaterial", m != null);
+                if (m != null)
+                    Check(tag + "_BodyMaterialIsURP",
+                        m.shader != null && m.shader.name.StartsWith("Universal Render Pipeline/"),
+                        "shader=" + (m.shader != null ? m.shader.name : "null"));
+            }
+            // Physics belongs to the ROOT, never the imported art (model-swap contract rule 3).
+            Check(tag + "_ColliderOnRoot", prefab.GetComponent<CapsuleCollider>() != null);
+            Check(tag + "_AgentOnRoot", prefab.GetComponent<UnityEngine.AI.NavMeshAgent>() != null);
+            Check(tag + "_HealthOnRoot", prefab.GetComponent<Health>() != null);
+            Check(tag + "_PostureOnRoot", prefab.GetComponent<Posture>() != null);
+            Check(tag + "_HasPostureBar", prefab.GetComponentInChildren<EnemyPostureBar>(true) != null);
+            Check(tag + "_IsNotABossController", prefab.GetComponentInChildren<BossController>(true) == null);
+        }
+
+        /// <summary>Every wind-up in a moveset must clear the readability floor: the parry cue fires
+        /// cueLead (0.28 s) before impact, so a wind-up under 0.45 s has no room to telegraph.</summary>
+        void CheckMovesetWindups(string tag, EnemyData d)
+        {
+            if (d == null || d.combos == null) { Skip(tag + "_AllWindupsReadable", "no combos"); return; }
+            float worst = 99f; string worstName = "none";
+            foreach (var c in d.combos)
+            {
+                if (c == null || c.hits == null) continue;
+                foreach (var h in c.hits)
+                {
+                    if (h == null) continue;
+                    if (h.windup < worst) { worst = h.windup; worstName = h.attackName; }
+                }
+            }
+            Check(tag + "_AllWindupsReadable", worst >= 0.45f,
+                $"shortest={worstName} windup={worst:0.###}");
+        }
+
+        IEnumerator TestLegendaries()
+        {
+            var spellswordSpawner = FindSpawner("Spawn_Legendary_Spellsword");
+            var knightSpawner = FindSpawner("Spawn_Legendary_Knight");
+            GameObject spellsword = spellswordSpawner != null ? spellswordSpawner.prefab : null;
+            GameObject knight = knightSpawner != null ? knightSpawner.prefab : null;
+
+            CheckLegendaryBody("Legendary_Spellsword", spellsword);
+            CheckLegendaryBody("Legendary_Knight", knight);
+
+            // ---- THE ASHEN CHORISTER: body swap ONLY. These are the shipped numbers, and the whole
+            // point of the swap was that not one of them moved. Hard rule 9 in assert form.
+            var sd = DataOf(spellsword);
+            if (sd == null) Skip("Chorister_TuningUnchanged", "no EnemyData on the prefab");
+            else
+            {
+                CheckApprox("Chorister_Aggression", sd.aggression, 0.7f, 0.001f);
+                CheckApprox("Chorister_PreferredRange", sd.preferredRange, 4.3f, 0.001f);
+                CheckApprox("Chorister_AttackRange", sd.attackRange, 3f, 0.001f);
+                CheckApprox("Chorister_Scale", sd.scale, 1.5f, 0.001f);
+                CheckApprox("Chorister_MaxHP", sd.maxHP, 300f, 0.001f);
+                CheckApprox("Chorister_MaxPosture", sd.maxPosture, 210f, 0.001f);
+                CheckApprox("Chorister_ComboBreath", sd.comboBreathSeconds, 0.45f, 0.001f);
+                CheckApprox("Chorister_StaggerSeconds", sd.staggerSeconds, 3.6f, 0.001f);
+                Check("Chorister_PreferredRangeAtLeastAttackRange", sd.preferredRange >= sd.attackRange,
+                    $"preferred={sd.preferredRange} attack={sd.attackRange}");
+                Check("Chorister_MovesetName",
+                    sd.moveset != null && sd.moveset.name == "Legendary_Spellsword_Moveset",
+                    "moveset=" + (sd.moveset != null ? sd.moveset.name : "null"));
+                CheckMovesetWindups("Chorister", sd);
+            }
+
+            // ---- THE IRON PENITENT: the spin. A cadence fight, so what has to hold is that every beat
+            // is still readable, that the spin phrase exists at all, and that breaking him actually pays.
+            var kd = DataOf(knight);
+            if (kd == null) { Skip("Penitent_Spin", "no EnemyData on the prefab"); yield break; }
+
+            CheckMovesetWindups("Penitent", kd);
+            Check("Penitent_PreferredRangeAtLeastAttackRange", kd.preferredRange >= kd.attackRange,
+                $"preferred={kd.preferredRange} attack={kd.attackRange}");
+
+            // The spin phrase: spool-up, at least two beats on the metronome, then the exit.
+            bool foundSpin = false, foundSteadyBeat = false;
+            float longestRecovery = 0f;
+            if (kd.combos != null)
+            {
+                foreach (var c in kd.combos)
+                {
+                    if (c == null || c.hits == null) continue;
+                    int beats = 0; bool up = false, outHit = false;
+                    foreach (var h in c.hits)
+                    {
+                        if (h == null) continue;
+                        if (h.recovery > longestRecovery) longestRecovery = h.recovery;
+                        if (h.attackName == "Knight_SpinUp") up = true;
+                        else if (h.attackName == "Knight_SpinHit") beats++;
+                        else if (h.attackName == "Knight_SpinOut") outHit = true;
+                    }
+                    if (up && outHit && beats >= 2) { foundSpin = true; if (beats >= 3) foundSteadyBeat = true; }
+                }
+            }
+            Check("Penitent_HasSpinPhrase", foundSpin,
+                "expected a combo of SpinUp + >=2 SpinHit + SpinOut");
+            Check("Penitent_HasSustainedSpin", foundSteadyBeat,
+                "expected at least one spin of >=3 beats, or the cadence is never long enough to learn");
+
+            // comboBreathSeconds floors EVERY recovery, mid-combo ones included. If it is not well under
+            // the beat there is dead air between the spin's hits and it stops being a cadence.
+            Check("Penitent_BreathAllowsACadence", kd.comboBreathSeconds <= 0.25f,
+                $"comboBreath={kd.comboBreathSeconds:0.###}");
+
+            // THE REWARD. Breaking his posture has to open a window that dwarfs anything he gives you
+            // for merely surviving a phrase, or the whole design is just a wall you outlast.
+            Check("Penitent_StaggerBeatsEveryRecovery", kd.staggerSeconds > longestRecovery,
+                $"stagger={kd.staggerSeconds:0.##} longestRecovery={longestRecovery:0.##}");
+            Check("Penitent_StaggerIsABigOpening", kd.staggerSeconds >= longestRecovery * 2f,
+                $"stagger={kd.staggerSeconds:0.##} longestRecovery={longestRecovery:0.##}");
+
+            // The parry economy, spelled out so a retune that quietly makes him unbreakable fails here.
+            // Only ParryResult.Perfect calls OnParried, so a block is worth ZERO enemy posture: these are
+            // deflects, not survival. Sword parryPostureDamage is 25.
+            var sword = weapons != null ? weapons.Current : null;
+            if (sword == null) Skip("Penitent_BreaksInASaneNumberOfDeflects", "no weapon equipped");
+            else
+            {
+                float perBeat = sword.parryPostureDamage * 1.3f;    // Knight_SpinHit multiplier
+                int deflects = Mathf.CeilToInt(kd.maxPosture / Mathf.Max(0.01f, perBeat));
+                Check("Penitent_BreaksInASaneNumberOfDeflects", deflects >= 5 && deflects <= 12,
+                    $"deflects={deflects} (posture={kd.maxPosture} perBeat={perBeat:0.#} weapon={sword.name})");
+            }
+
+            yield return null;
+        }
+
+        /// <summary>
+        /// Rewind the live parry press so the next Resolve() sees exactly <paramref name="elapsed"/>
+        /// seconds of the window used. Test-only and deliberately narrow: it moves the clock the
+        /// controller reads, not a single line of the logic it runs. Without it the late-block assert
+        /// races the frame rate - see Parry_LateIsBlock.
+        /// </summary>
+        void BackdateParryPress(float elapsed)
+        {
+            var t = typeof(ParryController);
+            var press = t.GetField("pressTime", BindingFlags.NonPublic | BindingFlags.Instance);
+            var end = t.GetField("stateEnd", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (press == null || end == null) return;
+            float at = Time.time - elapsed;
+            press.SetValue(parry, at);
+            end.SetValue(parry, at + parry.PerfectWindow + parry.LateWindow);
         }
     }
 }

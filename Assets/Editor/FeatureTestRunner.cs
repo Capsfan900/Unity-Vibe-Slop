@@ -44,6 +44,15 @@ namespace VibeGame1.EditorTools
         public static string Start(string filter)
         {
             if (!EditorApplication.isPlaying) return "ERROR: " + NotPlaying;
+            // DOMAIN-RELOAD CANARY. A recompile during play mode wipes every static WITHOUT re-running
+            // Awake, so the session keeps ticking with GameManager.I null, Posture.OnBroken unsubscribed
+            // and IsPlaying false. Tests then fail in scattered, unrelated places and nothing is logged —
+            // it cost two separate agents hours before it was diagnosed. Refuse to run rather than
+            // produce a report that describes a broken editor as if it described the game.
+            if (GameManager.I == null)
+                return "ERROR: this play session has survived a domain reload (GameManager.I is null). "
+                     + "Statics were wiped without re-running Awake, so any result would be fiction. "
+                     + "Exit play mode and re-enter before running the suite.";
             FeatureTests.Run(filter);
             return "started" + (string.IsNullOrEmpty(filter) ? " (all)" : " (filter='" + filter + "')");
         }

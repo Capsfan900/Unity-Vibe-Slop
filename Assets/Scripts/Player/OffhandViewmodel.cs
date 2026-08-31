@@ -30,8 +30,8 @@ namespace VibeGame1
         // anything; and it pushed z out to 1.0, which shrank the wand to a splinter and parked it inside
         // the enemy's silhouette — a dark prop on a dark body is an invisible prop. Held near the lens and
         // angled, the wand keeps its full length on screen and the blast has a visible muzzle.
-        public Vector3 thrustPosition = new Vector3(-0.17f, -0.12f, 0.66f);
-        public Vector3 thrustEuler = new Vector3(58f, -10f, 6f);
+        public Vector3 thrustPosition = new Vector3(-0.07f, -0.09f, 0.80f);
+        public Vector3 thrustEuler = new Vector3(66f, -6f, 4f);
         /// <summary>Follow speed during the stab itself. High: the commit must be near-instant.</summary>
         public float thrustFollow = 30f;
 

@@ -22,9 +22,10 @@ wiped scene is a rebuild, not a data-loss event.
 | `5. Build HUD` | `Editor/HudBuilder.cs` | `Assets/Prefabs/HUD.prefab` — bars, item slots, menus, test menu, EventSystem (`InputSystemUIInputModule`). |
 | `6. Build Level` | `Editor/LevelGreyboxBuilder.cs` | Rebuilds the `Level` root in the open scene, bakes NavMesh, places Player/Managers/HUD. Never touches a `Level_Manual` sibling root. |
 | `7. Build Sandbox Scene` | `Editor/SandboxBuilder.cs` | Builds `Assets/Scenes/Sandbox.unity`. Preserves a `Sandbox_Manual` root. See [README_Sandbox](../Assets/Scenes/README_Sandbox.md). |
+| `9. Build Main Menu` | `Editor/MainMenuBuilder.cs` | `Assets/Prefabs/MainMenu.prefab` + `Assets/Scenes/MainMenu.unity`, and puts that scene at **build index 0**. One level-select row per `LevelRegistry` entry plus a `SANDBOX` row. Preserves a `MainMenu_Manual` root. NOT part of `0. Rebuild Everything` — re-run it after adding a level to the registry. |
 | `Health Check` | `Editor/ProjectHealthCheck.cs` | Read-only validator. |
 | `Run Feature Tests` | `Editor/FeatureTestRunner.cs` | Starts the play-mode suite (must already be in play mode). |
-| `Open Test Level` / `Open Sandbox Scene` | `VibeGameMenu` / `SandboxBuilder` | Scene shortcuts, prompt to save first. |
+| `Open Test Level` / `Open Sandbox Scene` / `Open Main Menu Scene` | `VibeGameMenu` / `SandboxBuilder` / `MainMenuBuilder` | Scene shortcuts, prompt to save first. |
 | `Rebuild NavMesh` | `LevelGreyboxBuilder` | Re-bakes without a full level rebuild. |
 
 Driving from MCP — same functions, no UI:
@@ -36,6 +37,7 @@ VibeGame1.EditorTools.DataFactory.CreateAll();
 VibeGame1.EditorTools.PrefabFactory.BuildAll();
 VibeGame1.EditorTools.HudBuilder.Build();
 VibeGame1.EditorTools.LevelGreyboxBuilder.Build();   // NOT in play mode
+VibeGame1.EditorTools.MainMenuBuilder.Build();       // NOT in play mode
 ```
 
 ### Health Check
@@ -51,12 +53,18 @@ Reports `ERRORS` vs `WARNINGS` and a `PASS`/`FAIL` line. Resolves player compone
 
 ## 2. Automated feature tests — `FeatureTests`
 
-`Assets/Scripts/Debug/FeatureTests.cs` + `Assets/Editor/FeatureTestRunner.cs`. 15 sections: movement,
+`Assets/Scripts/Debug/FeatureTests.cs` + `Assets/Editor/FeatureTestRunner.cs`. Sections cover movement,
 hitstop scoping, parry maths, live parry outcomes, player posture, enemy posture and execute, weapons,
-items, flask, Pyre + super, progression, level flow, boss, HUD bars, audio.
+wand pedestal, viewmodel arms, tell readability, deathblow, lock-on, items, flask, Pyre + super,
+progression, level flow, **level structure**, **the arena gate loop**, boss, HUD bars, audio, **the main menu**.
 
-**Last run: 192 passed · 0 failed · 7 skipped — `SUITE PASS` (~11.7 s).** It found four real shipping
-bugs on its first outings; full write-up in [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md).
+**Last run: 518 passed · 1 failed · 2 skipped (~30 s), on `Assets/Scenes/Level_01.unity`
+from a fresh play-mode session.** It has found five real shipping bugs; full write-up in
+[VERIFICATION-REPORT.md](VERIFICATION-REPORT.md).
+
+⚠️ **Run it from a FRESH play-mode session.** `LevelFlow` asserts on a running speedrun timer, and a
+suite that has already defeated the boss has stopped it. Filters work: `Start("Gate")` runs the arena
+gate loop alone in ~9 s.
 
 Play-mode coroutines, not NUnit — see [ENGINEERING-LOG](ENGINEERING-LOG.md) for why. Every test is
 timeout-guarded, wrapped in try/catch so one failure cannot take down the suite, and restores player
@@ -133,6 +141,32 @@ VibeGame1.EditorTools.ViewmodelCapture.Status;
 drops play mode, and an edit-mode Player has no weapon instance and a hand collapsed at the camera
 origin — the frame looks like the viewmodel vanished. See the engineering log.
 
+⚠️ And verify `GameManager.I != null` too. A recompile *during* play mode reloads the domain, which wipes
+every static — singletons, `GameEvents` subscriptions — without re-running `Awake`. Play mode looks fine
+and nothing works. **After any script edit, exit and re-enter play mode.**
+
+### Filming a whole beat, frame by frame — `FrameFilm`
+
+`Assets/Scripts/Debug/FrameFilm.cs` (runtime, not editor). Captures in `LateUpdate`, so it gets **every
+rendered frame**, and buffers the textures in memory, writing the PNGs only once the run is over.
+
+Use it for anything shorter than about two seconds. `ViewmodelCapture` ticks at roughly 8 Hz in the
+background; a 0.6-1.0 s riposte gets about six samples from it and the stab and the blast fall in the
+gaps. The buffering matters as much as the rate: every beat in the riposte is on **realtime** waits
+(rule 1), so a slower frame rate does not slow the riposte down with it — a per-frame `EncodeToPNG`
+costs enough to halve the sample count it is meant to raise.
+
+```csharp
+VibeGame1.FrameFilm.Run(@"C:	mp
+iposte", "Enemy_Grunt");   // whole parry-to-riposte, every frame
+VibeGame1.FrameFilm.Status;                                   // done / frames / log
+```
+
+It borrows a standing spot from an enemy the level already placed (a blind NavMesh spawn on a platformer
+course lands on whatever ledge is nearest), switches that enemy off and stages a **fresh** one of the
+requested prefab there — an enemy the level has been fighting cannot be reliably staggered on demand,
+because one caught inside a committed combo returns to `Windup` on the next frame.
+
 ---
 
 ## 5. In-game test menu — **F1**
@@ -174,11 +208,13 @@ boss segment/phase/HP/posture/state, and `Time.timeScale` vs `WorldScale`/`Playe
 ## 7. Sandbox scene
 
 `Assets/Scenes/Sandbox.unity`, built by `VibeGame1/7. Build Sandbox Scene`. A flat 60×60 arena for
-trying combat without running the course: enemy spawn pads (Grunt/Heavy/Boss), item pedestals enumerated
-from `Assets/Data/Items`, a jump/dash platforming corner, and a weapon rack.
+trying combat without running the course: six enemy spawn pads along the south wall
+(Grunt / Heavy / Boss / Legendary_Ninja / Legendary_Knight / Legendary_Spellsword), a `WandPedestal`
+altar at the spawn point, item pedestals enumerated from `Assets/Data/Items`, a jump/dash platforming
+corner, and a weapon rack.
 
 `SandboxController` (`Assets/Scripts/Debug/SandboxController.cs`) adds, all `[ContextMenu]`-exposed:
-`SpawnEnemyInFront(int)`, `SpawnDummy()` (aggro-locked, ~1M HP practice target), `ActivateBoss()` (the
+`SpawnEnemyInFront(int)` (0 Grunt, 1 Heavy, 2 Boss, 3-5 the legendaries — append-only), `SpawnDummy()` (aggro-locked, ~1M HP practice target), `ActivateBoss()` (the
 boss spawns inert — there is no arena trigger), `ClearAllEnemies()`, `ToggleInfiniteFlask()`,
 `ToggleInfiniteItems()`, `ResetSandbox()`.
 

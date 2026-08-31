@@ -15,6 +15,25 @@ namespace VibeGame1
         public Vector3 AimForward => cam != null ? cam.forward : transform.forward;
         public Transform Cam => cam;
 
+        /// <summary>Current look angles. Read-only to everyone: this class owns rotation (see
+        /// DATAFLOW.md > Movement) and rewrites the transform every frame.</summary>
+        public float Yaw => yaw;
+        public float Pitch => pitch;
+
+        /// <summary>
+        /// Add a correction to the look angles, in degrees, and re-apply. The ONLY sanctioned way for
+        /// anything else to move the camera — <see cref="LockOnController"/>'s assist calls this from
+        /// LateUpdate, i.e. after this class has already applied the player's own mouse input for the
+        /// frame, so the mouse is never scaled, filtered or overridden. Rotating the transform directly
+        /// instead would be silently undone on the next Apply().
+        /// </summary>
+        public void NudgeAim(float deltaYaw, float deltaPitch)
+        {
+            yaw += deltaYaw;
+            pitch = Mathf.Clamp(pitch + deltaPitch, -89f, 89f);
+            Apply();
+        }
+
         void Awake()
         {
             yaw = transform.eulerAngles.y;

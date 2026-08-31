@@ -14,43 +14,63 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
   displayName: The Iron Penitent
   entries:
-  - label: cleave-OVERHEAD (the bread and butter)
+  - label: SPIN-UP-beat-beat-beat-beat-OUT (the cadence)
     combo:
       hits:
-      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
-      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
-    weight: 3
+      - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
+    weight: 3.5
     minRange: 0
     maxRange: 99
-  - label: OVERHEAD (single, huge, free punish after)
+  - label: short spin (same beat, three of them)
     combo:
       hits:
-      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
-    weight: 1.5
-    minRange: 0
-    maxRange: 99
-  - label: cleave-cleave-OVERHEAD (two, then the break)
-    combo:
-      hits:
-      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
-      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
-      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+      - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
     weight: 2
     minRange: 0
     maxRange: 99
-  - label: shove-cleave (closes, then commits)
+  - label: shove into the SPIN (closes, then whirls)
     combo:
       hits:
       - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
-      - {fileID: 11400000, guid: 34544326c448341438ee08e49bf7afd6, type: 2}
+      - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
     weight: 2
-    minRange: 3.8
+    minRange: 3.6
     maxRange: 99
-  - label: shove-QUAKE (unblockable - run, then punish)
+  - label: OVERHEAD (the tempo break)
     combo:
       hits:
+      - {fileID: 11400000, guid: f6bee0e4437e01a41a40763413542744, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 99
+  - label: FURNACE VENT (punishes waiting it out)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 9c41232d9a62a6f428b2c1b6fe8c8bb2, type: 2}
+    weight: 1.4
+    minRange: 5
+    maxRange: 99
+  - label: VENT-shove-SPIN (vents you back in, then spins)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 9c41232d9a62a6f428b2c1b6fe8c8bb2, type: 2}
       - {fileID: 11400000, guid: 4b8b9f9be6b01404b98223894d894b29, type: 2}
-      - {fileID: 11400000, guid: 73c1e651dbaa0f9439f14c71377510e0, type: 2}
-    weight: 1
-    minRange: 3.4
+      - {fileID: 11400000, guid: aa4e28f4690259b428dfc2d000666364, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: 87c0ebd6f44ceb64f8168261e6c2dc5e, type: 2}
+      - {fileID: 11400000, guid: d8c402faabcf24a4aa7a48c88e92cfed, type: 2}
+    weight: 0.9
+    minRange: 5.5
     maxRange: 99

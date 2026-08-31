@@ -170,10 +170,12 @@ namespace VibeGame1.EditorTools
             tonemap.active = true;
             tonemap.mode.Override(TonemappingMode.ACES);
 
-            // Vignette — heavy, closes in the frame.
+            // Vignette — heavy, closes in the frame. 0.34 -> 0.27: in FIRST PERSON the platform you are
+            // about to land on is at the BOTTOM EDGE of the frame, which is exactly where a vignette
+            // crushes hardest. Still clearly a vignette, no longer a footing tax.
             var vignette = GetOrAdd<Vignette>(profile);
             vignette.active = true;
-            vignette.intensity.Override(0.34f);
+            vignette.intensity.Override(0.27f);
             vignette.smoothness.Override(0.5f);
 
             // Chromatic aberration (driven at runtime by CameraFX)
@@ -192,7 +194,10 @@ namespace VibeGame1.EditorTools
             var grain = GetOrAdd<FilmGrain>(profile);
             grain.active = true;
             grain.type.Override(FilmGrainLookup.Medium3);
-            grain.intensity.Override(0.35f);
+            // 0.35 -> 0.26. Grain is signal-destroying at the bottom of the range: a wall sitting at
+            // 25/255 and grain swinging +-9 is a wall made of noise. Enough grain left to keep the film
+            // texture, not enough to swallow the tonal range the ambient lift just bought.
+            grain.intensity.Override(0.26f);
             grain.response.Override(0.8f);
 
             // White balance — cold moonlight tint.
@@ -206,7 +211,7 @@ namespace VibeGame1.EditorTools
                 if (component != null) EditorUtility.SetDirty(component);
             EditorUtility.SetDirty(profile);
 
-            log.Add("Volume profile: Bloom 1.05/0.60/0.62, ACES, Vignette 0.34/0.5, ChromaticAberration 0, ColorAdjustments c20/s-14/e+0.15, FilmGrain 0.35, WhiteBalance +14/+6");
+            log.Add("Volume profile: Bloom 1.05/0.60/0.62, ACES, Vignette 0.27/0.5, ChromaticAberration 0, ColorAdjustments c20/s-14/e+0.15, FilmGrain 0.26, WhiteBalance +14/+6");
         }
 
         static T GetOrAdd<T>(VolumeProfile profile) where T : VolumeComponent
@@ -283,11 +288,33 @@ namespace VibeGame1.EditorTools
             //   equator  warm ember from the eclipse - lifts VERTICAL faces, which is most of the level
             //   ground   near-black bounce, so undersides stay heavy and shapes keep their weight
             // Replaces a flat #2E1F18 that lit every face identically and read as flat grey mush.
+            //
+            // THE EQUATOR TERM IS THE WHOLE LEVEL. Trilight lights by NORMAL, so a first-person
+            // platformer - walls, pillars, platform risers, enemy torsos, every surface you actually
+            // aim at - is lit almost entirely by the equator colour. The first pass had equator
+            // #4E3325 at intensity 1 (~0.040 linear luminance); multiplied by a 1% structural albedo
+            // that is ~0.0005 linear, i.e. 6/255 after grading - indistinguishable from black once
+            // film grain lands on it. Three independent passes each concluded "the frame is black
+            // outside the trims" and each blamed the tonemapper; the surfaces were dark going IN.
+            // Equator is now ~3.8x brighter and the ground bounce ~3x, which puts an unlit vertical
+            // stone face around 25/255 - a readable dark grey that still sits ~100x under the
+            // emissive trims, so the eclipse and the neon stay the brightest things in the frame.
+            // TRAP: RenderSettings.ambientIntensity IS IGNORED IN TRILIGHT (and Flat) MODE. It only
+            // scales Skybox ambient. Setting it to 1.35 here rendered pixel-for-pixel identically to
+            // 1.0 - measured, not assumed. The multiplier therefore has to live in the COLOURS, which
+            // are HDR: Color * f is the only knob that actually does anything in this mode.
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Hex("#2B3654");
-            RenderSettings.ambientEquatorColor = Hex("#4E3325");
-            RenderSettings.ambientGroundColor = Hex("#0E0B12");
-            RenderSettings.ambientIntensity = 1f;
+            RenderSettings.ambientSkyColor = Hex("#3E4A6B") * 1.35f;
+            // x1.35. The equator carries every vertical face AND every enemy: an enemy walking toward
+            // the eclipse is BACKLIT, so the side facing the player receives no key light at all and
+            // this term is the only thing rendering it. Tuned by measurement, not by eye: at x2.4 the
+            // ground read 53/255 against 23/255 before the pass - a lit room, not a dark one. x1.35
+            // lands the ground at ~36/255, a ~1.6x lift that makes structure legible without
+            // flattening it, and every emissive is untouched (the gate measured 154.1 -> 155.2 and the
+            // alert tell 204 -> 211 across the whole pass).
+            RenderSettings.ambientEquatorColor = Hex("#7A5540") * 1.35f;
+            RenderSettings.ambientGroundColor = Hex("#191424") * 1.35f;
+            RenderSettings.ambientIntensity = 1f;   // no-op in Trilight; kept explicit, see above
             // No skybox on purpose: the gameplay camera is built with SolidColor clear flags, so a skybox
             // would never be drawn. Starfield is geometry precisely because of that.
             RenderSettings.skybox = null;
@@ -300,7 +327,12 @@ namespace VibeGame1.EditorTools
                 // walking toward and every platform edge gets a rim. y=180 puts the light's origin behind
                 // the boss arena; x=10 keeps it just above the horizon.
                 light.transform.rotation = Quaternion.Euler(10f, 180f, 0f);
-                light.intensity = 0.85f;
+                // 0.85 -> 1.05. The key is the only directional in the scene (URP gives exactly one
+                // main light with shadows, and a second directional would eat an additional-light slot
+                // on every object near a torch), so it has to carry all of the directional modelling.
+                // Raised with the ambient rather than instead of it: ambient alone flattens, because
+                // Trilight gives every vertical face the same value regardless of which way it faces.
+                light.intensity = 1.05f;
                 light.color = Hex("#C9663A");                 // dying ember sun, not moonlight
                 light.shadows = LightShadows.Soft;
                 EditorUtility.SetDirty(light);
@@ -321,7 +353,7 @@ namespace VibeGame1.EditorTools
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
-            log.Add($"Scene '{scene.name}': fog 45-240 #0C0912, Trilight ambient sky#2B3654/eq#4E3325/gnd#0E0B12, no skybox (Starfield is geometry), low ember sun {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
+            log.Add($"Scene '{scene.name}': fog 45-240 #0C0912, Trilight ambient sky#3E4A6Bx1.35/eq#7A5540x1.35/gnd#191424x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low ember sun 1.05 {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
         }
 
         // ---------------------------------------------------------------- utils

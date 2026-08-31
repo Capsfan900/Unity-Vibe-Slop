@@ -199,10 +199,15 @@ namespace VibeGame1
             if (target != null) GameEvents.RaiseRiposteLanded(target);
 
             Vector3 origin = target != null ? target.transform.position : transform.position;
-            // Chest height on the victim: where the wand actually ends up. The blast helpers below still
-            // use `origin` so their radii and chain distances are untouched — this is visuals only.
             float vScale = target != null && target.data != null ? Mathf.Max(0.25f, target.data.scale) : 1f;
-            Vector3 contact = origin + Vector3.up * (0.95f * vScale);
+            Vector3 eye = look != null && look.Cam != null ? look.Cam.position : transform.position + Vector3.up;
+            // THE CONTACT POINT IS THE MARK, and the mark is on the SURFACE of the chest, not at its
+            // centre. `origin + up * 0.95` was the middle of the body: every flare and spark drawn there
+            // rendered INSIDE the enemy and was never seen — the same trap that hid the lock-on dot for
+            // a whole pass. Asking the enemy for its own glyph position also guarantees the shatter, the
+            // bolt and the blast all land on the same pixels rather than near each other.
+            // The blast helpers below still use `origin` so radii and chain distances are untouched.
+            Vector3 contact = target != null ? target.DeathblowPoint(eye) : origin + Vector3.up * (0.95f * vScale);
 
             // NOTE: no PlayFire() here. PlayThrust owns the whole animation and they share the same
             // coroutine slot — firing a recoil now would cancel the hold and yank the wand back out on
@@ -230,6 +235,14 @@ namespace VibeGame1
                 if (back.sqrMagnitude < 0.0001f) back = -fireDir;
                 SlashFx.Sparks(contact, (back.normalized + Vector3.up * 0.35f).normalized, wand.color, 10, 8f, 30f);
                 SlashFx.Flare(contact, wand.color, 0.45f, 0.16f);
+
+                // The blast BLOOMING out of the wound, facing the player. Presence bought from geometry
+                // and the tip light rather than from ScreenFlash — 0.55 alpha white-outs the frame and
+                // takes the wand with it (ScreenFlash stays at 0.20, chroma at 0.4). A ring squarely
+                // across the view is the one shape that reads as an expanding shockwave in first person.
+                Vector3 faceN = eye - contact;
+                if (faceN.sqrMagnitude < 0.0001f) faceN = -fireDir;
+                SlashFx.Ring(contact, faceN.normalized, wand.color, Mathf.Max(0.7f, 0.85f * vScale), 0.22f);
             }
 
             seen.Clear();

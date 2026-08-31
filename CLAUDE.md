@@ -62,6 +62,7 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | 5. Build HUD | `HudBuilder.Build()` | `Assets/Prefabs/HUD.prefab` |
 | 6. Build Level | `LevelGreyboxBuilder.Build()` | `Level` root, NavMesh bake, scene instances |
 | 7. Build Sandbox | `SandboxBuilder.Build()` | `Assets/Scenes/Sandbox.unity` |
+| 9. Build Main Menu | `MainMenuBuilder.Build()` | `Assets/Prefabs/MainMenu.prefab` + `Assets/Scenes/MainMenu.unity`, **build index 0**. Rows come from `LevelRegistry`. Not in Rebuild Everything. |
 
 Also: `Health Check` (read-only validator — run after any rebuild), `Run Feature Tests`,
 `Open Test Level`, `Open Sandbox Scene`, `Rebuild NavMesh`.
@@ -77,8 +78,10 @@ Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 | Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
 | Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
 
-Current: EditMode **20/20**, feature suite **265 passed / 0 failed / 2 skipped**
-([report](docs/VERIFICATION-REPORT.md)).
+Current: EditMode **20/20**, feature suite **518 passed / 1 failed / 2 skipped**, from a fresh
+play-mode session ([report](docs/VERIFICATION-REPORT.md)). **A session that has been recompiled under
+is not a fresh one** — a domain reload wipes every static without re-running `Awake`, so `GameManager.I`
+is null and the suite reports failures that are not real. Check `GameManager.I != null` first.
 
 `DebugHarness` and `FeatureTests` parry on a state transition — frame-perfect information no human has.
 They prove the state machine, **never** that the game feels good or is fair.

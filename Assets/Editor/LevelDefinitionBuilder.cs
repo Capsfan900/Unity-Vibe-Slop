@@ -59,6 +59,19 @@ namespace VibeGame1.EditorTools
             }
             if (def == null) { Debug.LogError("[LevelDefinitionBuilder] Null LevelDefinition."); return; }
 
+            // ACTIVE SCENE GUARD: this builds into whatever scene is currently OPEN, not into
+            // def.sceneName, and it ends in SaveOpenScenes(). Run it with Sandbox.unity open and the
+            // campaign course is built into the sandbox and saved over it - which happened once, with
+            // no error, while two agents shared the editor. Refuse rather than corrupt the wrong scene.
+            var active = SceneManager.GetActiveScene();
+            if (!string.IsNullOrEmpty(def.sceneName) && active.name != def.sceneName)
+            {
+                Debug.LogError("[" + nameof(LevelDefinitionBuilder) + "] Refusing to build '" + def.name
+                    + "' into the open scene '" + active.name + "' - it targets '" + def.sceneName
+                    + "'. Open that scene first (VibeGame1/Open Test Level).");
+                return;
+            }
+
             boxCount = trimCount = spawnerCount = torchCount = pickupCount = 0;
             builtSpawners.Clear();
             LoadShared();

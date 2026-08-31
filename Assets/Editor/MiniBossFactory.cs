@@ -31,6 +31,17 @@ namespace VibeGame1.EditorTools
         const string MaterialDir = "Assets/Materials";
         const string EnemyDataDir = "Assets/Data/Enemies";
 
+        /// <summary>
+        /// Imported enemy art. <b>This is the one folder in the project that holds source art rather than
+        /// generated output</b>, and it is a deliberate exception to hard rule 4 ("everything is
+        /// regenerable"): an FBX authored in enemy-forge is authored art, like the CC0 audio in
+        /// <c>Resources/Audio</c>, not something a menu item can rebuild. It is committed, and the
+        /// builders below reference it BY PATH and <b>fail loudly</b> if it is gone — never falling back
+        /// to primitives, because a silent fallback would ship a boxy stand-in that looks like a bug.
+        /// See docs/AUTHORING.md → "Importing a forge model".
+        /// </summary>
+        const string ModelDir = "Assets/Enemies";
+
         [MenuItem("VibeGame1/4b. Build Mini-Bosses")]
         public static void CreateAll()
         {
@@ -99,6 +110,246 @@ namespace VibeGame1.EditorTools
 
             var lungeRoot = Empty("LungeRoot", visual.transform, Vector3.zero);
 
+            GameObject body, eye, weapon;
+            Transform shoulder, hand;
+
+            var spec = ModelFor(shape);
+            if (spec != null)
+            {
+                // ---- imported body (see ModelDir) --------------------------------------------------
+                if (!BuildModelBody(spec, lungeRoot.transform, bodyMat,
+                                    out body, out eye, out weapon, out shoulder, out hand))
+                {
+                    // Fail LOUDLY. BuildModelBody has already logged what is missing; bail rather than
+                    // quietly shipping a prefab with no body, or silently reverting to primitives.
+                    Object.DestroyImmediate(root);
+                    return;
+                }
+            }
+            else
+            {
+                BuildPrimitiveBody(shape, lungeRoot.transform, bodyMat,
+                                   out body, out eye, out weapon, out shoulder, out hand);
+            }
+
+            var alert = Prim(PrimitiveType.Cube, "Alert", visual.transform, new Vector3(0f, 2.5f, 0f), new Vector3(0.25f, 0.25f, 0.25f), Mat("M_AlertTell"));
+            alert.SetActive(false);
+
+            visuals.body = body.GetComponentInChildren<Renderer>(true);
+            visuals.eye = eye.GetComponent<Renderer>();
+            visuals.weapon = weapon.GetComponent<Renderer>();
+            visuals.lungeRoot = lungeRoot.transform;
+            visuals.armPivot = shoulder;
+            visuals.weaponPivot = hand;
+            visuals.alertMarker = alert;
+            // Same glyph as every other enemy, built by the same code — a mini-boss whose posture breaks
+            // must read identically to a grunt whose posture breaks. Rule 9: written here, not defaulted.
+            //
+            // The height and the stand-off are per body, though, because the glyph is now mounted on the
+            // TORSO. A hovering robed wraith and a squat wide-armed robot have their sternums at
+            // different heights and different depths from a 0.45 m capsule, and a mark left on the centre
+            // line renders INSIDE the mesh — invisible, with every assertion still passing.
+            float markHeight = spec != null ? spec.markHeight : 1.45f;
+            float markOffset = spec != null ? MeasureSurfaceOffset(body) : 0.80f;
+            visuals.deathblowMarker = PrefabFactory.BuildDeathblowMarker(visual.transform, markHeight, markOffset);
+            flash.renderers = new[] { visuals.body, visuals.weapon };
+
+            // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
+            // shows up as a missing telegraph mid-fight, which is the worst possible place to find it.
+            if (visuals.body == null || visuals.eye == null || visuals.weapon == null ||
+                visuals.lungeRoot == null || visuals.armPivot == null ||
+                visuals.weaponPivot == null || visuals.alertMarker == null ||
+                visuals.deathblowMarker == null)
+            {
+                Debug.LogError("[MiniBossFactory] " + name + " has a NULL EnemyVisuals binding — " +
+                    "body=" + (visuals.body != null) + " eye=" + (visuals.eye != null) +
+                    " weapon=" + (visuals.weapon != null) + " lungeRoot=" + (visuals.lungeRoot != null) +
+                    " armPivot=" + (visuals.armPivot != null) + " weaponPivot=" + (visuals.weaponPivot != null) +
+                    " alert=" + (visuals.alertMarker != null) + " deathblow=" + (visuals.deathblowMarker != null));
+            }
+
+            // Posture bar, as on Grunt/Heavy. The HUD boss bar belongs to the Warden alone — these three
+            // are read from the world-space bar, which is also the "execute me now" pulse on stagger.
+            BuildPostureBar(visual.transform);
+
+            Save(root, PrefabDir + "/" + name + ".prefab");
+        }
+
+        /// <summary>
+        /// How far in front of the centre line the deathblow glyph must stand to sit ON this model's
+        /// chest rather than inside it. Measured from the imported mesh's own DEPTH — the enemy is
+        /// always turned to face the player during a deathblow (<c>BeginExecuted</c> does it), so the
+        /// direction the glyph is pushed is the model's facing axis, not its width. Measuring rather
+        /// than guessing is the point: the whole trap here is that a wrong value fails silently.
+        /// </summary>
+        static float MeasureSurfaceOffset(GameObject body)
+        {
+            var r = body != null ? body.GetComponentInChildren<Renderer>(true) : null;
+            if (r == null) return 0.80f;
+            // Tight: every centimetre of stand-off is a centimetre the spot sits NEARER the camera than
+            // the body it marks, and that gap is what made the earlier fixed-size version balloon.
+            float depth = r.bounds.extents.z;
+            return Mathf.Clamp(depth + 0.13f, 0.40f, 0.85f);
+        }
+
+        // ------------------------------------------------------------------ imported bodies
+
+        /// <summary>
+        /// Where an imported model's landmarks are, in the FBX's own metre space. enemy-forge exports
+        /// pre-normalised: feet at y = 0, crown at y = 2, facing +Z. <b>Every one of those was verified
+        /// per model, not assumed</b> — see the log entry in docs/ENGINEERING-LOG.md.
+        /// </summary>
+        class ModelSpec
+        {
+            public string fbx;              // file name under ModelDir
+            public float yLift;             // hover. 0 = the model's own feet sit on the collider base
+            public float yaw;               // correction when the model does not face +Z
+            public Vector3 eyePos;          // the glowing slot / furnace grate: EnemyVisuals.eye
+            public Vector3 eyeSize;
+            public bool eyeRound;           // a disc (the furnace port) rather than a slot
+            public Vector3 armPos;          // shoulder the telegraph swings from
+            public Vector3 handPos;         // local to armPos
+            public Vector3 weaponFxPos;     // local to handPos: where the cue sparks are thrown from
+            public float markHeight;        // sternum: where the deathblow glyph rides on THIS body
+            public string note;
+        }
+
+        static ModelSpec ModelFor(Silhouette shape)
+        {
+            switch (shape)
+            {
+                case Silhouette.Spellsword:
+                    return new ModelSpec
+                    {
+                        fbx = "AshenChorister.fbx",
+                        // HOVERS. It has no legs — a tentacle skirt — so the tips are lifted just clear of
+                        // the floor and it reads as gliding. Deliberately done on the VISUAL, not on
+                        // NavMeshAgent.baseOffset: the agent, the capsule and the distance/cone impact
+                        // test all stay exactly where they were (model-swap contract rule 3).
+                        yLift = 0.10f,
+                        yaw = 0f,
+                        eyePos = new Vector3(0f, 1.58f, 0.235f),
+                        eyeSize = new Vector3(0.26f, 0.14f, 0.10f),
+                        armPos = new Vector3(0.30f, 1.52f, 0f),
+                        handPos = new Vector3(0f, -0.18f, 0f),
+                        weaponFxPos = new Vector3(0.72f, 0.06f, 0.02f),   // the scythe blade
+                        // Sternum, well under the hood recess (1.58) so the violet glyph never sits on
+                        // top of the one always-on emissive this body has.
+                        markHeight = 1.28f,
+                        note = "hooded scythe wraith; glowing eye slot in the hood recess"
+                    };
+
+                case Silhouette.Knight:
+                    return new ModelSpec
+                    {
+                        fbx = "IronPenitent.fbx",
+                        // STANDS. It has real feet, so no lift at all — feet on the collider base.
+                        yLift = 0f,
+                        yaw = 0f,
+                        // The belly furnace grate. Bound as EnemyVisuals.eye on purpose: that is the ONE
+                        // sanctioned always-on emissive on an enemy, it is already ember-orange, and it is
+                        // already driven by Posture.Ratio — so the grate flares as his posture fills and
+                        // the model's signature feature doubles as his posture read. No new emissive, no
+                        // new material, and it peaks well under M_AlertTell (3.0), which stays the only
+                        // thing on him allowed to shout.
+                        eyePos = new Vector3(0f, 1.10f, 0.30f),
+                        eyeSize = new Vector3(0.32f, 0.30f, 0.10f),
+                        eyeRound = true,        // the port is a round grate; a squared-off slot read as a decal
+                        armPos = new Vector3(0.35f, 1.12f, 0f),
+                        handPos = new Vector3(0f, -0.04f, 0f),
+                        weaponFxPos = new Vector3(0.66f, 0f, 0f),         // the outstretched fist
+                        // ABOVE the belly furnace grate (1.10), not on it. He is squat, so his chest
+                        // plate is low; 1.38 is the top of it and still clear of the grate's ember glow.
+                        markHeight = 1.38f,
+                        note = "furnace-bellied iron penitent; arms held wide, which is the spin silhouette"
+                    };
+            }
+            return null;   // Ninja keeps the primitive silhouette
+        }
+
+        /// <summary>
+        /// Parents the imported mesh under <paramref name="lungeRoot"/> and rebinds every
+        /// <see cref="EnemyVisuals"/> part to it. Returns false (having logged) when the art is missing —
+        /// the caller must then abandon the prefab rather than fall back.
+        /// </summary>
+        static bool BuildModelBody(ModelSpec spec, Transform lungeRoot, Material bodyMat,
+                                   out GameObject body, out GameObject eye, out GameObject weapon,
+                                   out Transform shoulder, out Transform hand)
+        {
+            body = null; eye = null; weapon = null; shoulder = null; hand = null;
+
+            string path = ModelDir + "/" + spec.fbx;
+            var source = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (source == null)
+            {
+                Debug.LogError("[MiniBossFactory] MISSING SOURCE ART: " + path +
+                    ". This mini-boss has an imported body and there is deliberately NO primitive " +
+                    "fallback — a boxy stand-in would look like a bug rather than a missing file. " +
+                    "Restore the FBX from git (it is a committed asset) or re-export it from enemy-forge " +
+                    "into a path containing /Enemies/ so EnemyForgeImporter configures it. " +
+                    "See docs/AUTHORING.md → Importing a forge model.");
+                return false;
+            }
+
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(source);
+            // Unpacked so the built prefab is plain GameObjects: this factory REGENERATES the prefab
+            // every run, and a nested model-prefab instance would turn every rebind below into a stored
+            // prefab override instead of a plain value.
+            PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            model.name = "Model";
+            model.transform.SetParent(lungeRoot, false);
+            model.transform.localPosition = new Vector3(0f, spec.yLift, 0f);
+            model.transform.localRotation = Quaternion.Euler(0f, spec.yaw, 0f);
+            model.transform.localScale = Vector3.one;
+
+            var skin = model.GetComponentInChildren<Renderer>(true);
+            if (skin == null)
+            {
+                Debug.LogError("[MiniBossFactory] " + path + " imported with no Renderer. Check the model importer.");
+                Object.DestroyImmediate(model);
+                return false;
+            }
+            // URP or magenta. The FBX carries vertex colours and no texture, and EnemyVisuals overwrites
+            // _BaseColor from EnemyData every frame anyway, so the shared enemy body material is exactly
+            // right here: same shader, same palette, no new material and no MaterialFactory edit.
+            skin.sharedMaterial = bodyMat;
+            body = skin.gameObject;
+
+            // The glowing slot / grate. A separate renderer because EnemyVisuals.SetPostureRatio writes
+            // _EmissionColor to `eye` alone — it must not be the body renderer, or the whole enemy lights.
+            eye = Prim(spec.eyeRound ? PrimitiveType.Sphere : PrimitiveType.Cube,
+                       "Eye", model.transform, spec.eyePos, spec.eyeSize, Mat("M_EnemyEye"));
+
+            // ---- arm rig ------------------------------------------------------------------------
+            // Empty pivots, NOT the FBX's own bones. The forge auto-rig drops a generic humanoid
+            // skeleton inside the silhouette — the Chorister's arm bones hang inside the robe while the
+            // art holds a scythe overhead — so driving those bones at the ±136 deg telegraph poses tears
+            // the mesh. The wind-up therefore reads through LungeRoot's whole-body lean plus the base
+            // colour sinking and snapping, which is the same read the primitives give.
+            var arm = Empty("ArmPivot", model.transform, spec.armPos);
+            shoulder = arm.transform;
+            var wp = Empty("WeaponPivot", arm.transform, spec.handPos);
+            hand = wp.transform;
+
+            // EnemyVisuals.weapon must be non-null: WeaponPoint() reads its bounds to place the cue
+            // spark and the parry flare. The blade is part of the single imported mesh, so this is a
+            // 3 cm marker at the blade/fist instead — it swings with the pivot, throws the sparks from
+            // the right place, and is far too small to see on a 3 m enemy.
+            weapon = Prim(PrimitiveType.Cube, "WeaponFx", wp.transform, spec.weaponFxPos,
+                          new Vector3(0.03f, 0.03f, 0.03f), bodyMat);
+            var wr = weapon.GetComponent<Renderer>();
+            wr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            wr.receiveShadows = false;
+
+            return true;
+        }
+
+        /// <summary>The original primitive silhouettes. Still the path for the Ninja, and still the
+        /// reference for what a mini-boss body has to provide.</summary>
+        static void BuildPrimitiveBody(Silhouette shape, Transform lungeRoot, Material bodyMat,
+                                       out GameObject body, out GameObject eye, out GameObject weapon,
+                                       out Transform shoulder, out Transform hand)
+        {
             // Body proportions carry most of the read at a glance: thin/fast, huge/slow, tall/ornate.
             Vector3 bodyScale;
             switch (shape)
@@ -107,67 +358,50 @@ namespace VibeGame1.EditorTools
                 case Silhouette.Knight: bodyScale = new Vector3(1.25f, 1.02f, 1.25f); break;
                 default: bodyScale = new Vector3(0.85f, 1.08f, 0.85f); break;
             }
-            var body = Prim(PrimitiveType.Capsule, "Body", lungeRoot.transform, new Vector3(0f, 1f, 0f), bodyScale, bodyMat);
-            var eye = Prim(PrimitiveType.Cube, "Eye", lungeRoot.transform, new Vector3(0f, 1.55f, 0.4f), new Vector3(0.3f, 0.12f, 0.15f), Mat("M_EnemyEye"));
+            body = Prim(PrimitiveType.Capsule, "Body", lungeRoot, new Vector3(0f, 1f, 0f), bodyScale, bodyMat);
+            eye = Prim(PrimitiveType.Cube, "Eye", lungeRoot, new Vector3(0f, 1.55f, 0.4f), new Vector3(0.3f, 0.12f, 0.15f), Mat("M_EnemyEye"));
 
             // ---- arm rig: shoulder -> upper arm -> forearm/hand -> weapon --------------------------
             // Same names and hierarchy as PrefabFactory.BuildEnemy: EnemyVisuals rotates the shoulder to
             // sell the wind-up, and the hand trails it. Do not rename these.
-            var shoulder = Empty("ArmPivot", lungeRoot.transform, new Vector3(0.5f, 1.45f, 0f));
-            Prim(PrimitiveType.Cube, "UpperArm", shoulder.transform, new Vector3(0f, -0.28f, 0f), new Vector3(0.17f, 0.56f, 0.17f), bodyMat);
+            var sh = Empty("ArmPivot", lungeRoot, new Vector3(0.5f, 1.45f, 0f));
+            shoulder = sh.transform;
+            Prim(PrimitiveType.Cube, "UpperArm", sh.transform, new Vector3(0f, -0.28f, 0f), new Vector3(0.17f, 0.56f, 0.17f), bodyMat);
 
-            var hand = Empty("WeaponPivot", shoulder.transform, new Vector3(0f, -0.56f, 0f));
-            Prim(PrimitiveType.Cube, "ForeArm", hand.transform, new Vector3(0f, -0.22f, 0f), new Vector3(0.14f, 0.46f, 0.14f), bodyMat);
+            var hd = Empty("WeaponPivot", sh.transform, new Vector3(0f, -0.56f, 0f));
+            hand = hd.transform;
+            Prim(PrimitiveType.Cube, "ForeArm", hd.transform, new Vector3(0f, -0.22f, 0f), new Vector3(0.14f, 0.46f, 0.14f), bodyMat);
 
-            GameObject weapon;
             switch (shape)
             {
                 case Silhouette.Ninja:
                     // short, straight, held low — a blade you can throw five of in the time of one cleave
-                    weapon = Prim(PrimitiveType.Cube, "Weapon", hand.transform, new Vector3(0f, -0.4f, 0.34f), new Vector3(0.08f, 0.1f, 1.05f), bodyMat);
+                    weapon = Prim(PrimitiveType.Cube, "Weapon", hd.transform, new Vector3(0f, -0.4f, 0.34f), new Vector3(0.08f, 0.1f, 1.05f), bodyMat);
                     weapon.transform.localRotation = Quaternion.Euler(4f, 0f, 0f);
                     // off-hand tanto: the second blade is the whole point of the archetype
-                    var offhand = Empty("OffhandPivot", lungeRoot.transform, new Vector3(-0.42f, 1.1f, 0.12f));
+                    var offhand = Empty("OffhandPivot", lungeRoot, new Vector3(-0.42f, 1.1f, 0.12f));
                     var tanto = Prim(PrimitiveType.Cube, "OffhandBlade", offhand.transform, new Vector3(0f, 0f, 0.3f), new Vector3(0.07f, 0.09f, 0.7f), bodyMat);
                     tanto.transform.localRotation = Quaternion.Euler(-18f, 0f, 0f);
                     break;
 
                 case Silhouette.Knight:
                     // a slab. Long enough that the overhead's arc is visible from 4 m.
-                    weapon = Prim(PrimitiveType.Cube, "Weapon", hand.transform, new Vector3(0f, -0.62f, 0.55f), new Vector3(0.26f, 0.2f, 1.95f), bodyMat);
+                    weapon = Prim(PrimitiveType.Cube, "Weapon", hd.transform, new Vector3(0f, -0.62f, 0.55f), new Vector3(0.26f, 0.2f, 1.95f), bodyMat);
                     weapon.transform.localRotation = Quaternion.Euler(10f, 0f, 0f);
-                    Prim(PrimitiveType.Cube, "PauldronR", lungeRoot.transform, new Vector3(0.62f, 1.62f, 0f), new Vector3(0.45f, 0.28f, 0.5f), bodyMat);
-                    Prim(PrimitiveType.Cube, "PauldronL", lungeRoot.transform, new Vector3(-0.62f, 1.62f, 0f), new Vector3(0.45f, 0.28f, 0.5f), bodyMat);
-                    Prim(PrimitiveType.Cube, "Shield", lungeRoot.transform, new Vector3(-0.62f, 1.08f, 0.28f), new Vector3(0.16f, 0.95f, 0.7f), bodyMat);
+                    Prim(PrimitiveType.Cube, "PauldronR", lungeRoot, new Vector3(0.62f, 1.62f, 0f), new Vector3(0.45f, 0.28f, 0.5f), bodyMat);
+                    Prim(PrimitiveType.Cube, "PauldronL", lungeRoot, new Vector3(-0.62f, 1.62f, 0f), new Vector3(0.45f, 0.28f, 0.5f), bodyMat);
+                    Prim(PrimitiveType.Cube, "Shield", lungeRoot, new Vector3(-0.62f, 1.08f, 0.28f), new Vector3(0.16f, 0.95f, 0.7f), bodyMat);
                     break;
 
                 default:
                     // long ceremonial blade plus a floating focus: the hybrid read, melee AND caster
-                    weapon = Prim(PrimitiveType.Cube, "Weapon", hand.transform, new Vector3(0f, -0.52f, 0.5f), new Vector3(0.13f, 0.15f, 1.7f), bodyMat);
+                    weapon = Prim(PrimitiveType.Cube, "Weapon", hd.transform, new Vector3(0f, -0.52f, 0.5f), new Vector3(0.13f, 0.15f, 1.7f), bodyMat);
                     weapon.transform.localRotation = Quaternion.Euler(8f, 0f, 0f);
-                    var focus = Empty("FocusPivot", lungeRoot.transform, new Vector3(-0.55f, 1.5f, 0.25f));
+                    var focus = Empty("FocusPivot", lungeRoot, new Vector3(-0.55f, 1.5f, 0.25f));
                     Prim(PrimitiveType.Sphere, "Focus", focus.transform, Vector3.zero, new Vector3(0.26f, 0.26f, 0.26f), Mat("M_NeonPink"));
-                    Prim(PrimitiveType.Cube, "Mantle", lungeRoot.transform, new Vector3(0f, 1.72f, -0.1f), new Vector3(0.95f, 0.22f, 0.6f), bodyMat);
+                    Prim(PrimitiveType.Cube, "Mantle", lungeRoot, new Vector3(0f, 1.72f, -0.1f), new Vector3(0.95f, 0.22f, 0.6f), bodyMat);
                     break;
             }
-
-            var alert = Prim(PrimitiveType.Cube, "Alert", visual.transform, new Vector3(0f, 2.5f, 0f), new Vector3(0.25f, 0.25f, 0.25f), Mat("M_AlertTell"));
-            alert.SetActive(false);
-
-            visuals.body = body.GetComponent<Renderer>();
-            visuals.eye = eye.GetComponent<Renderer>();
-            visuals.weapon = weapon.GetComponent<Renderer>();
-            visuals.lungeRoot = lungeRoot.transform;
-            visuals.armPivot = shoulder.transform;
-            visuals.weaponPivot = hand.transform;
-            visuals.alertMarker = alert;
-            flash.renderers = new[] { visuals.body, visuals.weapon };
-
-            // Posture bar, as on Grunt/Heavy. The HUD boss bar belongs to the Warden alone — these three
-            // are read from the world-space bar, which is also the "execute me now" pulse on stagger.
-            BuildPostureBar(visual.transform);
-
-            Save(root, PrefabDir + "/" + name + ".prefab");
         }
 
         /// <summary>Two quads above the head: dark backing plus a left-anchored fill pivot scaled 0..1.

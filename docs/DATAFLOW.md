@@ -25,6 +25,7 @@ file without reading the code.
 | [Time scale](#time-scale) | mapped | `TimeScaleController` |
 | [Combat: incoming attack](#combat-incoming-attack) | mapped | `EnemyController.DoImpact` |
 | [Combat: outgoing attack](#combat-outgoing-attack) | mapped | `WeaponController` |
+| [Lock-on](#lock-on) | mapped | `LockOnController` |
 | [Posture and deathblow](#posture-and-deathblow) | mapped | `Posture` / `PlayerPosture` |
 | [Riposte and wands](#riposte-and-wands) | mapped | `ExecuteInteractor` |
 | [Viewmodel arms](#viewmodel-arms) | mapped | `WeaponViewmodel` / `ViewmodelArm` |
@@ -37,6 +38,7 @@ file without reading the code.
 | [HUD](#hud) | mapped | `GameEvents` ⇢ `HUDController` |
 | [Audio](#audio) | mapped | `AudioManager` |
 | [Wand pedestal](#wand-pedestal) | mapped | `WandPedestal` |
+| [Main menu](#main-menu) | mapped | `MainMenuController` |
 
 ---
 
@@ -46,7 +48,7 @@ file without reading the code.
 Unity Input System (project-wide InputSystem_Actions asset)
   → InputReader  (THE ONLY consumer of the Input System)
       exposes bools/axes: MoveAxis, LookDelta, JumpPressed, DashPressed,
-      AttackPressed, ParryPressed, HealPressed, UltimatePressed,
+      AttackPressed, ParryPressed, HealPressed, UltimatePressed, LockOnPressed,
       UseItemPressed, WandCyclePressed, WeaponSlotPressed, TestMenuPressed, PausePressed…
   → every consumer polls InputReader.I in its own Update()
 ```
@@ -60,6 +62,61 @@ Unity Input System (project-wide InputSystem_Actions asset)
   `FlaskAbility.TryDrink`, `UltimateAbility.TryUltimate`, `SpeedrunTimer.TryStartRun`. Input reading stays in
   `Update`; the Try* methods take no input and re-apply their own gates, so tests (and, later, a network
   command stream) drive the real behaviour without a synthesised device. This closed all 7 feature-test skips.
+  `LockOnController.TryLockOn` is one of these.
+- **Check the whole keyboard before binding a key.** `F` was given to the wand altar while `Heal` already
+  held it and both fired on one press. `LockOn` is `<Mouse>/middleButton` because middle mouse is the Souls
+  convention *and* was the only free pointer button — the scroll wheel, the other convention, is already
+  `Previous`/`Next` weapon cycling, so lock-on switching had to be folded into the lock key instead.
+
+---
+
+## Lock-on
+
+```
+InputReader.LockOnPressed → LockOnController.Update() → TryLockOn()   ← public entry point
+    not locked            → FindBest()  → Acquire(e)
+    locked, aim < 14 deg off target     → Release()
+    locked, aim >= 14 deg off target    → FindBest(); switch, or Release if it is the same enemy
+
+  FindBest() scores EnemyController.ActiveEnemies:
+      alive, dist <= acquireRange (26), angle off crosshair <= 55 deg, line of sight clear
+      score = angle_deg + dist_m * 0.35        ← lowest wins; the thing you LOOK at beats the thing that is near
+
+LockOnController.LateUpdate()          ← after PlayerLook.Update has applied the player's own mouse
+  Validate()   target dead / destroyed / dist > dropRange (32) / aim > 62 deg off / occluded > 0.7 s
+               → Release()
+  Assist(point)
+      err  = angle(cam.forward, target)                       ; skipped inside a 2.2 deg deadzone
+      gate = 1 while the mouse is still, 0 once it is moving  ← THE MOUSE IS AUTHORITATIVE
+      rate = min(4 * err, 90 deg/s) * gate * fade
+      → PlayerLook.NudgeAim(dYaw, dPitch)  with dt = TimeScaleController.PlayerDelta
+  marker.Track(chestPoint, notOccluded)
+      → LockOnMarker: pulls the dot 0.75 m off the chest toward the eye, billboards it,
+        scales it to a constant ANGULAR size, eases the acquire pop. Unscaled time.
+```
+
+**The marker is ONE object owned by the player**, built into the Player prefab by
+`PrefabFactory.BuildLockOn`, not one per enemy like the alert cube and the deathblow glyph. Lock-on is a
+fact about the *player* and at most one thing is ever the target, so a single mote travels — which also
+means every lockable body gets it for free, including the `Legendary_*` mini-bosses that a different
+factory builds.
+
+**Invariants**
+- **The mouse is never scaled, filtered or overridden.** `PlayerLook.Update` applies the player's look
+  delta exactly as it always did; the assist runs afterwards in `LateUpdate` and only adds. Its gate
+  falls to zero the moment the mouse moves, so an assist frame and a player frame never overlap.
+- `PlayerLook` still owns yaw and pitch. Nothing rotates the camera transform directly —
+  `NudgeAim(dYaw, dPitch)` is the only sanctioned door, and it re-applies through `Apply()`. A direct
+  transform write is silently undone on the next frame.
+- The assist integrates `TimeScaleController.PlayerDelta`, never `Time.deltaTime` (rule 1). On scaled
+  time it would stall during the hitstop of the very parry it is helping you land.
+- **Looking away breaks the lock; it never pulls you back.** Past `breakAngleDeg` (62) the lock drops.
+  Fighting the player for the camera is the failure mode of every bad aim assist.
+- The dot marks the target's **chest**, and is pulled 0.75 m toward the eye — the chest point is *inside*
+  a 0.45 m capsule, so a dot left on it renders inside the enemy and is never seen.
+- The dot is the one combat marker held **under** the 1.05 bloom threshold. Never raise it: the alert
+  tell and the deathblow glyph are 2.5–3x over it, and "does not bloom" is what separates information
+  from an alarm at a glance.
 
 ---
 
@@ -244,6 +301,17 @@ Two independent implementations with the same idea — do not merge them, they h
 ENEMY   Posture           built by: player parries (big), player hits (small), Stormcall/Ultimate (huge)
         regen after delay, scaled by health fraction (hurt enemies recover posture slower)
         full → Break() → State.Staggered → deathblow window
+                          EnemyVisuals.Slump(true)
+                              THE BODY BUCKLES: leans BACK -13 deg, rolls 9, sags 0.20 down and
+                              0.14 away, arms flung back and OUT. Nothing travels toward the player.
+                          → SetDeathblowReady(true) → the deathblow SPOT goes up ON THE STERNUM: one
+                              small flat billboarded quad (M_DeathblowMark, violet, blooms), held to a
+                              CONSTANT ANGULAR size and stepped onto the body surface toward the eye.
+                              It stays until the window closes for any reason:
+                              HandleStaggerEnded / BeginExecuted / Die all drop it — so it is already
+                              gone before the wand thrust and can never foul the stab.
+                              EnemyController.DeathblowPoint(eye) is that same point, and it is where
+                              the commit shatter and the wand blast are drawn
         ⇢ (boss only) BossPostureChanged → HUD
 
 PLAYER  PlayerPosture     built by: BLOCKING (damage × 0.9), taking a hit (damage × 0.5), unblockable ×1.5
@@ -257,29 +325,83 @@ PLAYER  PlayerPosture     built by: BLOCKING (damage × 0.9), taking a hit (dama
 **Invariants**
 - Perfect parry is the only sustainable answer: blocking is a resource, not a free option.
 - `Posture.Add` is a no-op while broken, so a stagger cannot be extended by piling on hits.
+- **A posture break must show ON THE ENEMY, not only on the HUD.** During an exchange the player's eyes
+  are on the enemy's cue flash at the centre of the screen; a prompt at the edge of the frame is a
+  confirmation, never the signal. The signal is now the **pose** — the body buckles, sags and opens —
+  plus the stagger-tint breath and the world posture bar, not a drawn marker.
+- **The break must never move geometry toward the player.** `Slump` used to pitch the body *forward*
+  28 degrees, straight at the eye, because the enemy is facing the player and `BeginExecuted` turns it
+  to face them again. Over a 2 m body that walks the chest almost a metre closer, and the deathblow's
+  own step-in then closes to `stabStandoff`. Every component of the stagger pose is signed away from
+  the camera, and `FeatureTests > Deathblow_StaggerPoseClearsNearPlane/StaysFramed` measure the nearest
+  enemy renderer to the eye at both 1x and 2.2x scale.
+- **The mark is a flat spot ON the body, and its size is ANGULAR.** One billboarded quad, no volume,
+  nothing for the camera or the wand to run into. It started as a crossed diamond of three cubes over
+  the head; that was a blob. The size is the subtler half: the spot stands `surfaceOffset` metres *off*
+  the chest toward the viewer — it has to, or it renders inside the mesh — so it is always nearer than
+  the body it marks and a **fixed**-size quad grows faster than the enemy does as the player closes. At
+  0.22 m fixed it filled a quarter of the frame at stabbing range while the grunt filled a fifth. Held
+  to a constant angular size (~5% of the frame) it reads the same at three metres and at one, exactly as
+  the lock-on dot already does.
+- **`DeathblowMarker` is also the anchor.** The same sternum point is what `ExecuteInteractor.CommitCue`
+  shatters at and `WandController.FireRiposte` blooms the blast from, so the mark, the shatter and the
+  explosion land on the same pixels. `drawMark` exists so it can be turned off without losing that.
+- **It is dropped on the press frame.** `BeginExecuted` calls `SetDeathblowReady(false)` before the melee
+  commit, so the spot is gone long before the wand reaches the body — it says "press now", and once the
+  press has happened the commit shatter takes over that exact point.
+- **Anything drawn at a body's centre of mass is inside the mesh.** The anchor is offset
+  `surfaceOffset` metres toward the eye — 0.80 for a capsule, 0.90 for the Iron Penitent, 1.00 for the
+  Ashen Chorister's robe, each measured from the model's own depth at build time.
 
 ---
 
 ## Riposte and wands
 
 ```
-enemy staggered + in cone → ExecuteInteractor.Update() ⇢ DeathblowReady(bool) → HUD banner
-    wand cooling? ⇢ PromptChanged("EXECUTE   WAND 3.2s")   ← says so, never fails silently
-InputReader.AttackPressed → TryExecute() → ExecuteCo:
+enemy posture breaks → EnemyVisuals.Slump(true) → the body BUCKLES back and down (never forward)
+                     → SetDeathblowReady(true) → the deathblow SPOT goes up on that enemy's sternum
+                       (this is the Sekiro mark: on the body, not on the HUD, raised by the BREAK and
+                       not by where the player is looking). It is also the point the whole beat is
+                       aimed at, and its lifetime is exactly the window.
+
+enemy staggered + in cone → ExecuteInteractor.Update() → Target / HasMarkedTarget
+                            ⇢ DeathblowReady(bool) → HUD banner (boss only)
+                            ⇢ PromptChanged("DEATHBLOW  [ATTACK]")        ← names the INPUT
+    wand cooling? ⇢ PromptChanged("DEATHBLOW  [ATTACK]  WAND 3.2s")  ← says so, never fails silently
+
+InputReader.AttackPressed → WeaponController.TryAttack()
+    ExecuteInteractor.TryExecute()  →  false when HasMarkedTarget is false  →  ORDINARY SWING
+                                    →  true  only against a MARKED enemy   →  deathblow
+    TryExecute() → ExecuteCo:
+    CommitCue(e)  ← the frame of the press, before any of the deathblow's own timing:
+        the SPOT SHATTERS — violet flare + sparks burst at e.DeathblowPoint(eye), the
+        sternum on the SURFACE facing the player, i.e. exactly where the mark was standing
+        the frame before — a beam runs WeaponViewmodel.TipWorldPosition → that point,
+        ChromaticPulse(0.3),
+        and the audio is Sfx.Execute at 0.62 pitch, NOT Sfx.Swing
+      ← this is what makes a deliberate press feel deliberate; without it the first
+        0.18 s of a deathblow was pixel- and audio-identical to the swing the player
+        thought they had thrown
     wand = WandController.WandReady ? Current : null       ← a cooling wand DEGRADES to melee
     player invulnerable, CanMove = false, enemy.BeginExecuted()
     melee commit (wandCommit 0.18s)
-    StepInCo: CharacterController.Move toward the victim, stopping at stabStandoff (2.2m x enemy scale)
+    StepInCo: CharacterController.Move toward the victim, stopping at stabStandoff (2.2m x enemy scale).
+              It only ever CLOSES the gap, and the press had to be inside range (3.5 m) — so on a
+              2.2x boss the real riposte distance is the RANGE, not the standoff, and that is the
+              tighter framing the stagger pose has to survive.
     → WandController.FireRiposte(target, weapon.executeDamage)
           readyAt = unscaledTime + wand.cooldown   ⇢ WandCooldownChanged → HUD WandCooldownBar
           OffhandViewmodel.PlayThrust(windup, hold, recover)   COCK → STAB → HOLD → WITHDRAW
               tip light ramps tipLightIdle → tipLightCharged over the cock; glints on an
               accelerating cadence at OffhandViewmodel.TipWorldPosition
           ⇢ RiposteLanded(target)        ← raised BEFORE damage, so armed Stormcall can read the victim
-          THE BLAST IS DRAWN FROM THE TIP, NOT ON THE VICTIM:
+          THE BLAST IS DRAWN FROM THE TIP, NOT ON THE VICTIM — and CONTACT is the surface of
+          the chest, e.DeathblowPoint(eye), not its centre. `origin + up*0.95` was the middle of
+          the body: every flare drawn there rendered INSIDE the enemy and was never seen.
               OffhandViewmodel.MuzzleFlash()             tip light blows out, lighting the victim
               SlashFx.Flare(tip)                         muzzle glint at the wand
               SlashFx.Beam(tip → contact)                the bolt leaving the wand
+              SlashFx.Ring(contact, facing the eye)      the blast blooming out of the wound
               Lance also: SlashFx.Beam(contact → contact + aim * blastRadius)
               SlashFx.Sparks(contact, back along the beam) + Flare(contact)
           damage by WandKind:
@@ -298,6 +420,13 @@ InputReader.AttackPressed → TryExecute() → ExecuteCo:
 - `RiposteLanded` fires before the damage — the armed Stormcall depends on reading the victim while alive.
 - Wand `windup`/`recover` set the riposte's cadence; that is what makes wands feel different.
 - Falls back to the original melee deathblow when no wand is equipped **or while the wand is cooling**.
+- **The deathblow is a PRESS, and the press must announce itself.** `TryExecute` returns false whenever
+  there is no marked target, so an attack press away from a broken enemy is always just a swing. Against
+  a marked one it consumes the press — and `CommitCue` exists so the player can tell those two apart on
+  the frame they happen. `FeatureTests > Deathblow` asserts both directions.
+- **The marker is raised by the posture break, not by the interactor.** The interactor decides whether
+  *this press* would land; the glyph says *this enemy is killable*. Gating the glyph on the aim cone
+  would hide the state that the player needs in order to decide to turn and look.
 - **The cooldown gates the BLAST, never the deathblow.** Emberlance 3.5 s, Stormneedle 5.5 s,
   Gravecall 7 s, Voidspine 9 s — every one of them longer than the boss's 5 s deathblow window, so a
   strict gate would have made the boss unkillable through no fault of the player. It starts at the
@@ -307,6 +436,13 @@ InputReader.AttackPressed → TryExecute() → ExecuteCo:
   prompt. A riposte that quietly comes out as melee reads as a broken wand.
 - **Every element of the blast is anchored to `OffhandViewmodel.TipWorldPosition`.** Anything drawn only on
   the victim reads as an explosion with no author — that was the whole of the "you can't see the wand" bug.
+- **The thrust pose finishes near SCREEN CENTRE**, `thrustPosition (-0.07, -0.09, 0.80)` /
+  `thrustEuler (66, -6, 4)`, written in `PrefabFactory` (rule 9). A viewmodel wand can never physically
+  reach 2.2 m, so the stab is sold by the tip visually *landing on* the victim's chest — which only
+  happens if it travels inward, not if it finishes off to the left where the wand rests.
+- **The contact point is on the body SURFACE, never its centre.** One source of truth,
+  `EnemyController.DeathblowPoint(eye)`, shared by the glyph anchor, the commit shatter and the blast,
+  so the three land on the same pixels instead of near each other.
 - **The camera must be able to FRAME the victim.** `ExecuteInteractor.stabStandoff` is a presentation
   value as much as a gameplay one: under ~2m the camera ends up inside a 0.45m-radius capsule at 95° FOV
   and the entire riposte plays behind a wall of black.
@@ -350,7 +486,14 @@ InputReader.UltimatePressed → UltimateAbility.Update → TrySuper()
                   Health.TakeDamage(superDamage × PlayerStats.DamageMultiplier(weapon))
                   Posture.Add(boss ? Posture.Max × ultBossPostureFraction / hits : superPostureDamage)
                   OnParried(0), NavMeshAgent shove by superKnockback
-        SuperKind picks ONLY the VFX: Cleave arc / Flurry fanned beams / Quake ring / Nova double ring
+        SuperKind picks ONLY the VFX, and EVERY element of it is anchored to
+            WeaponViewmodel.TipWorldPosition — the sword's point, the hammer's head, the dagger's tip:
+              all kinds, first beat: Beam(grip → tip) + Flare(tip)      the blow starts in your hand
+              Cleave  Fan(tip, 170 deg) + Arc ahead of the tip + Sparks off the edge
+              Flurry  Beam(tip → fanned target) once per hit, + a muzzle glint at the point
+              Quake   raycast down from the head → impact; Beam(head → impact), Flare(impact),
+                      360 deg spoke fan FROM THE IMPACT POINT, debris up
+              Nova    360 deg spoke fans from the tip, one lifted out of plane
     hitStop(superHitStop), shake(superShake), Release()
 ```
 
@@ -367,6 +510,11 @@ InputReader.UltimatePressed → UltimateAbility.Update → TrySuper()
   one sink (the super, which spends it in full) and one reset (`PlayerRespawned`).
 - **A perfect deflect must always be worth strictly more than a block.** `pyreBlockFraction < 1` is
   what keeps the tighter window worth chasing. `FeatureTests > Parry_BlockStokesPyreLessThanPerfect`.
+- **The blast leaves the WEAPON.** Every element is anchored to `WeaponViewmodel.TipWorldPosition`, the
+  main-hand twin of `OffhandViewmodel.TipWorldPosition` that the wand riposte already uses. Drawn from
+  `transform.position` — which is what it did — a super reads as something happening *to* the player
+  rather than something they authored: the hand swings and an unrelated effect goes off around the navel.
+  The quake in particular traces the hammer head down to the floor and radiates from *that* contact point.
 - **Every super is data.** `UltimateAbility` reads `WeaponData` and nothing else; a new weapon gets a
   super by authoring `super*` fields in `DataFactory`. `SuperKind` chooses presentation, never geometry.
 - **The fire is the primary read on charge.** The HUD bar is the confirmation, not the signal — the
@@ -449,7 +597,7 @@ you can see the whole enemy when it commits.
 | Grunt | 3.0 |
 | Heavy | 3.6 |
 | Legendary_Ninja (The Thirteenth Shade) | 3.2 |
-| Legendary_Knight (The Iron Penitent) | 4.0 |
+| Legendary_Knight (The Iron Penitent) | 4.2 |
 | Legendary_Spellsword (The Ashen Chorister) | 4.3 |
 | Boss (The Hollow Warden) | 4.6 |
 
@@ -457,6 +605,13 @@ The three `Legendary_*` mini-bosses are ordinary `EnemyController`s built by
 **VibeGame1 → 4b. Build Mini-Bosses** (`Editor/MiniBossFactory.cs`), a sibling of step 4 rather than
 part of it. They are deliberately NOT `BossController`s: that class raises `BossDefeated`, which stops
 the speedrun timer and clears the level. See ARCHITECTURE.md → *Legendary mini-bosses*.
+
+Two of them (`Legendary_Spellsword`, `Legendary_Knight`) now carry an **imported mesh** from
+`Assets/Enemies/*.fbx` in place of the primitive body. Nothing in this map changes: the brain is
+untouched, `EnemyVisuals` is still the same component, and its bindings simply resolve to the imported
+`SkinnedMeshRenderer` and to empty pivots parented under it rather than to primitives. Physics stays on
+the prefab root — a legless model hovers by lifting the mesh inside `Visual`, never via
+`NavMeshAgent.baseOffset`. See AUTHORING.md → *Importing a forge model*.
 
 **Invariants**
 - `EnemyController` never names `NavMeshAgent` or `EnemyVisuals`. All movement goes through
@@ -571,6 +726,76 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
 - `BarView` drives the fill RectTransform's **anchors**, not `Image.fillAmount` — a UGUI `Image` with a null
   sprite silently ignores `fillAmount` and renders permanently full. That bug made the boss look invulnerable.
 - All HUD animation uses unscaled time.
+
+---
+
+## Main menu
+
+The game boots into `Assets/Scenes/MainMenu.unity` — **build index 0**. `Level_01` and `Sandbox` follow it.
+There is no Player, GameManager, TimeScaleController or HUD in that scene: nothing there is gameplay.
+
+```
+MainMenuBuilder ("9. Build Main Menu", edit mode only)
+   -> Assets/Prefabs/MainMenu.prefab   canvas + TitlePanel + LevelPanel + EventSystem
+   -> Assets/Scenes/MainMenu.unity     MenuCamera (solid Dark + AudioListener) + MenuAudio (AudioManager)
+                                       + one MainMenu prefab instance
+   -> EditorBuildSettings              MainMenu inserted at index 0; every other entry kept, reindexed
+
+MainMenuController  (on the prefab; the whole front end)
+   Awake / Start   Cursor.lockState = None, visible = true          <- BOTH: see the invariants
+   Start           ShowTitle() -> Refresh()
+
+   Refresh()   THE LEVEL LIST IS DATA
+       registry.Ordered()                      <- Assets/Data/LevelRegistry.asset
+       EnsureRowCapacity(n)                    clones a row if the registry grew since the last build
+       per row:  displayName + orderIndex
+                 "PAR mm:ss.ss"                LevelDefinition.parTime
+                 "BEST mm:ss.ss"               RunStore.LoadPersonalBest(levelId).TimeSeconds,
+                                               falling back to LevelProgress.BestTime(levelId)
+                 LevelProgress.IsUnlocked(id, registry)  -> button.interactable, "LOCKED"
+                 LevelProgress.IsCompleted(id)           -> "CLEARED"
+       PlayTargetSceneName = first unlocked level's sceneName
+
+   PLAY          -> LoadScene(PlayTargetSceneName)
+   LEVEL SELECT  -> OpenLevelSelect()  (Refresh, swap panels)
+   a level row   -> LoadScene(LevelDefinition.sceneName)      NOT levelId, NOT the display name
+   SANDBOX row   -> LoadScene("Sandbox")                      marked DEV; never in the registry
+   QUIT          -> Application.Quit(); in the editor a log + leave play mode
+
+SceneManager.LoadScene(sceneName)
+   the level scene brings its own Managers prefab:
+       GameManager.Start -> SetState(Playing) -> Cursor.lockState = Locked      <- the symmetric relock
+       TimeScaleController fresh, no handles held
+       SpeedrunTimer      Running = false; starts only on the first movement input
+       GhostRacing        created by its sceneLoaded hook (see invariants)
+       WandPedestal       needs look-at + F; it never opens itself
+
+PauseMenu.mainMenuButton -> ReturnToMainMenu()
+   PrepareForSceneChange()   Close()  -> releases the 0-scale TimeScaleController handle
+                             Cursor unlocked
+   SceneManager.LoadScene("MainMenu")
+```
+
+**Invariants**
+- **The level list is `LevelRegistry`, never a literal.** The builder emits one row per registry entry and
+  `MainMenuController.Refresh()` re-reads the registry every time the panel opens; `EnsureRowCapacity`
+  clones a row when the registry has more levels than the prefab was built with. Adding a level to
+  `Assets/Data/LevelRegistry.asset` puts it in the menu with **no code change and no rebuild**.
+- **Load by `LevelDefinition.sceneName`.** `levelId` is a save key (`samplescene`, deliberately, even though
+  the scene is `Level_01.unity`) and is never a file name.
+- **`MainMenu` must stay at build index 0** or the game boots into a level. `MainMenuBuilder` re-inserts it
+  on every run; `FeatureTests > MainMenu` asserts it.
+- **The pause menu releases its time handle BEFORE the load.** A leaked 0-scale handle across a scene load
+  is how the next scene starts frozen. `PrepareForSceneChange()` exists so the suite can assert this
+  without leaving the level scene.
+- **Cursor is symmetric**: the menu unlocks in `Awake` *and* `Start` (the outgoing level's teardown can run
+  after our `Awake`), and `GameManager.SetState(Playing)` re-locks it on entering a level. Nothing else
+  touches `Cursor.lockState` on this path.
+- **The menu scene has no `SpeedrunTimer`** — that is what tells `GhostRacing` "this is not a level".
+  Do not put the Managers prefab in it.
+- The menu palette is HudBuilder's, duplicated as constants rather than shared, so a HUD tweak cannot
+  silently move the menu. **UI alphas are composited in LINEAR space**: 0.045 of an ember over near-black
+  comes back out as a flat brown stripe. A "whisper" is ~0.005, not ~0.05.
 
 ---
 

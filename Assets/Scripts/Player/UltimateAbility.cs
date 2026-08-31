@@ -24,6 +24,20 @@ namespace VibeGame1
         public Material ringMaterial;
         public bool IsActive { get; private set; }
 
+        // ---- the bolt ------------------------------------------------------------------------------
+        // Consts, not serialized fields: these are feel constants, not content, so rule 9 does not apply
+        // and there is nothing on the Player prefab to go stale.
+        //
+        // Fast. The whole point is that the bolt is SEEN to cross the gap, and the super's own slow-mo
+        // (ultSlowScale, affectsPlayer:false) already stretches it on screen — these are realtime
+        // seconds, so a 0.18 s flight plays back much longer than 0.18 s of apparent time.
+        const float BoltSecondsPerMetre = 0.022f;
+        const float BoltMinSeconds = 0.06f;
+        const float BoltMaxSeconds = 0.20f;
+        /// <summary>Ember orange. The Pyre is fire and the blade has been burning with it since the
+        /// first deflect (Feel/WeaponEmber.cs); the bolt is that charge leaving the weapon.</summary>
+        static readonly Color EmberHue = new Color(1f, 0.45f, 0.12f);
+
         PlayerResources resources;
         PlayerStats stats;
         PlayerCombat combat;
@@ -139,6 +153,7 @@ namespace VibeGame1
             seen.Clear();
             float mult = stats != null ? stats.DamageMultiplier(w) : 1f;
             float half = Mathf.Clamp(w.superArcDeg, 1f, 360f) * 0.5f;
+            Vector3 tip = WeaponTip(origin + flat * 0.8f);
 
             int n = Physics.OverlapSphereNonAlloc(transform.position, w.superRadius, buf, Layers.EnemyMask, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n; i++)
@@ -152,75 +167,204 @@ namespace VibeGame1
                 seen.Add(e);
 
                 Vector3 dir = to.sqrMagnitude > 0.0001f ? to.normalized : flat;
-                e.Health.TakeDamage(new DamageInfo
-                {
-                    damage = w.superDamage * mult,
-                    source = gameObject,
-                    point = e.transform.position,
-                    direction = dir,
-                });
-
-                // A boss's posture bar is a different scale to a grunt's, so it takes a FRACTION of its
-                // own bar rather than a flat number that would either do nothing or trivialise it.
-                bool boss = e is BossController;
-                e.Posture.Add(boss ? e.Posture.Max * d.ultBossPostureFraction / Mathf.Max(1, hits)
-                                   : w.superPostureDamage);
-                e.OnParried(0f);
-                Shove(e, dir, w.superKnockback);
+                // EVERY victim gets a BOLT THROWN AT IT, and the damage lands when the bolt arrives.
+                // The super used to resolve as an OverlapSphere on one frame with a fan of static beams
+                // drawn around it — which is a plain attack wearing VFX. Nothing travelled, so nothing
+                // connected the weapon to the thing that fell over.
+                StartCoroutine(BoltCo(e, tip, hue, w.superDamage * mult, w, d, hits, dir));
             }
+        }
+
+        /// <summary>
+        /// One bolt of fire: it LEAVES THE WEAPON, crosses the gap, and detonates on the victim, which is
+        /// the frame the damage lands.
+        ///
+        /// <para>This is the difference between a super and an area query with sparks on top. The blow
+        /// already started at the tip (<see cref="Fx"/> runs the energy up the blade) and the enemy
+        /// already took the damage — what was missing was the middle: something visibly crossing the gap
+        /// between the two, so the hand, the flight and the body falling over are one causal chain rather
+        /// than three effects that happened at once.</para>
+        ///
+        /// <para>It detonates on <c>DeathblowPoint</c> — the victim's chest <b>surface</b> facing the
+        /// player, not its centre of mass. A burst drawn at the centre renders inside the mesh and is
+        /// never seen; that trap has now cost this project three separate systems (see
+        /// docs/ENGINEERING-LOG.md).</para>
+        ///
+        /// <para>Realtime throughout (rule 1). The super already holds the world at
+        /// <c>ultSlowScale</c> with <c>affectsPlayer:false</c>, so a scaled flight would crawl to a stop
+        /// inside the very slow-motion it is meant to be showing off.</para>
+        /// </summary>
+        IEnumerator BoltCo(EnemyController e, Vector3 from, Color hue, float damage,
+                           WeaponData w, PlayerStatsData d, int hits, Vector3 dir)
+        {
+            if (e == null) yield break;
+
+            // Blended toward ember orange: this is the PYRE spending itself, and Pyre is fire — the
+            // weapon has been visibly burning with it since the first deflect (Feel/WeaponEmber.cs).
+            // Half-blended rather than pure flame so a bolt still carries which weapon threw it.
+            Color fire = Color.Lerp(hue, EmberHue, 0.5f);
+
+            Vector3 eye = look != null && look.Cam != null ? look.Cam.position : transform.position + Vector3.up;
+            Vector3 to = e.DeathblowPoint(eye);
+            float flight = Mathf.Clamp(Vector3.Distance(from, to) * BoltSecondsPerMetre, BoltMinSeconds, BoltMaxSeconds);
+
+            // The muzzle: the bolt tears out of the weapon before it is anywhere.
+            SlashFx.Flare(from, fire, 0.42f, 0.10f);
+
+            float t = 0f;
+            Vector3 at = from;
+            while (t < flight)
+            {
+                float k = t / flight;
+                // Eased IN: a bolt leaves fast and arrives faster. A linear crossing reads as a floating
+                // ball rather than as something thrown.
+                Vector3 target = e != null ? e.DeathblowPoint(eye) : to;
+                at = Vector3.Lerp(from, target, k * (2f - k));
+                SlashFx.Flare(at, fire, Mathf.Lerp(0.34f, 0.52f, k), 0.09f);   // head plus its own tail
+                if (k < 0.4f) SlashFx.Beam(from, at, fire, 0.055f, 0.07f);     // the streak off the tip
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (e == null || !e.IsAlive) yield break;
+            to = e.DeathblowPoint(eye);
+
+            // ---- impact ---------------------------------------------------------------------------
+            // On the SURFACE facing the player, so it is not drawn inside the body it is hitting.
+            Vector3 back = from - to;
+            if (back.sqrMagnitude < 0.0001f) back = -dir;
+            SlashFx.Flare(to, fire, 0.85f, 0.18f);
+            SlashFx.Sparks(to, (back.normalized + Vector3.up * 0.4f).normalized, fire, 14, 9f, 55f);
+            SlashFx.Ring(to, back.normalized, fire, 0.9f, 0.20f);
+            AudioManager.Play(Sfx.Execute, 0.35f, 1.25f);
+
+            e.Health.TakeDamage(new DamageInfo
+            {
+                damage = damage,
+                source = gameObject,
+                point = to,
+                direction = dir,
+            });
+
+            // A boss's posture bar is a different scale to a grunt's, so it takes a FRACTION of its
+            // own bar rather than a flat number that would either do nothing or trivialise it.
+            bool boss = e is BossController;
+            e.Posture.Add(boss ? e.Posture.Max * d.ultBossPostureFraction / Mathf.Max(1, hits)
+                               : w.superPostureDamage);
+            e.OnParried(0f);
+            Shove(e, dir, w.superKnockback);
         }
 
         /// <summary>
         /// The one place <see cref="SuperKind"/> matters: how the blow is drawn.
         ///
+        /// <para><b>THE BLAST LEAVES THE WEAPON.</b> Every element below is anchored to
+        /// <see cref="WeaponViewmodel.TipWorldPosition"/> — the sword's point, the hammer's head, the
+        /// dagger's tip — exactly as <see cref="WandController"/> anchors the riposte blast to the wand's
+        /// tip. Drawn from the player's own transform instead (which is what this did) a super reads as
+        /// an effect happening TO the player rather than one they authored: the hand swings, and
+        /// something unrelated goes off around their navel. See docs/ENGINEERING-LOG.md.</para>
+        ///
         /// <para>Built from <see cref="SlashFx.Beam"/> rather than <see cref="SlashFx.Ring"/>. `Ring`
         /// draws a hoop 0.045 m thick, which is right for a 1–2 m grounded impact and invisible at the
         /// 5–12 m reach a super covers — from the centre, the far side of a 7.5 m ring is a 4.5 cm wire
-        /// seven metres away, i.e. sub-pixel. A fan of beams radiating from the player is the same
-        /// silhouette, stays legible at any radius, and is anchored to the player, which is the rule
-        /// the riposte blast had to learn: an effect must be visibly authored by the thing that fired
-        /// it. See docs/ENGINEERING-LOG.md.</para>
+        /// seven metres away, i.e. sub-pixel. A fan of beams radiating from the emission point is the
+        /// same silhouette and stays legible at any radius.</para>
         /// </summary>
         void Fx(WeaponData w, Color hue, Vector3 origin, Vector3 flat, int index, int hits)
         {
-            Vector3 hub = transform.position + Vector3.up * 0.8f;
+            Vector3 tip = WeaponTip(origin + flat * 0.8f);
+
+            // The muzzle: on the FIRST beat of every super, the weapon itself flashes and the energy
+            // runs up the blade from the fist. One shared gesture across all four kinds, so whatever
+            // the shape, the player always sees the blow start in their own hand.
+            if (index == 0)
+            {
+                SlashFx.Beam(GripPoint(tip), tip, hue, 0.05f, 0.16f);
+                SlashFx.Flare(tip, hue, 0.42f, 0.14f);
+            }
 
             switch (w.superKind)
             {
                 case SuperKind.Cleave:
-                    // The sweep: beams fanned across the arc, plus the crescent on top for the edge.
-                    Fan(hub, flat, hue, w.superArcDeg, w.superRadius, 9, 0.05f, 0.22f);
-                    SlashFx.Arc(origin + flat * 1.2f, flat, hue, w.superRadius * 0.55f, w.superArcDeg, 0.22f, Vector3.up);
-                    SlashFx.Sparks(origin + flat * 1.6f, flat, hue, 16, 10f, 40f);
+                    // The sweep leaves the edge: beams fanned from the blade point across the arc, with
+                    // the crescent drawn out ahead of the tip along the same axis.
+                    Fan(tip, flat, hue, w.superArcDeg, w.superRadius, 9, 0.05f, 0.22f);
+                    SlashFx.Arc(tip + flat * 0.9f, flat, hue, w.superRadius * 0.55f, w.superArcDeg, 0.22f, Vector3.up);
+                    SlashFx.Sparks(tip, flat, hue, 16, 10f, 40f);
                     break;
 
                 case SuperKind.Flurry:
                 {
-                    // One small stab per hit, walked across the cone so the burst reads as many blows
-                    // rather than one wide one.
+                    // One stab per hit, each one leaving the dagger's point and walking across the cone,
+                    // so the burst reads as nine blows thrown by the hand rather than one wide effect.
                     float t = hits > 1 ? (float)index / (hits - 1) : 0.5f;
                     Vector3 fan = Quaternion.AngleAxis(Mathf.Lerp(-w.superArcDeg * 0.5f, w.superArcDeg * 0.5f, t), Vector3.up) * flat;
-                    SlashFx.Beam(origin + flat * 0.4f, origin + fan * w.superRadius, hue, 0.045f, 0.12f);
-                    SlashFx.Flare(origin + fan * w.superRadius * 0.9f, hue, 0.25f, 0.10f);
+                    Vector3 far = origin + fan * w.superRadius;
+                    SlashFx.Beam(tip, far, hue, 0.045f, 0.12f);
+                    SlashFx.Flare(tip, hue, 0.20f, 0.08f);          // muzzle glint at the point, every hit
+                    SlashFx.Flare(far, hue, 0.25f, 0.10f);
                     break;
                 }
 
                 case SuperKind.Quake:
-                    // A ground shockwave: thick spokes out to the full radius, low to the floor but not
-                    // coplanar with it, plus debris thrown straight up at the impact point.
-                    Fan(transform.position + Vector3.up * 0.35f, flat, hue, 360f, w.superRadius, 14, 0.09f, 0.30f);
-                    SlashFx.Flare(transform.position + flat * 1.4f + Vector3.up * 0.6f, hue, 0.8f, 0.22f);
-                    SlashFx.Sparks(transform.position + flat * 1.2f + Vector3.up * 0.2f, Vector3.up, hue, 22, 9f, 70f);
+                {
+                    // The hammer HITS THE GROUND and the shock runs out from where it landed. The head
+                    // is traced down to the floor under it, the spokes radiate from that contact point,
+                    // and a beam links head to floor so the causal chain is on screen: hand, head, impact.
+                    Vector3 impact = GroundUnder(tip, flat);
+                    SlashFx.Beam(tip, impact, hue, 0.10f, 0.18f);
+                    SlashFx.Flare(impact, hue, 0.9f, 0.22f);
+                    Fan(impact + Vector3.up * 0.12f, flat, hue, 360f, w.superRadius, 14, 0.09f, 0.30f);
+                    SlashFx.Sparks(impact, Vector3.up, hue, 22, 9f, 70f);
                     break;
+                }
 
                 case SuperKind.Nova:
-                    // Same spokes, but thrown up and out of the horizontal plane so the detonation reads
-                    // as a sphere rather than a puddle.
-                    Fan(hub, flat, hue, 360f, w.superRadius, 16, 0.07f, 0.28f);
-                    Fan(hub, flat, hue, 360f, w.superRadius * 0.7f, 8, 0.06f, 0.26f, 0.55f);
-                    SlashFx.Flare(origin + flat * 1.5f, hue, 0.9f, 0.22f);
+                    // The detonation happens ON the blade: spokes thrown up and out of the horizontal
+                    // plane from the tip, so it reads as a sphere bursting off the weapon.
+                    Fan(tip, flat, hue, 360f, w.superRadius, 16, 0.07f, 0.28f);
+                    Fan(tip, flat, hue, 360f, w.superRadius * 0.7f, 8, 0.06f, 0.26f, 0.55f);
+                    SlashFx.Flare(tip, hue, 0.9f, 0.22f);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Where the blast comes out of the weapon. Falls back to <paramref name="fallback"/> (a point
+        /// out in front of the player) only when there is no viewmodel at all — a headless test rig or
+        /// a weaponless player — never to the player's own transform, which is the read this whole
+        /// method exists to avoid.
+        /// </summary>
+        Vector3 WeaponTip(Vector3 fallback)
+        {
+            if (viewmodel == null) viewmodel = GetComponentInChildren<WeaponViewmodel>(true);
+            if (viewmodel == null || viewmodel.CurrentModel == null) return fallback;
+            return viewmodel.TipWorldPosition;
+        }
+
+        /// <summary>The fist on the hilt, for the run-up beam. Falls back just short of the tip.</summary>
+        Vector3 GripPoint(Vector3 tip)
+        {
+            if (viewmodel == null) return tip;
+            Vector3 g = viewmodel.GripWorldPosition;
+            return (g - tip).sqrMagnitude > 0.0004f ? g : tip;
+        }
+
+        /// <summary>
+        /// The floor under the hammer head. A raycast so the quake lands on the surface actually being
+        /// struck (a platform, a stair) rather than at a guessed height; if nothing is hit — mid-air
+        /// super over a pit — it falls back to the player's own feet, which is still the ground plane
+        /// the damage sphere uses.
+        /// </summary>
+        Vector3 GroundUnder(Vector3 tip, Vector3 flat)
+        {
+            Vector3 probe = tip + flat * 0.5f;
+            RaycastHit hit;
+            if (Physics.Raycast(probe + Vector3.up * 0.5f, Vector3.down, out hit, 6f,
+                                ~(Layers.PlayerMask | Layers.EnemyMask), QueryTriggerInteraction.Ignore))
+                return hit.point;
+            return new Vector3(probe.x, transform.position.y - 0.9f, probe.z);
         }
 
         /// <summary>

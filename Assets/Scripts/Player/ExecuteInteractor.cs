@@ -25,8 +25,19 @@ namespace VibeGame1
                  "execute range, slow enough that the step reads as a lunge rather than a teleport.")]
         public float stepInSpeed = 7f;
 
+        /// <summary>
+        /// The posture-broken enemy this press would deathblow, or null. Non-null exactly when the
+        /// player is looking at a MARKED enemy inside <see cref="range"/> and <see cref="coneDeg"/>;
+        /// while it is null an attack press is an ordinary swing.
+        /// </summary>
         public EnemyController Target { get; private set; }
+        /// <summary>True when a press right now would come out as a deathblow rather than a swing.</summary>
+        public bool HasMarkedTarget { get { return Target != null && !IsExecuting; } }
         public bool IsExecuting { get; private set; }
+
+        /// <summary>Arc violet, matching M_DeathblowMark, so the commit burst reads as THAT GLYPH
+        /// breaking rather than as a generic white flash.</summary>
+        static readonly Color MarkHue = new Color(0.48f, 0.17f, 1f);
 
         Health health;
         FirstPersonMotor motor;
@@ -77,13 +88,48 @@ namespace VibeGame1
             // wand was broken.
             bool deathblow = Target is BossController;
             bool wandCooling = wands != null && wands.Current != null && !wands.WandReady;
+            // Names the INPUT, not just the verb. The old prompt said "EXECUTE" and left the player to
+            // discover that their ordinary attack button had quietly changed meaning — which is exactly
+            // how a deliberate press comes to feel automatic.
             string prompt = Target != null && !deathblow
-                ? (wandCooling ? "EXECUTE   <alpha=#99>WAND " + wands.CooldownRemaining.ToString("0.0") + "s" : "EXECUTE")
+                ? (wandCooling ? "DEATHBLOW  <alpha=#99>[ATTACK]  WAND " + wands.CooldownRemaining.ToString("0.0") + "s"
+                               : "DEATHBLOW  <alpha=#99>[ATTACK]")
                 : "";
             if (prompt != lastPrompt) { lastPrompt = prompt; GameEvents.RaisePromptChanged(prompt); }
             if (deathblow != lastDeathblow) { lastDeathblow = deathblow; GameEvents.RaiseDeathblowReady(deathblow); }
         }
 
+        /// <summary>
+        /// The frame the player commits. Its whole job is to make the press UNMISTAKABLY not a swing,
+        /// on the same frame it is pressed and before any of the deathblow's own timing has run.
+        ///
+        /// <para>The glyph over the enemy's head shatters — a flare and a spray of violet sparks thrown
+        /// off exactly where the marker was, plus a beam running from the weapon to it — and the audio
+        /// is the low execute stinger rather than <see cref="Sfx.Swing"/>. Previously the commit was a
+        /// swing whoosh and no visual at all, so a deathblow started out looking and sounding identical
+        /// to the attack the player thought they were throwing. That is the whole of the "it ripostes
+        /// automatically" complaint: the press WAS deliberate, but nothing on screen said so.</para>
+        /// </summary>
+        void CommitCue(EnemyController e)
+        {
+            if (e == null) return;
+            // Asks the ENEMY where its glyph is rather than recomputing a height here. The marker now
+            // rides the sternum and is pushed off the body surface toward the eye every frame, so a
+            // constant local height would have put the shatter inside the body — invisible, which is
+            // the same trap that hid the lock-on dot for a whole pass.
+            Vector3 eye = look != null && look.Cam != null ? look.Cam.position : transform.position;
+            Vector3 mark = e.DeathblowPoint(eye);
+            SlashFx.Flare(mark, MarkHue, 0.75f, 0.16f);
+            SlashFx.Sparks(mark, Vector3.up, MarkHue, 14, 8f, 120f);
+            if (viewmodel != null) SlashFx.Beam(viewmodel.TipWorldPosition, mark, MarkHue, 0.05f, 0.14f);
+            if (CameraFX.I != null) CameraFX.I.ChromaticPulse(0.3f, 0.18f);
+        }
+
+        /// <summary>
+        /// One attack press against a MARKED enemy. Returns false — leaving
+        /// <see cref="WeaponController.TryAttack"/> to swing normally — whenever there is no marked
+        /// target, which is every press outside a posture break.
+        /// </summary>
         public bool TryExecute()
         {
             if (Target == null || IsExecuting) return false;
@@ -96,6 +142,7 @@ namespace VibeGame1
             IsExecuting = true;
             health.Invulnerable = true;
             if (motor != null) motor.CanMove = false;
+            CommitCue(e);              // BEFORE BeginExecuted: it reads the marker's position
             e.BeginExecuted(transform);
             GameEvents.RaisePromptChanged("");
             lastPrompt = "";
@@ -120,7 +167,7 @@ namespace VibeGame1
                 StartCoroutine(StepInCo(e, wandCommit + wand.windup));
 
                 if (viewmodel != null) viewmodel.PlayExecute(wandCommit);
-                AudioManager.Play(Sfx.Swing, 0.8f, 0.7f);
+                AudioManager.Play(Sfx.Execute, 0.55f, 0.62f);   // NOT Sfx.Swing: the press must not sound like a swing
                 yield return new WaitForSecondsRealtime(wandCommit);
 
                 // WandController raises RiposteLanded and applies all damage — do not duplicate here.
@@ -132,7 +179,7 @@ namespace VibeGame1
                 // deathblow also lands in contact rather than at arm's length.
                 StartCoroutine(StepInCo(e, duration * 0.55f));
                 if (viewmodel != null) viewmodel.PlayExecute(duration);
-                AudioManager.Play(Sfx.Swing, 0.8f, 0.7f);
+                AudioManager.Play(Sfx.Execute, 0.55f, 0.62f);   // NOT Sfx.Swing: the press must not sound like a swing
 
                 yield return new WaitForSecondsRealtime(duration * 0.55f);
 

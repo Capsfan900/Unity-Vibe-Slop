@@ -50,6 +50,51 @@ namespace VibeGame1
         /// <summary>The temporary model swapped in by <see cref="ShowOverride"/>, or null.</summary>
         public GameObject OverrideInstance => overrideInstance;
 
+        /// <summary>
+        /// Whatever model the hand is actually holding this frame — the wand override if one is up,
+        /// otherwise the equipped melee weapon. Null before <see cref="SetWeapon"/> has run.
+        /// </summary>
+        public Transform CurrentModel =>
+            overrideInstance != null ? overrideInstance.transform : (instance != null ? instance.transform : null);
+
+        /// <summary>
+        /// World position of the business end of the held weapon — the sword's point, the hammer's head,
+        /// the dagger's tip. The main-hand twin of <see cref="OffhandViewmodel.TipWorldPosition"/>, and it
+        /// exists for the same reason: an effect drawn anywhere but on the thing that fired it reads as an
+        /// explosion with no author. Every super's blast is anchored here.
+        ///
+        /// <para>Every weapon prefab built by <c>PrefabFactory</c> carries a <c>Tip*</c> part (the hammer's
+        /// is <c>TipBand</c>, across its head). The highest renderer in model space is the fallback, so a
+        /// weapon authored without one still emits from its far end rather than from the fist — and a
+        /// viewmodel with no model at all falls back to the grip, never to the player's navel.</para>
+        /// </summary>
+        public Vector3 TipWorldPosition
+        {
+            get
+            {
+                Transform m = CurrentModel;
+                if (m != null)
+                {
+                    Renderer highest = null;
+                    float bestY = float.MinValue;
+                    foreach (var r in m.GetComponentsInChildren<Renderer>(true))
+                    {
+                        if (r.name.StartsWith("Tip")) return r.bounds.center;
+                        float y = m.InverseTransformPoint(r.bounds.center).y;
+                        if (y > bestY) { bestY = y; highest = r; }
+                    }
+                    if (highest != null) return highest.bounds.center;
+                    return m.position;
+                }
+                return grip != null ? grip.position : (model != null ? model.position : transform.position);
+            }
+        }
+
+        /// <summary>World position of the hand on the hilt. The tail of the blade, for effects that
+        /// travel along the weapon rather than leaving it.</summary>
+        public Vector3 GripWorldPosition =>
+            grip != null ? grip.position : (model != null ? model.position : transform.position);
+
         void Awake()
         {
             motor = GetComponentInParent<FirstPersonMotor>();

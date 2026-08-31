@@ -201,6 +201,11 @@ namespace VibeGame1
 
             if (LevelManager.I != null) LevelManager.I.ResetEnemies();
 
+            // And put every pad back to SLEEP. ResetEnemies re-instantiates from the prefab, whose
+            // aggroLocked is false, so without this a reset would leave the whole row awake and walking
+            // at you — the exact state the wake switches exist to prevent.
+            foreach (var sw in FindObjectsByType<SandboxEnemySwitch>(FindObjectsSortMode.None)) sw.Rearm();
+
             var player = Player();
             if (player != null)
             {

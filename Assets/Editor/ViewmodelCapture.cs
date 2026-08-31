@@ -140,6 +140,11 @@ namespace VibeGame1.EditorTools
             return list;
         }
 
+        // A riposte is NOT captured from here. The editor tick runs at roughly 8 Hz in the
+        // background and the whole beat is 0.6-1.0 s, so this would sample it about six times and land
+        // on the commit and the corpse while missing the stab and the blast. Use the runtime
+        // Assets/Scripts/Debug/FrameFilm.cs, which captures in LateUpdate and gets every rendered frame.
+
         public static void Shoot(string path)
         {
             var cam = Camera.main;

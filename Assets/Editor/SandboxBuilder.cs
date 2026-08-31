@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -28,6 +28,10 @@ namespace VibeGame1.EditorTools
 
         const string RootName = "Sandbox";
         const string ManualRootName = "Sandbox_Manual";
+        /// <summary>The sandbox's own practical light rig. A separate root so ClearGeneratedRoots can
+        /// drop it wholesale on a rebuild without going near the scene's directional light, which
+        /// EnsureEnvironment resolves BY TYPE and would otherwise re-find as one of these.</summary>
+        const string LightsRoot = "Sandbox_Lights";
 
         // Floor top sits at y = 0; everything is measured from there.
         const float FloorTop = 0f;
@@ -36,6 +40,7 @@ namespace VibeGame1.EditorTools
         static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss;
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
+        static GameObject pLegNinja, pLegKnight, pLegSpellsword;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -181,7 +186,7 @@ namespace VibeGame1.EditorTools
             // Mirrors ProjectSetup: low and from +Z, so the sandbox is backlit by the same eclipse.
             light.transform.rotation = Quaternion.Euler(10f, 180f, 0f);
             light.color = Hex("#C9663A", new Color(0.788f, 0.4f, 0.227f));
-            light.intensity = 0.85f;
+            light.intensity = 1.05f;
             light.shadows = LightShadows.Soft;
 
             var volume = Object.FindAnyObjectByType<Volume>();
@@ -204,18 +209,95 @@ namespace VibeGame1.EditorTools
             RenderSettings.fogEndDistance = 240f;
             // Trilight, matching ProjectSetup: cool starlight above, warm eclipse ember on vertical
             // faces, near-black bounce underneath. This is what lifts the scene - the sky mesh is unlit
-            // and contributes no illumination by itself.
+            // and contributes no illumination by itself. The EQUATOR term is the one that matters:
+            // Trilight lights by normal, so every wall, pillar and torso is lit by it alone.
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Hex("#2B3654", new Color(0.169f, 0.212f, 0.329f));
-            RenderSettings.ambientEquatorColor = Hex("#4E3325", new Color(0.306f, 0.2f, 0.145f));
-            RenderSettings.ambientGroundColor = Hex("#0E0B12", new Color(0.055f, 0.043f, 0.071f));
+            // ambientIntensity is a NO-OP in Trilight mode (Unity only applies it to Skybox ambient),
+            // so the multipliers live in the colours - same as ProjectSetup.
+            RenderSettings.ambientSkyColor = Hex("#3E4A6B", new Color(0.243f, 0.290f, 0.420f)) * 1.35f;
+            RenderSettings.ambientEquatorColor = Hex("#7A5540", new Color(0.478f, 0.333f, 0.251f)) * 1.35f;
+            RenderSettings.ambientGroundColor = Hex("#191424", new Color(0.098f, 0.078f, 0.141f)) * 1.35f;
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.skybox = null;
+
+            BuildRoomLights();
         }
 
+        /// <summary>
+        /// Practical lights for the sandbox, and ONLY for the sandbox.
+        ///
+        /// <para>The campaign level is lit for atmosphere: one dying sun low behind the course, heavy
+        /// fog, and a Trilight ambient whose equator term does most of the work. That is correct there —
+        /// the darkness is the art direction, and the log has three separate passes' worth of scar
+        /// tissue about not "fixing" it by pushing emissives.</para>
+        ///
+        /// <para>But the sandbox is a <b>workshop</b>. Its whole job is that you can SEE things: a
+        /// wind-up silhouette, an arm pose, where a stagger pose actually puts the body, whether a
+        /// marker is on the chest or inside it. At the campaign's light level an enemy on the south pads
+        /// is a dark cutout against a dark floor, which is exactly the condition under which every
+        /// readability bug in this project has hidden.</para>
+        ///
+        /// <para>So the room gets its own rig, and it is deliberately conventional: a soft cool key from
+        /// high above the arena centre so bodies are separated from the floor, and a warm fill over the
+        /// enemy pad row from the player's side so the surface a player actually looks at is lit rather
+        /// than backlit. None of it touches the shared ambient, the volume profile, the bloom threshold
+        /// or any material — those are the values the campaign's look is made of, and the sandbox
+        /// borrowing them unchanged is what keeps it a useful place to judge the campaign.</para>
+        ///
+        /// <para>Range and intensity are modest on purpose: the point is to lift shapes off the floor,
+        /// not to wash the room out. A blown-out sandbox lies in the other direction — a tell that reads
+        /// fine under 12 units of fill can still be invisible in the level.</para>
+        /// </summary>
+        static void BuildRoomLights()
+        {
+            var old = FindRoot(LightsRoot);
+            if (old != null) Object.DestroyImmediate(old);
+
+            var root = new GameObject(LightsRoot);
+
+            // Key: high, cool, wide. Separates every body from the floor it stands on.
+            Lamp("Sandbox_Key", new Vector3(0f, 16f, -6f), new Color(0.72f, 0.78f, 0.95f), 260f, 46f, root.transform);
+
+            // Fill over the pad row, from the PLAYER'S side (north of the pads) so the faces and torsos
+            // the player is reading are lit rather than backlit by the eclipse. Three of them, because
+            // the row is 40 m wide and one light at that range falls off into the corners.
+            var warm = new Color(1f, 0.82f, 0.62f);
+            Lamp("Sandbox_Fill_W", new Vector3(-14f, 7f, -11f), warm, 90f, 24f, root.transform);
+            Lamp("Sandbox_Fill_C", new Vector3(4f, 7f, -11f), warm, 90f, 24f, root.transform);
+            Lamp("Sandbox_Fill_E", new Vector3(22f, 7f, -11f), warm, 90f, 24f, root.transform);
+
+            // A low, cool bounce at the player spawn so the viewmodel and the wand read on arrival —
+            // the first thing anyone checks in here is what is in their hands.
+            Lamp("Sandbox_Spawn", new Vector3(0f, 5f, 4f), new Color(0.66f, 0.72f, 0.88f), 40f, 16f, root.transform);
+        }
+
+        /// <summary>One point light. Shadows off: six shadow-casting lights in one room is a frame-rate
+        /// bill for a debug scene, and the key light already grounds everything.</summary>
+        static void Lamp(string name, Vector3 pos, Color color, float intensity, float range, Transform parent)
+        {
+            var go = Empty(name, pos, Quaternion.identity, parent);
+            var l = go.AddComponent<Light>();
+            l.type = LightType.Point;
+            l.color = color;
+            l.intensity = intensity;
+            l.range = range;
+            l.shadows = LightShadows.None;
+            l.renderMode = LightRenderMode.ForcePixel;
+        }
+
+        /// <summary>
+        /// Destroys every root this builder owns, plus "Level".
+        ///
+        /// <para>"Level" is LevelGreyboxBuilder's root, and it builds into whatever scene is ACTIVE.
+        /// Run "6. Build Level" while Sandbox.unity happens to be open and the campaign course lands
+        /// inside the sandbox and gets saved there - which has already happened once, leaving the
+        /// arena buried under four tiles of course geometry and a second set of spawners. Clearing it
+        /// here means one "7. Build Sandbox Scene" repairs the scene instead of needing hand surgery.
+        /// Exact-name match only, so "Level_Manual" and "Sandbox_Manual" are still never touched.</para>
+        /// </summary>
         static void ClearGeneratedRoots()
         {
-            foreach (var name in new[] { RootName, "Player", "Managers", "HUD", "Main Camera" })
+            foreach (var name in new[] { RootName, LightsRoot, "Level", "Player", "Managers", "HUD", "Main Camera" })
             {
                 GameObject existing;
                 while ((existing = FindRoot(name)) != null) Object.DestroyImmediate(existing);
@@ -280,22 +362,96 @@ namespace VibeGame1.EditorTools
             Trim(Box("Dash_B", new Vector3(-14f, 1.0f, 25f), new Vector3(4f, 1f, 4f), mPlatform, root), mYellow);  // top 1.5
         }
 
-        /// <summary>Spawn pads along the south wall, with live spawners for Grunt / Heavy / Boss.</summary>
+        /// <summary>
+        /// Spawn pads along the south wall, with live spawners for Grunt / Heavy / Boss and the three
+        /// legendary mini-bosses.
+        ///
+        /// <para>The row used to end at the Boss pad with two unused "spare" pads at x 18 / 24. Three
+        /// legendaries need three slots, so the eastern half of the row is re-spaced rather than
+        /// crammed: 4.5 m pads at x 16 / 21 / 26, which keeps 1.75 m clear of the boss pad and 1.5 m
+        /// clear of the east wall at x = 30.</para>
+        ///
+        /// <para>Every pad sits at z = -18 and every occupant is 22 m or more from the player spawn at
+        /// the origin - further than any of their aggro ranges (the legendaries top out at 18) - so the
+        /// arena is quiet on load and you walk to the fight you want.</para>
+        ///
+        /// <para>Names mirror the prefab and EnemyData names exactly (Spawn_Legendary_Ninja ->
+        /// Legendary_Ninja.prefab). The campaign level's Spawn_GruntA -> Spawn_T1_GruntA rename is the
+        /// reason DebugHarness has a suffix fallback at all; don't introduce a second dialect here.</para>
+        /// </summary>
         static void BuildEnemyPads(Transform root)
         {
             const float z = -18f;
             const float padY = FloorTop - 0.4f;   // 0.1 m proud of the floor: visible, trivially walkable
+            const float spawnY = FloorTop + 0.3f;
 
             Box("Pad_Grunt", new Vector3(-14f, padY, z), new Vector3(4f, 1f, 4f), mEnemy, root);
             Box("Pad_Heavy", new Vector3(-5f, padY, z), new Vector3(5f, 1f, 5f), mEnemy, root);
             Box("Pad_Boss", new Vector3(8f, padY, z), new Vector3(8f, 1f, 8f), mBoss, root);
-            Box("Pad_Spare_1", new Vector3(18f, padY, z), new Vector3(4f, 1f, 4f), mGround, root);
-            Box("Pad_Spare_2", new Vector3(24f, padY, z), new Vector3(4f, 1f, 4f), mGround, root);
+
+            // M_Boss for the legendaries, matching MiniBossFactory's body material: the pad reads
+            // "this one is a duel" before you are close enough to see the silhouette.
+            Box("Pad_Legendary_Ninja", new Vector3(16f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+            Box("Pad_Legendary_Knight", new Vector3(21f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+            Box("Pad_Legendary_Spellsword", new Vector3(26f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
 
             // Enemies sit south of the player, so they face +Z (identity), unlike the campaign level.
-            Spawner("Spawn_Grunt", new Vector3(-14f, FloorTop + 0.3f, z), pGrunt, false, root);
-            Spawner("Spawn_Heavy", new Vector3(-5f, FloorTop + 0.3f, z), pHeavy, false, root);
-            Spawner("Spawn_Boss", new Vector3(8f, FloorTop + 0.3f, z), pBoss, true, root);
+            var sGrunt = Spawner("Spawn_Grunt", new Vector3(-14f, spawnY, z), pGrunt, false, root);
+            var sHeavy = Spawner("Spawn_Heavy", new Vector3(-5f, spawnY, z), pHeavy, false, root);
+            var sBoss = Spawner("Spawn_Boss", new Vector3(8f, spawnY, z), pBoss, true, root);
+
+            // isBoss stays false: the legendaries are plain EnemyControllers, not the Warden, so they
+            // respawn and reset exactly like a grunt does and need no arena trigger to wake. The flag
+            // is only read for the spawner gizmo colour and by tooling that wants "an ordinary enemy".
+            var sNinja = Spawner("Spawn_Legendary_Ninja", new Vector3(16f, spawnY, z), pLegNinja, false, root);
+            var sKnight = Spawner("Spawn_Legendary_Knight", new Vector3(21f, spawnY, z), pLegKnight, false, root);
+            var sSpell = Spawner("Spawn_Legendary_Spellsword", new Vector3(26f, spawnY, z), pLegSpellsword, false, root);
+
+            // ---- one WAKE switch per pad, on the player's side of it ------------------------------
+            // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
+            // starts three fights at once and nothing can be studied — you cannot read a wind-up, time
+            // a parry or photograph a stagger with two other things swinging at your back. Every pad's
+            // enemy now sleeps behind EnemyController.aggroLocked (the same flag the Warden uses) and
+            // these are the triggers, one each. Placed 3.2 m north of the pad so the player meets the
+            // switch before the enemy.
+            const float switchZ = z + 3.2f;
+            Switch("Wake_Grunt", new Vector3(-14f, FloorTop, switchZ), sGrunt, "GRUNT", root);
+            Switch("Wake_Heavy", new Vector3(-5f, FloorTop, switchZ), sHeavy, "HEAVY", root);
+            Switch("Wake_Boss", new Vector3(8f, FloorTop, switchZ - 1.6f), sBoss, "WARDEN", root);
+            Switch("Wake_Legendary_Ninja", new Vector3(16f, FloorTop, switchZ), sNinja, "NIGHTJAR", root);
+            Switch("Wake_Legendary_Knight", new Vector3(21f, FloorTop, switchZ), sKnight, "IRON PENITENT", root);
+            Switch("Wake_Legendary_Spellsword", new Vector3(26f, FloorTop, switchZ), sSpell, "ASHEN CHORISTER", root);
+        }
+
+        /// <summary>
+        /// A wake switch: stone post on Default (walkable, bakes) with a small emissive lamp on
+        /// Interactable carrying the trigger, exactly like <see cref="WandAltar"/>'s split. The lamp is
+        /// what the player aims at and it doubles as the pad's status light — lit means asleep.
+        ///
+        /// <para>Rule 9: every serialized value on <see cref="SandboxEnemySwitch"/> is written here.</para>
+        /// </summary>
+        static GameObject Switch(string name, Vector3 groundPos, GameObject spawner, string label, Transform parent)
+        {
+            Box(name + "_Post", groundPos + Vector3.up * 0.45f, new Vector3(0.28f, 0.9f, 0.28f), mStone, parent);
+
+            var lamp = Box(name, groundPos + Vector3.up * 1.05f, new Vector3(0.34f, 0.34f, 0.34f), mCyan, parent, false);
+            lamp.layer = Layers.Interactable;
+
+            // The box collider that ships with the primitive stays as the visible lamp; the RANGE
+            // trigger is a separate sphere on the same object, matching the altar. Walking past must
+            // never wake anything — the trigger is a range check and the press is the verb.
+            var solid = lamp.GetComponent<Collider>();
+            if (solid != null) Object.DestroyImmediate(solid);
+            var trigger = lamp.AddComponent<SphereCollider>();
+            trigger.isTrigger = true;
+            trigger.radius = 7f;      // in the lamp's own 0.34 scale: ~2.4 m of world reach
+
+            var sw = lamp.AddComponent<SandboxEnemySwitch>();
+            sw.spawner = spawner != null ? spawner.GetComponent<EnemySpawner>() : null;
+            sw.lamp = lamp.GetComponent<Renderer>();
+            sw.enemyName = label;
+            sw.lookDot = 0.86f;
+            return lamp;
         }
 
         /// <summary>One pedestal per ItemData in Assets/Data/Items, along the west side.</summary>
@@ -406,12 +562,17 @@ namespace VibeGame1.EditorTools
             go.transform.SetParent(root, false);
             var controller = go.AddComponent<SandboxController>();
 
-            controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss };
+            // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
+            // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
+            controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
                 LoadEnemyData("Heavy"),
                 LoadEnemyData("Boss"),
+                LoadEnemyData("Legendary_Ninja"),
+                LoadEnemyData("Legendary_Knight"),
+                LoadEnemyData("Legendary_Spellsword"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -447,6 +608,12 @@ namespace VibeGame1.EditorTools
             pHeavy = LoadPrefab("Enemy_Heavy");
             pBoss = LoadPrefab("Boss");
             pItemPickup = LoadPrefab("ItemPickup");
+
+            // Legendary mini-bosses (Assets/Editor/MiniBossFactory.cs). Missing ones only warn, like
+            // every other prefab here - the arena still builds, just without those pads populated.
+            pLegNinja = LoadPrefab("Legendary_Ninja");
+            pLegKnight = LoadPrefab("Legendary_Knight");
+            pLegSpellsword = LoadPrefab("Legendary_Spellsword");
         }
 
         static Material LoadMat(string name)

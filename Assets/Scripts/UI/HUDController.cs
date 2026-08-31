@@ -98,7 +98,7 @@ namespace VibeGame1
             if (postureBar != null) { postureBar.SetColor(PostureBase); postureBar.Set(0f); }
             ClearItemSlots();
             if (hintText != null) hintText.text =
-                "WASD move   SPACE jump   SHIFT dash   LMB attack   RMB parry   E use item   F flask   Q super   1/2/3 weapons   4 test blade   TAB level up" +
+                "WASD move   SPACE jump   SHIFT dash   LMB attack   RMB parry   MMB lock on   E use item   F flask   Q super   1/2/3 weapons   4 test blade   TAB level up" +
                 "\n<alpha=#AA>PARRY to break their POSTURE, then DEATHBLOW  -  blocking costs YOUR posture" +
                 "\n<alpha=#AA>Every parry stokes PYRE - your weapon catches fire. Full PYRE unlocks the weapon SUPER on Q" +
                 "\n<alpha=#88>F1 test menu   F5 warp to boss   F6 restore   F7 +souls   F8 god mode";

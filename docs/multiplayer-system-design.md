@@ -4,13 +4,18 @@
 **Audience:** whoever implements this.
 **Date:** 2026-08-30 · **Target engine:** Unity 6000.5.10f1 (URP)
 
+> **Terminology refreshed 2026-08-30.** "Parry juice" was replaced by the **Pyre** meter, and the
+> weapon-agnostic ultimate by **per-weapon super attacks**. The netcode arithmetic below is unaffected —
+> the 130 ms parry window is unchanged, and Pyre is server-authoritative state exactly as juice was.
+> The campaign is now one level of four gated sections, not a single arena course.
+
 ---
 
 ## 1. Executive summary, and the hard truth first
 
 ### The one fact that should drive every decision
 
-**vibegame1's perfect-parry window is 130 ms.** That is not an incidental tuning value — it is the game. Everything downstream (posture, deathblows, Parry Juice, the ultimate) is gated on landing deflects inside that window.
+**vibegame1's perfect-parry window is 130 ms.** That is not an incidental tuning value — it is the game. Everything downstream (posture, deathblows, Pyre and the per-weapon super) is gated on landing deflects inside that window.
 
 130 ms is close to the worst possible number for netcode. Here is the arithmetic that matters:
 
@@ -168,7 +173,7 @@ public ParryResult ReceiveAttack(in AttackInfo a)
     switch (result) {
         case ParryResult.Perfect:
             a.attacker.OnParried(...);                // 3. mutate the ATTACKER
-            resources.AddJuice(...);                  // 4. mutate SELF
+            resources.AddPyre(...);                   // 4. mutate SELF
             TimeScaleController.I.HitStop(...);       // 5. LOCAL FX + global time
             CameraShake.I.Small();                    //    LOCAL FX
             ScreenFlash.I.Flash(...);                 //    LOCAL FX
@@ -183,7 +188,7 @@ Every one of those five needs a different authority. Split it into three:
 
 ```
 1. ResolveParry(AttackInfo, facing) -> ParryResult        // CLIENT, pure, uses ParryMath
-2. ApplyOutcome(AttackInfo, ParryResult) -> StateDelta    // SERVER, mutates Health/Posture/Juice/attacker
+2. ApplyOutcome(AttackInfo, ParryResult) -> StateDelta    // SERVER, mutates Health/Posture/Pyre/attacker
 3. PlayFeedback(AttackInfo, ParryResult)                  // EVERY CLIENT, local FX only
 ```
 
@@ -206,11 +211,11 @@ Time.timeScale = world;
 Time.fixedDeltaTime = baseFixedDelta * Mathf.Clamp(world, 0.05f, 1f);
 ```
 
-It is driven by hitstop (`HitStop(0.09f)` on every parry) and the ultimate's slow-mo. In single player this is excellent design — it is the reason hits feel good. In multiplayer it is catastrophic:
+It is driven by hitstop (`HitStop(0.09f)` on every parry) and the super attack's slow-mo. In single player this is excellent design — it is the reason hits feel good. In multiplayer it is catastrophic:
 
 - On the **host**, one player's parry hitstop would freeze the simulation for *everyone*, including all enemies and all other players.
 - `EnemyController.Update` currently early-outs on `if (Time.timeScale <= 0f) return;` (line 89) and uses `float dt = Time.deltaTime;` (line 95) — so enemy AI is directly coupled to the global scale.
-- The ultimate's 1.6 s slow-mo would make the host's session crawl for everyone.
+- The super attack's 1.6 s slow-mo would make the host's session crawl for everyone.
 
 **Required change:** the server simulation must run at a fixed, unmodified rate. Hitstop and slow-mo become **purely client-side presentation** — visual/audio only, never touching `Time.timeScale`, never affecting the authoritative sim.
 
@@ -279,7 +284,7 @@ Unity Relay's free tier is **3 GiB per CCU, capped at 150 GiB/month** combined a
 
 ### Interest management
 
-At the current scale (one level, ~8 enemies, 4 players) **do not implement interest management.** It is complexity with no payoff. Add distance-based culling only if enemy counts exceed ~40.
+At the current scale (one level of four sections, ~13 enemies, 4 players) **do not implement interest management.** It is complexity with no payoff. Add distance-based culling only if enemy counts exceed ~40.
 
 ---
 

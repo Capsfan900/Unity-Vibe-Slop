@@ -46,6 +46,10 @@ namespace VibeGame1
         public Renderer weapon;
         public Transform lungeRoot;
         public GameObject alertMarker;
+        [Tooltip("The Sekiro deathblow glyph, raised while this enemy's posture is broken. NEVER the " +
+                 "same object or material as alertMarker: they occupy the same place on screen and mean " +
+                 "opposite things. Built by PrefabFactory / MiniBossFactory from M_DeathblowMark.")]
+        public GameObject deathblowMarker;
 
         [Header("Arm rig (shoulder pivot; the weapon hangs off it)")]
         [Tooltip("Rotated through the three telegraph beats so the wind-up reads from the silhouette, not just colour.")]
@@ -64,6 +68,15 @@ namespace VibeGame1
         static readonly Color CueSparkUnblockable = new Color(1f, 0.12f, 0.18f);
         static readonly Color ParryGlow = new Color(0.78f, 0.88f, 1f) * 3.2f; // the ONLY enemy emission
         static readonly Color StaggerTint = new Color(0.42f, 0.32f, 0.24f);   // base-colour pulse, still no glow
+
+        // ---- the posture-break pose ---------------------------------------------------------------
+        // A broken posture BUCKLES. It leans back off the front foot, sinks as the knees give, and
+        // rolls; the arms fling open. Every component is signed so that NOTHING travels toward the
+        // player: the deathblow step-in parks the camera ~1.7 m off the body surface and a pose that
+        // moves even half a metre forward puts geometry through the lens. See Slump().
+        static readonly Vector3 StaggerEuler = new Vector3(-13f, 0f, 9f);     // lean BACK, roll
+        static readonly Vector3 StaggerSag = new Vector3(0f, -0.20f, -0.14f); // knees give, weight back
+        static readonly Vector3 StaggerArm = new Vector3(-26f, 0f, 34f);      // arm back and OUT, chest open
         static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
@@ -134,6 +147,7 @@ namespace VibeGame1
             if (weaponPivot != null) weaponBaseRot = weaponPivot.localRotation;
             currentPose = PoseOverhead;
             if (alertMarker != null) alertMarker.SetActive(false);
+            if (deathblowMarker != null) deathblowMarker.SetActive(false);
         }
 
         static ArmPose PoseFor(EnemyAttackData atk)
@@ -304,21 +318,68 @@ namespace VibeGame1
             tintTarget = Color.white;
         }
 
-        /// <summary>Posture broken / recovered. The slumped pose is the "execute me now" tell.</summary>
+        /// <summary>Posture broken / recovered. The slumped pose plus the deathblow glyph are the
+        /// "kill this one now" tell.
+        ///
+        /// <para><b>THE BREAK BUCKLES; IT DOES NOT FALL FORWARD.</b> The first version pitched the body
+        /// +28 degrees about local X — i.e. straight at the player, because the enemy is facing them and
+        /// <c>BeginExecuted</c> turns it to face them again. Over a 2 m body that walks the chest almost
+        /// a metre toward the eye, and the deathblow step-in then closes to <c>stabStandoff</c>: at 2.2x
+        /// boss scale the frame filled edge to edge with enemy and the riposte became invisible.
+        /// The pose now leans BACK, sags and rolls — the knees give, the guard opens, the weight goes
+        /// onto the back foot. Nothing moves toward the camera, the silhouette stays inside its own
+        /// footprint, and the chest turns up and out, which is exactly the surface the glyph rides on
+        /// and the wand is about to go into.</para></summary>
         public virtual void Slump(bool on)
         {
             slumped = on;
             if (on)
             {
-                // Staggered reads through POSE (the guard drops) plus a slow base-colour breath
-                // applied in Update. Not a glow: the HUD deathblow prompt is the bright signal.
+                // Staggered reads through POSE (the guard drops), a slow base-colour breath applied in
+                // Update, and — since a HUD prompt at the edge of the screen is not where the player is
+                // looking during an exchange — a marker ON THE ENEMY. That marker is the whole reason
+                // the deathblow now reads as a choice rather than as something the game did for you.
                 if (alertMarker != null) alertMarker.SetActive(false);
-                StartMotion(TiltCo(28f, 0.2f));
+                StartMotion(TiltCo(StaggerEuler, StaggerSag, 0.2f));
             }
             else
             {
-                StartMotion(TiltCo(0f, 0.2f));
+                StartMotion(TiltCo(Vector3.zero, Vector3.zero, 0.2f));
             }
+            SetDeathblowReady(on);
+        }
+
+        /// <summary>
+        /// World point the deathblow glyph occupies for a viewer at <paramref name="eye"/> — the
+        /// enemy sternum, pushed off the body surface toward that eye. Valid whether or not the marker
+        /// is currently up, because the commit burst and the wand blast both need it on frames where
+        /// the window has just been spent.
+        ///
+        /// <para>One source of truth on purpose: the glyph, the shatter and the blast must land on the
+        /// same pixels, or the beat reads as three unrelated effects that happen to be near each other.</para>
+        /// </summary>
+        public virtual Vector3 DeathblowPoint(Vector3 eye)
+        {
+            if (deathblowMarker != null)
+            {
+                var m = deathblowMarker.GetComponent<DeathblowMarker>();
+                if (m != null) return m.SurfacePoint(eye);
+            }
+            float s = Mathf.Max(0.01f, transform.lossyScale.x);
+            Vector3 axis = transform.position + Vector3.up * (1.45f * s);
+            Vector3 to = eye - axis; to.y = 0f;
+            return to.sqrMagnitude > 0.000001f ? axis + to.normalized * (0.8f * s) : axis;
+        }
+
+        /// <summary>
+        /// Raise or drop the deathblow glyph. Driven by <see cref="Slump"/> for the ordinary posture
+        /// break/recover pair, and called directly when the window closes for any other reason — the
+        /// blow being committed, or the body dying — because a marker that outlives its window is a
+        /// promise the game cannot keep.
+        /// </summary>
+        public virtual void SetDeathblowReady(bool on)
+        {
+            if (deathblowMarker != null) deathblowMarker.SetActive(on);
         }
 
         /// <summary>Boss activation / phase change.</summary>
@@ -340,6 +401,7 @@ namespace VibeGame1
         {
             glowAmount = 0f; tintBoost = 0f; chargeDark = 0f;
             if (alertMarker != null) alertMarker.SetActive(false);
+            SetDeathblowReady(false);
             StartMotion(DieCo());
         }
 
@@ -477,8 +539,8 @@ namespace VibeGame1
                 float k = t / back;
                 if (lungeRoot != null)
                 {
-                    lungeRoot.localPosition = Vector3.Lerp(from, lungeBase, k);
-                    lungeRoot.localRotation = Quaternion.Slerp(fromRot, slumped ? lungeBaseRot * Quaternion.Euler(28f, 0f, 0f) : lungeBaseRot, k);
+                    lungeRoot.localPosition = Vector3.Lerp(from, lungeBase + (slumped ? StaggerSag : Vector3.zero), k);
+                    lungeRoot.localRotation = Quaternion.Slerp(fromRot, slumped ? lungeBaseRot * Quaternion.Euler(StaggerEuler) : lungeBaseRot, k);
                 }
                 SetArm(Vector3.Lerp(armTo, Vector3.zero, k), 0.45f);
                 t += Time.deltaTime; yield return null;
@@ -486,24 +548,28 @@ namespace VibeGame1
             SetArm(Vector3.zero, 0f);
         }
 
-        IEnumerator TiltCo(float angle, float seconds)
+        IEnumerator TiltCo(Vector3 euler, Vector3 offset, float seconds)
         {
             if (lungeRoot == null) yield break;
             float t = 0f;
             Quaternion from = lungeRoot.localRotation;
             Vector3 fromPos = lungeRoot.localPosition;
-            Quaternion to = lungeBaseRot * Quaternion.Euler(angle, 0f, 0f);
-            // Staggered: the guard drops and the weapon arm hangs — the "execute me" silhouette.
-            Vector3 armTo = slumped ? new Vector3(38f, 0f, 22f) : Vector3.zero;
+            Quaternion to = lungeBaseRot * Quaternion.Euler(euler);
+            Vector3 toPos = lungeBase + offset;
+            // Staggered: the guard drops and the weapon arm is flung BACK and OUT, opening the chest.
+            // It used to swing +38 about X, which points a 1.35 m weapon straight down the camera at
+            // stabbing range — the same mistake as the forward pitch, one bone further out.
+            Vector3 armTo = slumped ? StaggerArm : Vector3.zero;
             while (t < seconds)
             {
                 float k = t / seconds;
                 lungeRoot.localRotation = Quaternion.Slerp(from, to, k);
-                lungeRoot.localPosition = Vector3.Lerp(fromPos, lungeBase, k);
+                lungeRoot.localPosition = Vector3.Lerp(fromPos, toPos, k);
                 SetArm(Vector3.Lerp(Vector3.zero, armTo, k), 0.6f);
                 t += Time.unscaledDeltaTime; yield return null;
             }
             lungeRoot.localRotation = to;
+            lungeRoot.localPosition = toPos;
             SetArm(armTo, 0.6f);
         }
 
@@ -530,7 +596,15 @@ namespace VibeGame1
             while (t < 0.6f)
             {
                 float k = t / 0.6f;
-                if (lungeRoot != null) lungeRoot.localRotation = Quaternion.Slerp(r0, lungeBaseRot * Quaternion.Euler(85f, 0f, 20f), k);
+                // AWAY, never toward. A riposte kills at stabStandoff, about 1.7 m of air between the
+                // camera and the body, so a corpse that pitches +85 about X (forward, into the player,
+                // because BeginExecuted just turned it to face them) drops a whole body through the lens
+                // on the exact frame the player is meant to be watching the blast.
+                if (lungeRoot != null)
+                {
+                    lungeRoot.localRotation = Quaternion.Slerp(r0, lungeBaseRot * Quaternion.Euler(-78f, 0f, 22f), k);
+                    lungeRoot.localPosition = Vector3.Lerp(lungeBase, lungeBase + new Vector3(0f, -0.15f, -0.55f), k);
+                }
                 transform.localScale = s0 * Mathf.Lerp(1f, 0.05f, k * k);
                 t += Time.unscaledDeltaTime; yield return null;
             }

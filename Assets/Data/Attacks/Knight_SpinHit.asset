@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73622ab688f94484da8caecbba544857, type: 3}
+  m_Name: Knight_SpinHit
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
+  attackName: Knight_SpinHit
+  windup: 0.5
+  impactDelay: 0.04
+  strikeDuration: 0.12
+  recovery: 0.22
+  range: 4.2
+  coneDeg: 170
+  damage: 20
+  lungeDistance: 0.45
+  comboGap: 0.12
+  parryPostureMultiplier: 1.3
+  unblockable: 0

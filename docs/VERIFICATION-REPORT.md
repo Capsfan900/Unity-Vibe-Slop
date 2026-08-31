@@ -13,7 +13,15 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 | Suite | Scope | Result |
 |---|---|---|
 | EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath` | **20 / 20 pass** |
-| `FeatureTests` | Behavioural, real systems in play mode | **265 passed · 0 failed · 2 skipped — SUITE PASS** (~21 s) |
+| `FeatureTests` | Behavioural, real systems in play mode | **518 passed · 1 failed · 2 skipped** (30.2 s), fresh play-mode session — the failure is a known staging race, see BACKLOG §4 |
+
+Green, run from a fresh play-mode session on `Assets/Scenes/Level_01.unity`. The `Deathblow` section —
+the marker, the marked/unmarked press split and the marker's material separation from `M_AlertTell` — is
+**15 / 15**; the four-tile campaign level's `LevelStructure` (33) and `GateLoop` (62) sections are both
+clean.
+
+Run the suite from a **fresh play-mode session**: `LevelFlow` asserts on a running speedrun timer, and a
+suite that has already defeated the boss has stopped it.
 
 Reproduce:
 
@@ -45,12 +53,15 @@ written (WandPedestal, WandReadability) are covered by the live report.
 | 4 | ParryLive | Real deflects against a live enemy: perfect (no damage, FULL Pyre gain, enemy posture, no player posture cost), block stokes Pyre at a fraction of perfect, late block, missed parry, unblockable, facing-away | — |
 | 5 | PlayerPosture | Accumulates, breaks at max, raises the event, staggers, amplifies damage ×1.6, auto-recovers, regenerates after delay, resets on respawn | — |
 | 6 | EnemyExecute | Enemy posture configured from data, accumulates, breaks, enters Staggered; `ExecuteInteractor` acquires, executes, kills, awards souls, restores control | — |
+| 6b | Deathblow | The posture break raises the marker **on the enemy**; recovery and committing the blow both clear it; an attack press with **no** marked target swings normally while a press against a marked one executes; `M_DeathblowMark` exists, blooms at ≥2× the threshold, is quieter than `M_AlertTell` and is hue-separated from it | — |
 | 7 | Weapons | All four equip; combo lengths and multipliers align; damage scales with stats; per-weapon parry window multiplier applies; a swing damages and builds posture; **a repeated press advances the combo** | — |
 | 8 | Items | Pickup, capacity 3, FIFO order, **real-physics trigger pickup**, restore on respawn, and all four effects incl. the Stormcall arm→riposte flow | — |
 | 9 | Flask | Refill, consume, refuse when empty, heal amount matches stats, **the real drink heals and a hit interrupts it (charge lost)** | — |
 | 10 | Pyre + super | Refused below full, full-bar gate, consumption, clamping, the weapon carries shipped super data (rule 9), slow-mo does not slow the player, **the real super fires, damages a nearby enemy and spends the bar** | — |
 | 11 | Progression | Souls on kill, spend/afford rules, cost curve, Vitality raises max HP **and** max posture, death empties the wallet and drops a stain carrying every soul, recovery by real physics | — |
 | 12 | LevelFlow | Checkpoint activation heals and refills, respawn returns and resets enemies, kill zone kills, timer format, **the timer starts and ticks** | — |
+| 12b | LevelStructure | The four-tile level as built from `Level_01_Level.asset`: `Checkpoint_1`..`Checkpoint_4` all exist, `Warp("Checkpoint_4")` (what `F5` and the test menu call) lands on the boss approach, the wand altar stands at the start, all three `Legendary_*` spawners resolve to real enemy prefabs — and **none of them carries a `BossController`** — and the kill plane sits below the lowest built geometry | — |
+| 12c | GateLoop | The tile-to-tile progression, per arena: the exit gate rests **up**, entering seals the entry gate behind you, the arena does **not** open before its keeper has ever existed (the "seen alive" latch), it stays sealed while the keeper lives, killing the keeper drops **both** gates, it stays open afterwards, and dying re-seals it with the keeper back. The boss arena is the same component's other half: no `clearSpawner`, no exit gate, entry wakes `BossController`, and removing the occupant — the very thing that opens a mini-boss arena — leaves it sealed | — |
 | 13 | Boss | Activation, aggro lock, 3 segments, HP 0 breaks posture without killing, only `isExecute` consumes a segment, phases advance, heal between segments, defeat fires and stops the timer, lightning staggers but cannot kill | — |
 | 14 | HUD | Every bar's fill tracks its value, asserted on `fill.rectTransform.anchorMax.x`; item slots, deathblow banner and text widgets wired | — |
 | 15 | Audio | Every `Sfx` enum member resolves a clip (real or synthesized); music playing; one-shots do not throw | — |
@@ -188,6 +199,14 @@ walk deliberately. See [ENGINEERING-LOG.md](ENGINEERING-LOG.md).
 - Two `WandPedestal` skips (`FOpensMenu`, `RCyclingStillWorks`) are the *same* class of gap for
   `InteractPressed` / `WandCyclePressed` and want the same remedy: `TryInteract()` / `TryCycle()`.
 - The landing fight (Heavy + 2 Grunts) still needs a human playtest.
+- **The four-tile level is proven as a mechanism, not as a course.** `GateLoop` teleports into each arena
+  and kills the keeper with a scripted deathblow. Nothing yet proves the level is *traversable*: that the
+  jumps between the causeway stones, the eleven ledges of the Ascent and the pillar hops of the Long Span
+  are all makeable, that a dropped gate leaves a gap a player fits through, or that the three legendary
+  fights are winnable, let alone fair. That is a human playtest, end to end, on one clock.
+- `Movement_LandsAndGrounds` has been seen to fail once on the *first* suite run after entering play mode
+  (`IsGrounded=False`, 3 s timeout) and pass on every run since. Watch it; if it recurs the wait wants to
+  be on a settled `CharacterController`, not a fixed bound.
 
 ---
 
@@ -221,3 +240,28 @@ perfectly-timed press. It says nothing about whether a human can time that press
    deliberate tension. Only play tells you whether it is exciting or just a delay.
 
 Do not report a green suite as "feel verified".
+
+
+---
+
+## Open failures — Deathblow (unresolved, 2026-08-30)
+
+Three assertions in the `Deathblow` section fail, in every run of that session:
+
+```
+FAIL Deathblow_MarkSitsOnLineToSternum_BossScale   [lateral=0.234 / 0.303 / 0.485 / 0.589]
+FAIL Deathblow_MarkedPressExecutes                 [consumed=True executing=False swinging=True]
+FAIL Deathblow_CommitClearsMarker                  [marker=True]
+```
+
+All three depend on where the camera is aimed when the section runs: `lateral` is literally the offset of
+the mark from the eye→sternum line, `MarkedPressExecutes` needs `ExecuteInteractor` to be holding the
+marked dummy, and the sibling `Deathblow_InteractorMarksBrokenEnemy` fails *intermittently* with
+`target=null`. `lateral` grew monotonically across four runs, which points at pose/state that survives a
+run rather than at the assertion itself.
+
+Nothing in the main-menu change touches aim, combat, the interactor or the enemy prefabs, and the
+`MainMenu` section passed 36/36 in every run. Runs 1 and 2 also failed a rotating set of other
+aim-sensitive tests (`Movement_LandsAndGrounds`, `LockOn_AssistRecentresTarget`, `Items_PhysicsPickup`,
+`Execute_*`) which then passed — the classic signature of the editor being touched while the suite runs.
+**Not diagnosed. Needs one clean, unattended run to separate "flaky harness" from "real regression".**

@@ -109,7 +109,22 @@ namespace VibeGame1.EditorTools
             grunt.preferredRange = 3.0f; grunt.commitTolerance = 0.6f; grunt.repositionDeadzone = 0.4f;
             grunt.backStepSpeedMultiplier = 0.3f; grunt.strafeSpeedMultiplier = 0.34f; grunt.lungeMinDistance = 1.1f;
             grunt.soulValue = 40;
-            grunt.bodyColor = Hex("#0A0708"); grunt.emission = Hex("#6A0F14") * 1.2f; grunt.scale = 1f;
+            // BODY COLOUR IS AN ALBEDO, AND IT IS THE ENEMY'S ONLY SILHOUETTE.
+            // EnemyVisuals.WriteBody pushes this into a MaterialPropertyBlock, which OVERRIDES
+            // M_Enemy's base colour entirely - so the material's albedo is dead for the body and this
+            // is the shipped value (rule 9). Every enemy used to sit around #0A0708, ~0.004 LINEAR
+            // reflectance, so a backlit enemy rendered as a flat black CUTOUT: no interior shading, no
+            // readable limbs, and the wind-up "darkening" (a lerp to bodyColor * 0.45) was a change
+            // from invisible to invisible. All six are now ~4x lifted and given a HUE - cool slate,
+            // warm iron, violet - so an enemy separates from the warm ember-lit floor by colour as well
+            // as by value. Still non-emissive, still the darkest thing in the frame: light on an enemy
+            // means you deflected.
+            // The numbers look high for "near-black"; they are not, because these surfaces receive
+            // almost no light. Measured on a grunt at 4.5 m against a 36/255 floor: #1E1A20 renders at
+            // 1.6/255 (still a cutout), #2E2836 at 4.2, #3C3446 at 8.5, #4A4256 at 14.3. The shipped
+            // values land around 8-10/255 - a shape you can read, four times darker than the ground it
+            // stands on. Judge an albedo by what it RENDERS as, never by the hex.
+            grunt.bodyColor = Hex("#3A3340"); grunt.emission = Hex("#6A0F14") * 1.2f; grunt.scale = 1f;
             // Mixed rhythms so the player cannot settle into one deflect cadence.
             // Authored as a moveset asset; 'combos' is mirrored from it so the runtime path (which reads
             // EnemyData.combos) is byte-identical to before. Weights and ranges are additive information
@@ -138,7 +153,7 @@ namespace VibeGame1.EditorTools
             heavy.preferredRange = 3.6f; heavy.commitTolerance = 0.7f; heavy.repositionDeadzone = 0.45f;
             heavy.backStepSpeedMultiplier = 0.26f; heavy.strafeSpeedMultiplier = 0.28f; heavy.lungeMinDistance = 1.3f;
             heavy.soulValue = 120;
-            heavy.bodyColor = Hex("#0A0708"); heavy.emission = Hex("#8A2A10") * 1.2f; heavy.scale = 1.4f;
+            heavy.bodyColor = Hex("#423630"); heavy.emission = Hex("#8A2A10") * 1.2f; heavy.scale = 1.4f;
             heavy.moveset = Moveset("Heavy_Moveset", "Heavy", new[]
             {
                 Entry("sweep-overhead (medium, slow)",              2f, 0f, 99f, heavySweep, heavyOverhead),
@@ -172,7 +187,7 @@ namespace VibeGame1.EditorTools
             boss.preferredRange = 4.6f; boss.commitTolerance = 0.8f; boss.repositionDeadzone = 0.55f;
             boss.backStepSpeedMultiplier = 0.32f; boss.strafeSpeedMultiplier = 0.3f; boss.lungeMinDistance = 1.8f;
             boss.soulValue = 1500;
-            boss.bodyColor = Hex("#0D0612"); boss.emission = Hex("#7A1030") * 1.6f; boss.scale = 2.2f;
+            boss.bodyColor = Hex("#40304C"); boss.emission = Hex("#7A1030") * 1.6f; boss.scale = 2.2f;
             boss.segments = 3;
             // The boss picks from its PHASE patterns, not from combos — this is only the fallback used
             // before a phase is applied. Kept as a one-combo moveset for consistency of authoring.
@@ -263,33 +278,74 @@ namespace VibeGame1.EditorTools
                 a.comboGap = 0.24f; a.unblockable = true;
             });
 
-            // --- Knight: The Iron Penitent. Slow, enormous, wide punish windows. --------------------
+            // --- Knight: The Iron Penitent. THE SPINNING FURNACE. -----------------------------------
+            //
+            // Redesigned from the slow cleave-and-overhead knight into a sustained-cadence fight. The
+            // whole enemy is now one question: can you hold a parry rhythm under continuous pressure?
+            // The payoff for holding it is deliberately disproportionate — a full spin deflected is
+            // ~78% of his posture bar, and breaking him is a 5.0 s opening straight into the deathblow.
+            //
+            // Everything below still obeys the readability contract. NO wind-up is under 0.45 s; the
+            // cue still fires cueLead (0.28 s) before every single impact. The spin is "fast" through a
+            // TIGHT, STEADY BEAT (~0.94 s per hit, the tightest sustained cadence in the game outside
+            // the Shade) and short recoveries — never through a shorter tell. A steady beat is also
+            // what makes it learnable: the spin is the same interval every time, which is the whole
+            // point. Speed that came from shortening the tell would be a reaction test, not a fight.
+            var knightSpinUp = Attack("Knight_SpinUp", a =>
+            {
+                // The spool-up, and the first contact of the spin. 1.15 s of theatre: he is the heavy,
+                // so he gets the longest readable wind-up in his set to announce "the cadence starts
+                // NOW". The belly furnace flares through it (EnemyVisuals.eye rides Posture.Ratio) —
+                // a tell that belongs to him and to nothing else in the game.
+                a.windup = 1.15f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.20f;
+                a.range = 4.2f; a.coneDeg = 170f; a.damage = 24f; a.lungeDistance = 0.30f;
+                a.comboGap = 0.12f; a.parryPostureMultiplier = 1.3f;
+            });
+            var knightSpinHit = Attack("Knight_SpinHit", a =>
+            {
+                // The repeating beat. 0.50 s wind-up (comfortably over the 0.45 s floor) + a 0.10 s
+                // floored gap + 0.16 s of strike + a 0.18 s recovery = one hit every ~0.94 s, forever,
+                // on the same interval. 170 deg cone so strafing out of a spin is not the answer;
+                // 0.45 m of lunge per beat so BACKING OFF is not the answer either — the spin chases.
+                a.windup = 0.50f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.22f;
+                a.range = 4.2f; a.coneDeg = 170f; a.damage = 20f; a.lungeDistance = 0.45f;
+                a.comboGap = 0.12f; a.parryPostureMultiplier = 1.3f;
+            });
+            var knightSpinOut = Attack("Knight_SpinOut", a =>
+            {
+                // The exit, and the REWARD. Heavier than a beat, worth more on the deflect, and then
+                // 2.2 s of authored recovery (~1.4 s after aggression) — by a wide margin the biggest
+                // punish window he offers, and the reason surviving a spin is worth surviving.
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 2.2f;
+                a.range = 4.4f; a.coneDeg = 175f; a.damage = 28f; a.lungeDistance = 0.40f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.6f;
+            });
             var knightShove = Attack("Knight_Shove", a =>
             {
                 // the only quick thing it does, and it exists purely to close distance
                 a.windup = 0.6f; a.impactDelay = 0.05f; a.strikeDuration = 0.2f; a.recovery = 0.55f;
                 a.range = 3.6f; a.coneDeg = 60f; a.damage = 20f; a.lungeDistance = 2.2f; a.comboGap = 0.3f;
             });
-            var knightCleave = Attack("Knight_Cleave", a =>
-            {
-                a.windup = 0.8f; a.impactDelay = 0.06f; a.strikeDuration = 0.24f; a.recovery = 0.8f;
-                a.range = 3.8f; a.coneDeg = 105f; a.damage = 34f; a.lungeDistance = 1.2f;
-                a.comboGap = 0.32f; a.parryPostureMultiplier = 1.4f;
-            });
             var knightOverhead = Attack("Knight_Overhead", a =>
             {
-                // one full second of wind-up. Deflecting it is most of a posture bar; eating it is most of yours.
+                // Kept from the old Penitent, now a rare TEMPO BREAK rather than his bread and butter:
+                // one full second of wind-up dropped into a fight whose every other beat is 0.94 s. A
+                // fight that is only the spin is one-note, and this is the beat that punishes a player
+                // who has stopped watching and is parrying on the metronome.
                 a.windup = 1.0f; a.impactDelay = 0.07f; a.strikeDuration = 0.26f; a.recovery = 1.05f;
                 a.range = 3.7f; a.coneDeg = 60f; a.damage = 46f; a.lungeDistance = 1.8f;
                 a.comboGap = 0.35f; a.parryPostureMultiplier = 1.9f;
             });
-            var knightQuake = Attack("Knight_Quake", a =>
+            var knightVent = Attack("Knight_Vent", a =>
             {
-                // unblockable, near-omnidirectional, the longest recovery of any attack in the game:
-                // the whole move is "get out, then take your free hits".
-                a.windup = 1.1f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.4f;
-                a.range = 4.4f; a.coneDeg = 160f; a.damage = 52f; a.lungeDistance = 0.9f;
-                a.comboGap = 0.4f; a.unblockable = true;
+                // THE ANTI-CAMP. The furnace vents: a wide unblockable pulse out to 8 m, gated in the
+                // moveset to the far band only. It exists so that "back off and wait the spin out" is
+                // not the optimal line — retreating past his reach is what SELECTS this move, and it
+                // cannot be parried, only walked out of. Replaces Knight_Quake, which did the same job
+                // at 4.4 m, i.e. only to a player who was already standing in the spin.
+                a.windup = 1.1f; a.impactDelay = 0.08f; a.strikeDuration = 0.3f; a.recovery = 1.6f;
+                a.range = 8.0f; a.coneDeg = 175f; a.damage = 34f; a.lungeDistance = 0f;
+                a.comboGap = 0.45f; a.unblockable = true;
             });
 
             // --- Spellsword: The Ashen Chorister. Champion-Gundyr shaped. ---------------------------
@@ -346,7 +402,7 @@ namespace VibeGame1.EditorTools
             ninja.preferredRange = 3.2f; ninja.commitTolerance = 0.7f; ninja.repositionDeadzone = 0.4f;
             ninja.backStepSpeedMultiplier = 0.4f; ninja.strafeSpeedMultiplier = 0.46f; ninja.lungeMinDistance = 1.05f;
             ninja.soulValue = 400;
-            ninja.bodyColor = Hex("#07090A"); ninja.emission = Hex("#1FBFA8") * 1.4f; ninja.scale = 0.95f;
+            ninja.bodyColor = Hex("#2E363C"); ninja.emission = Hex("#1FBFA8") * 1.4f; ninja.scale = 0.95f;
             ninja.moveset = Moveset("Legendary_Ninja_Moveset", "The Thirteenth Shade", new[]
             {
                 Entry("cut-cut-cut (the cadence you learn to ride)",   3f,   0f,   99f, ninjaCut, ninjaCut, ninjaCut),
@@ -361,28 +417,58 @@ namespace VibeGame1.EditorTools
             // --- EnemyData: The Iron Penitent -------------------------------------------------------
             var knight = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Knight.asset");
             knight.displayName = "THE IRON PENITENT";
-            knight.maxHP = 260f; knight.maxPosture = 190f; knight.postureRegen = 4f;
-            knight.postureRegenDelay = 3.5f; knight.staggerSeconds = 4.2f;
-            knight.moveSpeed = 3.4f; knight.turnSpeed = 210f; knight.aggroRange = 18f; knight.attackRange = 2.9f;
-            knight.attackCooldown = 0.5f; knight.parryRecoilSeconds = 0.75f; knight.aggression = 0.35f;
-            // Deliberately the LEAST aggressive non-boss in the game. Aggression compresses recovery and
-            // cooldown, and this enemy's entire design is the size of the gap after it swings.
-            knight.windupTurnMultiplier = 0.16f; knight.stepSpeedMultiplier = 0.26f;
+            // POSTURE 260, not 190. He now throws far more parryable hits per fight than anything else
+            // in the game, so the bar has to be long enough that surviving one spin is progress rather
+            // than the whole fight. With the sword (parryPostureDamage 25) a spin beat deflected is
+            // 25 x 1.3 = 32.5 and the spin-out is 25 x 1.6 = 40, so a clean six-hit spin is 202.5 of
+            // 260 — 78% — and SEVEN clean deflects break him from full. That is the economy: the reward
+            // for holding the cadence is huge, and blocking instead of deflecting is worth exactly zero
+            // enemy posture (only ParryResult.Perfect calls OnParried), so it must be real deflects.
+            knight.maxHP = 260f; knight.maxPosture = 260f; knight.postureRegen = 3.5f;
+            // 5.0 s of stagger: the longest in the game, and ~3.5x his own biggest recovery. This is the
+            // payoff the whole design points at — break him and you have all the time you need to walk
+            // in and take the deathblow (the sword's executeDamage 300 > his 260 HP, so it ends him).
+            knight.postureRegenDelay = 4f; knight.staggerSeconds = 5f;
+            knight.moveSpeed = 3.8f; knight.turnSpeed = 240f; knight.aggroRange = 18f; knight.attackRange = 3.4f;
+            knight.attackCooldown = 0.5f; knight.parryRecoilSeconds = 0.75f; knight.aggression = 0.55f;
+            // Aggression 0.55, up from 0.35. It compresses recovery (x0.64) and the combo gap, which is
+            // what makes the spin a cadence instead of a series of separate swings — but deliberately
+            // NOT 1.0, because the same multiplier would crush the spin-out window that is the reward.
+            // He turns better during a wind-up now (0.35): a spinning thing that cannot track you at all
+            // makes strafing a free answer, and the spin is supposed to be parried, not walked around.
+            knight.windupTurnMultiplier = 0.35f; knight.stepSpeedMultiplier = 0.26f;
             knight.stepAcceleration = 4.5f; knight.stepDeadzone = 0.95f;
-            knight.comboBreathSeconds = 0.85f; knight.readyDistanceMultiplier = 1.6f;
-            // 1.6x scale: bigger than the Heavy, smaller than the Warden, and it stands at 4.0m so the
-            // whole silhouette is on screen when the overhead starts.
-            knight.preferredRange = 4f; knight.commitTolerance = 0.8f; knight.repositionDeadzone = 0.5f;
-            knight.backStepSpeedMultiplier = 0.2f; knight.strafeSpeedMultiplier = 0.2f; knight.lungeMinDistance = 1.5f;
+            // comboBreathSeconds is a FLOOR on every recovery, mid-combo ones included, so the old 0.85
+            // made a cadence impossible: it put a near-second of dead air between every beat. At 0.18 the
+            // beat closes up, and the punish window is authored where it belongs instead — on the recovery
+            // of Knight_SpinOut, which ends every spin.
+            knight.comboBreathSeconds = 0.18f; knight.readyDistanceMultiplier = 1.6f;
+            // 1.6x scale at 4.2 m: preferredRange >= attackRange (3.4), and far enough out that a
+            // spinning 3.2 m silhouette is fully on screen instead of filling it.
+            knight.preferredRange = 4.2f; knight.commitTolerance = 0.8f; knight.repositionDeadzone = 0.5f;
+            // lungeMinDistance 3.0, up from 1.5, and the spin's per-beat lunge cut to 0.45 m. A six-beat
+            // spin that lunged 0.9 m a beat walked him from 4.2 m to 1.5 m over one phrase and left a
+            // 3.2 m silhouette filling the screen, where a wind-up cannot be read at all — the exact
+            // failure the preferredRange note warns about. He now cannot park closer than 3.0 m, and
+            // backStep is 0.35 rather than 0.2 so he actually resets his spacing between phrases.
+            knight.backStepSpeedMultiplier = 0.35f; knight.strafeSpeedMultiplier = 0.2f; knight.lungeMinDistance = 3f;
             knight.soulValue = 600;
-            knight.bodyColor = Hex("#0A0708"); knight.emission = Hex("#C0521A") * 1.4f; knight.scale = 1.6f;
+            knight.bodyColor = Hex("#443A34"); knight.emission = Hex("#C0521A") * 1.4f; knight.scale = 1.6f;
             knight.moveset = Moveset("Legendary_Knight_Moveset", "The Iron Penitent", new[]
             {
-                Entry("cleave-OVERHEAD (the bread and butter)",        3f,   0f,   99f, knightCleave, knightOverhead),
-                Entry("OVERHEAD (single, huge, free punish after)",    1.5f, 0f,   99f, knightOverhead),
-                Entry("cleave-cleave-OVERHEAD (two, then the break)",  2f,   0f,   99f, knightCleave, knightCleave, knightOverhead),
-                Entry("shove-cleave (closes, then commits)",           2f,   3.8f, 99f, knightShove, knightCleave),
-                Entry("shove-QUAKE (unblockable - run, then punish)",  1f,   3.4f, 99f, knightShove, knightQuake),
+                // The long spin is the signature and the most common thing he does: spool up, four beats
+                // on the metronome, then the exit that hands you the window. ~5.8 s of held cadence.
+                Entry("SPIN-UP-beat-beat-beat-beat-OUT (the cadence)", 3.5f, 0f,   99f, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinHit, knightSpinHit, knightSpinOut),
+                // The short spin. Same beat, fewer of them - so the length of a spin is not predictable
+                // and you cannot count your way to the window without watching for the exit.
+                Entry("short spin (same beat, three of them)",         2f,   0f,   99f, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinOut),
+                Entry("shove into the SPIN (closes, then whirls)",     2f,   3.6f, 99f, knightShove, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinHit, knightSpinOut),
+                // The tempo break. One 1.0 s wind-up in a fight of 0.94 s beats, to punish parrying on
+                // the metronome instead of on the tell.
+                Entry("OVERHEAD (the tempo break)",                    1.2f, 0f,   99f, knightOverhead),
+                // Far band only: these are what a player who backed out of spin range gets instead.
+                Entry("FURNACE VENT (punishes waiting it out)",        1.4f, 5f,   99f, knightVent),
+                Entry("VENT-shove-SPIN (vents you back in, then spins)", 0.9f, 5.5f, 99f, knightVent, knightShove, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinOut),
             });
             knight.combos = knight.moveset.ToComboArray();
             EditorUtility.SetDirty(knight);
@@ -402,7 +488,7 @@ namespace VibeGame1.EditorTools
             spellsword.preferredRange = 4.3f; spellsword.commitTolerance = 0.8f; spellsword.repositionDeadzone = 0.5f;
             spellsword.backStepSpeedMultiplier = 0.36f; spellsword.strafeSpeedMultiplier = 0.34f; spellsword.lungeMinDistance = 1.6f;
             spellsword.soulValue = 900;
-            spellsword.bodyColor = Hex("#0B0610"); spellsword.emission = Hex("#8A2ADF") * 1.5f; spellsword.scale = 1.5f;
+            spellsword.bodyColor = Hex("#3A3050"); spellsword.emission = Hex("#8A2ADF") * 1.5f; spellsword.scale = 1.5f;
             spellsword.moveset = Moveset("Legendary_Spellsword_Moveset", "The Ashen Chorister", new[]
             {
                 Entry("arc-thrust (the plain rhythm it teaches you)",  2.5f, 0f,   99f, swordArc, swordThrust),

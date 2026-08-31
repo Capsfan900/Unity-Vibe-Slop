@@ -22,8 +22,16 @@ Status: **prototype** — mechanics and feel are the deliverable, not content.
 ## Running it
 
 1. Open the project in Unity 6000.5.10f1.
-2. `VibeGame1 > Open Test Level` (or open `Assets/Scenes/Level_01.unity`).
-3. Press **Play**. Click once in the Game view to lock the cursor.
+2. `VibeGame1 > Open Main Menu Scene` (or open `Assets/Scenes/MainMenu.unity` — it is build index 0, so a
+   built game starts here too).
+3. Press **Play**. The cursor is unlocked in the menu: **PLAY** starts the first unlocked level,
+   **LEVEL SELECT** lists every level in `Assets/Data/LevelRegistry.asset` with its par and your personal
+   best, plus a `SANDBOX` practice arena.
+4. Entering a level locks the cursor automatically. `Esc` pauses; **MAIN MENU** on the pause screen comes
+   back here.
+
+To skip the menu and work on a level directly, `VibeGame1 > Open Test Level`
+(`Assets/Scenes/Level_01.unity`) and press Play; click once in the Game view to lock the cursor.
 
 If anything looks broken (magenta materials, frozen HUD bars, enemies standing still), run
 `VibeGame1 > Health Check` first — it names the exact problem.
@@ -38,7 +46,8 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | Dash | `Left Shift` | B / Circle |
 | Attack | `LMB` | RB |
 | **Parry** | `RMB` | LB |
-| Execute / Deathblow | `LMB` when the prompt shows | RB |
+| **Lock on / switch / release** | `MMB` (middle mouse) | Right stick click |
+| Deathblow | `LMB` **aimed at an enemy carrying the violet marker** | RB |
 | Heal (flask) | `F` | D-pad Up |
 | **Choose wand** (aim at the altar at the start of a level) | `F` | D-pad Down |
 | **Super attack** (needs a full PYRE bar; unique to each weapon) | `Q` | Y / Triangle |
@@ -49,6 +58,14 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 
 `F` is shared: while a wand altar's `[F]  CHOOSE WAND` prompt is showing it opens the wand menu, otherwise it
 drinks a flask. `R` still cycles wands as a debug convenience.
+
+**Lock-on is one key doing three things**, resolved by where you are aiming when you press it: nothing
+locked, it locks the enemy nearest the crosshair; already locked and still looking at it, it releases;
+already locked but looking somewhere else, it switches to whatever is nearest the crosshair now. A small
+pale dot appears on the locked enemy's chest. While it is held the camera softly keeps the target framed
+when your mouse is still, so you can strafe around it — **the mouse always wins**: move it and the assist
+stands down instantly, and swing far enough away (about 60 degrees) and the lock drops. It also drops on
+its own when the target dies, leaves range or stays behind cover.
 
 ### Dev keys — editor and development builds only
 
@@ -70,6 +87,12 @@ Implemented in `Assets/Scripts/Debug/DebugKeys.cs`; compiled out of release buil
   your PYRE. Late = block: reduced damage, it costs **your** posture, and it stokes PYRE at only 35%.
 - **Posture.** Both sides have it. Fill an enemy's to open a **deathblow**. Let yours fill and you are
   staggered for 1.5 s at 0.4× speed, unable to act, taking 1.6× damage.
+- **Deathblow.** When you break an enemy's posture a spinning **violet glyph** appears over its head —
+  that one is ready to be killed. Attack *that* enemy and the swing becomes a deathblow: the glyph
+  shatters, the blow commits, and it is unmistakably not a normal swing. An attack press with no marked
+  enemy in front of you is always just a swing. The glyph vanishes the moment the enemy recovers, so the
+  window is exactly as long as it looks. (Not the same as the **hot pink** cube, which means an
+  unblockable attack is coming — that one you get away from.)
 - **Enemies press you.** Grunts and Heavies are relentless by design — short recovery, they close distance
   while recovering, and a deflect does **not** end their combo. Wind-ups never drop below 0.45 s and the
   cue always fires the same lead before impact, so the pressure rises without becoming unreactable.
