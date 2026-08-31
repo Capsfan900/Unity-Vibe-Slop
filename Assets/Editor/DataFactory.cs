@@ -37,11 +37,33 @@ namespace VibeGame1.EditorTools
                 // the quick opener/filler — short recovery keeps the exchange rolling
                 a.windup = 0.45f; a.impactDelay = 0.04f; a.strikeDuration = 0.16f; a.recovery = 0.3f;
                 a.range = 2.6f; a.coneDeg = 70f; a.damage = 13f; a.lungeDistance = 0.7f; a.comboGap = 0.16f;
+                // SILHOUETTE, MEASURED on screen at 3.8 m: tilt 10 deg, length 0.89 body-heights,
+                // tip 0.92 bh right of centre at 0.20 bh up -- a LEVEL BAR at chest height, out past the
+                // enemy's left, with the body barely moving. Smallest read in the moveset; that IS the
+                // tell, because it is the fast one.
+                // Two earlier passes died here. Cocking the blade forward-down made it VANISH: a blade
+                // pointing at the camera has no silhouette and one pointing at the floor is black on a
+                // black platform. Only a blade held ACROSS the view has an outline. This one is kept
+                // because it MEASURED well, not because the numbers looked right.
+                // at hip height, out past the enemy's right hip, with the body barely moving. Smallest
+                // read in the moveset, which is the tell: it is the fast one.
+                // The first pass cocked the blade forward-down (34, 8, -12) and it VANISHED -- a blade
+                // pointing at the camera has no silhouette, and one pointing at the floor is black on a
+                // black platform. Only a blade held ACROSS the view has an outline.
+                Pose(a, new Vector3(-20f, 60f, -40f), new Vector3(88f, -166f, 149f),
+                     new Vector3(0f, -0.06f, -0.08f), new Vector3(2f, 12f, 0f), 0.35f);
             });
             var gruntSlash = Attack("Grunt_Slash", a =>
             {
                 a.windup = 0.5f; a.impactDelay = 0.05f; a.strikeDuration = 0.2f; a.recovery = 0.35f;
                 a.range = 2.7f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0.75f; a.comboGap = 0.2f;
+                // SILHOUETTE, MEASURED: tilt -45 deg, length 0.88 bh, tip 0.40 bh LEFT of centre at
+                // 0.61 bh up -- the MIDDLE rung, a true 45-degree diagonal climbing to the player's left.
+                // The jab's bar goes right, this goes left and up: opposite side AND opposite angle.
+                // The old value was authored as a diagonal and MEASURED at tilt 87 -- a vertical, i.e.
+                // the shape the heavy was supposed to own. Solved against the screen, not the rig.
+                Pose(a, new Vector3(-3f, -71f, -69f), new Vector3(38f, -51f, -23f),
+                     new Vector3(0.14f, 0.06f, -0.16f), new Vector3(-6f, 20f, 0f), 0.45f);
             });
             var gruntHeavy = Attack("Grunt_Heavy", a =>
             {
@@ -49,49 +71,122 @@ namespace VibeGame1.EditorTools
                 a.windup = 0.72f; a.impactDelay = 0.06f; a.strikeDuration = 0.22f; a.recovery = 0.5f;
                 a.range = 2.8f; a.coneDeg = 60f; a.damage = 26f; a.lungeDistance = 1.15f;
                 a.comboGap = 0.22f; a.parryPostureMultiplier = 1.3f;
+                // SILHOUETTE, MEASURED: tilt 88 deg, length 0.87 bh, tip 0.20 bh right of centre at
+                // 1.16 bh UP -- a vertical MAST standing more than a body-height above the head, while the
+                // body sinks and coils back. Lowest body and highest weapon in the moveset, against the
+                // jab's unmoved body and chest-height bar.
+                // THE PAIR THAT MATTERS: jab (0.45 s) vs heavy (0.72 s, best deflect value). They are now
+                // a horizontal bar and a vertical mast -- told apart by outline alone at three frames.
+                // The old value MEASURED at tilt -3, length 0.38 bh: a SHORT HORIZONTAL STUB at head
+                // height, i.e. the same family as the jab and half its length. It read as the smallest
+                // shape in the moveset when it is meant to be the biggest.
+                Pose(a, new Vector3(161f, -109f, -27f), new Vector3(43f, -3f, -18f),
+                     new Vector3(0f, -0.20f, -0.34f), new Vector3(-20f, 0f, 0f), 0.55f);
             });
             var heavyStep = Attack("Heavy_Step", a =>
             {
                 // an advancing jab so the Heavy can close distance mid-combo instead of whiffing
                 a.windup = 0.5f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.3f;
                 a.range = 3.0f; a.coneDeg = 70f; a.damage = 20f; a.lungeDistance = 1.4f; a.comboGap = 0.18f;
+                // SILHOUETTE, MEASURED at 4.5 m: tilt -55 deg, length 0.74 bh, tip 0.12 bh left of centre
+                // at 0.02 bh -- a steep bar hanging LOW, level with the body's middle. The ONLY wind-up
+                // whose body travels TOWARD the player: the read is "it is closing", which is what a step
+                // is, and the low blade keeps an outline without competing with the body.
+                Pose(a, new Vector3(36f, 56f, 7f), new Vector3(0f, 88f, 32f),
+                     new Vector3(0f, -0.10f, 0.22f), new Vector3(10f, 0f, 0f), 0.4f);
             });
             var heavyOverhead = Attack("Heavy_Overhead", a =>
             {
                 a.windup = 0.75f; a.recovery = 0.5f; a.range = 3.2f; a.coneDeg = 60f;
                 a.damage = 32f; a.lungeDistance = 1.3f; a.comboGap = 0.22f; a.parryPostureMultiplier = 1.3f;
+                // SILHOUETTE, MEASURED: tilt 88 deg, length 0.89 bh, tip 0.04 bh LEFT of centre at
+                // 1.20 bh UP -- a PURE VERTICAL mast, dead centre, over a body that rises. The tallest
+                // shape the Heavy makes.
+                // THE PAIR THAT MATTERS: overhead (vertical answer) vs sweep (horizontal answer). The old
+                // values MEASURED at tilt 74 / tip (0.36, 0.82) and tilt 63 / tip (0.40, 0.79) -- two
+                // steep diagonals landing in the same place, i.e. the two attacks with opposite correct
+                // responses looked the same. They are now 88 and 0 degrees.
+                // The old overhead also measured 0.51 bh long: it lay back over the head pointing away
+                // from the camera and foreshortened to half a blade, and it turned its lit face away, so
+                // the biggest-damage attack drew the DARKEST, SHORTEST mark in the set.
+                Pose(a, new Vector3(50f, 165f, 114f), new Vector3(45f, 3f, -20f),
+                     new Vector3(0f, 0.24f, -0.06f), new Vector3(-14f, 0f, 0f), 0.5f);
             });
             var heavySweep = Attack("Heavy_Sweep", a =>
             {
                 a.windup = 0.55f; a.recovery = 0.35f; a.range = 3.1f; a.coneDeg = 110f;
                 a.damage = 23f; a.lungeDistance = 0.8f; a.comboGap = 0.2f;
+                // SILHOUETTE, MEASURED: tilt 0 deg, length 0.90 bh, tip 0.91 bh right of centre at
+                // 0.10 bh -- a PERFECTLY LEVEL BAR at chest height, torso wound 34 degrees. Widest shape
+                // the Heavy makes, against the overhead's tallest. Vertical answer vs horizontal answer,
+                // told apart by outline alone; see the overhead's note for what these used to measure.
+                Pose(a, new Vector3(65f, 146f, -164f), new Vector3(92f, -183f, 129f),
+                     new Vector3(0.20f, -0.08f, -0.14f), new Vector3(0f, 34f, 0f), 0.5f);
             });
             var bossSlash = Attack("Boss_Slash", a =>
             {
                 a.windup = 0.5f; a.recovery = 0.6f; a.range = 3.9f; a.coneDeg = 80f;
                 a.damage = 30f; a.lungeDistance = 1.5f;
+                // SILHOUETTE, MEASURED at 5.7 m: tilt -60 deg, length 0.80 bh, tip 0.39 bh LEFT of centre
+                // at 0.87 bh up -- a STEEP diagonal climbing to the player's left, high. The highest of
+                // the boss's three diagonals; the double-slash pair sits half a body lower and shallower.
+                Pose(a, new Vector3(165f, -46f, -58f), new Vector3(28f, -46f, -14f),
+                     new Vector3(-0.18f, 0.10f, -0.20f), new Vector3(-8f, -24f, 0f), 0.45f);
             });
             var bossDoubleA = Attack("Boss_DoubleSlash_A", a =>
             {
                 a.windup = 0.45f; a.recovery = 0.7f; a.range = 3.9f; a.coneDeg = 80f;
                 a.damage = 25f; a.comboGap = 0.15f; a.lungeDistance = 1.3f;
+                // SILHOUETTE, MEASURED: tilt +30 deg, length 0.86 bh, tip 0.73 bh RIGHT of centre at
+                // 0.36 bh -- a SHALLOW diagonal, mid-height, wound right. Half a body lower and 30 degrees
+                // flatter than Boss_Slash, and mirrored by hit B so the pair reads as one right-then-left
+                // double rather than two unrelated fast swings.
+                // Confusing A with B costs nothing -- they always play in that order. Confusing either
+                // with the slam or the thrust costs everything, which is where the budget went.
+                Pose(a, new Vector3(-136f, -31f, -112f), new Vector3(-14f, 157f, 26f),
+                     new Vector3(0.22f, -0.04f, -0.12f), new Vector3(0f, 30f, 0f), 0.4f);
             });
             var bossDoubleB = Attack("Boss_DoubleSlash_B", a =>
             {
                 // was 0.3 — at/below human visual reaction time, so the second hit was unparryable
                 a.windup = 0.45f; a.recovery = 0.7f; a.range = 3.9f; a.coneDeg = 80f;
                 a.damage = 25f; a.lungeDistance = 1.3f;
+                // SILHOUETTE, MEASURED: tilt -30 deg, tip 0.39 bh LEFT of centre at 0.36 bh -- hit A's
+                // angle and height, opposite side. Same beat, mirrored.
+                Pose(a, new Vector3(-4f, -49f, -51f), new Vector3(-21f, -143f, -7f),
+                     new Vector3(-0.22f, -0.04f, -0.12f), new Vector3(0f, -30f, 0f), 0.4f);
             });
             var bossSlam = Attack("Boss_Slam", a =>
             {
                 a.windup = 0.9f; a.recovery = 1.1f; a.range = 4.3f; a.coneDeg = 90f;
                 a.damage = 45f; a.lungeDistance = 2.2f; a.parryPostureMultiplier = 1.5f;
+                // SILHOUETTE, MEASURED: tilt 88 deg, length 0.90 bh, tip 0.12 bh right of centre at
+                // 1.17 bh UP -- a vertical MAST over a body lifted and arched back. At 2.2x scale that is
+                // the tallest shape in the game, the height of the arena gate.
+                // It used to play the cone-derived SWEEP fallback (cone 90) -- the slam telegraphed as a
+                // horizontal swing -- and the first authored pass MEASURED at tilt 63, length 0.54 bh:
+                // still a diagonal, still half a blade, still in the same family as the two slashes.
+                Pose(a, new Vector3(152f, -73f, -18f), new Vector3(38f, -3f, -22f),
+                     new Vector3(0f, 0.34f, -0.10f), new Vector3(-24f, 0f, 0f), 0.6f);
             });
             var bossThrust = Attack("Boss_Thrust", a =>
             {
                 // unblockable: the only counter is repositioning, so it needs the longest read in the set
                 a.windup = 0.85f; a.recovery = 0.9f; a.range = 4.5f; a.coneDeg = 30f;
                 a.damage = 55f; a.lungeDistance = 2.9f; a.unblockable = true;
+                // SILHOUETTE, MEASURED: tilt -7 deg, length 0.40 bh, tip 0.10 bh left of centre at
+                // -0.17 bh -- and every one of those numbers is the opposite of the other four. It is the
+                // ONLY boss pose BELOW the body's centre line, the ONLY flat one, and the ONLY short one
+                // (0.40 bh against 0.80-0.90), because the blade is aimed down the camera and foreshortens
+                // on purpose. The body turns 46 degrees bladed and sinks while RETREATING -- the only
+                // wind-up that gets shorter and further away.
+                // UNBLOCKABLE: the answer is to MOVE, not to parry, and getting it wrong costs 55. This is
+                // the one pose in the whole audit that MEASURED as intended on the first pass, so it is
+                // shipped UNCHANGED while the other ten were re-solved against the screen.
+                // Low weapon lag on purpose -- this blade stays rigid and pointed, it does not whip.
+                // This ADDS to the M_AlertTell marker (peak 3.0); it does not replace it.
+                Pose(a, new Vector3(140f, -180f, 90f), new Vector3(-40f, -180f, 90f),
+                     new Vector3(0f, -0.34f, -0.62f), new Vector3(0f, 46f, 0f), 0.25f);
             });
 
             // ---------------- Enemies ----------------
@@ -501,6 +596,177 @@ namespace VibeGame1.EditorTools
             spellsword.combos = spellsword.moveset.ToComboArray();
             EditorUtility.SetDirty(spellsword);
 
+            // --- Marionette: THE PALE MARIONETTE. PROTOTYPE. ----------------------------------------
+            //
+            // A Mad-Clown-Puppet-shaped fight: the body whirls continuously and you deflect EVERY PASS,
+            // holding a rhythm rather than reading discrete telegraphs. It is deliberately NOT wired
+            // into Level_01 — it exists on a sandbox pad only. See docs/ARCHITECTURE.md.
+            //
+            // ===== THE ONE DESIGN PROBLEM AND ITS RESOLUTION =====================================
+            // "Spin really fast" and "no wind-up below 0.45 s" cannot both be satisfied by one number,
+            // because the parry cue fires cueLead (0.28 s) before impact and a faster wind-up would
+            // need it to fire before the wind-up began. THE VISUAL SPIN RATE AND THE HIT CADENCE ARE
+            // THEREFORE DIFFERENT QUANTITIES. The body's peak rate is ~4.5 revolutions per second
+            // (PuppetVisuals.spinPeakMultiple, pure presentation, no timing attached); the damaging
+            // passes arrive every 0.76 s, from a 0.50 s wind-up. One revolution still equals one pass:
+            // the whirl is non-uniform, blurring through the back of the turn and DECELERATING into
+            // the player, so the slow-down is the wind-up and the cue lands as it comes around.
+            //
+            // ===== THE BEAT, AND WHY IT CANNOT DRIFT =============================================
+            // Unparried beat = windup(0.50) + gap(0.10) + impactDelay(0.04) + strike(0.12) = 0.76 s.
+            // Parried beat   = recoil + windup(0.50) + gap(0.10) + impactDelay(0.04).
+            // A deflect routes through EnemyController.OnParried -> Recover(parryRecoilSeconds x
+            // lerp(1,0.55,aggression)) -> ResumeCombo, so the two are only equal if the recoil is
+            // sized to stand in for the strike. At aggression 0.62 the multiplier is 0.719, so
+            // parryRecoilSeconds 0.167 gives a 0.120 s recoil and a 0.760 s parried beat — the SAME
+            // beat, to within a millisecond. That is the whole reason the number is 0.167 and not a
+            // round one: a fight whose tempo changes depending on whether you succeeded is a fight
+            // nobody can learn. (Residual: a perfect parry may land up to parryPerfectWindow / 2
+            // early, so the beat can be pulled in by <= 0.065 s. Bounded, player-caused, and it
+            // rewards parrying late-in-window rather than punishing anything.)
+            // The gap is ALSO drift-proof by construction: NextGap floors at 0.10 s and
+            // 0.12 x 0.719 = 0.086 is already under the floor, so neither aggression nor the parry
+            // streak can compress it further. The beat is the same on hit 1 and on hit 9.
+            var marSpinPass = Attack("Marionette_SpinPass", a =>
+            {
+                // THE BEAT. 0.50 s wind-up: 0.05 over the floor, so the deceleration into alignment
+                // has room to read and the cue at 0.28 s out still lands with the body ~85 deg off and
+                // visibly slowing. 200 deg cone because a thing with a 1.75 m arm span coming around
+                // at you is not something you sidestep; 0.35 m of lunge per pass so backing off half a
+                // metre a beat does not walk you out of the fight for free.
+                a.windup = 0.50f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.20f;
+                // lungeDistance 0.60, not 0.35. THE SPIN HAS TO CHASE. Measured in the sandbox: after
+                // the overhead's knockback put the player 7.4 m out, a 0.35 m pass closed the gap at
+                // roughly 0.1 m per beat, so the puppet spent the rest of a seven-second phrase
+                // whirling harmlessly out of reach while the player walked away. Backing off must cost
+                // something, and the far-band lash cannot answer it because the moveset only reselects
+                // between phrases. At 0.60 m a pass the spin walks 4.8 m over an eight-pass phrase and
+                // is genuinely on top of you again by the exit. lungeMinDistance (2.8 on the data)
+                // still stops it burrowing in.
+                a.range = 3.9f; a.coneDeg = 200f; a.damage = 17f; a.lungeDistance = 0.60f;
+                a.comboGap = 0.12f; a.parryPostureMultiplier = 1.4f;
+            });
+            var marSpinUp = Attack("Marionette_SpinUp", a =>
+            {
+                // The spool-up: the strings go taut and it starts to turn. Longest read in the set, so
+                // "the spin is starting" is never a surprise. Same name prefix as the beat, so
+                // PuppetVisuals whirls on it too — the first revolution is the slowest one.
+                a.windup = 0.95f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.20f;
+                a.range = 3.9f; a.coneDeg = 200f; a.damage = 18f; a.lungeDistance = 0.55f;
+                a.comboGap = 0.12f; a.parryPostureMultiplier = 1.4f;
+            });
+            var marSpinOut = Attack("Marionette_SpinOut", a =>
+            {
+                // THE EXIT, AND THE OUT THAT IS NOT PARRYING. It over-rotates, unwinds, and hangs on
+                // its strings for 2.0 s of authored recovery (~1.4 s after aggression) — by a wide
+                // margin the biggest punish window it offers. A player who cannot hold the rhythm can
+                // simply BLOCK the passes (block costs stamina and zero enemy posture, so it does not
+                // progress the break) and cash the spin-out for damage instead. Two routes to the same
+                // corpse: deflect it to death by posture, or tank it and out-damage it. Its 170 HP —
+                // low for a duellist — is what makes the second route real.
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 2.0f;
+                a.range = 4.1f; a.coneDeg = 200f; a.damage = 26f; a.lungeDistance = 0.55f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.6f;
+            });
+            var marOverhead = Attack("Marionette_Overhead", a =>
+            {
+                // THE TEMPO BREAK. Deliberately NOT named with the spin prefix, so PuppetVisuals plays
+                // it square-on with no whirl at all: the body stopping IS the tell. One 1.0 s wind-up
+                // dropped into a fight of 0.76 s beats, to punish a player parrying on the metronome
+                // instead of on the body.
+                a.windup = 1.0f; a.impactDelay = 0.07f; a.strikeDuration = 0.24f; a.recovery = 1.0f;
+                // range 3.7 = preferredRange exactly, so the overhead reaches WITHOUT relying on its
+                // own lunge to bail it out. Caught by MarionetteDataTests at 3.4: it landed in play
+                // only because 1.7 m of lunge closed the gap first, which is a coincidence, not a
+                // design. The narrow 65 deg cone is what keeps it distinct from the 200 deg passes.
+                a.range = 3.7f; a.coneDeg = 65f; a.damage = 40f; a.lungeDistance = 1.7f;
+                a.comboGap = 0.35f; a.parryPostureMultiplier = 1.9f;
+            });
+            var marLash = Attack("Marionette_Lash", a =>
+            {
+                // THE ANTI-CAMP, same job as Knight_Vent. A wide unblockable string-lash out to 8 m,
+                // gated in the moveset to the FAR band only. It exists so "back off and wait the spin
+                // out" is never the optimal line: retreating past its reach is precisely what SELECTS
+                // this move, and it cannot be parried, only walked out of.
+                a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.3f; a.recovery = 1.5f;
+                a.range = 8.0f; a.coneDeg = 175f; a.damage = 30f; a.lungeDistance = 0f;
+                a.comboGap = 0.45f; a.unblockable = true;
+            });
+
+            // --- EnemyData: The Pale Marionette -----------------------------------------------------
+            var marionette = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Marionette.asset");
+            marionette.displayName = "THE PALE MARIONETTE";
+            // ===== THE POSTURE ECONOMY: SIX CLEAN DEFLECTS BREAK IT =============================
+            // It breaks EARLY on a deflect chain rather than running a fixed number of revolutions,
+            // and it does so through the ORDINARY posture system with no special case. With the sword
+            // (parryPostureDamage 25) a deflected pass is 25 x 1.4 = 35, so 6 x 35 = 210 = the whole
+            // bar. The spin phrase is EIGHT passes long, so a clean player breaks it two passes before
+            // it would have ended on its own and a sloppy one has to survive the whole thing — the
+            // player's rhythm, not a script, decides how long the spin lasts. A fixed revolution count
+            // would have made skill irrelevant to the outcome, which is the opposite of the reference
+            // fight, where deflecting IS the offence.
+            marionette.maxHP = 170f; marionette.maxPosture = 210f; marionette.postureRegen = 6f;
+            // regenDelay 3.5 s is longer than four beats, so posture never regenerates mid-spin and the
+            // six deflects do not have to be consecutive within one revolution to count.
+            marionette.postureRegenDelay = 3.5f; marionette.staggerSeconds = 4f;
+            marionette.moveSpeed = 5f; marionette.turnSpeed = 300f; marionette.aggroRange = 18f;
+            marionette.attackRange = 3.2f;
+            marionette.attackCooldown = 0.35f;
+            // 0.167 x lerp(1, 0.55, 0.62) = 0.120 s. See the beat arithmetic above — this number is
+            // derived, not tuned by feel, and changing aggression means re-deriving it.
+            marionette.parryRecoilSeconds = 0.167f; marionette.aggression = 0.62f;
+            // Low windup turn: a whirling thing that tracked you perfectly would make the arc
+            // unavoidable AND unreadable. It commits its facing and the arc is wide enough (200 deg)
+            // that stepping out is a real but not free answer.
+            marionette.windupTurnMultiplier = 0.28f; marionette.stepSpeedMultiplier = 0.3f;
+            marionette.stepAcceleration = 6f; marionette.stepDeadzone = 0.95f;
+            // comboBreathSeconds is a FLOOR on every recovery including mid-combo ones, so it must sit
+            // UNDER the 0.20 s authored recovery or it would silently stretch the beat and make the
+            // 0.76 s arithmetic above a lie.
+            marionette.comboBreathSeconds = 0.18f; marionette.readyDistanceMultiplier = 1.6f;
+            // 3.7 m at 1.15x scale: preferredRange >= attackRange, and far enough that a 1.75 m arm
+            // span whirling at 4.5 rev/s is a legible silhouette rather than a screenful of noise.
+            marionette.preferredRange = 3.7f; marionette.commitTolerance = 0.7f;
+            marionette.repositionDeadzone = 0.45f;
+            // lungeMinDistance 2.8: eight passes of 0.35 m would otherwise walk it from 3.7 m to 0.9 m
+            // over one phrase, exactly the failure the preferredRange note warns about.
+            marionette.backStepSpeedMultiplier = 0.34f; marionette.strafeSpeedMultiplier = 0.26f;
+            marionette.lungeMinDistance = 2.8f;
+            marionette.soulValue = 550;
+            // Bone-white body, cold porcelain glow — it is a puppet, not a furnace. The eye/lantern
+            // rides Posture.Ratio like every other enemy, so it burns hotter as the break approaches.
+            marionette.bodyColor = Hex("#D8D2C4"); marionette.emission = Hex("#4FE0D0") * 1.5f;
+            marionette.scale = 1.15f;
+            marionette.moveset = Moveset("Legendary_Marionette_Moveset", "The Pale Marionette", new[]
+            {
+                // THE SIGNATURE, and by far the most common thing it does: spool up, then eight passes
+                // on an unwavering 0.76 s beat, then the exit. ~7.1 s of held cadence. Eight is chosen
+                // against the posture economy above: six clean deflects break it, so the phrase is two
+                // passes longer than a perfect player needs.
+                // maxRange 6 on every spin phrase, not 99. A phrase is chosen ONCE and then runs to its
+                // end, so a spin selected from 8 m is eight passes of whirling at nothing — measured,
+                // not theorised. 6 m is preferredRange (3.7) plus commitTolerance (0.7) plus room for
+                // the player to have backed off a step, and it is under the lash's 5 m floor by enough
+                // that the two bands genuinely overlap rather than leaving a dead zone.
+                Entry("SPIN-UP + 8 passes + OUT (the cadence)",        4f,   0f,   6f,
+                      marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
+                      marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
+                // The short spin: same beat, fewer passes, so the LENGTH of a spin is not predictable
+                // and you cannot count your way to the exit without watching for it.
+                Entry("short spin (same beat, four passes)",           2f,   0f,   6f,
+                      marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
+                // The tempo break. One square-on 1.0 s wind-up, no whirl at all.
+                Entry("OVERHEAD (the tempo break)",                    1.2f, 0f,   99f, marOverhead),
+                Entry("overhead into the spin",                        1f,   0f,   6f,
+                      marOverhead, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
+                // Far band only: what a player who backed out of spin range gets instead of a rest.
+                Entry("STRING LASH (punishes waiting it out)",         1.6f, 5f,   99f, marLash),
+                Entry("LASH into the spin (drags you back in)",        1f,   5.5f, 99f,
+                      marLash, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
+            });
+            marionette.combos = marionette.moveset.ToComboArray();
+            EditorUtility.SetDirty(marionette);
+
             // ---------------- Weapons ----------------
             var sword = GetOrCreate<WeaponData>(WeaponsDir + "/Sword.asset");
             sword.displayName = "Cerulean Edge";
@@ -518,6 +784,9 @@ namespace VibeGame1.EditorTools
             sword.superRadius = 5.5f; sword.superArcDeg = 170f; sword.superHits = 1;
             sword.superWindup = 0.30f; sword.superActive = 0.14f; sword.superRecover = 0.30f;
             sword.superHitStop = 0.10f; sword.superShake = 0.45f; sword.superKnockback = 2.5f;
+            // VIEWMODEL SCALE (rule 9: written here or it never reaches the asset). The whole set is
+            // dagger-scale now; the sword is the longest of the four at 0.32 m above the fist.
+            sword.viewmodelScale = 0.52f;
             ResetPosesToDefaults(sword);
             EditorUtility.SetDirty(sword);
 
@@ -539,11 +808,16 @@ namespace VibeGame1.EditorTools
             hammer.superRadius = 7.5f; hammer.superArcDeg = 360f; hammer.superHits = 1;
             hammer.superWindup = 0.52f; hammer.superActive = 0.12f; hammer.superRecover = 0.46f;
             hammer.superHitStop = 0.20f; hammer.superShake = 0.9f; hammer.superKnockback = 6f;
+            hammer.viewmodelScale = 0.50f;   // short haft, all the volume in the head
             ResetPosesToDefaults(hammer);
             hammer.idle = new Pose(new Vector3(0.5f, -0.4f, 0.75f), new Vector3(0f, -15f, 0f));
             hammer.windup = new Pose(new Vector3(0.65f, 0.1f, 0.4f), new Vector3(-60f, -40f, 20f));
             hammer.swingEnd = new Pose(new Vector3(-0.2f, -0.6f, 0.9f), new Vector3(45f, 30f, -30f));
             hammer.parry = new Pose(new Vector3(0.05f, -0.2f, 0.6f), new Vector3(0f, 90f, 80f));
+            // The hammer guards with its MASS, not its edge: the head is carried lower and further
+            // out than any blade, and it is the one weapon whose volume would occlude the enemy if it
+            // came up to blade height. Rolled less, so the head sits beside the frame rather than in it.
+            hammer.guard = new Pose(new Vector3(0.38f, -0.22f, 0.62f), new Vector3(-6f, 34f, 48f));
             hammer.executeWindup = new Pose(new Vector3(0.5f, 0.5f, 0.4f), new Vector3(-90f, -20f, 10f));
             EditorUtility.SetDirty(hammer);
 
@@ -569,12 +843,18 @@ namespace VibeGame1.EditorTools
             dagger.idle = new Pose(new Vector3(0.4f, -0.3f, 0.6f), new Vector3(0f, -5f, 0f));
             dagger.windup = new Pose(new Vector3(0.5f, -0.2f, 0.45f), new Vector3(-10f, -40f, 20f));
             dagger.swingEnd = new Pose(new Vector3(-0.1f, -0.35f, 0.8f), new Vector3(10f, 30f, -30f));
+            // The reference silhouette. It reads best in first person, so its on-screen size is the
+            // target every other weapon was rebuilt against — do not change it without a playtest.
+            // The needle guards TIGHT — pulled in toward the body and steeper, which is what a
+            // stiletto with no guard to hide behind actually does. Also the least screen it can take.
+            dagger.guard = new Pose(new Vector3(0.29f, -0.12f, 0.56f), new Vector3(-14f, 46f, 64f));
+            dagger.viewmodelScale = 0.50f;
             EditorUtility.SetDirty(dagger);
 
             // Test weapon: slot 4, for fighting the boss quickly (F5 warps there). Very forgiving parry window.
             var dev = GetOrCreate<WeaponData>(WeaponsDir + "/DevBlade.asset");
             dev.displayName = "Oathbreaker (TEST)";
-            dev.neon = Hex("#7FFF9A");
+            dev.neon = Hex("#C6A6FF");   // pale violet: Rosethorn owns green, and the two must never be confused
             dev.baseDamage = 60f; dev.postureDamage = 40f; dev.executeDamage = 1000f;
             dev.strScale = 0.5f; dev.dexScale = 0.5f; dev.arcScale = 0.5f;
             dev.comboLength = 3; dev.comboMultipliers = new[] { 1f, 1f, 1.6f };
@@ -588,7 +868,7 @@ namespace VibeGame1.EditorTools
             dev.superRadius = 12f; dev.superArcDeg = 360f; dev.superHits = 1;
             dev.superWindup = 0.06f; dev.superActive = 0.10f; dev.superRecover = 0.24f;
             dev.superHitStop = 0.14f; dev.superShake = 0.7f; dev.superKnockback = 4f;
-            dev.viewmodelScale = 0.5f;
+            dev.viewmodelScale = 0.53f;
             ResetPosesToDefaults(dev);
             EditorUtility.SetDirty(dev);
 
@@ -646,6 +926,21 @@ namespace VibeGame1.EditorTools
             stats.blockPostureMultiplier = 0.9f;
             stats.hitPostureMultiplier = 0.5f;
             stats.staggeredDamageMultiplier = 1.6f;
+            // GUARD (hold RMB) — rule 9: these three ARE the guard. A field initialiser would never
+            // reach the PlayerStats asset that already exists on disk, and a guard that charges 0
+            // posture is a guard that cannot be broken.
+            //   chip 0     — a guard costs POSTURE, not health. That is the Sekiro contract and the
+            //                reason a second bar exists. Guarding is still strictly worse than
+            //                deflecting (posture + no Pyre + no enemy posture) and strictly better than
+            //                being hit (no health at all).
+            //   posture 1.5 — the largest multiplier in the game, against 0.9 for a timed block and 0.5
+            //                for a raw hit, because posture is the ONLY price the guard charges. Three
+            //                guarded hits from a 20-damage attack fill a 100-posture bar and break you,
+            //                and a break is 1.5 s of 1.6x damage. Turtling loses, out loud.
+            //   regen 0    — no refund while the blade is still up, or the fight is a stalemate.
+            stats.guardChipDamageMultiplier = 0f;
+            stats.guardPostureMultiplier = 1.5f;
+            stats.guardPostureRegenMultiplier = 0f;
             // Pyre — the parry charge meter that replaced parry juice. Also a design contract: the
             // block fraction is what makes a perfect deflect worth chasing over a safe block, and an
             // asset created before this existed would otherwise ship a 0 and never light the weapon.
@@ -664,6 +959,11 @@ namespace VibeGame1.EditorTools
             // shipped arbitration value is written here. 1 is deliberate — two attacks landing from
             // different angles inside the same 130 ms parry window are not simultaneously answerable.
             feel.maxSimultaneousAttackers = 1;
+            // Guard impact feel (rule 9). Shorter hitstop than a deflect's 0.09 — a guard is a thud,
+            // not a beat you earned — and a real shove, because the guard eats the damage and the blow
+            // has to land somewhere the player can feel.
+            feel.guardHitStop = 0.05f;
+            feel.guardShove = 1.2f;
             EditorUtility.SetDirty(feel);
 
             // ---- campaign registry ----
@@ -731,6 +1031,32 @@ namespace VibeGame1.EditorTools
             };
         }
 
+        /// <summary>
+        /// Writes an authored wind-up silhouette onto an attack. CLAUDE.md rule 9: a pose left as a field
+        /// initialiser on <see cref="WindupPose"/> would never reach the 25+ attack assets that already
+        /// exist on disk, so every authored value is written here.
+        ///
+        /// <para>Timing is NOT touched by any of this. <c>windup</c>, <c>impactDelay</c> and the cue lead
+        /// are calibrated against each other and against the parry window; a pose only changes what the
+        /// body LOOKS like for a duration that was already decided.</para>
+        ///
+        /// <para>Attacks with no call to this fall back to the cone-derived generic pose in
+        /// <c>EnemyVisuals</c>, which is why most of the roster needs no entry.</para>
+        /// </summary>
+        static void Pose(EnemyAttackData a, Vector3 arm, Vector3 strike, Vector3 bodyOffset,
+                         Vector3 bodyEuler, float lag)
+        {
+            a.windupPose = new WindupPose
+            {
+                authored = true,
+                armWindup = arm,
+                armStrike = strike,
+                bodyOffset = bodyOffset,
+                bodyEuler = bodyEuler,
+                weaponLag = lag,
+            };
+        }
+
         static EnemyAttackData Attack(string name, System.Action<EnemyAttackData> configure)
         {
             var a = GetOrCreate<EnemyAttackData>(AttacksDir + "/" + name + ".asset");
@@ -774,6 +1100,7 @@ namespace VibeGame1.EditorTools
             w.windup = fresh.windup;
             w.swingEnd = fresh.swingEnd;
             w.parry = fresh.parry;
+            w.guard = fresh.guard;
             w.drink = fresh.drink;
             w.executeWindup = fresh.executeWindup;
             w.executeEnd = fresh.executeEnd;

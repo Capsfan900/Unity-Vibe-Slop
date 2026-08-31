@@ -24,3 +24,10 @@ MonoBehaviour:
   comboGap: 0.18
   parryPostureMultiplier: 1
   unblockable: 0
+  windupPose:
+    authored: 1
+    armWindup: {x: 36, y: 56, z: 7}
+    armStrike: {x: 0, y: 88, z: 32}
+    bodyOffset: {x: 0, y: -0.1, z: 0.22}
+    bodyEuler: {x: 10, y: 0, z: 0}
+    weaponLag: 0.4

@@ -33,6 +33,9 @@ MonoBehaviour:
   blockPostureMultiplier: 0.9
   hitPostureMultiplier: 0.5
   staggeredDamageMultiplier: 1.6
+  guardChipDamageMultiplier: 0
+  guardPostureMultiplier: 1.5
+  guardPostureRegenMultiplier: 0
   maxPyre: 100
   basePyrePerPerfect: 25
   pyreBlockFraction: 0.35

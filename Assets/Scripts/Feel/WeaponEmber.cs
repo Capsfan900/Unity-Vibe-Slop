@@ -41,14 +41,25 @@ namespace VibeGame1
         [Range(0f, 1f)] public float glowChargeAtFull = 0.55f;
 
         [Header("Embers")]
-        [Range(0, 24)] public int emberCount = 14;
-        public float emberSize = 0.012f;
+        [Tooltip("SHAPE OVER QUANTITY. The first pass was 14 twelve-millimetre cubes drifting slowly, " +
+                 "which read as TEXTURE on the blade rather than as sparks — the colour ramp and the " +
+                 "light did ~90% of the work. Fewer, bigger, faster, shorter-lived is what reads.")]
+        [Range(0, 24)] public int emberCount = 10;
+        [Tooltip("Cross-section of a spark. Stretched along its own velocity by emberStretch, so this " +
+                 "is the THIN axis: a 26 mm ember draws as a ~12 x 68 mm streak.")]
+        public float emberSize = 0.026f;
         [Tooltip("Embers per second at full charge. Scales with charge squared, so low charge is a " +
-                 "flicker rather than a thin constant drizzle.")]
-        public float emberRateAtFull = 26f;
-        public float emberLife = 0.55f;
-        public float emberRise = 0.55f;
-        public float emberDrift = 0.16f;
+                 "flicker rather than a thin constant drizzle. Halved from the first pass: with sparks " +
+                 "this size, a stream is a fog.")]
+        public float emberRateAtFull = 12f;
+        [Tooltip("Short. A spark that lives half a second is a floating mote; the eye reads a spark by " +
+                 "its streak, and the streak needs speed, not duration.")]
+        public float emberLife = 0.34f;
+        public float emberRise = 1.1f;
+        public float emberDrift = 0.6f;
+        [Tooltip("Length along the direction of travel, as a multiple of emberSize. This, not the " +
+                 "count, is what makes an ember read as a spark rather than as a lit pixel.")]
+        public float emberStretch = 2.6f;
 
         [Header("Light")]
         public bool lightEnabled = true;
@@ -64,8 +75,8 @@ namespace VibeGame1
         [Tooltip("Charge below which nothing burns at all. An unlit weapon must read as unlit.")]
         [Range(0f, 0.2f)] public float deadzone = 0.02f;
 
-        static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly int ColorId = Shader.PropertyToID("_Color");
 
         PlayerResources resources;
         WeaponViewmodel viewmodel;
@@ -80,6 +91,7 @@ namespace VibeGame1
         Vector3[] emberVel;
         float[] emberAge;
         Light emberLight;
+        Material emberMat;        // additive, owned by this component, destroyed with it
         MaterialPropertyBlock mpb;
 
         float charge;             // smoothed 0..1
@@ -102,6 +114,7 @@ namespace VibeGame1
 
         void OnEnable() { GameEvents.WeaponChanged += OnWeaponChanged; }
         void OnDisable() { GameEvents.WeaponChanged -= OnWeaponChanged; }
+        void OnDestroy() { if (emberMat != null) Destroy(emberMat); }
 
         void OnWeaponChanged(WeaponData w)
         {
@@ -120,6 +133,12 @@ namespace VibeGame1
             rootGo.transform.SetParent(parent, false);
             emberRoot = rootGo.transform;
 
+            // THE EMBERS OWN THEIR MATERIAL, and it is ADDITIVE. They used to borrow the blade's
+            // URP/Lit material with a black base colour, which is invisible at 12 mm and a DARK SLIVER
+            // at 68 mm: a lit black box in front of a lit sky is a hole in the frame. Additive can only
+            // ever ADD light, so a dim spark is faint rather than black. Same setup SlashFx uses.
+            emberMat = SlashFx.CreateAdditiveMaterial(emberHot);
+
             embers = new Transform[emberCount];
             emberVel = new Vector3[emberCount];
             emberAge = new float[emberCount];
@@ -130,6 +149,7 @@ namespace VibeGame1
                 var col = go.GetComponent<Collider>();
                 if (col != null) Destroy(col);
                 var r = go.GetComponent<Renderer>();
+                r.sharedMaterial = emberMat;
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
                 go.transform.SetParent(emberRoot, false);
@@ -175,20 +195,6 @@ namespace VibeGame1
 
             glow = found;
             bladeRoot = found != null ? found.transform : null;
-
-            // Embers borrow the blade's own material. A stock primitive material has _EMISSION off,
-            // so a property-block emission write on it is silently ignored — the exact class of
-            // no-op this project has been bitten by before.
-            if (bladeRoot != null && embers != null)
-            {
-                var src = bladeRoot.GetComponentInChildren<Renderer>(true);
-                if (src != null && src.sharedMaterial != null)
-                    for (int i = 0; i < embers.Length; i++)
-                    {
-                        var er = embers[i] != null ? embers[i].GetComponent<Renderer>() : null;
-                        if (er != null) er.sharedMaterial = src.sharedMaterial;
-                    }
-            }
 
             bladeLength = 0.4f;
             if (bladeRoot == null) return;
@@ -281,15 +287,36 @@ namespace VibeGame1
                 embers[i].localPosition += emberVel[i] * dt;
                 emberVel[i] += Vector3.up * emberRise * dt;
                 // Shrink and fade together: an ember that only fades reads as a dying LED.
-                float s = emberSize * (1f - k) * Mathf.Lerp(0.7f, 1.5f, heat);
-                embers[i].localScale = Vector3.one * s;
+                float s = emberSize * (1f - k * k) * Mathf.Lerp(0.7f, 1.5f, heat);
+                // ...and STRETCH along the direction of travel. A cube is a lit pixel; a streak aimed
+                // where it is going is a spark. Local space throughout: emberVel is local to emberRoot.
+                Vector3 v = emberVel[i];
+                if (v.sqrMagnitude > 1e-6f)
+                {
+                    embers[i].localRotation = Quaternion.LookRotation(v.normalized, Vector3.up);
+                    embers[i].localScale = new Vector3(s * 0.45f, s * 0.45f, s * emberStretch);
+                }
+                else embers[i].localScale = Vector3.one * s;
 
                 var r = embers[i].GetComponent<Renderer>();
                 if (r == null) continue;
-                float fade = (1f - k) * (1f - k);
+                // BRIGHT FOR ALMOST ALL OF ITS LIFE, then gone. The ember borrows the blade's URP/Lit
+                // material with a BLACK base colour, so its only light is this emission — a squared
+                // falloff left a big streak sitting at a quarter brightness for half its life, which
+                // against the lit sky rendered as a DARK SLIVER. A 12 mm ember hid that; a 68 mm
+                // streak cannot. A root-ish ramp holds the spark hot and then kills it outright.
+                float fade = Mathf.Pow(1f - k, 0.45f);
+                // Additive: _BaseColor IS the light added, and alpha scales it (SrcAlpha, One).
+                // Peak channel 1.45. That is past the ~1.25 where ACES starts eating saturation, and
+                // it is allowed HERE and nowhere else: the desaturation of a saturated hue pushes it
+                // toward orange, and this hue IS ember orange, so there is nothing to lose. A spark is
+                // also a few dozen pixels — the caps that keep the fire out of the frame are the glow
+                // charge (0.55) and the light (1.5 @ 2.4 m), and neither moved.
+                Color c = emberHot * 1.45f;
+                c.a = fade;
                 r.GetPropertyBlock(mpb);
-                mpb.SetColor(EmissionId, emberHot * (2.2f * fade));
-                mpb.SetColor(BaseColorId, Color.black);
+                mpb.SetColor(BaseColorId, c);
+                mpb.SetColor(ColorId, c);
                 r.SetPropertyBlock(mpb);
             }
         }
@@ -310,7 +337,9 @@ namespace VibeGame1
             tr.gameObject.SetActive(true);
 
             Vector3 dir = new Vector3(Random.Range(-1f, 1f), Random.Range(0.4f, 1f), Random.Range(-1f, 1f)).normalized;
-            emberVel[i] = dir * emberDrift * Mathf.Lerp(0.7f, 1.4f, heat);
+            // Spread the launch speed: identical speeds read as a mechanism, a spread reads as fire.
+            emberVel[i] = dir * emberDrift * Mathf.Lerp(0.7f, 1.4f, heat) * Random.Range(0.6f, 1.4f);
+            embers[i].localRotation = Quaternion.LookRotation(dir, Vector3.up);
             emberAge[i] = 0f;
         }
     }

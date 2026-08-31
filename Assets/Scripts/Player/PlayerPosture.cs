@@ -18,6 +18,7 @@ namespace VibeGame1
         PlayerStatsData data;
         PlayerStats stats;
         Health health;
+        ParryController parryCtl;
 
         float lastHitTime = -99f;
         float brokenUntil;
@@ -26,6 +27,7 @@ namespace VibeGame1
         {
             stats = GetComponent<PlayerStats>();
             health = GetComponent<Health>();
+            parryCtl = GetComponent<ParryController>();
         }
 
         void OnEnable() { GameEvents.PlayerRespawned += ResetFull; }
@@ -107,6 +109,18 @@ namespace VibeGame1
 
             float healthRatio = health != null ? health.Ratio : 1f;
             float rate = data.postureRegenPerSecond * Mathf.Lerp(0.5f, 1.5f, healthRatio);
+
+            // TURTLING IS NOT FREE. Holding the guard suspends regeneration (shipped multiplier 0), so
+            // the posture a stance spends is not quietly refunded while the stance is still up. Without
+            // this a player could hold RMB forever: guarded hits cost only posture, and posture that
+            // regenerates through the guard makes the fight an unloseable, unwinnable stalemate. The
+            // price of putting the blade down is what makes the deflect worth pressing for.
+            if (parryCtl != null && parryCtl.IsGuarding)
+            {
+                float g = data.guardPostureRegenMultiplier;
+                if (g <= 0f) return;
+                rate *= g;
+            }
             float nv = PostureMath.Regen(Current, rate, Time.deltaTime);
             if (!Mathf.Approximately(nv, Current))
             {

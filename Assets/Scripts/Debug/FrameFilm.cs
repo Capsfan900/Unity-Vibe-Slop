@@ -63,6 +63,311 @@ namespace VibeGame1
             inst.StartCoroutine(inst.Scenario(enemyName));
         }
 
+        /// <summary>
+        /// Film the three ENTRY paths into the held guard, EVERY RENDERED FRAME, through the real
+        /// runtime code - no hand-driven poses. The blend is 0.08 s, which is about five frames at
+        /// 60 Hz; an editor-tick capture at ~8 Hz samples it less than once, and a hand-driven
+        /// reproduction is contaminated by LateUpdate's idle drift the moment the coroutine is stopped.
+        /// This is the only honest way to see the PATH rather than the endpoints.
+        /// </summary>
+        public static void RunGuardEntry(string directory)
+        {
+            if (inst == null)
+            {
+                var go = new GameObject("FrameFilm");
+                inst = go.AddComponent<FrameFilm>();
+            }
+            Log = "";
+            Done = false;
+            inst.dir = directory;
+            inst.StopAllCoroutines();
+            inst.buffer.Clear();
+            inst.names.Clear();
+            inst.cap = 0;
+            Directory.CreateDirectory(directory);
+            inst.StartCoroutine(inst.GuardEntryScenario());
+        }
+
+        /// <summary>
+        /// Film ONE REAL SWING per weapon, EVERY RENDERED FRAME, at the shipped attack speed.
+        ///
+        /// <para>The swing trail is open for the strike leg only — 0.044 s on the dagger, about three
+        /// frames at 60 Hz — and <c>ViewmodelCapture.LoadoutTour</c> shoots from the ~8 Hz editor tick,
+        /// so it samples that window less than once and would report "there is no trail". Anything that
+        /// judges the arc, the follow-through hold or the wind-up easing has to be filmed from
+        /// LateUpdate at the real frame rate. Buffers are flushed per weapon: four weapons' worth of
+        /// 1024x576 frames at once is a quarter of a gigabyte.</para>
+        /// </summary>
+        public static void RunSwings(string directory)
+        {
+            if (inst == null)
+            {
+                var go = new GameObject("FrameFilm");
+                inst = go.AddComponent<FrameFilm>();
+            }
+            Log = "";
+            Done = false;
+            inst.dir = directory;
+            inst.StopAllCoroutines();
+            inst.buffer.Clear();
+            inst.names.Clear();
+            inst.cap = 0;
+            Directory.CreateDirectory(directory);
+            inst.StartCoroutine(inst.SwingScenario());
+        }
+
+        /// <summary>
+        /// Film every WIND-UP POSE in one enemy's moveset, from the player's eye, at a real fighting
+        /// distance, in the real lighting.
+        ///
+        /// <para><b>Why measuring beats algebra here.</b> A <c>WindupPose</c> authors a shoulder Euler,
+        /// but the hand pivot trails it by <c>weaponLag</c> and the whole body is rotated underneath both
+        /// — so the blade's on-screen angle is the product of three rotations, not the one that was
+        /// typed. Hand-computed "this points up" is routinely wrong by tens of degrees. The only honest
+        /// way to tune a silhouette is to photograph it.</para>
+        ///
+        /// <para>Two frames are kept per attack: <c>_mid</c> at ~55% of the wind-up, and <c>_peak</c>
+        /// immediately after <c>CueFlash</c>, which is where the arm hitches past full extension and
+        /// FREEZES. The peak frame is the one the player's parry decision is actually made on.</para>
+        /// </summary>
+        public static void RunWindups(string directory, string enemyName, float distance)
+        {
+            if (inst == null)
+            {
+                var go = new GameObject("FrameFilm");
+                inst = go.AddComponent<FrameFilm>();
+            }
+            Log = "";
+            Done = false;
+            inst.dir = directory;
+            inst.StopAllCoroutines();
+            inst.buffer.Clear();
+            inst.names.Clear();
+            inst.cap = 0;
+            Directory.CreateDirectory(directory);
+            inst.StartCoroutine(inst.WindupScenario(enemyName, distance));
+        }
+
+        IEnumerator WindupScenario(string enemyName, float distance)
+        {
+            var combat = FindAnyObjectByType<PlayerCombat>();
+            if (combat == null) { L("noPlayer"); Done = true; yield break; }
+            var motor = combat.GetComponent<FirstPersonMotor>();
+            var look = combat.GetComponent<PlayerLook>();
+            var health = combat.GetComponent<Health>();
+            var parry = combat.GetComponent<ParryController>();
+
+            WandSelectMenu.ForceClose();
+            if (health != null) health.Invulnerable = true;
+            if (parry != null) { parry.ReleaseGuardOverride(); parry.GuardHeld = false; }
+
+            // Borrow a standing spot the level already proved navigable and flat (see Scenario), then
+            // switch EVERY enemy off: a second body wandering into frame ruins a silhouette comparison.
+            EnemyController host = null;
+            float bestD = float.MaxValue;
+            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            {
+                if (!e.IsAlive || !e.gameObject.activeInHierarchy) continue;
+                float d = Vector3.Distance(e.transform.position, combat.transform.position);
+                if (d < bestD) { bestD = d; host = e; }
+            }
+            if (host == null) { L("noHostSpot"); Done = true; yield break; }
+            Vector3 spot = host.transform.position;
+            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+                e.gameObject.SetActive(false);
+
+            GameObject prefab = null;
+#if UNITY_EDITOR
+            prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + enemyName + ".prefab");
+#endif
+            if (prefab == null) { L("noPrefab:" + enemyName); Done = true; yield break; }
+
+            var model = Instantiate(prefab, spot, Quaternion.identity);
+            model.name = "PoseModel";
+            var victim = model.GetComponent<EnemyController>();
+            if (victim == null) { L("noController"); Done = true; yield break; }
+            yield return null;                       // Start() runs here: it is where Setup(data) binds
+            yield return null;                       // the shipped body colour into the property block
+
+            var pres = model.GetComponentInChildren<IEnemyPresentation>();
+            if (pres == null || victim.data == null) { L("noVisuals"); Done = true; yield break; }
+
+            // A photo shoot, not a fight: the brain and the feet are switched off so the body holds
+            // still and the only thing moving is the pose being measured.
+            victim.enabled = false;
+            var agent = model.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (agent != null) agent.enabled = false;
+            // And it must not TOUCH the player. A 2.2x boss's capsule overlaps the stand point, and the
+            // depenetration shoves the camera out from under it between poses no matter how often the
+            // player is re-parked. A prop does not need colliders.
+            foreach (var col in model.GetComponentsInChildren<Collider>(true)) col.enabled = false;
+
+            // Park the player square in front at the requested fighting distance and aim at the chest.
+            Vector3 away = combat.transform.position - spot;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.01f) away = Vector3.back;
+            away.Normalize();
+            float scale = Mathf.Max(0.6f, victim.data.scale);
+            Vector3 stand = spot + away * distance;
+            stand.y = spot.y + 0.05f;
+            motor.Teleport(stand, 0f);
+            model.transform.rotation = Quaternion.LookRotation(-away);
+            yield return null;
+            motor.Teleport(stand, 0f);               // the first teleport can be re-grounded
+            yield return null;
+
+            // RE-PARK BEFORE EVERY POSE, not once at the top. A big body (the boss is 2.2x) overlaps
+            // the stand point with its own collider and shoves the player off the mark over the seconds a
+            // full moveset takes to film, so a run that logged dist=5.50 at staging photographed the
+            // arena from twenty metres away. Every frame in this film is taken from the same spot.
+            System.Action park = () =>
+            {
+                motor.Teleport(stand, 0f);
+                look.SetYaw(Quaternion.LookRotation(-away).eulerAngles.y);
+                Vector3 aimAt = spot + Vector3.up * (1.1f * scale);
+                Vector3 eyeAt = look.Cam != null ? look.Cam.position : combat.transform.position;
+                Vector3 d2 = aimAt - eyeAt;
+                float flat2 = new Vector2(d2.x, d2.z).magnitude;
+                if (flat2 > 0.01f) look.NudgeAim(0f, -Mathf.Atan2(d2.y, flat2) * Mathf.Rad2Deg);
+            };
+            park();
+            yield return null;
+            L("model=" + enemyName + " dist=" +
+              Vector3.Distance(combat.transform.position, spot).ToString("0.00") + " scale=" + scale.ToString("0.0"));
+
+            // Every DISTINCT attack in the moveset, in moveset order.
+            var seen = new List<EnemyAttackData>();
+            var combos = victim.data.ResolveCombos();
+            if (combos != null)
+                foreach (var c in combos)
+                {
+                    if (c == null || c.hits == null) continue;
+                    foreach (var a in c.hits)
+                        if (a != null && !seen.Contains(a)) seen.Add(a);
+                }
+            // A BOSS DOES NOT ATTACK OUT OF `combos`. It picks from its PHASE patterns; `combos` holds a
+            // one-entry fallback used only before a phase is applied. Enumerating combos alone films one
+            // of the boss's five wind-ups and silently reports the other four as not existing.
+            var bossData = victim.data as BossData;
+            if (bossData != null && bossData.phases != null)
+                foreach (var ph in bossData.phases)
+                {
+                    if (ph == null || ph.patterns == null) continue;
+                    foreach (var c in ph.patterns)
+                    {
+                        if (c == null || c.hits == null) continue;
+                        foreach (var a in c.hits)
+                            if (a != null && !seen.Contains(a)) seen.Add(a);
+                    }
+                }
+            if (seen.Count == 0) { L("noAttacks"); Done = true; yield break; }
+
+            for (int i = 0; i < seen.Count; i++)
+            {
+                var atk = seen[i];
+                string tag = (i + 1).ToString("00") + "_" + atk.name;
+                pres.ClearTelegraph();
+                pres.Strike(0f, 0.12f);              // return the arm to rest so each pose starts equal
+                yield return Wait(0.5f);
+                park();
+                yield return null;
+                park();                              // the first teleport can be re-grounded
+
+                pres.Telegraph(atk, atk.windup);
+                yield return Wait(atk.windup * 0.55f);
+                Film(tag + "_mid", 2);
+                yield return Wait(Mathf.Max(0.05f, atk.windup * 0.45f - 0.03f));
+                pres.CueFlash(atk.unblockable);      // the arm hitches past full extension and FREEZES
+                yield return null;
+                Film(tag + "_peak", 3);
+                yield return Wait(0.30f);
+                Flush();
+                L(tag + ":wu=" + atk.windup.ToString("0.00") +
+                  ":authored=" + (atk.windupPose != null && atk.windupPose.authored));
+            }
+
+            pres.ClearTelegraph();
+            if (health != null) health.Invulnerable = false;
+            Done = true;
+            L("WINDUPS DONE");
+        }
+
+        IEnumerator SwingScenario()
+        {
+            var combat = FindAnyObjectByType<PlayerCombat>();
+            if (combat == null) { L("noPlayer"); Done = true; yield break; }
+            var vm = combat.GetComponentInChildren<WeaponViewmodel>(true);
+            var wc = combat.GetComponent<WeaponController>();
+            var parry = combat.GetComponent<ParryController>();
+            if (vm == null || wc == null) { L("noViewmodel"); Done = true; yield break; }
+
+            WandSelectMenu.ForceClose();
+            if (parry != null) { parry.ReleaseGuardOverride(); parry.GuardHeld = false; }
+            vm.EndGuard();
+
+            string[] tag = { "1_sword", "2_hammer", "3_dagger", "4_devblade" };
+            for (int i = 0; i < 4; i++)
+            {
+                wc.Equip(i);
+                yield return Wait(0.6f);            // let the swap settle and the idle return finish
+                var w = wc.Current;
+                float dur = w != null ? w.attackDuration : 0.38f;
+                float hit = w != null ? w.hitDelay : 0.12f;
+                prefix = tag[i];
+                // Enough frames for wind-up + strike + hold + recovery, plus the trail's dissolve.
+                Film(tag[i], Mathf.RoundToInt((dur + 0.25f) * 60f));
+                vm.PlayAttack(0, dur, hit);
+                yield return Wait(dur + 0.45f);
+                Flush();
+                L(tag[i] + ":dur=" + dur.ToString("0.00") + ":hit=" + hit.ToString("0.00"));
+            }
+            Done = true;
+        }
+
+        IEnumerator GuardEntryScenario()
+        {
+            var combat = FindAnyObjectByType<PlayerCombat>();
+            if (combat == null) { L("noPlayer"); Done = true; yield break; }
+            var vm = combat.GetComponentInChildren<WeaponViewmodel>(true);
+            var wc = combat.GetComponent<WeaponController>();
+            var parry = combat.GetComponent<ParryController>();
+            if (vm == null || wc == null || parry == null) { L("noViewmodel"); Done = true; yield break; }
+
+            WandSelectMenu.ForceClose();
+            parry.ReleaseGuardOverride();
+            parry.GuardHeld = false;
+            vm.EndGuard();
+            wc.Equip(0);
+            yield return Wait(0.6f);
+
+            // A. IDLE -> GUARD, driven exactly as a button press drives it.
+            Film("A_idle_to_guard", 14);
+            parry.GuardHeld = true;
+            parry.StartParry();                       // the real press path: must go straight to stance
+            yield return Wait(0.6f);
+
+            // B. MID-SWING -> GUARD. The case a real fight hits most often, and the one most likely to
+            // look broken: the recovery leg of the arc has to land IN the stance, not in idle.
+            Film("B_swing_to_guard", 40);
+            parry.GuardHeld = false;
+            vm.EndGuard();
+            yield return Wait(0.25f);
+            wc.TryAttack();
+            yield return Wait(0.10f);
+            parry.GuardHeld = true;                   // guard raised mid-arc
+            yield return Wait(1.2f);
+
+            // C. GUARD -> RELEASE.
+            Film("C_release", 20);
+            yield return Wait(0.15f);
+            parry.GuardHeld = false;
+            yield return Wait(0.8f);
+
+            parry.ReleaseGuardOverride();
+            Flush();
+            Done = true;
+        }
+
         void Film(string namePrefix, int frames) { prefix = namePrefix; cap = frames; }
 
         void LateUpdate()

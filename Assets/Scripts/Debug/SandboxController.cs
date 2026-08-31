@@ -40,7 +40,31 @@ namespace VibeGame1
         [Tooltip("The flask silently refills whenever it is not full.")]
         public bool infiniteFlask;
 
+        [Header("Respawn")]
+        [Tooltip("Pad enemies come back a few seconds after they die, so practising a fight does not " +
+                 "mean walking back to a menu. Campaign respawn is unaffected: there it is tied to the " +
+                 "player dying, which is the whole point of a checkpoint.")]
+        public bool autoRespawnPadEnemies = true;
+        [Tooltip("Seconds between an enemy dying and its pad producing a fresh one. Long enough to watch " +
+                 "the death and collect souls, short enough that you are not waiting to try again.")]
+        [Range(0.5f, 15f)] public float respawnDelay = 4f;
+
         readonly List<GameObject> spawned = new List<GameObject>();
+
+        // Pad respawn bookkeeping. Keyed by spawner so a pad only ever has one pending respawn, and so
+        // clearing or resetting the sandbox can cancel them all without hunting coroutines.
+        readonly Dictionary<EnemySpawner, float> respawnAt = new Dictionary<EnemySpawner, float>();
+
+        // CACHED, because the respawn tick runs every frame and FindObjectsByType ALLOCATES A NEW ARRAY
+        // on every call. Scanning for pads and switches each frame was ~2 array allocations per frame
+        // for the whole session — steady garbage in the scene where movement is practised, which is
+        // precisely what eventually produces a collection hitch. Pads are scene fixtures built by
+        // SandboxBuilder and do not come and go, so a periodic refresh is enough to survive anything
+        // spawned or destroyed at runtime.
+        EnemySpawner[] padCache;
+        SandboxEnemySwitch[] switchCache;
+        float padCacheRefreshAt;
+        const float PadCacheRefreshSeconds = 2f;
 
         // ---- lifecycle ---------------------------------------------------------------------------
 
@@ -49,10 +73,94 @@ namespace VibeGame1
 
         void Update()
         {
+            TickPadRespawns();
+
             if (!infiniteFlask) return;
             var res = OnPlayer<PlayerResources>();
             if (res != null && res.FlaskCharges < res.MaxFlask) res.RefillFlask();
         }
+
+        /// <summary>
+        /// Watches every pad spawner and rebuilds its occupant a few seconds after it dies.
+        ///
+        /// Deliberately polled rather than event-driven: an enemy can leave play as a corpse that is
+        /// still present (State.Dead), as a destroyed object, or by being cleared out from under us by
+        /// ClearAllEnemies, and a death event only covers the first. Asking "is this pad empty or is its
+        /// occupant dead?" each frame covers all three and cannot leak a subscription.
+        ///
+        /// Uses unscaled time: the sandbox is where hitstop and the super's slow-mo get exercised, and a
+        /// respawn clock that stretches under them would feel broken for no reason.
+        /// </summary>
+        void TickPadRespawns()
+        {
+            if (!autoRespawnPadEnemies) { respawnAt.Clear(); return; }
+
+            RefreshPadCache(false);
+            var pads = padCache;
+            for (int i = 0; i < pads.Length; i++)
+            {
+                var pad = pads[i];
+                if (pad == null || pad.prefab == null) continue;
+
+                bool empty = pad.Instance == null;
+                if (!empty)
+                {
+                    var ec = pad.Instance.GetComponent<EnemyController>();
+                    // A boss "dies" into a stagger and is only finished by a deathblow, so IsAlive is the
+                    // wrong question for it — Health.IsDead is the one that means gone for good.
+                    var hp = pad.Instance.GetComponent<Health>();
+                    bool dead = (ec != null && !ec.IsAlive) || (hp != null && hp.IsDead);
+                    if (!dead) { respawnAt.Remove(pad); continue; }
+                }
+
+                float due;
+                if (!respawnAt.TryGetValue(pad, out due))
+                {
+                    respawnAt[pad] = Time.unscaledTime + respawnDelay;
+                    continue;
+                }
+                if (Time.unscaledTime < due) continue;
+
+                respawnAt.Remove(pad);
+                pad.Spawn();               // Spawn() despawns the corpse first, so this cannot stack.
+
+                // Put the replacement back to SLEEP. The prefab ships aggroLocked = false, and the pad's
+                // switch tracks woken enemies by INSTANCE, so a respawn is a stranger to it — without
+                // this the new enemy walks off its pad at you the moment it appears, which is exactly
+                // the state the wake switches exist to prevent. Same reasoning as ResetSandbox.
+                var sw = SwitchFor(pad);
+                if (sw != null) sw.Rearm();
+            }
+        }
+
+        /// <summary>
+        /// Re-scan the scene for pads and wake switches, at most every <see cref="PadCacheRefreshSeconds"/>
+        /// unless <paramref name="force"/>. Unscaled time so a paused or slow-mo'd sandbox still refreshes.
+        /// </summary>
+        void RefreshPadCache(bool force)
+        {
+            if (!force && padCache != null && Time.unscaledTime < padCacheRefreshAt) return;
+            padCache = FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None);
+            switchCache = FindObjectsByType<SandboxEnemySwitch>(FindObjectsSortMode.None);
+            padCacheRefreshAt = Time.unscaledTime + PadCacheRefreshSeconds;
+        }
+
+        /// <summary>The wake switch belonging to a pad, or null for pads that have none.</summary>
+        SandboxEnemySwitch SwitchFor(EnemySpawner pad)
+        {
+            if (switchCache == null) RefreshPadCache(true);
+            for (int i = 0; i < switchCache.Length; i++)
+                if (switchCache[i] != null && switchCache[i].spawner == pad) return switchCache[i];
+            return null;
+        }
+
+        /// <summary>Cancel every pending pad respawn — used when the sandbox is cleared or reset.</summary>
+        /// <summary>
+        /// Cancel every pending pad respawn, and force the next tick to re-scan. Clearing or resetting
+        /// the sandbox destroys and re-creates enemies, so the cached arrays hold dead references at
+        /// exactly that moment — the one case the periodic refresh is too slow for.
+        /// </summary>
+        void CancelPadRespawns() { respawnAt.Clear(); padCacheRefreshAt = 0f; }
 
         void OnItemUsed(ItemData item)
         {
@@ -175,6 +283,17 @@ namespace VibeGame1
                 if (enemy != null) Destroy(enemy.gameObject);
 
             spawned.Clear();
+
+            // "Clear" has to MEAN clear. With pad respawn armed, emptying the pads is the exact trigger
+            // that refills them, so the arena would repopulate a few seconds later and the command would
+            // look broken. Turn respawn off and say so; ResetSandbox turns it back on.
+            CancelPadRespawns();
+            if (autoRespawnPadEnemies)
+            {
+                autoRespawnPadEnemies = false;
+                Debug.Log("[SandboxController] Cleared all enemies and disabled pad auto-respawn "
+                        + "(otherwise the pads refill in " + respawnDelay + "s). ResetSandbox() re-enables it.");
+            }
         }
 
         [ContextMenu("Toggle Infinite Flask")]
@@ -198,6 +317,11 @@ namespace VibeGame1
             // Drop anything spawned by hand first, so ResetEnemies only restores the pads.
             foreach (var go in spawned) if (go != null) Destroy(go);
             spawned.Clear();
+
+            // A reset is "put the sandbox back how it started", which includes pad respawn being armed —
+            // ClearAllEnemies turns it off, and leaving it off would make reset a one-way door.
+            CancelPadRespawns();
+            autoRespawnPadEnemies = true;
 
             if (LevelManager.I != null) LevelManager.I.ResetEnemies();
 

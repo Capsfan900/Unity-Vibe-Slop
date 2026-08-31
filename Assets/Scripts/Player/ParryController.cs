@@ -25,6 +25,39 @@ namespace VibeGame1
         float stateEnd;
         bool consumed;
 
+        /// <summary>null = read the button; set = forced (the feature suite drives the stance).</summary>
+        bool? guardForced;
+        bool guardPoseUp;
+
+        /// <summary>
+        /// Is the parry button DOWN this frame? Settable, following the project's TryJump/TryDash idiom
+        /// so the feature suite can hold a stance without an input device; call
+        /// <see cref="ReleaseGuardOverride"/> to hand control back to the button.
+        /// </summary>
+        public bool GuardHeld
+        {
+            get
+            {
+                if (guardForced.HasValue) return guardForced.Value;
+                return InputReader.I != null && InputReader.I.ParryHeld;
+            }
+            set { guardForced = value; }
+        }
+
+        /// <summary>Stop forcing <see cref="GuardHeld"/>; read the button again.</summary>
+        public void ReleaseGuardOverride() { guardForced = null; }
+
+        /// <summary>
+        /// The Sekiro stance is actually up: the button is down AND the player is in a state that can
+        /// hold steel. Swinging drops your own guard on purpose — otherwise "hold RMB, mash LMB" is a
+        /// free win and the timing game never has to be played.
+        /// </summary>
+        public bool IsGuarding => GuardHeld && CanGuard();
+
+        /// <summary>True when the last <see cref="Resolve"/> produced a Blocked that came from the HELD
+        /// guard rather than from a late press. PlayerCombat reads it to pick the cost.</summary>
+        public bool LastResolveWasGuard { get; private set; }
+
         /// <summary>True when the press that opened the current window had an attack genuinely inbound.</summary>
         bool pressWasContested;
 
@@ -71,6 +104,51 @@ namespace VibeGame1
                 bufferedPressTime = -99f;
                 StartParry();
             }
+
+            SyncGuardPose();
+        }
+
+        bool CanGuard()
+        {
+            if (combat == null) return true;
+            if (combat.IsStaggered) return false;          // a broken guard is the punish; it must stay broken
+            if (combat.IsExecuting || combat.IsDrinking) return false;
+            if (combat.IsAttacking) return false;          // your own swing opens you up
+            return true;
+        }
+
+        /// <summary>
+        /// One writer for the stance pose, and it tracks the BUTTON rather than <see cref="IsGuarding"/>.
+        /// The two differ in exactly one place and it matters: swinging drops your guard *mechanically*,
+        /// but the swing must still END IN the stance rather than in idle, so while an attack is running
+        /// this leaves the viewmodel alone and <c>AttackCo</c> retargets its own recovery leg at the
+        /// guard pose. Anything else produces the two-stage motion this whole path exists to avoid.
+        /// </summary>
+        void SyncGuardPose()
+        {
+            if (viewmodel == null) return;
+            viewmodel.GuardWanted = GuardHeld && CanShowGuard();
+
+            // The attack coroutine owns the model while it runs and lands in the stance by itself.
+            if (combat != null && combat.IsAttacking) return;
+
+            bool up = viewmodel.GuardWanted;
+            if (up == guardPoseUp) return;
+            guardPoseUp = up;
+            if (up) viewmodel.PlayGuard();
+            else viewmodel.EndGuard();
+        }
+
+        /// <summary>
+        /// <see cref="CanGuard"/> without the attacking clause: what the VIEWMODEL should show. A swing
+        /// suspends the guard's protection but not the blade's journey back to the stance.
+        /// </summary>
+        bool CanShowGuard()
+        {
+            if (combat == null) return true;
+            if (combat.IsStaggered) return false;
+            if (combat.IsExecuting || combat.IsDrinking) return false;
+            return true;
         }
 
         bool HasBufferedPress() => Time.time - bufferedPressTime <= d.parryInputBuffer;
@@ -95,7 +173,17 @@ namespace VibeGame1
             pressWasContested = EnemyController.AnyAttackIncoming(transform.position, d.parryIncomingLookahead);
 
             stateEnd = pressTime + PerfectWindow + LateWindow;
-            if (viewmodel != null) viewmodel.PlayParry(PerfectWindow + LateWindow);
+            // ONE MOTION INTO GUARD. The press and the stance are the same button, so a press made with
+            // the button DOWN goes straight to the stance. It used to play the parry FLICK first and
+            // settle into the stance afterwards, and because that flick lives at x 0.05 - inward and
+            // forward, almost on the crosshair - raising the guard read as "present the weapon, THEN
+            // guard": the blade shot forward and came back. There is no waypoint on the path now.
+            // The flick survives only for a press with the button already released (gamepad tap, tests).
+            if (viewmodel != null)
+            {
+                if (IsGuarding) viewmodel.PlayGuard();
+                else viewmodel.PlayParry(PerfectWindow + LateWindow);
+            }
             AudioManager.Play(Sfx.Swing, 0.35f, 1.4f);
         }
 
@@ -110,6 +198,8 @@ namespace VibeGame1
             stateEnd = Time.time + recovery;
             ClampRecoveryToNextCue();
 
+            // EndParry falls back into the stance when the button is still down (WeaponViewmodel keeps
+            // its own `guarding` flag), so the window closing is invisible to a player who is holding.
             if (viewmodel != null) viewmodel.EndParry();
         }
 
@@ -130,12 +220,17 @@ namespace VibeGame1
 
         public ParryResult Resolve(in AttackInfo a, bool facing)
         {
-            if (Current != State.Active) return ParryResult.Hit;
-            float elapsed = Time.time - pressTime;
-            var r = ParryMath.Evaluate(elapsed, PerfectWindow, LateWindow, facing, a.unblockable);
-            if (r != ParryResult.Hit) consumed = true;
+            // The timing is evaluated FIRST and the stance only ever upgrades what would have been a
+            // Hit. A hold can never manufacture a Perfect, so the deflect stays strictly better than
+            // the guard and the whole design keeps pointing at the window.
+            bool guarding = IsGuarding;
+            float elapsed = Current == State.Active ? Time.time - pressTime : float.MaxValue;
+            var r = ParryMath.Evaluate(elapsed, PerfectWindow, LateWindow, facing, a.unblockable, guarding);
+            LastResolveWasGuard = r == ParryResult.Blocked &&
+                                  (Current != State.Active || elapsed > PerfectWindow + LateWindow + 1e-4f);
+            if (r != ParryResult.Hit && Current == State.Active && !LastResolveWasGuard) consumed = true;
 #if UNITY_EDITOR
-            Debug.Log($"[Parry] {r} elapsed={elapsed * 1000f:F0}ms perfect={PerfectWindow * 1000f:F0}ms facing={facing} unblockable={a.unblockable}");
+            Debug.Log($"[Parry] {r} elapsed={(Current == State.Active ? elapsed * 1000f : -1f):F0}ms perfect={PerfectWindow * 1000f:F0}ms facing={facing} unblockable={a.unblockable} guard={guarding}");
 #endif
             return r;
         }
@@ -157,7 +252,8 @@ namespace VibeGame1
         {
             Current = State.Idle;
             bufferedPressTime = -99f;
-            if (viewmodel != null) viewmodel.EndParry();
+            guardPoseUp = false;
+            if (viewmodel != null) { viewmodel.GuardWanted = false; viewmodel.EndGuard(); viewmodel.EndParry(); }
         }
     }
 }

@@ -293,9 +293,11 @@ namespace VibeGame1
             var tests = new List<KeyValuePair<string, Func<IEnumerator>>>
             {
                 Test("Movement",        TestMovement),
+                Test("SlideWallJump",   TestSlideAndWallJump),
                 Test("HitstopScoping",  TestHitstopScoping),
                 Test("ParryMathPure",   TestParryMathPure),
                 Test("ParryLive",       TestParryLive),
+                Test("Guard",           TestGuard),
                 Test("PlayerPosture",   TestPlayerPosture),
                 Test("EnemyExecute",    TestEnemyPostureAndExecute),
                 Test("Weapons",         TestWeapons),
@@ -303,6 +305,7 @@ namespace VibeGame1
                 Test("WandReadability", TestWandReadability),
                 Test("ViewmodelArms",   TestViewmodelArms),
                 Test("TellReadability", TestTellReadability),
+                Test("WindupPoses",     TestWindupPoses),
                 Test("Deathblow",       TestDeathblowMarker),
                 Test("LockOn",          TestLockOn),
                 Test("Items",           TestItems),
@@ -527,6 +530,264 @@ namespace VibeGame1
             yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
         }
 
+
+        // ================================================================ 1b. SLIDE / WALL JUMP
+        //
+        // The two movement techs, driven through the motor's own public entry points (TrySlide /
+        // TryWallJump) - the exact methods Update calls when InputReader reports a press. No synthesised
+        // device, and therefore no skip.
+
+        IEnumerator TestSlideAndWallJump()
+        {
+            var cc = combat.GetComponent<CharacterController>();
+            if (cc == null) { Check("Slide_CharacterControllerPresent", false); yield break; }
+            float standH = motor.StandHeight;
+
+            // A PURPOSE-BUILT runway, parked far outside the course. Measuring on level geometry looked
+            // cheaper and was wrong three times over: the boss approach is 6 m wide, so a 16 m/s slide
+            // reached its rail in 1.8 m and reported a 0.11 s slide, and its rails sat inside the wall
+            // check, so "no wall in range" found one and "the same wall twice" found the other rail.
+            // A measurement rig has to own its own space.
+            var rig = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rig.name = "~TestFloor";
+            rig.layer = 0;
+            rig.transform.position = new Vector3(300f, 40f, 0f);
+            rig.transform.localScale = new Vector3(60f, 1f, 60f);
+            Vector3 pad = new Vector3(280f, 40.5f, 0f);
+            motor.Teleport(pad + Vector3.up * 0.4f, 90f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            Check("Slide_RunwayIsGround", !waitTimedOut, "grounded=" + motor.IsGrounded + " at " + pad);
+
+            // ---- a slide is a MOMENTUM move ---------------------------------------------------
+            bool refusedIdle = !motor.TrySlide();
+            Check("Slide_RefusedFromStandstill", refusedIdle && !motor.IsSliding,
+                $"speed={motor.HorizontalSpeed:0.0} minEntry={motor.slideMinEntrySpeed:0.0}");
+
+            // ---- entry boosts, and drops the collider -----------------------------------------
+            motor.AddImpulse(combat.transform.forward * motor.groundSpeed);
+            yield return null;
+            float speedBefore = motor.HorizontalSpeed;
+            bool started = motor.TrySlide();
+            yield return null;
+            float speedAfter = motor.HorizontalSpeed;
+            Check("Slide_StartsAtRunningSpeed", started && motor.IsSliding,
+                $"started={started} sliding={motor.IsSliding} speedBefore={speedBefore:0.0}");
+            Check("Slide_AddsSpeed", speedAfter > speedBefore + 1f,
+                $"before={speedBefore:0.0} after={speedAfter:0.0} boost={motor.slideBoost:0.0}");
+            Check("Slide_LowersTheCollider", cc.height < standH - 0.4f,
+                $"height={cc.height:0.00} stand={standH:0.00} slideHeight={motor.slideHeight:0.00}");
+
+            // ---- it ENDS, and covers a measurable distance doing it ----------------------------
+            Vector3 slideFrom = combat.transform.position;
+            float slideStarted = Time.unscaledTime;
+            int slideFrames = 0, groundedFrames = 0;
+            float worstDt = 0f;
+            while (motor.IsSliding && Time.unscaledTime - slideStarted < 3f)
+            {
+                slideFrames++;
+                if (motor.IsGrounded) groundedFrames++;
+                worstDt = Mathf.Max(worstDt, TimeScaleController.PlayerDelta);
+                yield return null;
+            }
+            waitTimedOut = motor.IsSliding;
+            float slideSeconds = Time.unscaledTime - slideStarted;
+            Vector3 d3 = combat.transform.position - slideFrom;
+            float slideMeters = new Vector2(d3.x, d3.z).magnitude;
+            Check("Slide_Ends", !waitTimedOut, $"stillSliding={motor.IsSliding} after {slideSeconds:0.00}s");
+            Check("Slide_CoversGroundThenStops", slideMeters > 1.5f && slideMeters < 12f,
+                $"distance={slideMeters:0.00}m over {slideSeconds:0.00}s");
+            Note($"MEASURED slide: {slideMeters:0.00} m in {slideSeconds:0.00} s " +
+                 $"(entry {speedAfter:0.0} m/s, floor {motor.slideEndSpeed:0.0} m/s, exit {motor.HorizontalSpeed:0.0} m/s, " +
+                 $"{groundedFrames}/{slideFrames} frames grounded, worst dt {worstDt:0.000} s).");
+            yield return null;
+            Check("Slide_RestoresStandingHeight", Mathf.Abs(cc.height - standH) < 0.01f,
+                $"height={cc.height:0.00} stand={standH:0.00}");
+
+            // ---- THE tech: cancelling a slide into a jump keeps the slide's speed ---------------
+            // If this ever regresses, sliding becomes a dodge instead of a route and every fast line
+            // authored in the level stops being reachable.
+            motor.Teleport(pad + Vector3.up * 0.4f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            // WAIT the cooldown out; do not zero the field. slideCooldown is read once, when a slide
+            // ENDS, to stamp the next ready time - setting it to 0 afterwards changes nothing, the
+            // slide is silently refused, and the report then reads as though the tech does not work.
+            yield return WaitRealtime(motor.slideCooldown + 0.1f);
+            motor.AddImpulse(combat.transform.forward * motor.groundSpeed);
+            bool cancelSlideStarted = motor.TrySlide();   // same frame: friction never gets a bite
+            Check("Slide_StartsAgainAfterCooldown", cancelSlideStarted,
+                "cooldown=" + motor.slideCooldown.ToString("0.00") + "s");
+            yield return null;
+            float speedInSlide = motor.HorizontalSpeed;
+            Vector3 jumpFrom = combat.transform.position;
+            motor.TryJump();
+            yield return null; yield return null;
+            float speedAfterJump = motor.HorizontalSpeed;
+            bool leftGround = !motor.IsGrounded || motor.Velocity.y > 1f;
+            Check("Slide_JumpCancelKeepsMomentum",
+                leftGround && !motor.IsSliding && speedAfterJump > motor.groundSpeed + 1f,
+                $"inSlide={speedInSlide:0.0} afterJump={speedAfterJump:0.0} run={motor.groundSpeed:0.0} " +
+                $"airborne={leftGround} sliding={motor.IsSliding}");
+
+            // Measure the actual slide-jump: this number is what the level's fast lines are authored to.
+            float apexY = jumpFrom.y;
+            float flightEnd = Time.unscaledTime + 4f;
+            yield return null;
+            while (Time.unscaledTime < flightEnd)
+            {
+                apexY = Mathf.Max(apexY, combat.transform.position.y);
+                if (motor.IsGrounded) break;
+                yield return null;
+            }
+            Vector3 land = combat.transform.position - jumpFrom;
+            Note($"MEASURED slide-jump: {new Vector2(land.x, land.z).magnitude:0.00} m horizontal, " +
+                 $"apex +{apexY - jumpFrom.y:0.00} m, takeoff {speedAfterJump:0.0} m/s " +
+                 $"(a run-jump at {motor.groundSpeed:0.0} m/s covers ~{motor.groundSpeed * 0.8f:0.0} m).");
+
+            // ---- leaving the ground ends the slide, but never the momentum ---------------------
+            motor.Teleport(pad + Vector3.up * 0.4f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            yield return WaitRealtime(motor.slideCooldown + 0.1f);
+            motor.AddImpulse(combat.transform.forward * motor.groundSpeed);
+            motor.TrySlide();
+            yield return null;
+            float beforeLaunch = motor.HorizontalSpeed;
+            motor.Launch(8f);
+            yield return null;
+            Check("Slide_EndsWhenAirborneButKeepsSpeed",
+                !motor.IsSliding && motor.HorizontalSpeed > beforeLaunch - 1.5f,
+                $"sliding={motor.IsSliding} before={beforeLaunch:0.0} after={motor.HorizontalSpeed:0.0}");
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 5f);
+
+            // ---- WALL JUMP --------------------------------------------------------------------
+            motor.Teleport(pad + Vector3.up * 0.4f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+
+            Check("WallJump_RefusedOnTheGround", !motor.TryWallJump(),
+                "grounded=" + motor.IsGrounded);
+
+            // Airborne in the open: nothing to push off, so nothing happens. This is the check that
+            // stops a wall jump degrading into a free double jump.
+            motor.Launch(9f);
+            yield return WaitUntilOrTimeout(() => !motor.IsGrounded, 1.5f);
+            yield return WaitRealtime(motor.coyoteTime + 0.1f);
+            Vector3 sniffed;
+            bool noWallHere = !motor.FindWall(out sniffed);
+            bool refusedInOpenAir = !motor.TryWallJump();
+            Check("WallJump_RefusedWithNoWallInRange", noWallHere && refusedInOpenAir,
+                $"foundWall={!noWallHere} fired={!refusedInOpenAir}");
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 5f);
+
+            // A purpose-built chimney, so this test does not depend on the level's geometry surviving
+            // an edit. Destroyed at the end - a survivor would become runtime debris in the scene file.
+            Vector3 c = combat.transform.position;
+            var wallA = TestWall("~TestWall_A", c + combat.transform.right * 1.0f + Vector3.up * 3f);
+            var wallB = TestWall("~TestWall_B", c - combat.transform.right * 1.0f + Vector3.up * 3f);
+            yield return null;
+
+            int wallJumps = 0;
+            Action onWall = () => wallJumps++;
+            motor.OnWallJumped += onWall;
+
+            // one wall, twice in a row: the second must be refused or a single face is a free ladder
+            motor.Teleport(c + Vector3.up * 0.4f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            UnityEngine.Object.DestroyImmediate(wallB);
+            motor.Launch(7f);
+            yield return WaitUntilOrTimeout(() => !motor.IsGrounded, 1.5f);
+            yield return WaitRealtime(motor.coyoteTime + 0.1f);
+            int before1 = wallJumps;
+            bool first = motor.TryWallJump();
+            yield return null;
+            bool second = motor.TryWallJump();
+            yield return null;
+            Check("WallJump_FiresOffAWall", first && wallJumps == before1 + 1,
+                $"fired={first} count={wallJumps - before1}");
+            Check("WallJump_SameWallRefusedTwiceRunning", !second,
+                $"secondFired={second} cosLimit={motor.sameWallCosineLimit:0.00}");
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 6f);
+
+            // one wall jump, measured in isolation: this is the number the level's chimney is authored to
+            motor.Teleport(c + Vector3.up * 0.4f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            // Launch high enough to still be airborne past coyote time, and drift INTO the wall - the
+            // scan reaches ~0.5 m past the capsule, and a player hanging in the middle of a chimney is
+            // not near anything. A 2 m/s hop landed before the press and measured nothing.
+            motor.Launch(9f);
+            motor.AddImpulse(combat.transform.right * 5f);
+            yield return WaitUntilOrTimeout(() => !motor.IsGrounded, 1.5f);
+            yield return WaitRealtime(motor.coyoteTime + 0.05f);
+            Vector3 oneFrom = combat.transform.position;
+            bool oneFired = motor.TryWallJump();
+            float oneApex = combat.transform.position.y;
+            float oneEnd = Time.unscaledTime + 4f;
+            yield return null;
+            while (Time.unscaledTime < oneEnd)
+            {
+                oneApex = Mathf.Max(oneApex, combat.transform.position.y);
+                if (motor.IsGrounded) break;
+                yield return null;
+            }
+            Vector3 oneD = combat.transform.position - oneFrom;
+            Note($"MEASURED single wall jump: fired={oneFired}, apex +{oneApex - oneFrom.y:0.00} m, " +
+                 $"{new Vector2(oneD.x, oneD.z).magnitude:0.00} m away from the wall before landing.");
+
+            // two facing walls: a chimney chains, and is BOUNDED by maxWallJumps
+            wallB = TestWall("~TestWall_B", c - combat.transform.right * 1.0f + Vector3.up * 3f);
+            yield return null;
+            motor.Teleport(c + Vector3.up * 0.4f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            float chainFromY = combat.transform.position.y;
+            int before2 = wallJumps;
+            motor.Launch(7f);
+            yield return WaitUntilOrTimeout(() => !motor.IsGrounded, 1.5f);
+            yield return WaitRealtime(motor.coyoteTime + 0.1f);
+            float chainApex = combat.transform.position.y;
+            float chainEnd = Time.unscaledTime + 6f;
+            int attempts = 0;
+            while (Time.unscaledTime < chainEnd && attempts < 400)
+            {
+                attempts++;
+                // Press at the top of the arc, the way a player does. Spamming every frame burns the
+                // whole allowance inside three frames at the same height and measures nothing.
+                if (motor.Velocity.y <= 0f) motor.TryWallJump();
+                chainApex = Mathf.Max(chainApex, combat.transform.position.y);
+                if (motor.IsGrounded) break;
+                yield return null;
+            }
+            int chained = wallJumps - before2;
+            motor.OnWallJumped -= onWall;
+            Check("WallJump_ChainsBetweenFacingWalls", chained >= 2,
+                $"chained={chained} of max {motor.maxWallJumps}");
+            Check("WallJump_BoundedPerAirtime", chained <= motor.maxWallJumps,
+                $"chained={chained} max={motor.maxWallJumps} - an unbounded chain is a free elevator");
+            Note($"MEASURED wall-jump chain: {chained} pushes, +{chainApex - chainFromY:0.00} m above the " +
+                 $"launch floor (up {motor.wallJumpUpSpeed:0.0} m/s, push {motor.wallJumpPushSpeed:0.0} m/s, " +
+                 $"single-jump rise {motor.wallJumpUpSpeed * motor.wallJumpUpSpeed / (2f * -motor.gravity):0.00} m).");
+
+            if (wallA != null) UnityEngine.Object.DestroyImmediate(wallA);
+            if (wallB != null) UnityEngine.Object.DestroyImmediate(wallB);
+
+            // landing must forgive the wall, or the next jump off the same face is silently dead
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 6f);
+            Check("WallJump_ResetsOnLanding", motor.WallJumpsUsed == 0,
+                "used=" + motor.WallJumpsUsed);
+
+            if (rig != null) UnityEngine.Object.DestroyImmediate(rig);
+            if (LevelManager.I != null) LevelManager.I.Warp("Checkpoint_1");
+            yield return null;
+        }
+
+        /// <summary>A throwaway wall for the wall-jump rig. Default layer, so the motor's world mask sees it.</summary>
+        static GameObject TestWall(string wallName, Vector3 center)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = wallName;
+            go.layer = 0;
+            go.transform.position = center;
+            go.transform.localScale = new Vector3(0.3f, 8f, 8f);
+            return go;
+        }
+
         // ================================================================ 2. HITSTOP SCOPING
 
         IEnumerator TestHitstopScoping()
@@ -708,6 +969,302 @@ namespace VibeGame1
             yield return SettleTimeScale();
             if (dummy != null) Destroy(dummy.gameObject);
             yield return null;
+        }
+
+        // ================================================================ 3c. GUARD (held stance)
+
+        /// <summary>
+        /// The Sekiro STANCE: hold the parry button and a blow that would have been a Hit resolves as a
+        /// Blocked instead. Everything here exists to keep one ladder true —
+        /// <b>deflect &gt; guard &gt; hit</b> — and to prove the three things that stop the guard from
+        /// eating the game: an unblockable still goes straight through it, it never protects your back,
+        /// and posture does not regenerate behind it.
+        /// </summary>
+        IEnumerator TestGuard()
+        {
+            // ---- shipped tuning (rule 9) -----------------------------------------------------
+            CheckApprox("GuardTuning_ChipDamage", D.guardChipDamageMultiplier, 0f, 0.0001f);
+            CheckApprox("GuardTuning_PostureMultiplier", D.guardPostureMultiplier, 1.5f, 0.0001f);
+            CheckApprox("GuardTuning_RegenMultiplier", D.guardPostureRegenMultiplier, 0f, 0.0001f);
+            // The ladder, asserted as an inequality rather than as three magic numbers: whatever the
+            // values become, guarding must cost MORE posture than a timed block and than a raw hit, and
+            // LESS health than a timed block. That is what makes the deflect worth pressing for.
+            Check("GuardLadder_CostsMorePostureThanBlock", D.guardPostureMultiplier > D.blockPostureMultiplier,
+                "guard=" + D.guardPostureMultiplier.ToString("0.00") + " block=" + D.blockPostureMultiplier.ToString("0.00"));
+            Check("GuardLadder_CostsMorePostureThanHit", D.guardPostureMultiplier > D.hitPostureMultiplier,
+                "guard=" + D.guardPostureMultiplier.ToString("0.00") + " hit=" + D.hitPostureMultiplier.ToString("0.00"));
+            Check("GuardLadder_CostsLessHealthThanBlock", D.guardChipDamageMultiplier < D.blockDamageMultiplier,
+                "guard=" + D.guardChipDamageMultiplier.ToString("0.00") + " block=" + D.blockDamageMultiplier.ToString("0.00"));
+
+            EnemyController dummy = null;
+            Vector3 pos = combat.transform.position + combat.transform.forward * 3f;
+            yield return SpawnDummy(pos, e => dummy = e);
+            if (dummy == null) { Check("Guard_DummySpawned", false, "no non-boss enemy prefab found"); yield break; }
+            Check("Guard_DummySpawned", true);
+
+            weapons.Equip(0);
+            yield return null;
+
+            // ---- a HELD guard turns a would-be Hit into a Blocked ------------------------------
+            parry.Cancel();
+            health.ResetFull(); posture.ResetFull(); res.ConsumePyre();
+            FacePoint(dummy.transform.position);
+            float hp0 = health.Current;
+            float enemyPosture0 = dummy.Posture.Current;
+
+            parry.GuardHeld = true;                       // the settable stance hook: no press at all
+            Check("Guard_IsGuardingWhenHeld", parry.IsGuarding);
+            var g1 = combat.ReceiveAttack(MakeAttack(dummy, 20f, false));
+            Check("Guard_ConvertsHitToBlocked", g1 == ParryResult.Blocked, "result=" + g1);
+            CheckApprox("Guard_TakesNoChipDamage", hp0 - health.Current, 20f * D.guardChipDamageMultiplier, 0.5f);
+            CheckApprox("Guard_CostsPosture", posture.Current, 20f * D.guardPostureMultiplier, 1f);
+            // Turtling must not charge the super. A guard timed nothing, so it earns nothing.
+            CheckApprox("Guard_StokesNoPyre", res.Pyre, 0f, 0.01f);
+            CheckApprox("Guard_BuildsNoEnemyPosture", dummy.Posture.Current, enemyPosture0, 0.01f);
+
+            yield return SettleTimeScale();
+
+            // ---- a well-timed press while guarding is STILL a Perfect --------------------------
+            // The whole design lives here. If holding could produce a Perfect the timing game dies; if
+            // holding suppressed the Perfect nobody would ever hold.
+            parry.Cancel();
+            parry.GuardHeld = true;
+            health.ResetFull(); posture.ResetFull(); res.ConsumePyre();
+            FacePoint(dummy.transform.position);
+            hp0 = health.Current;
+            enemyPosture0 = dummy.Posture.Current;
+            parry.StartParry();
+            yield return null;                            // one frame in => well inside the perfect window
+            var g2 = combat.ReceiveAttack(MakeAttack(dummy, 25f, false));
+            Check("Guard_TimedPressStillPerfect", g2 == ParryResult.Perfect, "result=" + g2);
+            CheckApprox("Guard_PerfectStillCostsNoPosture", posture.Current, 0f, 0.01f);
+            Check("Guard_PerfectStillStokesPyre", res.Pyre > 0f, "pyre=" + res.Pyre.ToString("0.0"));
+            Check("Guard_PerfectStillBuildsEnemyPosture", dummy.Posture.Current > enemyPosture0,
+                enemyPosture0.ToString("0.0") + " -> " + dummy.Posture.Current.ToString("0.0"));
+
+            yield return SettleTimeScale();
+            yield return WaitRealtime(D.parryWhiffRecovery + 0.2f);
+
+            // ---- an unblockable goes STRAIGHT THROUGH the guard --------------------------------
+            // The pink alert tell says "this one cannot be answered with steel — move". A guard that
+            // ate it would make the loudest signal in the game a lie.
+            parry.Cancel();
+            parry.GuardHeld = true;
+            health.ResetFull(); posture.ResetFull();
+            FacePoint(dummy.transform.position);
+            hp0 = health.Current;
+            var g3 = combat.ReceiveAttack(MakeAttack(dummy, 40f, true));
+            Check("Guard_UnblockableIgnoresGuard", g3 == ParryResult.Hit, "result=" + g3);
+            Check("Guard_UnblockableDealsFullDamage", hp0 - health.Current > 30f,
+                "dealt=" + (hp0 - health.Current).ToString("0.0"));
+
+            yield return SettleTimeScale();
+
+            // ---- the guard does not protect your back ------------------------------------------
+            parry.Cancel();
+            parry.GuardHeld = true;
+            health.ResetFull(); posture.ResetFull();
+            FaceAwayFrom(dummy.transform.position);
+            hp0 = health.Current;
+            var g4 = combat.ReceiveAttack(MakeAttack(dummy, 15f, false));
+            Check("Guard_DoesNotProtectYourBack", g4 == ParryResult.Hit, "result=" + g4);
+            CheckApprox("Guard_BackHitDealsFullDamage", hp0 - health.Current, 15f, 0.5f);
+
+            yield return SettleTimeScale();
+
+            // ---- posture does NOT regenerate while the guard is up -----------------------------
+            parry.Cancel();
+            parry.GuardHeld = true;
+            health.ResetFull(); posture.ResetFull();
+            FacePoint(dummy.transform.position);
+            posture.Add(posture.Max * 0.4f);
+            float held0 = posture.Current;
+            yield return WaitRealtime(D.postureRegenDelay + 0.6f);
+            CheckApprox("Guard_SuppressesPostureRegen", posture.Current, held0, 0.5f);
+
+            parry.GuardHeld = false;                      // blade down: the refund starts
+            Check("Guard_NotGuardingWhenReleased", !parry.IsGuarding);
+            yield return WaitRealtime(0.5f);
+            Check("Guard_PostureRegensOnceReleased", posture.Current < held0 - 1f,
+                held0.ToString("0.0") + " -> " + posture.Current.ToString("0.0"));
+
+            // ---- guarding through too much BREAKS you ------------------------------------------
+            // The punishment that makes turtling a losing strategy, reached through the normal
+            // PlayerPosture path so the stagger, the event and the HUD all fire as they always do.
+            parry.Cancel();
+            parry.GuardHeld = true;
+            health.ResetFull(); posture.ResetFull();
+            FacePoint(dummy.transform.position);
+            bool brokeEvent = false;
+            Action onBreak = () => brokeEvent = true;
+            GameEvents.PlayerPostureBroken += onBreak;
+            int swings = 0;
+            while (!posture.IsBroken && swings < 12)
+            {
+                FacePoint(dummy.transform.position);      // the guard shove moves the player off the line
+                combat.ReceiveAttack(MakeAttack(dummy, 30f, false));
+                swings++;
+                yield return null;
+            }
+            GameEvents.PlayerPostureBroken -= onBreak;
+            Check("Guard_TurtlingBreaksPosture", posture.IsBroken, "guarded hits=" + swings);
+            Check("Guard_BreakRaisesEvent", brokeEvent);
+            Check("Guard_BreakStaggersPlayer", combat.IsStaggered);
+            // A broken guard must STAY broken: the stance cannot be re-raised through the stagger, or
+            // the punish never lands.
+            Check("Guard_CannotGuardWhileStaggered", !parry.IsGuarding, "GuardHeld=" + parry.GuardHeld);
+
+            parry.GuardHeld = false;
+            parry.ReleaseGuardOverride();
+            parry.Cancel();
+            yield return WaitRealtime(D.postureStaggerSeconds + 0.3f);
+            posture.ResetFull();
+            health.ResetFull();
+            yield return SettleTimeScale();
+
+            // ---- the STANCE: a held pose that does not stand in front of the fight -------------
+            var vm = combat.GetComponentInChildren<WeaponViewmodel>(true);
+            if (vm == null) Skip("Guard_ViewmodelExists", "no WeaponViewmodel");
+            else
+            {
+                Check("Guard_ViewmodelExists", true);
+                parry.ReleaseGuardOverride();
+                vm.PlayGuard();
+                yield return null;
+                Check("Guard_ViewmodelHoldsStance", vm.IsGuarding);
+                vm.EndGuard();
+                yield return null;
+                Check("Guard_ViewmodelReleases", !vm.IsGuarding);
+            }
+
+            // Every weapon's stance must be a DIFFERENT pose from its parry flick (a held stance and a
+            // momentary flick have different jobs) and must sit well off the crosshair. The failure mode
+            // of this viewmodel has always been eating the frame; a stance is held for SECONDS, so a
+            // pose over screen centre would occlude the enemy for the whole exchange.
+            if (weapons.loadout != null)
+            {
+                foreach (var w in weapons.loadout)
+                {
+                    if (w == null) continue;
+                    Check("GuardPose_DistinctFromParry_" + w.name,
+                        (w.guard.pos - w.parry.pos).sqrMagnitude > 0.0001f ||
+                        (w.guard.euler - w.parry.euler).sqrMagnitude > 0.01f,
+                        "guard=" + w.guard.pos + " parry=" + w.parry.pos);
+                    Check("GuardPose_OffTheCrosshair_" + w.name, w.guard.pos.x >= 0.20f,
+                        "x=" + w.guard.pos.x.ToString("0.00"));
+                    Check("GuardPose_RaisedAboveIdle_" + w.name, w.guard.pos.y > w.idle.pos.y,
+                        "guardY=" + w.guard.pos.y.ToString("0.00") + " idleY=" + w.idle.pos.y.ToString("0.00"));
+                }
+            }
+
+            // ---- ONE MOTION INTO GUARD ---------------------------------------------------------
+            // Reported from play: "it needs to not point forward first when trying to guard, it needs
+            // to be one smooth motion into guard." The entry used to route through WeaponData.parry -
+            // a flick that lives almost on the crosshair - so the blade shot forward and came back.
+            //
+            // The criterion is geometric and it is the viewer's: measure the blade tip's ANGLE OFF THE
+            // CAMERA AXIS every frame of the blend. If any frame swings the tip closer to the crosshair
+            // than BOTH endpoints, the motion is still travelling through a waypoint. This is the same
+            // question as "is it one smooth motion", asked in a way a machine can answer every run.
+            if (vm != null && weapons.Current != null)
+            {
+                parry.ReleaseGuardOverride();
+                parry.GuardHeld = false;
+                vm.EndGuard();
+                yield return WaitRealtime(0.35f);
+
+                float idleAngle = TipAngleOffAxis(vm);
+                float worstRise = 999f;
+                // Driven through the BUTTON, not the viewmodel: ParryController owns GuardWanted and
+                // rewrites it every frame, so poking the viewmodel directly tests a path the game never
+                // takes. (Learned the hard way - the first version of this test did exactly that and the
+                // mid-swing case silently measured idle.)
+                parry.GuardHeld = true;
+                yield return null;
+                float t0 = Time.unscaledTime;
+                while (Time.unscaledTime - t0 < 0.30f)
+                {
+                    worstRise = Mathf.Min(worstRise, TipAngleOffAxis(vm));
+                    yield return null;
+                }
+                float guardAngle = TipAngleOffAxis(vm);
+                float floorAngle = Mathf.Min(idleAngle, guardAngle);
+                Check("GuardEntry_NeverSwingsAcrossTheView", worstRise >= floorAngle - 2f,
+                    "worst=" + worstRise.ToString("0.0") + "deg idle=" + idleAngle.ToString("0.0") +
+                    "deg guard=" + guardAngle.ToString("0.0") + "deg (a frame nearer the crosshair than " +
+                    "both endpoints means the blade is still routing through the parry flick)");
+
+                // And the same on the way out: the release is one settle, not a flick.
+                float worstFall = 999f;
+                parry.GuardHeld = false;
+                yield return null;
+                t0 = Time.unscaledTime;
+                while (Time.unscaledTime - t0 < 0.30f)
+                {
+                    worstFall = Mathf.Min(worstFall, TipAngleOffAxis(vm));
+                    yield return null;
+                }
+                Check("GuardRelease_NeverSwingsAcrossTheView", worstFall >= floorAngle - 2f,
+                    "worst=" + worstFall.ToString("0.0") + "deg floor=" + floorAngle.ToString("0.0") + "deg");
+
+                // MID-SWING INTO GUARD is the case a real fight hits most often. The recovery leg of the
+                // arc must land IN the stance, so the blade never returns to idle and set off again.
+                weapons.TryAttack();
+                yield return WaitRealtime(weapons.Current.hitDelay + 0.02f);
+                parry.GuardHeld = true;                   // guard raised MID-ARC, as a player would
+                yield return WaitRealtime(weapons.Current.attackDuration + 0.45f);
+                Check("GuardEntry_SwingEndsInTheStance", vm.IsGuarding,
+                    "a swing that ends with the button down must settle INTO the guard, not into idle");
+                float settled = TipAngleOffAxis(vm);
+                Check("GuardEntry_SwingSettlesToTheGuardAngle", Mathf.Abs(settled - guardAngle) < 6f,
+                    "afterSwing=" + settled.ToString("0.0") + "deg guard=" + guardAngle.ToString("0.0") + "deg");
+
+                // THE IMPACT KICK MUST ALSO DRIVE AWAY FROM THE FIGHT. A guarded hit shoves the stance,
+                // and the first version of that shove pulled the blade 0.10 m toward the lens with a
+                // yaw that swung the point INWARD - at the peak of the kick the tip sat on the enemy,
+                // during the one beat the player most needs to see them. Measured, not eyeballed: the
+                // kick's peak must be FURTHER off the camera axis than the stance it starts from.
+                parry.GuardHeld = true;
+                yield return null;
+                yield return WaitRealtime(0.2f);
+                float stanceAngle = TipAngleOffAxis(vm);
+                vm.GuardImpact();
+                float peakOut = 0f;
+                float t1 = Time.unscaledTime;
+                while (Time.unscaledTime - t1 < 0.06f)
+                {
+                    peakOut = Mathf.Max(peakOut, TipAngleOffAxis(vm));
+                    yield return null;
+                }
+                Check("GuardImpact_KicksAwayFromTheFight", peakOut >= stanceAngle - 0.5f,
+                    "peak=" + peakOut.ToString("0.0") + "deg stance=" + stanceAngle.ToString("0.0") +
+                    "deg (a kick that swings the blade TOWARD the crosshair covers the enemy on the " +
+                    "exact beat the player needs to read them)");
+
+                parry.GuardHeld = false;
+                yield return null;
+                vm.EndGuard();
+                yield return SettleTimeScale();
+            }
+
+            parry.ReleaseGuardOverride();
+            parry.Cancel();
+            if (dummy != null) Destroy(dummy.gameObject);
+            yield return null;
+        }
+
+        /// <summary>
+        /// Angle between the camera's forward axis and the line to the held blade's tip. Small = the
+        /// weapon is near the crosshair and in front of the fight; large = it is out at the edge of the
+        /// frame where a viewmodel belongs. The one number that answers "is the guard in my way".
+        /// </summary>
+        static float TipAngleOffAxis(WeaponViewmodel vm)
+        {
+            var cam = Camera.main;
+            if (cam == null || vm == null) return 999f;
+            Vector3 to = vm.TipWorldPosition - cam.transform.position;
+            if (to.sqrMagnitude < 1e-6f) return 999f;
+            return Vector3.Angle(cam.transform.forward, to);
         }
 
         // ================================================================ 4. PLAYER POSTURE
@@ -1642,6 +2199,7 @@ namespace VibeGame1
             yield return null;
 
             yield return TestWeaponEmber();
+            yield return TestWeaponTrail();
         }
 
         /// <summary>
@@ -1686,6 +2244,69 @@ namespace VibeGame1
                 $"charge={ember.Charge:0.000} (was {mid:0.000})");
 
             res.ConsumePyre();
+            yield return null;
+        }
+
+        /// <summary>
+        /// The swing trail. Like the fire this is a PRESENTATION contract — only a frame sequence can
+        /// say whether the arc reads — but three things ARE testable and all three have failed before:
+        /// that it shipped on the prefab at all (rule 9), that its brightness stayed inside the band
+        /// that does not out-shout the combat markers, and that it is open for the STRIKE ONLY. The
+        /// last is the important one: the trail is the player's read on the active window, so a trail
+        /// that runs through the wind-up is a lie about when the weapon is dangerous.
+        /// </summary>
+        IEnumerator TestWeaponTrail()
+        {
+            var vm = combat != null ? combat.GetComponentInChildren<WeaponViewmodel>(true) : null;
+            var trail = vm != null ? vm.GetComponent<WeaponTrail>() : null;
+            if (trail == null)
+            {
+                Check("Trail_ShippedOnViewmodel", false,
+                    "PrefabFactory must AddComponent<WeaponTrail>() on ViewmodelRoot");
+                yield break;
+            }
+            Check("Trail_ShippedOnViewmodel", true);
+
+            // Readability band. The alert tell is 3.00 and the deathblow mark 2.60 because they are
+            // alarms; this is flourish and must stay well under both, and under the ~1.25 where ACES
+            // desaturates a saturated hue toward orange.
+            Check("Trail_BrightnessCapped", trail.brightness <= 1.25f && trail.brightness >= 0.8f,
+                "brightness=" + trail.brightness.ToString("0.00"));
+            Check("Trail_WidthCapped", trail.headWidth <= 0.05f && trail.headWidth > 0f,
+                "headWidth=" + trail.headWidth.ToString("0.000") + "m at ~0.5m from the lens");
+            Check("Trail_FadeIsShort", trail.fadeSeconds > 0f && trail.fadeSeconds <= 0.2f,
+                "fade=" + trail.fadeSeconds.ToString("0.00") + "s (a trail that outlives the recovery " +
+                "stops meaning 'the hitbox is live')");
+
+            // STRETCHED so the phases can be sampled: the shipped strike leg is 0.044-0.14 s, which is
+            // a couple of frames. The pose path is a normalised lerp, so a stretched attack walks the
+            // identical phases - it just gives the sampler somewhere to stand.
+            trail.Clear();
+            vm.PlayAttack(0, 1.2f, 0.5f);          // windup 0.50s, strike 0.24s, then hold + recovery
+            yield return WaitRealtime(0.25f);
+            bool quietInWindup = !trail.IsEmitting;
+            yield return WaitRealtime(0.40f);      // t = 0.65s: inside the strike
+            bool liveInStrike = trail.IsEmitting;
+            yield return WaitRealtime(0.35f);      // t = 1.00s: past the strike, into the follow-through
+            bool quietAfter = !trail.IsEmitting;
+
+            Check("Trail_SilentDuringWindup", quietInWindup, "the wind-up is not dangerous yet");
+            Check("Trail_LiveDuringStrike", liveInStrike, "the ribbon must span the active window");
+            Check("Trail_ClosesAfterStrike", quietAfter, "and must close with it");
+
+            var wc = combat != null ? combat.GetComponent<WeaponController>() : null;
+            if (wc != null && wc.Current != null)
+            {
+                Color want = SlashFx.NormaliseColor(wc.Current.neon);
+                Color got = trail.Hue;
+                float d = Mathf.Abs(want.r - got.r) + Mathf.Abs(want.g - got.g) + Mathf.Abs(want.b - got.b);
+                Check("Trail_CarriesWeaponHue", d < 0.05f,
+                    "want=" + want.ToString("F2") + " got=" + got.ToString("F2") +
+                    " (each weapon's neon is its identity; a white trail makes all four the same weapon)");
+            }
+            else Skip("Trail_CarriesWeaponHue", "no equipped weapon");
+
+            vm.Interrupt();
             yield return null;
         }
 
@@ -1767,6 +2388,253 @@ namespace VibeGame1
         }
 
         // ================================================================ 6c. TELL READABILITY
+
+        // ---------------------------------------------------------------------------------------
+        // WIND-UP SILHOUETTES (gap 3.5). An attack's anticipation has to be a distinct SHAPE, not a
+        // distinct set of numbers in an asset.
+        //
+        // WHY THIS TEST MEASURES INSTEAD OF ASSERTING THE AUTHORED EULERS. A WindupPose authors a
+        // SHOULDER angle, but the hand pivot trails it by weaponLag and the whole body is rotated and
+        // offset underneath both, so the blade's actual orientation is the product of three rotations.
+        // Every one of the eleven poses shipped before this test was authored with a comment describing
+        // a shape it did not make: an "overhead mast" that resolved to a short horizontal stub, a
+        // "pure horizontal sweep" and a "pure vertical overhead" that both resolved to the same steep
+        // diagonal. Asserting the authored numbers would have passed on all of them. So this
+        // instantiates the real prefab, drives the real rig through the real pose maths, and measures
+        // what the blade DOES.
+        //
+        // The four channels are the ones a silhouette is actually read by:
+        //   tilt  - the blade's angle in the plane the player sees (0 = level bar, +-90 = upright mast)
+        //   proj  - how much of the blade survives foreshortening (1 = full length across the view,
+        //           0 = pointed straight down the camera and invisible)
+        //   tipX/tipY - where the high end of the blade sits, in body-heights from the body's centre
+        // Two poses are DISTINCT when any one channel separates them by more than a threshold that was
+        // set from photographs, not from taste.
+        // ---------------------------------------------------------------------------------------
+
+        struct BladeShape
+        {
+            public bool valid;
+            public float tilt;      // degrees, wrapped to (-90, 90]; 0 = level, +-90 = upright
+            public float proj;      // 0-1, length surviving foreshortening
+            public float tipX;      // body-heights right of the body centre
+            public float tipY;      // body-heights above the body centre
+        }
+
+        const float TiltSep = 35f;    // degrees of blade angle that read as "a different shape"
+        const float ProjSep = 0.35f;  // foreshortening difference (a thrust vs a swing)
+        const float TipXSep = 0.55f;  // body-heights of horizontal displacement
+        const float TipYSep = 0.50f;  // body-heights of height difference
+
+        /// <summary>
+        /// Drive a real instance of <paramref name="prefab"/> into one attack's wind-up peak (the pose
+        /// CueFlash freezes on: <c>armWindup * 1.12</c>) and measure the blade's silhouette in the
+        /// enemy's own view plane. The instance is created INACTIVE so no Awake, no AI and no NavMesh
+        /// spawn runs; the transforms are still live and still at rest, which is exactly what is needed.
+        /// </summary>
+        static BladeShape MeasureWindup(GameObject prefab, EnemyAttackData atk)
+        {
+            var s = new BladeShape();
+            if (prefab == null || atk == null) return s;
+            var go = Instantiate(prefab);
+            go.SetActive(false);
+            try
+            {
+                var vis = go.GetComponentInChildren<EnemyVisuals>(true);
+                if (vis == null || vis.armPivot == null || vis.weapon == null) return s;
+                Transform root = go.transform, arm = vis.armPivot, blade = vis.weapon.transform;
+                Transform lunge = vis.lungeRoot, hand = vis.weaponPivot;
+                var p = atk.windupPose;
+                if (p == null) return s;
+
+                Vector3 w = p.armWindup * 1.12f;                    // the held cue peak
+                float lag = hand != null ? Mathf.Clamp01(p.weaponLag) : 0f;
+                if (lunge != null)
+                {
+                    lunge.localPosition += p.bodyOffset;
+                    lunge.localRotation *= Quaternion.Euler(p.bodyEuler);
+                }
+                arm.localRotation *= Quaternion.Euler(w);
+                if (hand != null) hand.localRotation *= Quaternion.Euler(w * lag);
+
+                Vector3 sc = blade.lossyScale;
+                Vector3 axis = (sc.y >= sc.x && sc.y >= sc.z) ? Vector3.up
+                             : ((sc.z >= sc.x) ? Vector3.forward : Vector3.right);
+                Quaternion inv = Quaternion.Inverse(root.rotation);
+                Vector3 dir = inv * (blade.rotation * axis);
+                Vector3 centre = inv * (blade.position - root.position);
+                float half = 0.5f * Vector3.Scale(axis, sc).magnitude;
+                Vector3 t1 = centre + dir * half, t2 = centre - dir * half;
+                Vector3 tip = t1.y >= t2.y ? t1 : t2;
+
+                var cc = go.GetComponent<CapsuleCollider>();
+                float bodyH = cc != null && cc.height > 0.1f ? cc.height : 2f;
+
+                float tilt = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                if (tilt > 90f) tilt -= 180f;
+                if (tilt < -90f) tilt += 180f;
+
+                s.valid = true;
+                s.tilt = tilt;
+                s.proj = new Vector2(dir.x, dir.y).magnitude;
+                s.tipX = tip.x / bodyH;
+                s.tipY = tip.y / bodyH;
+                return s;
+            }
+            finally { DestroyImmediate(go); }
+        }
+
+        /// <summary>Which channel separates two silhouettes, and by how many thresholds. >= 1 is distinct.</summary>
+        static float Separation(BladeShape a, BladeShape b, out string channel)
+        {
+            float dTilt = Mathf.Abs(Mathf.DeltaAngle(a.tilt * 2f, b.tilt * 2f)) * 0.5f;
+            float dProj = Mathf.Abs(a.proj - b.proj);
+            float dX = Mathf.Abs(a.tipX - b.tipX);
+            float dY = Mathf.Abs(a.tipY - b.tipY);
+            float sTilt = dTilt / TiltSep, sProj = dProj / ProjSep, sX = dX / TipXSep, sY = dY / TipYSep;
+            channel = "tilt"; float best = sTilt;
+            if (sProj > best) { best = sProj; channel = "foreshortening"; }
+            if (sX > best) { best = sX; channel = "side"; }
+            if (sY > best) { best = sY; channel = "height"; }
+            channel += $" (dTilt={dTilt:0}deg dProj={dProj:0.00} dX={dX:0.00} dY={dY:0.00})";
+            return best;
+        }
+
+        void CheckDistinct(string tag, string an, BladeShape a, string bn, BladeShape b)
+        {
+            if (!a.valid || !b.valid) { Skip(tag, "could not measure " + an + " / " + bn); return; }
+            string channel;
+            float sep = Separation(a, b, out channel);
+            Check(tag, sep >= 1f,
+                $"{an} vs {bn}: separated {sep:0.00}x on {channel}. " +
+                $"{an}=(tilt {a.tilt:0}, proj {a.proj:0.00}, tip {a.tipX:0.00}/{a.tipY:0.00}) " +
+                $"{bn}=(tilt {b.tilt:0}, proj {b.proj:0.00}, tip {b.tipX:0.00}/{b.tipY:0.00})");
+        }
+
+        IEnumerator TestWindupPoses()
+        {
+            // The prefabs the level actually spawns, plus the boss, so this tests what ships.
+            // BY NAME, not by scale. The first pass picked the prefabs by EnemyData.scale and got the
+            // Ashen Chorister (scale 1.5) instead of Enemy_Heavy, then reported its five DELIBERATELY
+            // unauthored attacks as failures. The legendaries are content: they ride the cone-derived
+            // fallback on purpose, and the last check in this test is what proves that still works.
+            GameObject gruntPf = null, heavyPf = null, bossPf = null;
+            foreach (var sp in FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None))
+            {
+                if (sp.prefab == null) continue;
+                if (sp.prefab.GetComponentInChildren<BossController>(true) != null) { bossPf = sp.prefab; continue; }
+                if (sp.prefab.name == "Enemy_Grunt") gruntPf = sp.prefab;
+                else if (sp.prefab.name == "Enemy_Heavy") heavyPf = sp.prefab;
+            }
+            Check("Windup_CoreMovesetsFound", gruntPf != null && heavyPf != null && bossPf != null,
+                $"grunt={(gruntPf != null ? gruntPf.name : "null")} heavy={(heavyPf != null ? heavyPf.name : "null")} " +
+                $"boss={(bossPf != null ? bossPf.name : "null")}");
+            var liveBoss = FindAnyObjectByType<BossController>();
+            if (bossPf == null && liveBoss != null) bossPf = liveBoss.gameObject;
+
+            // ---- every authored pose is actually authored, and its strike RESOLVES the wind-up -----
+            var shapes = new Dictionary<string, BladeShape>();
+            Action<GameObject, EnemyData> sweep = (pf, d) =>
+            {
+                if (pf == null || d == null) return;
+                var atks = new List<EnemyAttackData>();
+                var combos = d.ResolveCombos();
+                if (combos != null)
+                    foreach (var c in combos)
+                    { if (c == null || c.hits == null) continue; foreach (var h in c.hits) if (h != null && !atks.Contains(h)) atks.Add(h); }
+                var bd = d as BossData;
+                if (bd != null && bd.phases != null)
+                    foreach (var ph in bd.phases)
+                    { if (ph == null || ph.patterns == null) continue;
+                      foreach (var c in ph.patterns) { if (c == null || c.hits == null) continue;
+                        foreach (var h in c.hits) if (h != null && !atks.Contains(h)) atks.Add(h); } }
+                foreach (var a in atks)
+                {
+                    var p = a.windupPose;
+                    // Only the three CORE movesets are swept, and every one of their attacks is
+                    // authored. An attack outside them is allowed to have no pose at all — see the
+                    // fallback check at the end of this test.
+                    Check("Windup_" + a.name + "_Authored", p != null && p.authored,
+                        "a core-moveset attack must carry its own silhouette");
+                    if (p == null || !p.authored) continue;
+                    // The strike has to RESOLVE the wind-up. Identical (or near-identical) angles mean
+                    // the swing does not visibly travel, and the two beats read as one held pose.
+                    float travel = Quaternion.Angle(Quaternion.Euler(p.armWindup), Quaternion.Euler(p.armStrike));
+                    Check("Windup_" + a.name + "_StrikeResolves", travel >= 40f,
+                        $"windup->strike travels {travel:0}deg");
+                    if (!shapes.ContainsKey(a.name)) shapes[a.name] = MeasureWindup(pf, a);
+                }
+            };
+            sweep(gruntPf, DataOf(gruntPf));
+            sweep(heavyPf, DataOf(heavyPf));
+            sweep(bossPf, bossPf != null ? DataOf(bossPf) : null);
+
+            Func<string, BladeShape> S = n => shapes.ContainsKey(n) ? shapes[n] : new BladeShape();
+
+            // ---- the pairs whose confusion costs the player -----------------------------------
+            // 1. The Grunt's opener against its rhythm-breaker. Mistaking the 0.72 s heavy for the
+            //    0.45 s jab throws the parry early and gives up the best deflect value in the moveset.
+            CheckDistinct("Windup_GruntJabVsHeavy", "Grunt_Jab", S("Grunt_Jab"), "Grunt_Heavy", S("Grunt_Heavy"));
+
+            // 2. Vertical answer vs horizontal answer. These two shipped as the SAME steep diagonal.
+            CheckDistinct("Windup_HeavyOverheadVsSweep", "Heavy_Overhead", S("Heavy_Overhead"),
+                          "Heavy_Sweep", S("Heavy_Sweep"));
+
+            // 3. THE UNBLOCKABLE. Boss_Thrust's answer is to MOVE, not to parry, and getting it wrong
+            //    costs 55. It gets a second, independent read alongside the pink M_AlertTell marker and
+            //    the red cue tint - this asserts the POSE half of that, against every other boss attack.
+            string[] others = { "Boss_Slash", "Boss_DoubleSlash_A", "Boss_DoubleSlash_B", "Boss_Slam" };
+            foreach (var o in others)
+                CheckDistinct("Windup_ThrustVs" + o.Replace("Boss_", ""), "Boss_Thrust", S("Boss_Thrust"), o, S(o));
+
+            // 4. The boss's two openers must not rhyme with each other either.
+            CheckDistinct("Windup_BossSlashVsSlam", "Boss_Slash", S("Boss_Slash"), "Boss_Slam", S("Boss_Slam"));
+            CheckDistinct("Windup_BossSlashVsDoubleA", "Boss_Slash", S("Boss_Slash"),
+                          "Boss_DoubleSlash_A", S("Boss_DoubleSlash_A"));
+
+            // ---- AN UNAUTHORED ATTACK STILL GETS A POSE ---------------------------------------
+            // 25+ attack assets exist and most are content that never needed its own silhouette, so the
+            // cone-derived fallback has to keep working. This drives it through the real Telegraph path
+            // rather than reading a field, because the fallback lives inside EnemyVisuals.PoseFor.
+            if (gruntPf == null) { Skip("Windup_UnauthoredFallsBack", "no grunt prefab"); yield break; }
+            EnemyController host = null;
+            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+                if (e.IsAlive && e.gameObject.activeInHierarchy) { host = e; break; }
+            if (host == null) { Skip("Windup_UnauthoredFallsBack", "no live enemy to borrow a spot from"); yield break; }
+
+            var dummy = Instantiate(gruntPf, host.transform.position, Quaternion.identity);
+            dummy.name = "WindupFallbackDummy";
+            yield return null;
+            yield return null;                       // Start(): the palette and the rig bind here
+            var dc = dummy.GetComponent<EnemyController>();
+            if (dc != null) dc.enabled = false;
+            var dagent = dummy.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (dagent != null) dagent.enabled = false;
+            foreach (var col in dummy.GetComponentsInChildren<Collider>(true)) col.enabled = false;
+
+            var dvis = dummy.GetComponentInChildren<EnemyVisuals>(true);
+            if (dvis == null || dvis.armPivot == null) { Skip("Windup_UnauthoredFallsBack", "no arm rig"); Destroy(dummy); yield break; }
+
+            var fake = ScriptableObject.CreateInstance<EnemyAttackData>();
+            fake.attackName = "UnauthoredProbe";
+            fake.windup = 0.5f;
+            fake.coneDeg = 110f;                     // wide cone -> the cone-derived SWEEP fallback
+            // fake.windupPose.authored stays FALSE. That is the whole point.
+            Check("Windup_ProbeIsUnauthored", !fake.windupPose.authored);
+
+            Quaternion rest = dvis.armPivot.localRotation;
+            dvis.Telegraph(fake, 0.5f);
+            float until = Time.unscaledTime + 0.6f;
+            while (Time.unscaledTime < until) yield return null;
+            float moved = Quaternion.Angle(rest, dvis.armPivot.localRotation);
+            Check("Windup_UnauthoredFallsBack", moved >= 30f,
+                $"an attack with no authored pose still reared {moved:0}deg — the cone-derived fallback is alive");
+
+            dvis.ClearTelegraph();
+            Destroy(dummy);
+            DestroyImmediate(fake);
+            yield return null;
+        }
 
         /// <summary>
         /// The unblockable tell and the navigational trims must live on SEPARATE materials, because they
@@ -2941,9 +3809,167 @@ namespace VibeGame1
                         $"killTop={kc.bounds.max.y:0.0} lowest={lowest:0.0} ({lowestName})");
             }
 
+            // ---- REACHABILITY -------------------------------------------------------------------
+            // Every hop the course actually asks for, measured off the BUILT geometry rather than off
+            // the numbers in the definition, and checked against the envelope of the moveset it is meant
+            // to need. Adding slide and wall jump must not quietly make a base-moveset gap unclearable:
+            // a player who has not learned the tech has to be able to finish the level.
+            //
+            // Envelopes are the documented contract in docs/AUTHORING.md, which is deliberately well
+            // inside the measured capability (a held run-jump covers 8.8 m; the contract says 6).
+            CheckHop("Base", "Ground_Start", "T1_Stone_1", 6f, 1f);
+            CheckHop("Base", "T1_Stone_1", "T1_Stone_2", 6f, 1f);
+            CheckHop("Base", "T1_Stone_2", "T1_Stone_3", 6f, 1f);
+            CheckHop("Base", "T1_Stone_3", "T1_Stone_4", 6f, 1f);
+            CheckHop("Base", "T1_Stone_4", "T1_Causeway", 6f, 1f);
+            CheckHop("Base", "T1_Causeway", "T1_Stone_5", 6f, 1f);
+            CheckHop("Base", "T1_Stone_5", "T1_Arena", 6f, 1.5f);
+            CheckHop("Base", "T2_Entry", "T2_L1", 6f, 1.5f);
+            CheckHop("Base", "T2_L1", "T2_L2", 6f, 1.5f);
+            CheckHop("Base", "T2_L2", "T2_L3", 6f, 1.5f);
+            CheckHop("Base", "T2_L3", "T2_L4", 6f, 1.5f);
+            CheckHop("Base", "T2_L4", "T2_L5", 6f, 1.5f);
+            CheckHop("Base", "T2_L5", "T2_L6", 6f, 1.5f);
+            CheckHop("Base", "T2_L6", "T2_L7", 6f, 1.5f);
+            CheckHop("Base", "T2_L7", "T2_L8", 6f, 1.5f);
+            CheckHop("Base", "T2_L8", "T2_L9", 6f, 1.5f);
+            CheckHop("Base", "T2_L9", "T2_L10", 6f, 1.5f);
+            CheckHop("Base", "T2_L10", "T2_L11", 6f, 1.5f);
+            CheckHop("Base", "T3_Entry", "T3_Pillar_1", 6f, 1.5f);
+            CheckHop("Base", "T3_Pillar_1", "T3_Pillar_2", 6f, 1.5f);
+            CheckHop("Base", "T3_Pillar_2", "T3_Pillar_3", 6f, 1.5f);
+            CheckHop("Base", "T3_Pillar_3", "T3_Pillar_4", 6f, 1.5f);
+            CheckHop("Base", "T3_Pillar_4", "T3_Span", 6f, 1.5f);
+            CheckHop("Base", "T3_Span", "T3_Step_1", 6f, 1.5f);
+            CheckHop("Base", "T3_Step_1", "T3_Step_2", 6f, 1.5f);
+            CheckHop("Base", "T3_Step_2", "T3_Step_3", 6f, 1.5f);
+            CheckHop("Base", "T3_Step_3", "T3_Arena", 6f, 1.5f);
+
+            // The optional fast lines. Each is checked to be INSIDE the tech envelope AND, where it is
+            // meant to be tech-gated, OUTSIDE the base one - a "shortcut" a base moveset can also take
+            // is not a reward for learning anything, and it silently kills the route it bypasses.
+            CheckHop("SlideJump", "T1_Stone_1", "T1_Fast_1", 8.5f, 1f);
+            CheckHopIsGated("T1_Stone_1", "T1_Fast_1", 6f);
+            CheckHop("Base", "T1_Fast_1", "T1_Stone_4", 4.5f, 1.5f);      // the exit is NOT a second gate
+
+            // The fallen obelisk across the causeway. It must be low enough that a standing player is
+            // stopped, high enough that a slide passes, and — the part that keeps it honest — LOW enough
+            // on top that it can simply be jumped over. It costs time, it does not cost access.
+            var fallen = GameObject.Find("Level/T1_Fallen_Obelisk");
+            var causeway = GameObject.Find("Level/T1_Causeway");
+            if (fallen == null || causeway == null) Check("Reach_T1FallenObeliskExists", false);
+            else
+            {
+                float deckTop = causeway.GetComponent<Renderer>().bounds.max.y;
+                var fb = fallen.GetComponent<Renderer>().bounds;
+                float clearance = fb.min.y - deckTop;
+                float overTop = fb.max.y - deckTop;
+                float slideH = motor.slideHeight, standH = motor.StandHeight;
+                Check("Reach_T1FallenObelisk_SlideFitsButStandingDoesNot",
+                    clearance > slideH + 0.05f && clearance < standH,
+                    $"clearance={clearance:0.00}m slideCapsule={slideH:0.00} standing={standH:0.00}");
+                Check("Reach_T1FallenObelisk_CanStillBeJumpedOver", overTop < motor.jumpHeight - 0.2f,
+                    $"topAboveDeck={overTop:0.00}m jumpHeight={motor.jumpHeight:0.00} - if this ever " +
+                    "exceeds the jump, the causeway becomes slide-gated and a player without the tech is walled in");
+                Check("Reach_T1FallenObelisk_SpansTheCauseway",
+                    fb.min.x <= causeway.GetComponent<Renderer>().bounds.min.x &&
+                    fb.max.x >= causeway.GetComponent<Renderer>().bounds.max.x,
+                    "it has to block the whole width, or the decision is not a decision");
+            }
+
+            // T2 ships NO added wall-jump geometry. A pair of slabs on the entry pad was built, shot
+            // from the player's own approach, and cut: from the angle you actually arrive at it read as
+            // one undifferentiated black wall a metre from your face, not as a slot. The tower itself is
+            // the wall-jump surface in The Ascent - already there, already the thing you are circling -
+            // and this asserts it is still a surface the scan can find. See BACKLOG for the buttress
+            // design that was drawn up and not shipped.
+            var tower = GameObject.Find("Level/T2_Tower");
+            Check("Reach_T2TowerIsAWallJumpSurface",
+                tower != null && tower.GetComponent<Collider>() != null && tower.layer == 0,
+                tower == null ? "T2_Tower missing"
+                    : $"layer={tower.layer} collider={tower.GetComponent<Collider>() != null} " +
+                      $"height={tower.GetComponent<Renderer>().bounds.size.y:0.0}m");
+
+            // The T3 recovery pylons: beside the span, BELOW its walking surface (so they never obstruct
+            // a run) and inside the wall check's reach of the edge you fall off.
+            var span = GameObject.Find("Level/T3_Span");
+            if (span != null)
+            {
+                var sb2 = span.GetComponent<Renderer>().bounds;
+                int pylons = 0;
+                float worstReach = 0f, highest = 0f;
+                foreach (var n2 in new[] { "T3_Recovery_W1", "T3_Recovery_E1", "T3_Recovery_W2", "T3_Recovery_E2" })
+                {
+                    var g2 = GameObject.Find("Level/" + n2);
+                    if (g2 == null) continue;
+                    pylons++;
+                    var b2 = g2.GetComponent<Renderer>().bounds;
+                    float reach = b2.center.x < 0f ? sb2.min.x - b2.max.x : b2.min.x - sb2.max.x;
+                    worstReach = Mathf.Max(worstReach, reach);
+                    highest = Mathf.Max(highest, b2.max.y);
+                }
+                Check("Reach_T3RecoveryPylons_Exist", pylons == 4, "found=" + pylons);
+                Check("Reach_T3RecoveryPylons_WithinWallCheck", pylons == 4 && worstReach < 1.2f,
+                    $"furthest={worstReach:0.00}m from the span edge, wallCheckDistance={motor.wallCheckDistance:0.00}");
+                Check("Reach_T3RecoveryPylons_DoNotBlockTheRun", pylons == 4 && highest < sb2.max.y,
+                    $"tallest={highest:0.0} spanTop={sb2.max.y:0.0} - a pylon above the deck is an obstacle, not a rescue");
+            }
+
             // Leave the run where the rest of the suite expects it.
             if (checkpoints.ContainsKey("Checkpoint_1")) LevelManager.I.Warp("Checkpoint_1");
             yield return null;
+        }
+
+        /// <summary>
+        /// Edge-to-edge horizontal gap and rise between two built platforms, measured off their renderer
+        /// bounds — the geometry that actually exists, not the numbers someone typed into the definition.
+        /// Returns false if either is missing.
+        /// </summary>
+        static bool HopBetween(string fromName, string toName, out float gap, out float rise)
+        {
+            gap = rise = 0f;
+            var a = GameObject.Find("Level/" + fromName);
+            var b = GameObject.Find("Level/" + toName);
+            if (a == null || b == null) return false;
+            var ra = a.GetComponent<Renderer>();
+            var rb = b.GetComponent<Renderer>();
+            if (ra == null || rb == null) return false;
+            Bounds ba = ra.bounds, bb = rb.bounds;
+            // Closest approach in XZ. Overlapping footprints give 0, which is right: you step across.
+            float dx = Mathf.Max(0f, Mathf.Max(ba.min.x - bb.max.x, bb.min.x - ba.max.x));
+            float dz = Mathf.Max(0f, Mathf.Max(ba.min.z - bb.max.z, bb.min.z - ba.max.z));
+            gap = Mathf.Sqrt(dx * dx + dz * dz);
+            rise = bb.max.y - ba.max.y;
+            return true;
+        }
+
+        /// <summary>One authored hop, against the envelope of the moveset it is meant to need.</summary>
+        void CheckHop(string moveset, string fromName, string toName, float maxGap, float maxRise)
+        {
+            float gap, rise;
+            if (!HopBetween(fromName, toName, out gap, out rise))
+            {
+                Check($"Reach_{moveset}_{fromName}_to_{toName}", false, "one of the platforms is missing");
+                return;
+            }
+            Check($"Reach_{moveset}_{fromName}_to_{toName}", gap <= maxGap && rise <= maxRise,
+                $"gap={gap:0.00}m (max {maxGap:0.0})  rise={rise:0.00}m (max {maxRise:0.0})");
+        }
+
+        /// <summary>
+        /// A hop that is SUPPOSED to be out of reach of the base moveset. Without this the "optional fast
+        /// line" is just a shorter route everyone takes, and the scenic route it bypasses is dead content.
+        /// </summary>
+        void CheckHopIsGated(string fromName, string toName, float baseMaxGap)
+        {
+            float gap, rise;
+            if (!HopBetween(fromName, toName, out gap, out rise))
+            {
+                Check($"Reach_Gated_{fromName}_to_{toName}", false, "one of the platforms is missing");
+                return;
+            }
+            Check($"Reach_Gated_{fromName}_to_{toName}", gap > baseMaxGap,
+                $"gap={gap:0.00}m must exceed the base envelope {baseMaxGap:0.0}m or the tech buys nothing");
         }
 
         // ================================================================ GATE LOOP

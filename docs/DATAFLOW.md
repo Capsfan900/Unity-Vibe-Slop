@@ -29,6 +29,7 @@ file without reading the code.
 | [Posture and deathblow](#posture-and-deathblow) | mapped | `Posture` / `PlayerPosture` |
 | [Riposte and wands](#riposte-and-wands) | mapped | `ExecuteInteractor` |
 | [Viewmodel arms](#viewmodel-arms) | mapped | `WeaponViewmodel` / `ViewmodelArm` |
+| [Swing trail](#swing-trail) | mapped | `WeaponTrail` |
 | [Pyre and the super attack](#pyre-and-the-super-attack) | mapped | `PlayerResources` / `UltimateAbility` |
 | [Items](#items) | mapped | `ItemPickup` |
 | [Enemy AI](#enemy-ai) | mapped | `EnemyController.Update` |
@@ -47,7 +48,7 @@ file without reading the code.
 ```
 Unity Input System (project-wide InputSystem_Actions asset)
   → InputReader  (THE ONLY consumer of the Input System)
-      exposes bools/axes: MoveAxis, LookDelta, JumpPressed, DashPressed,
+      exposes bools/axes: MoveAxis, LookDelta, JumpPressed, DashPressed, SlidePressed/SlideHeld,
       AttackPressed, ParryPressed, HealPressed, UltimatePressed, LockOnPressed,
       UseItemPressed, WandCyclePressed, WeaponSlotPressed, TestMenuPressed, PausePressed…
   → every consumer polls InputReader.I in its own Update()
@@ -67,6 +68,13 @@ Unity Input System (project-wide InputSystem_Actions asset)
   held it and both fired on one press. `LockOn` is `<Mouse>/middleButton` because middle mouse is the Souls
   convention *and* was the only free pointer button — the scroll wheel, the other convention, is already
   `Previous`/`Next` weapon cycling, so lock-on switching had to be folded into the lock key instead.
+  `Slide` is `<Keyboard>/leftCtrl` + `<Gamepad>/leftTrigger`, both of which were bound to nothing at all.
+  **`C` was NOT used even though it plays as free**: the Unity template's unread `Crouch` action still holds
+  it, and putting a second action on an occupied key is exactly the `F` bug. Left trigger was chosen over
+  `buttonEast` for the same reason — `buttonEast` already carries `Dash` *and* `Crouch`.
+- **The wall jump got no binding at all.** It is `Space` while airborne near a wall, resolved inside
+  `FirstPersonMotor` after the coyote jump has had its chance. A separate key for "jump, but on a wall" is a
+  key the player has to think about in mid-air.
 
 ---
 
@@ -124,21 +132,39 @@ factory builds.
 
 ```
 InputReader → FirstPersonMotor.Update()
-    JumpPressed → TryJump()   DashPressed → TryDash()   ← public entry points; both re-check CanAct
+    JumpPressed  → TryJump()    DashPressed → TryDash()    ← public entry points; all re-check CanAct
+    SlidePressed → TrySlide()   (Jump while airborne near a wall → TryWallJump())
     dt = TimeScaleController.PlayerDelta      ← NOT Time.deltaTime
-    staggered? (PlayerCombat.IsStaggered) → wish *= 0.4, no jump/dash
+    staggered? (PlayerCombat.IsStaggered) → wish *= 0.4, no jump/dash/slide/wall jump
     ground/air acceleration, coyote time, jump buffer, variable jump, dash
+    SLIDE      capsule 1.8 → 1.0 m, speed +5 (cap 22), bleeds at 2/s to a floor of 8, ~4.0 m
+    WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal
   → CharacterController.Move()
-  ⇢ OnJumped / OnLanded / OnDashed
-      → PlayerFeedback  → AudioManager (footstep/jump/land/dash)
-                        → CameraFX (FOV kick), CameraShake, camera dip on the pivot
+  ⇢ OnJumped / OnLanded / OnDashed / OnSlideStarted / OnSlideEnded / OnWallJumped
+      → PlayerFeedback  → AudioManager (footstep/jump/land/dash/slide/wall jump)
+                        → CameraFX (FOV kick), CameraShake, camera dip AND slide crouch on the pivot
 ```
 
 **Invariants**
 - Player movement reads `TimeScaleController.PlayerDelta`, never `Time.deltaTime`. Hitstop and slow-mo must not
-  brake the player.
+  brake the player. This holds for the slide's decay and the wall jump too.
 - `Teleport(position, yaw)` must push yaw into `PlayerLook`, which owns rotation and rewrites it every frame.
 - `PlayerLook` owns yaw/pitch; the motor owns position. Never both.
+- **The movement path allocates nothing.** No LINQ, no closures, no per-frame arrays, no strings. The only
+  physics queries beyond `CharacterController.Move` are `FindWall` (8 `SphereCastNonAlloc`, ONLY on the frame a
+  buffered jump is resolved while airborne) and `CeilingBlocked` (one, ONLY on the frame a slide tries to end),
+  both through one cached `RaycastHit[4]` and an explicit mask that excludes Player, Enemy and Interactable.
+  Measured: `FindWall` **0 bytes over 20 000 calls, 2.36 µs each**; `CeilingBlocked` 0 bytes.
+- **A slide keeps running on ground it has only just left** (`slideOnGround` = sliding && within `coyoteTime`).
+  Load-bearing, not a nicety — see ENGINEERING-LOG, "a CharacterController moving 0.8 m in one frame is not
+  grounded".
+- **A slide never restores standing height under a ceiling.** `EndSlide` returns false and stays slid; the
+  slide branch then holds speed at `slideEndSpeed` so the player always crawls clear rather than stalling.
+- **A wall jump can never be an ordinary jump.** Refused on the ground and inside `coyoteTime`, so the ground
+  jump always wins the press; refused on the same wall twice running (`sameWallCosineLimit`) so one face is not
+  a free ladder; `maxWallJumps` bounds a chimney to one airtime's worth of climb.
+- **Jump-cancelling a slide keeps the slide's speed.** `EndSlide` runs before the jump and never touches `hv`.
+  That is the whole speedrun tech, and every optional fast line in `Level_01` is authored to it.
 
 ---
 
@@ -176,10 +202,16 @@ EnemyController.Update()
   Strike  → DoImpact(): distance + cone test
       → PlayerCombat.ReceiveAttack(AttackInfo)
             facing = angle(player.forward, toAttacker) <= facingConeDeg (75°)
-            → ParryController.Resolve() → ParryMath.Evaluate(elapsedSincePress, perfect, late, facing, unblockable)
+            → ParryController.Resolve() → ParryMath.Evaluate(elapsed, perfect, late, facing, unblockable, GUARDING)
+                 guarding = InputReader.ParryHeld (RMB DOWN) && not staggered/executing/drinking/ATTACKING
+                 timing first, stance second — the guard only ever upgrades a would-be Hit:
                  Perfect → no damage, enemy posture, FULL Pyre gain, hitstop, flash   ⇢ ParryResolved
-                 Blocked → damage × 0.3, PLAYER posture × 0.9, Pyre × pyreBlockFraction (0.35)
+                 Blocked (timed, late press) → damage × 0.3, PLAYER posture × 0.9, Pyre × 0.35
+                 Blocked (HELD GUARD)        → damage × 0.0, PLAYER posture × 1.5, NO Pyre,
+                                               guardHitStop 0.05, guardShove 1.2 m, spark at the blade,
+                                               WeaponViewmodel.GuardImpact() kicks the stance
                  Hit     → full damage, PLAYER posture × 0.5
+            unblockable / facing away → Hit, whether or not the guard is up
       ⇢ ParryResolved → HUDController popup
       ⇢ PlayerHealthChanged → HUD health bar
 ```
@@ -201,8 +233,22 @@ Timing budget for one attack:
   *dead time* but never the wind-up — otherwise attacks become unreactable.
 - `cueLead ≈ human reaction (~0.20s) + half the perfect window`. Change one, re-derive the other.
 - `PlayerCombat.ReceiveAttack` is the single funnel. No other code may damage the player from an enemy attack.
-- Both successful outcomes stoke the **Pyre** meter, never a hit. See
-  [Pyre and the super attack](#pyre-and-the-super-attack).
+- Both **timed** outcomes stoke the **Pyre** meter; a held guard and a raw hit stoke nothing. See
+  [Pyre and the super attack](#pyre-and-the-super-attack). Turtling must not charge the super.
+- **The guard is resolved strictly after the timing and can only upgrade a Hit.** `ParryMath.Evaluate`
+  runs the windows first; only a result that came out `Hit` is turned into `Blocked` by the stance. A
+  hold can therefore never manufacture a Perfect, which is the single line that keeps the deflect
+  strictly better than the guard and keeps the whole design pointing at the 0.13 s window.
+- **`unblockable` goes straight through the guard**, exactly as it goes through a press. The pink
+  `M_AlertTell` marker means "this one cannot be answered with steel — move"; a guard that ate it would
+  make the loudest signal in the game a lie. Same veto for `facing`: a guard does not protect your back.
+- **Your own swing drops your guard.** `ParryController.CanGuard` is false while `PlayerCombat.IsAttacking`,
+  so "hold RMB, mash LMB" is not a free win. The viewmodel puts the stance back up when the swing ends.
+- **One button, two reads.** `InputReader.ParryPressed` (`WasPressedThisFrame`) opens the window;
+  `InputReader.ParryHeld` (`IsPressed`) holds the stance. No new binding — in Sekiro the deflect is not a
+  different input from the guard, it is the guard pressed at the right moment.
+- `ParryController.GuardHeld` is settable (`ReleaseGuardOverride()` hands control back to the button),
+  following the `TryJump` / `TryDash` idiom, so `FeatureTests > Guard` can hold a stance with no device.
 
 ---
 
@@ -277,6 +323,13 @@ ViewmodelArm.LateUpdate  [DefaultExecutionOrder 200 — AFTER both viewmodels]
 - **Hand position comes from the weapon prefab's `Grip*` part, at runtime.** Every weapon hangs its hilt
   at a different height; a fixed hand position grips one of them and empty air for the rest. A prefab
   with no `Grip*` part (item shards) is simply held in the middle of the palm.
+- **Swapping a weapon does not free the old one until the frame ends.** `SetWeapon` releases the previous
+  model with `Destroy(instance)`, which Unity defers. Equipping and rendering in the *same* frame draws
+  **both** weapons stacked on each other — this is a screenshot/tooling trap, not a prefab bug. Anything
+  that equips and then captures must let a frame pass (`ViewmodelCapture.LoadoutTour` does).
+- **Every weapon is dagger-scale**: 0.27-0.32 m of model above the fist, differentiated by mass and edge
+  rather than by length. Silhouettes, per-weapon `viewmodelScale` and the reasoning:
+  [`ARCHITECTURE.md > The blade family`](ARCHITECTURE.md#the-blade-family--weapon-viewmodels).
 - **The arm solver runs at execution order 200.** At the default order it can solve before the pose is
   written and the arm trails the hand by a frame, which is precisely what makes a viewmodel look detached.
 - **Bones stretch rather than clamp.** The authored swing poses reach ~0.96m from the shoulder while the
@@ -290,6 +343,58 @@ ViewmodelArm.LateUpdate  [DefaultExecutionOrder 200 — AFTER both viewmodels]
 - Rule 9: hand geometry, grip/wrist markers, bone lengths, thicknesses, shoulder anchor and pole all live
   serialized on `Player.prefab`, so `PrefabFactory` writes every one of them explicitly.
   `FeatureTests > ViewmodelArms` asserts the shipped rig.
+
+---
+
+## Swing trail
+
+The arc of the strike, drawn behind the blade tip. It exists because the weapons are a short dagger
+family and this project has **no motion blur**: a 0.22 s arc is a dozen frames of a small object moving
+fast and nothing smears. It is also a **mechanical readout** — it is open for the strike leg and nothing
+else, so the ribbon is the player's read on when the weapon is dangerous.
+
+```
+WeaponViewmodel.AttackCo
+    ... anticipation leg (EaseIn) ...
+    trail.BeginStrike()                     ribbon cleared, recording opens
+    ... strike leg (EaseOut, fast) ...
+    current = end ; ApplyPose(current)      land exactly on swingEnd FIRST
+    trail.EndStrike()                       takes ONE FINAL SAMPLE, then closes
+    ... follow-through hold, then recovery ...
+
+WeaponTrail.LateUpdate      (same GameObject as WeaponViewmodel — the pose is written in Update,
+                             so LateUpdate always reads the pose that was actually rendered)
+    emitting → Sample(): space.InverseTransformPoint(viewmodel.TipWorldPosition)
+               plus `subdivisions` interpolated points toward it, pushed newest-first
+    fading   → widthMultiplier *= fade, material alpha = fade², and the tail RETRACTS
+               (count → ceil(peak * fade)) so the arc closes instead of hanging there
+    LineRenderer (useWorldSpace = false) under the CAMERA, additive URP/Unlit from
+    SlashFx.CreateAdditiveMaterial
+```
+
+**Shipped values** — written explicitly by `PrefabFactory` on `ViewmodelRoot` (rule 9): 12 points,
+3 subdivisions per frame, head width 0.030 m, width curve `1 → 0.5 @0.3 → 0.18 @0.65 → 0.03`,
+fade 0.11 s, peak channel **1.15**.
+
+**Invariants**
+- **Camera space, not world space — this is why there is no `TrailRenderer`.** A `TrailRenderer` emits in
+  world space, which is right for a sword in the world and wrong for a viewmodel: turning the mouse
+  mid-swing would leave the ribbon hanging in the world and drag it across the frame. Points are recorded
+  in the **camera's** local space (not `ViewmodelRoot`'s, which carries sway and bob and would make the
+  ribbon swim while you run).
+- **The ribbon spans the strike leg exactly.** Never the wind-up (nothing is dangerous yet), never the
+  recovery (nothing is any more). `FeatureTests > Trail_SilentDuringWindup / _LiveDuringStrike /
+  _ClosesAfterStrike` assert all three.
+- **`EndStrike` samples once more before it closes**, and the caller must apply `swingEnd` first.
+  Sampling happens in LateUpdate and the swing loop ends in Update, so without that final sample the
+  newest point is a frame behind the arc and the ribbon renders visibly **detached** from the blade.
+- **Width is the only head-to-tail channel.** URP/Unlit ignores vertex colour, so there is no per-vertex
+  alpha; the taper curve has to carry "this end is older" on its own.
+- **1.15 peak, and it does not move.** Over the 1.05 bloom threshold so it glows, under the ~1.25 where
+  ACES desaturates a saturated hue toward orange, and far under the alert tell (3.00) and the deathblow
+  mark (2.60). Those are alarms; this is flourish.
+- The hue is the equipped weapon's `WeaponData.neon`, normalised — heard on `GameEvents.WeaponChanged`,
+  with a fallback read off `WeaponController.Current` for the equip that happened before the subscribe.
 
 ---
 
@@ -314,9 +419,11 @@ ENEMY   Posture           built by: player parries (big), player hits (small), S
                               the commit shatter and the wand blast are drawn
         ⇢ (boss only) BossPostureChanged → HUD
 
-PLAYER  PlayerPosture     built by: BLOCKING (damage × 0.9), taking a hit (damage × 0.5), unblockable ×1.5
+PLAYER  PlayerPosture     built by: HELD GUARD (damage × 1.5), timed BLOCK (× 0.9), a raw hit (× 0.5),
+                          unblockable ×1.5 on top
         perfect parry costs NOTHING  ← the whole point
-        regen after delay, faster at high health
+        regen after delay, faster at high health,
+        and SUSPENDED ENTIRELY while ParryController.IsGuarding (guardPostureRegenMultiplier 0)
         full → Break() → 1.5s stagger: 0.4× move speed, no jump/dash/attack/parry/flask/ultimate,
                           and 1.6× damage taken
         ⇢ PlayerPostureChanged / PlayerPostureBroken → HUD
@@ -324,6 +431,18 @@ PLAYER  PlayerPosture     built by: BLOCKING (damage × 0.9), taking a hit (dama
 
 **Invariants**
 - Perfect parry is the only sustainable answer: blocking is a resource, not a free option.
+- **The guard charges posture, not health, and that is the reason this bar exists.** Chip damage is 0
+  (the Sekiro contract for a normal attack) and the posture bill is the largest multiplier in the game
+  — 1.5, against 0.9 for a timed block and 0.5 for a raw hit. The ladder stays monotone from the
+  player’s side: **deflect** (nothing, +Pyre, +enemy posture) > **guard** (posture only) > **hit**
+  (health *and* posture). Three guarded 20-damage hits fill a 100-posture bar.
+- **Posture does not regenerate behind a raised blade.** `PlayerPosture.Update` returns early while
+  `ParryController.IsGuarding`. Without this a player holds RMB forever: guarded hits cost only posture,
+  and posture that regenerates through the guard makes the fight an unloseable, unwinnable stalemate.
+  Guard-break is therefore reachable by turtling alone, and it is the punish that ends the strategy —
+  1.5 s of 0.4× speed, no parry and 1.6× damage taken, which a grunt converts into ~64 of your 100 HP.
+- **The guard cannot be re-raised through its own break.** `CanGuard` is false while
+  `PlayerCombat.IsStaggered`, so the stagger cannot be turtled out of.
 - `Posture.Add` is a no-op while broken, so a stagger cannot be extended by piling on hits.
 - **A posture break must show ON THE ENEMY, not only on the HUD.** During an exchange the player's eyes
   are on the enemy's cue flash at the centre of the screen; a prompt at the edge of the frame is a
@@ -588,6 +707,81 @@ EnemyController  = the BRAIN ONLY. Rig-agnostic: it knows states, timings and di
   arbitration: static activeEnemies; only MaxSimultaneousAttackers (1) may be mid-swing.
 ```
 
+### Wind-up silhouettes — one pose per attack
+
+The wind-up's job is to say **which** attack is coming, not just that one is. Timing alone cannot do
+that: a 0.45 s jab and a 0.72 s heavy look identical for their first 0.45 s. So the SHAPE carries it,
+and the shape is **data on the attack**, not code.
+
+```
+EnemyAttackData.windupPose : WindupPose
+   authored     off → the cone-derived fallback below. Most of the 25+ attack assets are content
+                that never needed its own silhouette, and they stay that way.
+   armWindup    shoulder Euler at the peak.  THE pose.
+   armStrike    shoulder Euler the swing carries through to — it must RESOLVE the wind-up
+   bodyOffset   whole-body offset, metres, enemy-local (+Z toward the player)
+   bodyEuler    whole-body Euler. Yaw is the cheapest big silhouette change there is.
+   weaponLag    0-1, how much the hand trails the shoulder so the blade whips
+
+EnemyController.BeginWindup(atk, gap)
+   → IEnemyPresentation.Telegraph(atk, seconds)          seconds is AUTHORITATIVE (contract rule 1)
+        → EnemyVisuals.PoseFor(atk)
+             authored ? the WindupPose : cone-derived fallback
+                          coneDeg >= 90 → PoseSweep      (a horizontal swing)
+                          coneDeg <= 45 → PoseThrust     (a straight-back cock)
+                          otherwise     → PoseOverhead   (arm rears high)
+        → WindupCo(seconds)
+             a short anticipation dip (down + forward), then ease-out to the peak:
+               LungeRoot.localPosition = lungeBase + bodyOffset * k
+               LungeRoot.localRotation = lungeBaseRot * Euler(bodyEuler * k)
+               armPivot                = armBase   * Euler(armWindup, eased)
+               weaponPivot             = weaponBase* Euler(sameEuler * weaponLag)
+   → CueFlash(unblockable)  cueLead (0.28 s) before impact
+        SetArm(armWindup * 1.12) and FREEZE (cuePeak). ← the frame the parry decision is made on
+   → Strike(lunge, seconds)
+        LungeCo lerps the arm from wherever it is to armStrike with lag 0.55,
+        while LungeRoot returns to base + forward * lungeDistance.
+```
+
+**Nothing here touches a duration.** `windup`, `impactDelay`, `strikeDuration`, `recovery`, `comboGap`
+and the 0.45 s wind-up floor are calibrated against `parryPerfectWindow` and `cueLead`; a pose only
+changes what the body looks like for a span already decided.
+
+**THE BLADE'S ON-SCREEN ANGLE IS NOT THE ANGLE YOU AUTHOR.** `armWindup` drives the SHOULDER; the hand
+trails it by `weaponLag` and the whole body is rotated and offset underneath both, so what the player
+sees is the product of three rotations plus perspective. Poses must be **measured**, never derived —
+see ENGINEERING-LOG.md → *A wind-up pose cannot be computed, only photographed*.
+
+The shipped silhouettes, measured from the player's eye at fighting distance (Grunt 3.8 m,
+Heavy 4.5 m, Boss 5.7 m). `tilt` is the blade's on-screen angle (0 = level bar, ±90 = upright mast),
+`len` its length in body-heights after foreshortening, `tip` where its high end sits relative to the
+body's centre, in body-heights:
+
+| Attack | wind-up | tilt | len | tip (x, y) | reads as |
+|---|---|---|---|---|---|
+| `Grunt_Jab` | 0.45 s | 10 | 0.89 | (0.92, 0.20) | level bar, chest height, right |
+| `Grunt_Slash` | 0.50 s | −45 | 0.88 | (−0.40, 0.61) | 45° diagonal climbing left |
+| `Grunt_Heavy` | 0.72 s | 88 | 0.87 | (0.13, 1.16) | **vertical mast** above the head, body sunk |
+| `Heavy_Step` | 0.50 s | −55 | 0.74 | (−0.12, 0.02) | low steep bar; the body advances |
+| `Heavy_Overhead` | 0.75 s | 88 | 0.89 | (−0.04, 1.20) | **vertical mast**, dead centre |
+| `Heavy_Sweep` | 0.55 s | 0 | 0.90 | (0.91, 0.10) | **level bar**, widest shape it makes |
+| `Boss_Slash` | 0.50 s | −60 | 0.80 | (−0.39, 0.87) | steep diagonal, left, high |
+| `Boss_DoubleSlash_A` | 0.45 s | 30 | 0.86 | (0.73, 0.36) | shallow diagonal, right, mid |
+| `Boss_DoubleSlash_B` | 0.45 s | −30 | 0.74 | (−0.39, 0.36) | hit A mirrored |
+| `Boss_Slam` | 0.90 s | 88 | 0.90 | (0.12, 1.17) | **vertical mast** at 2.2× scale |
+| `Boss_Thrust` | 0.85 s | −7 | **0.40** | (−0.10, **−0.17**) | **unblockable**: the only pose below the centre line, the only flat one, the only short one |
+
+`Boss_Thrust` is the one the player must never misread — the answer is to MOVE, not parry, and a
+mistake costs 55. Its pose is a **second, independent** read that ADDS to the pink `M_AlertTell` marker
+(peak 3.0) and the red cue tint; it does not replace them.
+
+Regression cover: `FeatureTests → WindupPoses` instantiates the real prefabs, drives the real rig
+through the real pose maths and measures the blade, then asserts the pairs whose confusion costs the
+player are separated on at least one channel (angle, foreshortening, side, height). It also drives an
+**unauthored** attack through `Telegraph` and asserts the cone-derived fallback still rears the arm.
+
+Filming them: `VibeGame1.FrameFilm.RunWindups(dir, "Enemy_Grunt", 3.8f)` — see TOOLING.md.
+
 **Spacing model** — `preferredRange` is the distance an enemy WANTS to fight from. It approaches, holds,
 commits from there, and the lunge closes the gap during the strike. That is what makes a wind-up readable:
 you can see the whole enemy when it commits.
@@ -599,6 +793,7 @@ you can see the whole enemy when it commits.
 | Legendary_Ninja (The Thirteenth Shade) | 3.2 |
 | Legendary_Knight (The Iron Penitent) | 4.2 |
 | Legendary_Spellsword (The Ashen Chorister) | 4.3 |
+| Legendary_Marionette (The Pale Marionette) — *prototype, sandbox only* | 3.7 |
 | Boss (The Hollow Warden) | 4.6 |
 
 The three `Legendary_*` mini-bosses are ordinary `EnemyController`s built by
@@ -606,12 +801,69 @@ The three `Legendary_*` mini-bosses are ordinary `EnemyController`s built by
 part of it. They are deliberately NOT `BossController`s: that class raises `BossDefeated`, which stops
 the speedrun timer and clears the level. See ARCHITECTURE.md → *Legendary mini-bosses*.
 
-Two of them (`Legendary_Spellsword`, `Legendary_Knight`) now carry an **imported mesh** from
-`Assets/Enemies/*.fbx` in place of the primitive body. Nothing in this map changes: the brain is
-untouched, `EnemyVisuals` is still the same component, and its bindings simply resolve to the imported
-`SkinnedMeshRenderer` and to empty pivots parented under it rather than to primitives. Physics stays on
-the prefab root — a legless model hovers by lifting the mesh inside `Visual`, never via
-`NavMeshAgent.baseOffset`. See AUTHORING.md → *Importing a forge model*.
+Three of them (`Legendary_Spellsword`, `Legendary_Knight`, `Legendary_Marionette`) carry an **imported
+mesh** from `Assets/Enemies/*.fbx` in place of the primitive body. Nothing in this map changes: the
+brain is untouched and the bindings simply resolve to the imported `SkinnedMeshRenderer` and to empty
+pivots parented under it rather than to primitives. Physics stays on the prefab root — a legless model
+hovers by lifting the mesh inside `Visual`, never via `NavMeshAgent.baseOffset`. See AUTHORING.md →
+*Importing a forge model*.
+
+### Animated presentation — the second `IEnemyPresentation`
+
+`Legendary_Marionette` is the first enemy driven by real animation clips. It substitutes
+**`PuppetVisuals`**, an `EnemyVisuals` subclass, at the same seam — `GetComponentInChildren<
+IEnemyPresentation>()` finds it and the brain is unchanged.
+
+```
+Assets/Enemies/PaleMarionette.fbx  +  PaleMarionette.clips.json   (committed source art)
+        │
+   4a. Split Forge Animation Clips  (Editor/ForgeClipSplitter.cs)
+        │   writes ModelImporter.clipAnimations from the manifest; forces Generic rig;
+        │   writes NO AnimationEvents (an event driving gameplay = a second timing authority)
+        ▼
+   15 named AnimationClips as FBX sub-assets
+        │
+   4b. Build Mini-Bosses → PuppetAnimatorFactory.Build()
+        │   Assets/Animation/Legendary_Marionette_Animator.controller
+        │   one state per clip, NO transitions — it is a clip library, not a brain
+        ▼
+   Legendary_Marionette.prefab
+        Visual (PuppetVisuals) ─ LungeRoot ─ SpinRoot ─ Model (Animator)
+             base lean/lunge      the whirl    the clips
+```
+
+Per-attack flow, on top of the ordinary Windup/Strike map above:
+
+```
+EnemyController.BeginWindup(atk, gap)
+   → PuppetVisuals.Telegraph(atk, seconds)
+        → base.Telegraph(...)                  the SHARED colour sink + alert marker
+        → PlayAttackClip(atk, seconds + impactDelay)
+             Animator.speed = clipContactTime / secondsToImpact      ← clip bends to data
+             CrossFadeInFixedTime(spin ? clipSpin : clipAttack/clipHeavy)
+        → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
+             BeginPass  re-derives the whole revolution from the CURRENT yaw and the data
+                        clock, so phase can never accumulate error → the beat cannot drift
+             UnwindToSquare  stops the whirl and squares the body up — the tempo-break
+                        overhead and the far-band lash read as a break BECAUSE the body stops
+   → FireCue()   → base.CueFlash()   (unchanged; body is ~85 deg out and decelerating)
+   → BeginStrike → Strike(): the whirl carries THROUGH, it does not stop on the blow
+   → OnParried   → Recoil(): the "Hit" clip as a jar. The spin survives a deflect; only the
+                   posture bar records it.
+   → HandleBroken→ Slump(true): the whirl stops DEAD and the glyph comes up. That frame is
+                   the punish read, and it works because nothing else is moving.
+```
+
+**Invariants specific to this path**
+- The whirl writes `SpinRoot.localRotation` and NOTHING else. It never touches a collider, a range, a
+  cone or a time — the impact test is exactly the one every other enemy uses.
+- `SpinRoot` is its own transform, not the model root. The generic clips keep their root curves, so the
+  Animator writes the model's local rotation every frame; the whirl on the same transform would be two
+  writers on one channel and would stutter or vanish with nothing in the console.
+- Playback runs on SCALED time (`Animator.updateMode = Normal`), so hitstop freezes the puppet with
+  everything else. `PlayerDelta` is for player-driven motion only (rule 1).
+- A clip name the component asks for and the FBX does not have fails **silently** at runtime —
+  `CrossFade` to a missing state is a no-op. `MiniBossFactory` validates all nine names at build time.
 
 **Invariants**
 - `EnemyController` never names `NavMeshAgent` or `EnemyVisuals`. All movement goes through

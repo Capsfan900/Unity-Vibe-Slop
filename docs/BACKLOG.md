@@ -90,6 +90,33 @@ runs with **zero skips** for the first time — `WandPedestal_FOpensMenu` exerci
 
 ---
 
+## 5b. The Ascent has no wall-jump route, and should
+
+Wall jumping shipped with one route use (the recovery pylons on The Long Span) and one incidental one
+(`T2_Tower` is a wall like any other, so a missed ledge on the spiral can be saved off it). **The Ascent —
+a 20 m vertical tower, the obvious home for the mechanic — has no authored line.**
+
+What was tried and cut: two facing slabs on `T2_Entry` forming a 2.6 m chimney that climbed ~8 m and dropped
+you on `T2_L6`, skipping five ledges. It worked mechanically. It was cut because a screenshot from the
+player's own arrival angle showed it as **one undifferentiated black slab a metre from the face** — the slot
+is invisible from the only direction anyone approaches it, and moving it far enough west to be readable moved
+it out of the sightline entirely. A shortcut nobody can see is not a shortcut.
+
+The design that should be tried next, and why it was not: a single **buttress fin on `T2_L2`**, at
+`center (5.6, 10.2, 123), size (0.6, 7.4, 2.6)`, forming a **2.8 m chimney with the tower's east face**
+(x = 2.5). You enter it airborne off L2's west edge, climb five pushes to ~y 17, and top out on **`T2_L8`**
+(top 15.5) directly above — skipping L3-L7. It is architecturally honest (a buttress springing from a ledge
+against the tower it circles), it is a vertical fin rather than a wall across the path so it cannot fill the
+frame, and you look through the slot from the approach rather than at a face.
+
+**It was not shipped because it risks obstructing the existing `T2_L2` → `T2_L3` hop**, which leaves L2 over
+its north-west corner and passes straight through where the fin would stand. `CheckHop` measures box-to-box
+gaps and would *not* catch an obstruction in the middle of the arc, so this needs a real play test — jump
+L2 → L3 with the fin in place — before it can go in. Do that first, and shorten or shift the fin north/south
+until the hop is clean.
+
+---
+
 ## 6. Smaller open questions
 
 - **Boss framing at deathblow range.** At the 3.5 m `range` a 2.2×-scale boss's torso is a wall across

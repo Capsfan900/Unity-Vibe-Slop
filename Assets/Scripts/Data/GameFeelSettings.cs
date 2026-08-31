@@ -13,6 +13,9 @@ namespace VibeGame1
 
         [Header("Hitstop (realtime seconds)")]
         public float parryHitStop = 0.09f;
+        [Tooltip("Hitstop on a hit taken through a HELD guard. Shorter than a deflect's: the guard is " +
+                 "a thud, not a beat you earned.")]
+        public float guardHitStop = 0.05f;
         public float executeHitStop = 0.14f;
         public float hitStopScale = 0.02f;
 
@@ -31,6 +34,9 @@ namespace VibeGame1
         [Header("Post FX pulses")]
         public float parryChromatic = 0.6f;
         public float parryChromaticTime = 0.25f;
+        [Tooltip("Metres of shove the player takes when a blow lands on a HELD guard. The guard eats " +
+                 "the damage, so the impact has to arrive as movement or it reads as nothing happening.")]
+        public float guardShove = 1.2f;
         public float dashFovKick = 8f;
         public float ultFovKick = 15f;
     }

@@ -96,6 +96,14 @@ namespace VibeGame1
         public Pose windup = new Pose(new Vector3(0.6f, -0.2f, 0.5f), new Vector3(-20, -60, 30));
         public Pose swingEnd = new Pose(new Vector3(-0.3f, -0.45f, 0.8f), new Vector3(20, 40, -40));
         public Pose parry = new Pose(new Vector3(0.05f, -0.15f, 0.6f), new Vector3(0, 90, 80));
+        /// <summary>
+        /// The HELD guard stance — blade raised across the body and kept there for as long as the
+        /// button is down. Distinct from <see cref="parry"/>, which is a momentary flick: a stance the
+        /// player lives in for seconds has a different job, and the job is to read as "raised" WITHOUT
+        /// standing in front of the fight. Held well right of the crosshair and tilted inward, so the
+        /// blade crosses the lower-right quadrant and never the centre of the frame.
+        /// </summary>
+        public Pose guard = new Pose(new Vector3(0.33f, -0.14f, 0.60f), new Vector3(-12f, 42f, 58f));
         public Pose drink = new Pose(new Vector3(0.7f, -0.6f, 0.5f), new Vector3(30, -40, 0));
         public Pose executeWindup = new Pose(new Vector3(0.5f, 0.3f, 0.5f), new Vector3(-70, -30, 20));
         public Pose executeEnd = new Pose(new Vector3(0.1f, -0.6f, 0.9f), new Vector3(60, 0, 0));

@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_Marionette_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Pale Marionette
+  entries:
+  - label: SPIN-UP + 8 passes + OUT (the cadence)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
+    weight: 4
+    minRange: 0
+    maxRange: 6
+  - label: short spin (same beat, four passes)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 6
+  - label: OVERHEAD (the tempo break)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 73cc539979856704199329beb5a6a7c0, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 99
+  - label: overhead into the spin
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 73cc539979856704199329beb5a6a7c0, type: 2}
+      - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
+    weight: 1
+    minRange: 0
+    maxRange: 6
+  - label: STRING LASH (punishes waiting it out)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 306c9105d3911544687bcc2d897f2389, type: 2}
+    weight: 1.6
+    minRange: 5
+    maxRange: 99
+  - label: LASH into the spin (drags you back in)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 306c9105d3911544687bcc2d897f2389, type: 2}
+      - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+      - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
+    weight: 1
+    minRange: 5.5
+    maxRange: 99

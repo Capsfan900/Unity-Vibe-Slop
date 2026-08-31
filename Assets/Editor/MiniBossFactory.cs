@@ -56,13 +56,15 @@ namespace VibeGame1.EditorTools
             BuildMiniBoss("Legendary_Ninja", EnemyDataDir + "/Legendary_Ninja.asset", Silhouette.Ninja);
             BuildMiniBoss("Legendary_Knight", EnemyDataDir + "/Legendary_Knight.asset", Silhouette.Knight);
             BuildMiniBoss("Legendary_Spellsword", EnemyDataDir + "/Legendary_Spellsword.asset", Silhouette.Spellsword);
+            // PROTOTYPE. Not in Level_01 — sandbox pad only. See docs/ARCHITECTURE.md → The Pale Marionette.
+            BuildMiniBoss("Legendary_Marionette", EnemyDataDir + "/Legendary_Marionette.asset", Silhouette.Marionette);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[MiniBossFactory] Built 3 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 4 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette }
 
         // ------------------------------------------------------------------ the rig
 
@@ -104,21 +106,30 @@ namespace VibeGame1.EditorTools
             // the player already reads as "this one is a fight, not a filler".
             Material bodyMat = Mat("M_Boss");
 
+            var spec = ModelFor(shape);
+
             var visual = Empty("Visual", root.transform, Vector3.zero);
-            var visuals = visual.AddComponent<EnemyVisuals>();
+            // A clip-carrying model gets PuppetVisuals — an EnemyVisuals SUBCLASS, so every shared
+            // readability channel (colour sink-and-snap, cue flash, alert marker, posture-driven eye,
+            // deathblow glyph) is inherited unchanged and only the clips and the whirl are added.
+            // EnemyController resolves IEnemyPresentation, so the brain never learns about either.
+            bool animated = spec != null && spec.animated;
+            var visuals = animated
+                ? visual.AddComponent<PuppetVisuals>()
+                : visual.AddComponent<EnemyVisuals>();
             var flash = visual.AddComponent<EmissiveFlash>();
 
             var lungeRoot = Empty("LungeRoot", visual.transform, Vector3.zero);
 
             GameObject body, eye, weapon;
             Transform shoulder, hand;
+            Transform modelRoot = null;
 
-            var spec = ModelFor(shape);
             if (spec != null)
             {
                 // ---- imported body (see ModelDir) --------------------------------------------------
                 if (!BuildModelBody(spec, lungeRoot.transform, bodyMat,
-                                    out body, out eye, out weapon, out shoulder, out hand))
+                                    out body, out eye, out weapon, out shoulder, out hand, out modelRoot))
                 {
                     // Fail LOUDLY. BuildModelBody has already logged what is missing; bail rather than
                     // quietly shipping a prefab with no body, or silently reverting to primitives.
@@ -153,6 +164,8 @@ namespace VibeGame1.EditorTools
             float markOffset = spec != null ? MeasureSurfaceOffset(body) : 0.80f;
             visuals.deathblowMarker = PrefabFactory.BuildDeathblowMarker(visual.transform, markHeight, markOffset);
             flash.renderers = new[] { visuals.body, visuals.weapon };
+
+            if (animated) WireAnimatedBody((PuppetVisuals)visuals, spec, modelRoot, name);
 
             // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
             // shows up as a missing telegraph mid-fight, which is the worst possible place to find it.
@@ -212,6 +225,20 @@ namespace VibeGame1.EditorTools
             public Vector3 weaponFxPos;     // local to handPos: where the cue sparks are thrown from
             public float markHeight;        // sternum: where the deathblow glyph rides on THIS body
             public string note;
+
+            // ---- animated models only (see WireAnimatedBody) ------------------------------------
+            /// <summary>True when the FBX ships a rigged skeleton and a <c>.clips.json</c> manifest.</summary>
+            public bool animated;
+            /// <summary>Clip played for an ordinary attack; its contact frame is scaled onto the data's impact.</summary>
+            public string attackClip;
+            /// <summary>Clip played for a heavy / unblockable.</summary>
+            public string heavyClip;
+            /// <summary>Clip played for a SPIN PASS — picked for its POSE, not its swing. See the Marionette spec.</summary>
+            public string spinClip;
+            /// <summary>Resting loop, and the controller's default state.</summary>
+            public string idleClip;
+            /// <summary>Attacks whose asset name starts with this drive the whirl. Empty = never whirl.</summary>
+            public string spinPrefix;
         }
 
         static ModelSpec ModelFor(Silhouette shape)
@@ -263,8 +290,143 @@ namespace VibeGame1.EditorTools
                         markHeight = 1.38f,
                         note = "furnace-bellied iron penitent; arms held wide, which is the spin silhouette"
                     };
+
+                case Silhouette.Marionette:
+                    return new ModelSpec
+                    {
+                        fbx = "PaleMarionette.fbx",
+                        // STANDS on thin legs; feet on the collider base like the Penitent.
+                        yLift = 0f,
+                        // Faces +Z, verified the same way the other two were: the mesh is 1.75 m wide in
+                        // X and only 0.51 m deep in Z, so the arm chain runs along X and the figure looks
+                        // down Z. That flatness is also why the WHIRL reads — the silhouette pulses from
+                        // a 1.75 m span to a 0.51 m edge four times a second.
+                        yaw = 0f,
+                        // The lantern under the hat brim. Bound as EnemyVisuals.eye, so it rides
+                        // Posture.Ratio exactly like the Chorister's slot and the Penitent's grate: it
+                        // burns hotter as the break approaches, and at 4.5 rev/s it strobes past you
+                        // once per pass, which is literally the thing the player is timing off.
+                        eyePos = new Vector3(0f, 1.66f, 0.24f),
+                        eyeSize = new Vector3(0.20f, 0.12f, 0.10f),
+                        // Shoulder height, out along the long arm. The pivots are empty transforms as
+                        // on every other model — the ANIMATOR moves this body now, and driving these on
+                        // top of a playing clip would fight it.
+                        armPos = new Vector3(0.52f, 1.48f, 0f),
+                        handPos = new Vector3(0f, -0.10f, 0f),
+                        weaponFxPos = new Vector3(0.33f, 0f, 0f),   // the long hand: where the cue sparks throw from
+                        // Chest, clear of the lantern at 1.66. It is a narrow body, so the glyph sits
+                        // high enough to be off the thin legs and low enough not to touch the hat.
+                        markHeight = 1.30f,
+                        note = "lanky wide-brimmed puppet; 1.75 m arm span on a 0.51 m deep body — the whirl silhouette",
+
+                        animated = true,
+                        attackClip = "AttackSwing",
+                        heavyClip = "AttackOverhead",
+                        // CHOSEN BY MEASUREMENT, not by name. Sampling every clip's LeftHand/RightHand
+                        // separation at 25/50/75% gave: AttackSwing 0.38/0.76/1.02 m (arms tucked
+                        // against the body — a whirl of it reads as a turning stick), AttackOverhead
+                        // 0.11/1.55/1.16, IdleCombat 1.24 flat, and Roar 2.04/1.95/2.03 with the hands
+                        // at 1.37 m. Roar is the only clip that HOLDS the arms out for its whole
+                        // length, which is the entire silhouette this fight is built on. It is played
+                        // as a pose, not as a roar.
+                        spinClip = "Roar",
+                        idleClip = "IdleCombat",
+                        spinPrefix = "Marionette_Spin"
+                    };
             }
             return null;   // Ninja keeps the primitive silhouette
+        }
+
+        /// <summary>
+        /// Everything an ANIMATED model needs on top of the shared rig: an <see cref="Animator"/>
+        /// pointed at a generated controller, and the clip-timing constants
+        /// <see cref="PuppetVisuals"/> uses to bend playback onto the data's clock.
+        ///
+        /// <para><b>The contact time is read from the forge manifest HERE, at build time.</b> Nothing at
+        /// runtime opens the JSON. That keeps the shipped prefab self-contained and — more importantly —
+        /// means the value is visible in the Inspector, which is the difference between a timing you can
+        /// check and one you have to trust.</para>
+        /// </summary>
+        static void WireAnimatedBody(PuppetVisuals pv, ModelSpec spec, Transform modelRoot, string name)
+        {
+            string fbx = ModelDir + "/" + spec.fbx;
+
+            var animator = modelRoot != null ? modelRoot.GetComponent<Animator>() : null;
+            if (animator == null && modelRoot != null) animator = modelRoot.gameObject.AddComponent<Animator>();
+            if (animator == null)
+            {
+                Debug.LogError("[MiniBossFactory] " + name + " is flagged animated but has no model root to " +
+                               "put an Animator on. The prefab will stand in its bind pose.");
+                return;
+            }
+
+            var controller = PuppetAnimatorFactory.Build(fbx, name + "_Animator", spec.idleClip);
+            if (controller == null)
+            {
+                Debug.LogError("[MiniBossFactory] " + name + ": no AnimatorController was produced from " +
+                               fbx + ". Run VibeGame1/4a. Split Forge Animation Clips, then rebuild.");
+                return;
+            }
+            animator.runtimeAnimatorController = controller;
+            animator.applyRootMotion = false;          // NavMeshLocomotion owns the transform, not the clip
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            // Default (Normal) update mode on purpose: the Animator runs on SCALED time, so the puppet
+            // freezes during hitstop with everything else. Rule 1 reserves PlayerDelta for things the
+            // player drives; an enemy dancing through a freeze frame would kill the impact read.
+            animator.updateMode = AnimatorUpdateMode.Normal;
+
+            pv.animator = animator;
+
+            // ---- a DEDICATED transform for the whirl -------------------------------------------
+            // The whirl gets its own empty parent, inserted between LungeRoot and the model, and NOT
+            // the model root itself. The generic clips were imported with keepOriginalOrientation, so
+            // the take's root curves are still in them and the Animator writes the model's own local
+            // rotation every frame. Writing the whirl there too would be two writers on one channel —
+            // the spin would stutter or vanish depending on evaluation order, with nothing in the
+            // console. Three transforms, three owners: LungeRoot = base class lean/lunge,
+            // SpinRoot = the whirl, Model = the Animator.
+            var spin = new GameObject("SpinRoot");
+            spin.transform.SetParent(modelRoot.parent, false);
+            spin.transform.localPosition = Vector3.zero;
+            spin.transform.localRotation = Quaternion.identity;
+            modelRoot.SetParent(spin.transform, false);
+            pv.spinRoot = spin.transform;
+
+            pv.clipIdle = spec.idleClip;
+            pv.clipAttack = spec.attackClip;
+            pv.clipHeavy = spec.heavyClip;
+            pv.clipSpin = string.IsNullOrEmpty(spec.spinClip) ? spec.attackClip : spec.spinClip;
+            pv.spinAttackPrefix = spec.spinPrefix;
+
+            pv.attackClipLength = PuppetAnimatorFactory.ClipLength(fbx, spec.attackClip, 1f);
+            pv.attackHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, spec.attackClip, 0.55f);
+            pv.spinClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipSpin, 1f);
+            pv.spinHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, pv.clipSpin, 0.4f);
+
+            // Validate the clips the component names actually exist. A missing clip is SILENT at
+            // runtime — CrossFade to a state that is not there simply does nothing and the puppet
+            // keeps playing whatever it was playing, which reads as "the animation is broken" with
+            // nothing in the console.
+            var have = PuppetAnimatorFactory.ClipsIn(fbx);
+            var names = new System.Collections.Generic.HashSet<string>();
+            for (int i = 0; i < have.Count; i++) names.Add(have[i].name);
+            foreach (var wanted in new[] { pv.clipIdle, pv.clipWalk, pv.clipRun, pv.clipAttack,
+                                           pv.clipHeavy, pv.clipSpin, pv.clipHit, pv.clipStagger,
+                                           pv.clipDeath, pv.clipRoar })
+            {
+                if (!names.Contains(wanted))
+                    Debug.LogError("[MiniBossFactory] " + name + " names clip '" + wanted + "' but " + fbx +
+                                   " has no such clip. It has: " + string.Join(", ", names) +
+                                   ". A missing clip fails SILENTLY at runtime.");
+            }
+
+            Debug.Log("[MiniBossFactory] " + name + " animated: " + have.Count + " clips; attack '" +
+                      pv.clipAttack + "' len " + pv.attackClipLength.ToString("F3") + "s anchor " +
+                      pv.attackHitNormalized.ToString("F2") + " (" +
+                      (pv.attackClipLength * pv.attackHitNormalized).ToString("F3") + "s in); spin '" +
+                      pv.clipSpin + "' len " + pv.spinClipLength.ToString("F3") + "s anchor " +
+                      pv.spinHitNormalized.ToString("F2") + " (" +
+                      (pv.spinClipLength * pv.spinHitNormalized).ToString("F3") + "s in).");
         }
 
         /// <summary>
@@ -274,9 +436,9 @@ namespace VibeGame1.EditorTools
         /// </summary>
         static bool BuildModelBody(ModelSpec spec, Transform lungeRoot, Material bodyMat,
                                    out GameObject body, out GameObject eye, out GameObject weapon,
-                                   out Transform shoulder, out Transform hand)
+                                   out Transform shoulder, out Transform hand, out Transform modelRoot)
         {
-            body = null; eye = null; weapon = null; shoulder = null; hand = null;
+            body = null; eye = null; weapon = null; shoulder = null; hand = null; modelRoot = null;
 
             string path = ModelDir + "/" + spec.fbx;
             var source = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -301,6 +463,7 @@ namespace VibeGame1.EditorTools
             model.transform.localPosition = new Vector3(0f, spec.yLift, 0f);
             model.transform.localRotation = Quaternion.Euler(0f, spec.yaw, 0f);
             model.transform.localScale = Vector3.one;
+            modelRoot = model.transform;
 
             var skin = model.GetComponentInChildren<Renderer>(true);
             if (skin == null)

@@ -118,7 +118,8 @@ EnemyController.Update
               └→ PlayerCombat.ReceiveAttack(AttackInfo)
                    └→ ParryController.Resolve → ParryMath.Evaluate
                         Perfect → no damage, enemy posture, FULL Pyre, hitstop, flash
-                        Blocked → 30% damage + player posture
+                        Blocked → timed press: 30% damage + 0.9× posture + 35% Pyre
+                                   HELD GUARD:  0% damage + 1.5× posture + no Pyre
                         Hit     → full damage + player posture (1.6× if staggered)
 ```
 
@@ -130,10 +131,29 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
 - **Parry windows.** Perfect `0.13` / late `0.12` / whiff recovery `0.5`. `cueLead` `0.28` is serialized
   on `EnemyController` and must stay ≈ reaction (0.20) + half the perfect window. No enemy attack windup
   below `0.45`.
-- **Posture (Sekiro).** Both sides have it. A perfect parry costs the player **nothing**; blocking costs
-  `damage × 0.9` posture, a raw hit `damage × 0.5`, unblockables ×1.5. Player break = 1.5 s stagger,
-  0.4× move speed, no jump/dash/attack/parry/flask/super, and 1.6× damage taken. Enemy break opens the
-  deathblow window.
+- **Posture (Sekiro).** Both sides have it. A perfect parry costs the player **nothing**; a held guard
+  costs `damage × 1.5` posture, a timed block `damage × 0.9`, a raw hit `damage × 0.5`, unblockables
+  ×1.5 on top. Player break = 1.5 s stagger, 0.4× move speed, no jump/dash/attack/parry/flask/super, and
+  1.6× damage taken. Enemy break opens the deathblow window.
+- **The guard (hold RMB).** Defence used to be press-only, so between presses the player was simply
+  naked. Holding the parry button now raises a **stance**: any blow that would have been a Hit resolves
+  as a Blocked instead. Four rules make it an addition beneath the timing game rather than a replacement
+  for it. (1) **The timing is evaluated first and the stance only upgrades a Hit** — a hold can never
+  produce a Perfect, so the deflect is strictly better than the guard, always. (2) **It costs posture,
+  not health**: chip 0, posture `× 1.5` (the biggest multiplier in the game), no Pyre at all — the guard
+  is the floor under a fight, not an achievement, and turtling must not charge the super. (3) **Posture
+  does not regenerate while it is up** (`guardPostureRegenMultiplier` 0), so turtling is a losing
+  strategy with a visible clock on it: three guarded 20-damage hits break you. (4) **Unblockables and
+  your own back are still uncovered**, and **your own swing drops your guard**. Shipped from
+  `DataFactory` on `PlayerStatsData` / `GameFeelSettings` (rule 9); one binding, two reads
+  (`InputReader.ParryPressed` for the window, `ParryHeld` for the stance).
+- **A guarded hit is a THUD, not a beat.** It eats the damage, so the blow has to arrive as force or it
+  reads as nothing happening: `guardHitStop` 0.05 (shorter than a deflect’s 0.09 — you did not earn
+  this one), a `guardShove` of 1.2 m off the line, nine dull grey-steel sparks struck half-way between
+  the blade tip and the incoming line, and `WeaponViewmodel.GuardImpact` kicking the stance back and
+  recovering it. It deliberately borrows **none** of the deflect’s pale-steel screen flash or chromatic
+  pulse: enemies no longer glow, so the deflect is the only bright event in a fight and a guard that
+  looked like one would make the two outcomes indistinguishable.
 - **Deathblow (Sekiro).** Breaking an enemy's posture makes the body **buckle** — it leans back, sags
   and throws its guard open, and it never moves toward the player — and raises a **mark on that enemy**,
   a small flat violet spot on its sternum. The deathblow then happens only when the player deliberately
@@ -202,8 +222,32 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   than `62 deg` off the target **drops** the lock rather than dragging you back. One key does all three
   verbs, chosen by where you aim: release if you are still looking at what you hold, switch if you are
   not. It also drops on death, out of range (`32 m`) and 0.7 s of unbroken occlusion.
-- **Movement feedback** lives in `Feel/PlayerFeedback.cs` — footsteps, jump/land/dash audio, landing dip
-  scaled to fall speed. It subscribes to `FirstPersonMotor`'s `OnJumped` / `OnLanded` / `OnDashed`.
+- **Movement feedback** lives in `Feel/PlayerFeedback.cs` — footsteps, jump/land/dash/slide/wall-jump audio,
+  landing dip scaled to fall speed, and the eye drop during a slide. It subscribes to `FirstPersonMotor`'s
+  `OnJumped` / `OnLanded` / `OnDashed` / `OnSlideStarted` / `OnWallJumped`. The landing dip and the slide
+  crouch are **separate** offsets on the same pivot: the dip is a spring back to zero, the crouch is held for
+  as long as the slide lasts, so the two never fight.
+- **Slide (`Left Ctrl`).** A momentum move, not a crouch: refused below `5 m/s`, so you cannot slide out of a
+  standstill. Entry is `max(current, run) + 5` capped at `22`, i.e. **16 m/s out of an 11 m/s run**. It bleeds
+  at `2/s` to a floor of `8 m/s` — **4.0 m in 0.35 s**, measured, and identical from 20 fps to 400 fps. The
+  capsule drops `1.8 → 1.0 m`, so a slide passes under geometry a standing player cannot. Average speed over
+  the slide (11.5 m/s) is barely above a run: **the slide is not the reward, the jump out of it is.**
+- **Slide-jump is the tech.** Jumping cancels a slide without touching horizontal speed, so a slide-jump
+  leaves the ground at **15.8 m/s against a run's 11**, and clears **12.6 m against 8.8 m** with the jump key
+  held. Skill expression is entirely in *when* you cancel: press early and you keep 16 m/s, ride the slide to
+  its floor and you leave at 8. There is no way to get that speed without deciding to.
+- **Wall jump (`Space`, airborne, near a wall).** No binding of its own — it resolves inside the motor after
+  the coyote jump has had its chance, so it can never steal an ordinary jump. Detection is an **8-direction
+  spherecast fan** around the direction you are asking for, not a single ray: a wall jump taken while looking
+  anywhere but straight at the wall is the normal case in first person, and a ray turns that into a silent
+  miss. It sets `vel.y = 11` (**a 2.02 m rise, held; 0.92 m if you release**), adds `12 m/s` along the wall
+  normal, and **keeps the component running along the wall** — dropping only the part going into it, which is
+  what makes a chimney read as flow rather than a reset.
+- **The same wall twice is refused** (normals within ~32°), so one face is not a free ladder; two facing walls
+  alternate normals and chain. `maxWallJumps` (5) bounds a chimney to about **8-10 m of climb per airtime**,
+  which is one tower section, not an elevator. Landing forgives the wall.
+- **The movement path allocates nothing and is measured, not asserted.** `FindWall` is 0 bytes over 20 000
+  calls at 2.36 µs, and runs at most once per jump press. See DATAFLOW's Movement invariants.
 
 ### Enemy aggression
 
@@ -273,6 +317,89 @@ Each one exists to teach one parry skill, and the next assumes you have it:
 The Shade is fast through **combo density and short recoveries only**. No wind-up in the set is below
 `0.45 s` — the contract above is not negotiable for a mini-boss, and a faster tell would need its cue to
 fire before the wind-up began.
+
+### The Pale Marionette — the animated prototype
+
+`Legendary_Marionette`. **A prototype and a sandbox exhibit, not a campaign enemy.** It has a pad, a
+wake switch and `SandboxController.SpawnEnemyInFront(6)`; it is in no `LevelDefinition` and no
+`LevelRegistry`. The four-tile course's three gate keepers are designed and tested and a fourth was not
+what was asked for.
+
+It exists to answer two questions the project had not answered:
+
+**1. Can an enemy spin genuinely fast without breaking the 0.45 s wind-up floor?**
+Yes, because *visual spin rate and hit cadence are different quantities*. The body's peak angular speed
+is about **1500 °/s — roughly 4 revolutions a second** — and the damaging passes arrive every
+**0.76 s** from a **0.50 s** wind-up. One revolution is still exactly one pass, so "parry it each time
+it comes around" holds literally; the speed comes from the revolution being **non-uniform**. Each pass
+travels a whole turn on an ease-out curve that starts at 2.5× the average rate and decays to about
+0.25×, so the puppet blurs through the back of the turn and **decelerates into you**. The deceleration
+IS the wind-up: at the cue, 0.28 s out, it is still ~85° off and visibly slowing, and the cue flash
+lands as it comes round the corner. Nothing about that touches timing — `PuppetVisuals` writes one
+local yaw on a dedicated `SpinRoot` transform and nothing else.
+
+**The cadence cannot drift**, which is the other half of making a rhythm learnable. The whirl's phase
+is not integrated forward between passes; it is re-derived every beat from where the body actually is
+and the data's own time-to-impact, so a dropped frame, a hitstop or a deflect cannot accumulate. And
+the beat itself is equal whether you deflect or not: an unparried pass is
+`windup 0.50 + gap 0.10 + impactDelay 0.04 + strike 0.12 = 0.76 s`, and a parried one is
+`recoil + 0.50 + 0.10 + 0.04`, so `parryRecoilSeconds` is set to **0.167** — which times aggression
+0.62's 0.719 multiplier gives a 0.120 s recoil and a 0.760 s parried beat. That number is *derived*,
+not felt; changing `aggression` means re-deriving it. (Residual: a perfect parry may land up to half
+the perfect window early, so the next beat can be pulled in by ≤ 0.065 s. Bounded and player-caused.)
+
+**The economy: six clean deflects break it, and the spin breaks EARLY.** With the sword a deflected
+pass is `parryPostureDamage 25 × parryPostureMultiplier 1.4 = 35`, so 6 × 35 = its whole 210 bar. The
+signature phrase is *eight* passes long, so a clean player breaks it two passes before it would have
+ended on its own and a sloppy one has to survive the whole thing — **the player's rhythm decides how
+long the spin lasts, not a script.** That is the choice over "run N revolutions then self-recover",
+which would make skill irrelevant to the outcome; in the reference fight deflecting *is* the offence.
+It uses the ordinary posture system, with no special case anywhere.
+
+**Backing off is not the answer, and neither is parrying forever.** Three lines out:
+`Marionette_Lash` is a wide unblockable to 8 m gated to the **far band only**, so retreating past its
+reach is exactly what selects it (the same job `Knight_Vent` does); `Marionette_SpinOut` ends every
+phrase with **2.0 s** of recovery, so a player who cannot hold the rhythm can block the passes — block
+is worth *zero* enemy posture, so it does not progress the break — and cash the exit for damage
+instead; and its **170 HP**, low for a duellist, makes that second route real. `Marionette_Overhead`
+is a 1.0 s tempo break, and it is the one attack that is **not** whirled: the body stops and squares up
+under it, so the break from the rhythm is visible in the silhouette and not only in the clip.
+
+| | `windup` | `impactDelay` | `strike` | `recovery` | cone | dmg | parry × |
+|---|---|---|---|---|---|---|---|
+| `Marionette_SpinUp` | 0.95 | 0.05 | 0.14 | 0.20 | 200° | 18 | 1.4 |
+| `Marionette_SpinPass` | **0.50** | 0.04 | 0.12 | 0.20 | 200° | 17 | 1.4 |
+| `Marionette_SpinOut` | 0.60 | 0.05 | 0.18 | **2.00** | 200° | 26 | 1.6 |
+| `Marionette_Overhead` | 1.00 | 0.07 | 0.24 | 1.00 | 65° | 40 | 1.9 |
+| `Marionette_Lash` (unblockable) | 1.05 | 0.08 | 0.30 | 1.50 | 175° | 30 | — |
+
+**2. How should a rigged, clip-carrying model be animated?**
+With an `Animator`, through **`PuppetVisuals : EnemyVisuals`**. Three decisions, in order of how much
+they matter:
+
+- **A subclass, not a replacement.** `EnemyVisuals` documents itself as the thing to subclass when real
+  models arrive and `EnemyController` resolves `IEnemyPresentation`, so the brain never learns about
+  any of this. More importantly it keeps the SHARED readability language: the base's base-colour
+  sink-and-snap, the cue flash, the alert marker, the posture-driven eye and the deathblow glyph are
+  the vocabulary every other enemy speaks, and a player must not have to learn a second one for this
+  body. Every override calls `base` first and adds the clip and the whirl on top.
+- **The controller is generated, and it is a clip LIBRARY with no transitions.**
+  `Editor/PuppetAnimatorFactory.cs` builds `Assets/Animation/Legendary_Marionette_Animator.controller`
+  from whatever clips the FBX actually contains — hard rule 4, and it also means the controller cannot
+  end up pointing at stale clip sub-assets after a re-split. One state per clip, no authored
+  transitions, driven by `Animator.CrossFadeInFixedTime`. A state machine with exit-time conditions
+  would put a *second timing authority* in the project, and the first time a transition disagreed with
+  a wind-up the attack would stop being parryable.
+- **The clip bends to the data.** `Animator.speed` is scaled so the clip's own contact frame (the
+  manifest's `OnAttackHit`, baked onto the prefab at build time) lands on the impact `EnemyAttackData`
+  specifies — 1.36× for a spin pass. If a clip is the wrong length, the clip loses.
+
+Hitstop: the Animator runs in `Normal` update mode and the whirl runs on `Time.time` / `Time.deltaTime`,
+so the puppet **freezes with the world** on impact. Rule 1 reserves `PlayerDelta` for what the *player*
+drives; an enemy that kept dancing through a freeze frame would kill the impact read.
+
+Three transforms, three owners, deliberately never two writers on one channel:
+`LungeRoot` (the base class's lean and lunge) → `SpinRoot` (the whirl) → `Model` (the Animator).
 
 ### Enemy posture bars
 
@@ -553,10 +680,28 @@ Edge is still recognisably the sword. The project's established failure mode is 
 the frame (a riposte that rendered as a black screen; `ScreenFlash` at 0.55 shredding a bloom-heavy
 image), so every knob here is capped: the blade tint blends at most 80% toward ember, `EnergyGlow`
 charge is driven to **0.55, never 1.0**, the point light is **1.5 intensity at 2.4 m range** and ramps
-with heat *squared* so it stays out of the way until the fire genuinely rages, and the embers are 14
-pooled 12 mm cubes rather than a particle system. Escalation is carried by *rate and motion* — more
+with heat *squared* so it stays out of the way until the fire genuinely rages, and the embers are **10
+pooled streaks** rather than a particle system. Escalation is carried by *rate and motion* — more
 embers, faster flow band, faster motes — not by raw brightness, because brightness is the one axis
 bloom will take away from you.
+
+An ember is a **12 × 68 mm streak** (0.026 m cross-section stretched 2.6× along its own velocity),
+12 per second at full charge, 0.34 s of life, launched at 0.6 m/s with a ×0.6–1.4 spread and rising.
+The first pass was 14 twelve-millimetre cubes drifting slowly, and it read as **texture on the blade**:
+the colour ramp and the light did ~90% of the work. Fewer, larger, faster, shorter-lived is the whole
+change — shape over quantity — and not one of the caps above moved. The spark carries its own
+**additive** URP/Unlit material at peak channel 1.45, not the blade's lit material: a lit black box is
+invisible at 12 mm and a dark sliver at 68 mm.
+
+**The swing trail.** A ribbon behind the blade tip, open for the **strike leg and nothing else**, so it
+also tells the player when the weapon is dangerous. Peak channel **1.15** in the weapon's own
+`WeaponData.neon` — over the 1.05 bloom threshold so it glows, under the ~1.25 ACES ceiling so it keeps
+its hue, and far under the alert tell (3.00) and the deathblow mark (2.60): those are alarms, this is
+flourish, and the brightness bands are how the three stay told apart. 0.030 m at the head, tapering on a
+curve to a hairline, gone 0.11 s after the strike closes. Recorded in **camera space**, which is why it is
+a `LineRenderer` and not a `TrailRenderer` — a world-space trail would hang in the world and smear across
+the frame the moment you turned mid-swing. Values and invariants:
+[`DATAFLOW.md > Swing trail`](DATAFLOW.md#swing-trail).
 
 
 ### The main menu
@@ -579,6 +724,74 @@ divider — a practice space, not a campaign level. Full map:
 
 The palette is `HudBuilder`'s, copied as constants rather than shared: the menu must read as the same game
 as the HUD, but a HUD layout tweak must not silently move the menu.
+
+### The blade family — weapon viewmodels
+
+Every weapon is a **short blade**, built from primitives by `PrefabFactory.BuildWeaponViewmodels`. The
+player's read, once visible arms landed, was that a short blade is the only thing that shows the swing
+*and* the hand at 95° FOV — a long blade is a pole across the frame and its arc leaves the screen. So
+length stopped being the differentiator and **mass and edge** took over: the on-screen extent above the
+fist sits in a deliberately tight 0.27–0.32 m band, and each weapon still has to answer *what does this
+do* in one glance.
+
+| Weapon | Silhouette | The one-glance tell | `viewmodelScale` | Extent above the fist |
+|---|---|---|---|---|
+| **Cerulean Edge** (sword) | Short cruciform dirk | The **cross** — the widest guard in the set, ending in knobbed quillons, over a parallel-sided blade and a disc pommel. Symmetric and featureless on purpose: the generalist looks like the default sword. Steel-blue `#8FB5D9`. | `0.52` | 0.321 m |
+| **Sunbreaker** (hammer) | Weighted war-dirk | **Top-heavy.** A blocky mass head ~4× the width of any blade, cheeks either side, an ember band across it and a stubby spike over the top, on the shortest and thickest haft. All the volume is above the hand. Ember `#E0661A`. | `0.50` | 0.298 m |
+| **Rosethorn** (dagger) | Needle stiletto | **Thinnest section in the set**, hard taper to a point, a guard barely wider than the blade. This is the reference silhouette — the one that reads best — so it is the one changed least. Green `#5FD66A`. | `0.50` | 0.271 m |
+| **Oathbreaker (TEST)** (dev) | Serrated arcane kris | The only **non-straight** blade (slices alternate side to side), the only **barbed** edge, twin rings at two radii, and pale violet `#C6A6FF` rather than the set's greens so it can never be read as Rosethorn. The cheat weapon should look ceremonial and wrong. | `0.53` | 0.318 m |
+
+**Weight class is told by mass, not by reach.** A hammer that is dagger-length can no longer say "slow
+and heavy" by being long, so it says it by putting every cubic centimetre of its volume above the fist
+and by having the only grip the hand visibly has to open wider for. This is a real, acknowledged loss of
+information: reach is *not* encoded in the viewmodel at all and never was — `hitOffset` / `hitRadius` are
+camera-space and a 0.3 m viewmodel never reached 1.6 m — so the weapon's true range is still learned only
+from the cadence (`attackDuration` 0.22 s to 0.70 s), never from the model.
+
+**`viewmodelScale` is shipped from `DataFactory`, per weapon** (rule 9). A geometry change in
+`PrefabFactory` without the matching scale is a weapon that quietly resizes on screen.
+
+### The guard stance — a pose you live in
+
+`WeaponData.parry` is a momentary flick and always was: it sits at x `0.05`, essentially on the
+crosshair, and gets away with it because it is on screen for 0.25 s. A **held** stance has a different
+job. The player lives in it for seconds at a time, during which the enemy they are guarding against is
+in the centre of the frame, so `WeaponData.guard` is a separate authored pose held **well right of
+centre** (x `0.29`–`0.38`, asserted `>= 0.20` by `FeatureTests > Guard`) and **raised above idle**,
+blade angled up and inward across the lower-right quadrant. Nothing of it crosses screen centre. This
+project has already paid for the other choice once — a riposte that rendered as a black screen.
+
+- **Per weapon, because mass is the differentiator.** The hammer guards with its *head*, carried lowest
+  and furthest out (`0.38, -0.22`) and rolled least, because it is the one weapon whose volume would
+  occlude the enemy at blade height. The dagger guards *tight* — pulled in and steepest
+  (`0.29, -0.12`, roll 64°) — which is what a stiletto with no guard to hide behind actually does.
+  Sword and dev blade take the class default. Rule 9: all of it written in `DataFactory`.
+- **The stance outlives every momentary pose.** `WeaponViewmodel.guarding` survives an attack, a parry
+  flick and a weapon swap; each of them re-enters `PlayGuard()` on the way out. Dropping to idle when
+  the parry window closed made a held guard visibly flinch back to the hip every quarter second.
+- **ONE MOTION IN, ONE MOTION OUT.** Rise **0.08 s**, release **0.16 s**. The rise is short because the
+  perfect window is 130 ms and a stance that arrives later than that lags the button in the only
+  exchange that matters; the release is slower and eased in *and* out so putting the blade down reads as
+  a deliberate beat rather than a snap. Three rules make the motion continuous, and all three were wrong
+  on the first pass - the entry visibly pointed the blade forward and came back:
+  **(1) no waypoint** - a press with the button down calls `PlayGuard` directly, never `PlayParry`
+  first, because the flick lives at x `0.05`, almost on the crosshair, and having it on the path *was*
+  the forward excursion; **(2) slerp, do not lerp eulers** - the blend takes
+  `Quaternion.Slerp(model.localRotation, guard)` so it travels the shortest arc and cannot pass through
+  an orientation nobody authored; **(3) start from the LIVE transform**, never from the authored idle,
+  or interrupting a swing teleports the blade home before it begins travelling. `AttackCo` also
+  retargets its **recovery leg** at the stance whenever `WeaponViewmodel.GuardWanted` is set, so a swing
+  that ends with the button down settles *into* the guard instead of into idle and raising afterwards.
+- **`GuardWanted` (the button) is deliberately not `IsGuarding` (the mechanical stance).** A swing
+  suppresses the guard's *protection* but must not interrupt the blade's *journey* back to the stance.
+- **The entry is verified geometrically, not by eye alone.** `FeatureTests > GuardEntry_*` samples the
+  blade tip's angle off the camera axis every frame of the real blend and fails if any frame is nearer
+  the crosshair than **both** endpoints. Shipped measurement: idle `32.9 deg` to guard `9.2 deg`,
+  worst frame `9.2 deg` - monotone, no excursion - and a swing settles to the same `9.2 deg`.
+- **RULE 1: the stance runs on `TimeScaleController.PlayerDelta`.** It is driven by the player’s own
+  button, and a guard that freezes halfway up during the hitstop of the blow it is absorbing is exactly
+  the stutter rule 1 exists to prevent. (The *swing* clock stays scaled on purpose — that is the impact
+  device.)
 
 ### First-person arms
 The player has **visible gauntleted arms**, built from primitives by `PrefabFactory.BuildHand` /
@@ -623,9 +836,15 @@ rejected as harsh).
 no generated C# class. Optional actions are looked up with `throwIfNotFound: false` so a missing binding
 cannot crash startup. Legacy `Input.GetAxis` is forbidden.
 
-Player map: Move, Look, Attack, Parry, Jump, Dash, Heal, Ultimate, LockOn, Previous, Next, WeaponSlot1-4,
-UseItem, WandCycle, Interact, LevelUpMenu, Pause, TestMenu, DebugWarpBoss, DebugRestore, DebugSouls,
-DebugGodMode.
+Player map: Move, Look, Attack, Parry, Jump, Dash, Slide, Heal, Ultimate, LockOn, Previous, Next,
+WeaponSlot1-4, UseItem, WandCycle, Interact, LevelUpMenu, Pause, TestMenu, DebugWarpBoss, DebugRestore,
+DebugSouls, DebugGodMode.
+
+`Slide` is `<Keyboard>/leftCtrl` + `<Gamepad>/leftTrigger` — the only two inputs in the map bound to nothing
+at all. **`C` looks free and is not:** the Unity template's `Crouch` action still holds it (and
+`<Gamepad>/buttonEast`, which `Dash` also holds). Nothing reads `Crouch`, but binding a second action onto an
+occupied key is precisely how `F` came to fire the flask and the wand altar together. The **wall jump has no
+binding**: it is `Space` while airborne near a wall.
 
 `LockOn` is `<Mouse>/middleButton` + `<Gamepad>/rightStickPress`. Middle mouse is the Souls convention and
 was the only free pointer button; the scroll wheel — the other convention, and the obvious home for target

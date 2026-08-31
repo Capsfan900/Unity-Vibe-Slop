@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: DevBlade
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.WeaponData
   displayName: Oathbreaker (TEST)
-  neon: {r: 0.49803922, g: 1, b: 0.6039216, a: 1}
+  neon: {r: 0.7764706, g: 0.6509804, b: 1, a: 1}
   viewmodelPrefab: {fileID: 8455776851365528002, guid: 319a41557d845b14bbbecf5501aba3f1, type: 3}
-  viewmodelScale: 0.5
+  viewmodelScale: 0.53
   baseDamage: 60
   postureDamage: 40
   executeDamage: 1000
@@ -61,6 +61,9 @@ MonoBehaviour:
   parry:
     pos: {x: 0.05, y: -0.15, z: 0.6}
     euler: {x: 0, y: 90, z: 80}
+  guard:
+    pos: {x: 0.33, y: -0.14, z: 0.6}
+    euler: {x: -12, y: 42, z: 58}
   drink:
     pos: {x: 0.7, y: -0.6, z: 0.5}
     euler: {x: 30, y: -40, z: 0}

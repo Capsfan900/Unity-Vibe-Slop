@@ -22,6 +22,49 @@ namespace VibeGame1
         [Tooltip("Multiplier on the posture damage the enemy takes when this attack is perfectly parried.")]
         public float parryPostureMultiplier = 1f;
         public bool unblockable;
+
+        [Header("Wind-up silhouette")]
+        [Tooltip("The shape this attack's anticipation makes. Leave 'authored' off and the enemy plays " +
+                 "the generic cone-derived wind-up instead, so an attack never has to carry a pose.")]
+        public WindupPose windupPose = new WindupPose();
+    }
+
+    /// <summary>
+    /// One attack's anticipation POSE — the silhouette the body holds while it winds up. Timing lives on
+    /// <see cref="EnemyAttackData"/> and is untouched by anything here: this describes only what the body
+    /// LOOKS like for the <c>windup</c> seconds that were already tuned.
+    ///
+    /// <para><b>Judge these as a shape at three frames.</b> Big, simple, distinct body positions, read from
+    /// the player's eye at 3-4.5 m against a blocky greybox enemy. Detail is invisible at that distance;
+    /// only the outline is not.</para>
+    ///
+    /// <para>Angles are local Euler offsets from the rig's rest pose. <c>armWindup</c>/<c>armStrike</c>
+    /// drive the shoulder (the weapon hangs off it, blade along the shoulder's local +Z);
+    /// <c>bodyOffset</c>/<c>bodyEuler</c> drive the whole body through <c>LungeRoot</c>, in enemy-local
+    /// space: +Z is toward the player, +X the enemy's right, +Y up.</para>
+    /// </summary>
+    [Serializable]
+    public class WindupPose
+    {
+        [Tooltip("OFF = fall back to the generic cone-derived wind-up. There are 25+ attack assets and " +
+                 "most of them are content that never needed its own silhouette.")]
+        public bool authored;
+
+        [Tooltip("Shoulder Euler at the peak of the wind-up. THE pose — everything else supports it.")]
+        public Vector3 armWindup;
+        [Tooltip("Shoulder Euler the swing carries through to. The strike must resolve the wind-up, " +
+                 "or the two beats look unrelated.")]
+        public Vector3 armStrike;
+
+        [Tooltip("Whole-body offset at the peak, metres, enemy-local (+Z toward the player).")]
+        public Vector3 bodyOffset;
+        [Tooltip("Whole-body Euler at the peak. Yaw is the cheapest big silhouette change there is: a " +
+                 "squared-up body and a bladed body are two different shapes at any distance.")]
+        public Vector3 bodyEuler;
+
+        [Tooltip("How much of the shoulder angle the hand trails by, so the blade whips instead of " +
+                 "rotating rigidly.")]
+        [Range(0f, 1f)] public float weaponLag = 0.45f;
     }
 
     [Serializable]

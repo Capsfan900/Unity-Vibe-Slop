@@ -12,8 +12,106 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Suite | Scope | Result |
 |---|---|---|
-| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath` | **20 / 20 pass** |
-| `FeatureTests` | Behavioural, real systems in play mode | **522 passed · 0 failed · 0 skipped** (28.8 s), fresh play-mode session on `Level_01.unity` |
+| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath` — plus `MarionetteDataTests` (shipped-asset arithmetic) | **32 / 32 pass** |
+| `FeatureTests` | Behavioural, real systems in play mode | **666 passed · 0 failed · 0 skipped** (43.1 s), fresh play-mode session on `Level_01.unity` |
+
+The count rose from 633 with the **33 new `WindupPoses` checks** (below). The run immediately before it
+failed three — `Items_PhysicsPickup`, `Level_CheckpointHeals`, `Level_CheckpointRefillsFlask` — which
+passed in both the run before *and* the run after with no code change between them: the usual
+touched-editor flakiness, not a regression. Every combat, parry, **guard**, posture, `Legendaries`,
+`GateLoop`, `LevelFlow` and `Boss` assertion is clean.
+
+### `WindupPoses` — 33 / 33
+
+Per-attack enemy anticipation silhouettes (`ANIMATION-VFX.md` gap 3.5). This section **measures rather
+than asserts**: it instantiates the real prefabs, drives the real rig through the real pose maths, and
+reads the blade's angle, its foreshortened length and where its tip sits in body-heights — because
+asserting the authored Eulers would have passed on all eleven of the poses this work found broken.
+
+What it proves: all eleven core-moveset attacks carry an authored pose; each one's strike travels at
+least 40° from its wind-up (so the swing visibly *resolves* the anticipation); the pairs whose confusion
+costs the player are separated on at least one channel; and an **unauthored** attack still rears its arm
+through the cone-derived fallback (measured: 122°).
+
+| Pair | Separation | Channel |
+|---|---|---|
+| `Grunt_Jab` vs `Grunt_Heavy` | **2.36×** | angle (83°) |
+| `Heavy_Overhead` vs `Heavy_Sweep` | **2.53×** | angle (89°) |
+| `Boss_Thrust` vs `Boss_Slam` | 2.32× | height (1.16 body-heights) |
+| `Boss_Thrust` vs `Boss_DoubleSlash_A` | 2.01× | side (1.11) |
+| `Boss_Thrust` vs `Boss_DoubleSlash_B` | 1.33× | foreshortening (0.47) |
+| `Boss_Thrust` vs `Boss_Slash` | **1.12×** | height (0.56) — the thinnest margin in the set |
+| `Boss_Slash` vs `Boss_Slam` | 1.42× | foreshortening (0.50) |
+| `Boss_Slash` vs `Boss_DoubleSlash_A` | 2.13× | angle (75°) |
+
+⚠️ **What this does NOT prove.** These are static peak frames and a geometric separation metric. That two
+poses are *measurably* different is not that a player *reads* them in 0.3 s under pressure. The one
+still-thin pair is `Boss_Thrust` vs `Boss_Slash`, which survives on the pose's height alone; the thrust's
+primary reads remain the red cue tint and the pink `M_AlertTell` marker, and the pose is the second,
+independent one. Human playtest still required.
+
+**The `Guard` section is 48 / 48.** It covers the ladder (a held guard turns a would-be Hit into a
+Blocked; a timed press while guarding is still a Perfect), the three vetoes (unblockable, facing away,
+own swing), the economy (0 chip, 1.5× posture, no Pyre, no enemy posture), regen suppression and the
+turtle-to-break punish, the shipped tuning (rule 9), the per-weapon stance poses, and — measured
+geometrically, every frame of the real blend — that the entry into the stance never swings the blade
+across the view (idle `32.9°` → guard `9.2°`, worst frame `9.2°`), that a swing settles *into* the
+stance, and that the guarded-hit kick drives *away* from the crosshair (`18.2°` against the stance’s
+`9.2°`).
+
+### Movement tech — slide and wall jump
+
+**67 / 67 pass** across `Movement`, `SlideWallJump` and the 37 `Reach_*` checks, with **zero** failures in
+any of them. The seven failures in the run above are five `Deathblow_*` framing checks and two
+`Level_Checkpoint*` — all in other agents' in-flight work, and all absent from the 633 / 0 / 0 run taken on
+the same movement build.
+
+Measured, not asserted:
+
+| Quantity | Measured |
+|---|---|
+| Slide distance / duration | **3.97 m in 0.35 s**, entry 16.0 m/s, exits at the 8.0 m/s floor |
+| Slide, across framerates (20 / 30 / 60 / 144 / 400 fps) | **3.75 / 3.97 / 3.94 / 3.97 / 3.98 m** — framerate-independent |
+| Slide-jump takeoff | **15.9 m/s** (a run is 11.0) |
+| Slide-jump horizontal, jump released (short hop) | **7.24 m**, against a run-jump's 4.67 m |
+| Slide-jump horizontal, jump held (0.80 s airtime) | **12.7 m flat**, against a run-jump's 8.8 m |
+| Wall jump rise | **2.02 m** held, **0.90 m** released |
+| Wall jump horizontal | **12 m/s** along the wall normal; 6.28 m from the wall before landing |
+| Wall-jump chain, 2.6 m chimney | **5 pushes, +5.61 m** (released); ~8-10 m held |
+| `FindWall` (8 spherecasts) | **0 bytes over 20 000 calls**, 2.36 µs per call |
+| `CeilingBlocked` | **0 bytes over 20 000 calls**, 0.051 µs per call |
+| Frame time, idle → sliding → wall-jump chain | p50 **1.49 → 1.31 → 1.53 ms**, p95 **1.85 → 1.52 → 1.79 ms** — no measurable cost |
+
+**Not proven.** The suite's *first* slide of a run intermittently measures 1.66 m / 0.12 s with
+`0/80 frames grounded`, while the slide-jump measured seconds later in the same test reports the correct
+15.9 m/s takeoff, and a hand-driven probe on the same build gives 3.97 m at every framerate from 20 to 400.
+Something about starting a slide within ~1 s of a `Teleport` onto fresh geometry leaves the controller
+ungrounded; the coyote tolerance keeps it correct-but-short rather than broken. **It has never been observed
+outside a scripted teleport**, but it is not explained, and `Slide_CoversGroundThenStops` accepts 1.5-12 m
+deliberately so it does not become a second flaky test. A human still has to slide by hand.
+
+Also unproven: nobody has played any of the three routes with a controller in their hands. The reach
+contract is asserted off the built geometry, and both T1 routes were driven in play mode
+(a standing player is stopped at z 61.95 by the fallen obelisk whose face is at 62.40; a slide passes under
+it at z 62.91), but *feel* is untested.
+
+<!-- superseded -->
+⚠️ **(previous run) The six failures are all in in-flight movement work, not in combat.** They are
+`Movement_LandsAndGrounds`, three `WallJump_*`, `Slide_JumpCancelKeepsMomentum` and
+`Reach_SlideJump_T1_Stone_1_to_T1_Fast_1` (a 9.5 m gap against an 8.5 m limit on a newly added
+platform). Every combat, enemy, parry, deathblow, `Legendaries`, `GateLoop` and `Boss` section is
+clean. `Movement_LandsAndGrounds` is also **flaky** — two fresh baseline runs taken before any of this
+session's changes gave 520/2/0 each time with a *different* pair of tests failing, so treat a single
+isolated Movement/Deathblow-framing failure as noise and re-run before investigating.
+
+`MarionetteDataTests` is EditMode rather than a `FeatureTests` section on purpose: the Pale Marionette
+is a sandbox prototype with no spawner in `Level_01`, so a play-mode test would have to either Skip in
+the canonical run or push the enemy into a level it is deliberately not in. The twelve assertions read
+the shipped `.asset` files directly — the parried-vs-unparried beat equality, the six-deflect posture
+economy, the wind-up floor, the far-band answer to retreating, and that the spin clip can be scaled
+onto the data's impact inside its allowed speed band. One of them **caught a real bug on its first
+run**: `Marionette_Overhead.range` was 3.4 against a `preferredRange` of 3.7, so it only landed because
+1.7 m of lunge happened to close the gap first.
 
 Green, run from a fresh play-mode session on `Assets/Scenes/Level_01.unity`. The `Deathblow` section —
 the marker, the marked/unmarked press split and the marker's material separation from `M_AlertTell` — is

@@ -1,0 +1,169 @@
+[
+ {
+  "name": "Idle",
+  "start": 1,
+  "end": 49,
+  "loop": true,
+  "events": []
+ },
+ {
+  "name": "IdleCombat",
+  "start": 51,
+  "end": 91,
+  "loop": true,
+  "events": []
+ },
+ {
+  "name": "Walk",
+  "start": 93,
+  "end": 125,
+  "loop": true,
+  "events": [
+   {
+    "time": 0.0,
+    "function": "OnFootstep"
+   },
+   {
+    "time": 0.5,
+    "function": "OnFootstep"
+   }
+  ]
+ },
+ {
+  "name": "Run",
+  "start": 127,
+  "end": 149,
+  "loop": true,
+  "events": [
+   {
+    "time": 0.0,
+    "function": "OnFootstep"
+   },
+   {
+    "time": 0.5,
+    "function": "OnFootstep"
+   }
+  ]
+ },
+ {
+  "name": "Jump",
+  "start": 151,
+  "end": 185,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.28,
+    "function": "OnJumpTakeoff"
+   },
+   {
+    "time": 0.85,
+    "function": "OnJumpLand"
+   }
+  ]
+ },
+ {
+  "name": "AttackSwing",
+  "start": 187,
+  "end": 215,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ]
+ },
+ {
+  "name": "AttackOverhead",
+  "start": 217,
+  "end": 251,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.6,
+    "function": "OnAttackHit"
+   }
+  ]
+ },
+ {
+  "name": "AttackStab",
+  "start": 253,
+  "end": 275,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ]
+ },
+ {
+  "name": "AttackKick",
+  "start": 277,
+  "end": 303,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ]
+ },
+ {
+  "name": "Hit",
+  "start": 305,
+  "end": 323,
+  "loop": false,
+  "events": []
+ },
+ {
+  "name": "Stagger",
+  "start": 325,
+  "end": 355,
+  "loop": false,
+  "events": []
+ },
+ {
+  "name": "Roar",
+  "start": 357,
+  "end": 401,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.4,
+    "function": "OnRoar"
+   }
+  ]
+ },
+ {
+  "name": "Block",
+  "start": 403,
+  "end": 433,
+  "loop": true,
+  "events": []
+ },
+ {
+  "name": "Spawn",
+  "start": 435,
+  "end": 475,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.9,
+    "function": "OnSpawnFinished"
+   }
+  ]
+ },
+ {
+  "name": "Death",
+  "start": 477,
+  "end": 517,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.95,
+    "function": "OnDeathFinished"
+   }
+  ]
+ }
+]

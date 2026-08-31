@@ -44,8 +44,11 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | Look | Mouse | Right stick |
 | Jump | `Space` | A / Cross |
 | Dash | `Left Shift` | B / Circle |
+| **Slide** (needs speed; jump out of it to keep it) | `Left Ctrl` | Left trigger |
+| **Wall jump** (airborne, near a wall) | `Space` again | A / Cross again |
 | Attack | `LMB` | RB |
-| **Parry** | `RMB` | LB |
+| **Parry** (tap) | `RMB` | LB |
+| **Guard** (hold) | `RMB` **held** | LB held |
 | **Lock on / switch / release** | `MMB` (middle mouse) | Right stick click |
 | Deathblow | `LMB` **aimed at an enemy carrying the violet marker** | RB |
 | Heal (flask) | `F` | D-pad Up |
@@ -58,6 +61,20 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 
 `F` is shared: while a wand altar's `[F]  CHOOSE WAND` prompt is showing it opens the wand menu, otherwise it
 drinks a flask. `R` still cycles wands as a debug convenience.
+
+**Movement tech.** A slide needs speed to start and adds 5 m/s on top of it — 16 m/s out of a run — then
+bleeds back to 8 over about 4 m, and drops you low enough to pass under things you cannot walk under. The
+point is not the slide: it is **jumping out of one**, which leaves the ground at 15.8 m/s and clears a 12.6 m
+gap instead of 8.8 m. Cancel early and you keep all of it. A **wall jump** is just `Space` again while
+airborne near a wall — it throws you off the wall and 2 m up, keeps whatever speed you had running *along*
+the wall, and refuses the same face twice in a row, so two facing walls climb and one does not.
+
+Level 01 uses them in three places. On **The Shattered Causeway** a fallen standing stone lies across the
+walkway near its north end — slide under it to keep your speed, or jump over it and lose it — and one broken
+slab out in the middle of the stepping stones is reachable only with a slide-jump, which skips two hops. On
+**The Long Span** the broken balustrade posts either side of the walkway are close enough to kick off, so a
+missed step is recoverable instead of fatal. **None of them is the only way through**: the original route
+still works with nothing but jump and dash, and the fallen stone can simply be jumped.
 
 **Lock-on is one key doing three things**, resolved by where you are aiming when you press it: nothing
 locked, it locks the enemy nearest the crosshair; already locked and still looking at it, it releases;
@@ -85,6 +102,13 @@ Implemented in `Assets/Scripts/Debug/DebugKeys.cs`; compiled out of release buil
 - **Parry.** Tap parry. The enemy telegraph runs *dim charge → hard cue flash + audio ping → impact*.
   React to the **cue**, not the wind-up. Perfect deflect = no damage, builds the enemy's posture and
   your PYRE. Late = block: reduced damage, it costs **your** posture, and it stokes PYRE at only 35%.
+- **Guard.** *Hold* the same button and the blade comes up across your body and stays there. Anything
+  that would have hit you is blocked instead: **no damage at all** — but it costs **posture**, more than
+  anything else in the game, and your posture **stops regenerating** while the blade is up. So the guard
+  is somewhere to stand, not somewhere to live: turtle and you will be guard-broken and staggered in
+  about three blows. A well-timed press while guarding is still a perfect deflect — the deflect is
+  always the better answer. Two things go straight through a guard: an **unblockable** (the hot pink
+  tell — move) and anything that hits you from behind. Swinging drops your own guard.
 - **Posture.** Both sides have it. Fill an enemy's to open a **deathblow**. Let yours fill and you are
   staggered for 1.5 s at 0.4× speed, unable to act, taking 1.6× damage.
 - **Deathblow.** When you break an enemy's posture a spinning **violet glyph** appears over its head —

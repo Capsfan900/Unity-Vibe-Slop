@@ -42,7 +42,7 @@ the origin and the widest aggro range in the arena is 18 m, so you walk to the f
 | **Player spawn** | centre `(0, 1.2, 0)`, facing +Z | `StartSpawn`, also wired to `LevelManager.startSpawn` |
 | **Platforming staircase** | north-east, `Jump_1`…`Jump_5` | Five steps, each a **1.5 m rise over a ~1.7 m gap** — the project reachability limit is rise ≤ 1.5 m with gap ≤ 4.5 m. Tops at 1.5 / 3.0 / 4.5 / 6.0 / 7.5 |
 | **Dash gap** | north-west, `Dash_A` → `Dash_B` | Two level pads **7 m apart edge-to-edge**: too far to jump, comfortable with a dash. Yellow trim |
-| **Enemy pads** | south wall, z = −18 | Six pads, each with a live `EnemySpawner`: `Pad_Grunt` (x −14), `Pad_Heavy` (x −5), `Pad_Boss` (x 8), then the three legendary mini-bosses — `Pad_Legendary_Ninja` (x 16), `Pad_Legendary_Knight` (x 21), `Pad_Legendary_Spellsword` (x 26). The two old spare pads are gone; the eastern half of the row was re-spaced to fit three duels |
+| **Enemy pads** | south wall, z = −18 | Seven pads, each with a live `EnemySpawner`: `Pad_Legendary_Marionette` (x −22), `Pad_Grunt` (x −14), `Pad_Heavy` (x −5), `Pad_Boss` (x 8), then `Pad_Legendary_Ninja` (x 16), `Pad_Legendary_Knight` (x 21), `Pad_Legendary_Spellsword` (x 26). The Marionette is at the **west** end rather than on the eastern run: the Spellsword pad's edge is already 1.5 m off the x = 30 wall, and two duellists squeezed together there would sit inside each other's 18 m aggro |
 | **Wand altar** | `(0, 0, 2.5)`, 2.5 m in front of the spawn | `WandPedestal_Start` — stone plinth, cyan crystal, 3 m trigger that reaches the spawn point. Look at it and press **F** to open the wand-select menu. Same contract as the campaign level: the riposte loadout is a pre-run commitment |
 | **Item pedestals** | west side, x = −22 | One stone pedestal per `ItemData` in `Assets/Data/Items`, 5 m apart, pickup floating 1.2 m above the pedestal top |
 | **Weapon rack** | east side, x = 22 | Four marker pads with posts colour-keyed to Sword / Hammer / Dagger / DevBlade. Purely visual — swap weapons with keys **1–4** |
@@ -54,8 +54,15 @@ or run `VibeGame1/1. Project Setup` with this scene open.
 
 ## The legendary mini-bosses
 
-`Legendary_Ninja`, `Legendary_Knight` and `Legendary_Spellsword` (built by
+`Legendary_Ninja`, `Legendary_Knight`, `Legendary_Spellsword` and `Legendary_Marionette` (built by
 `Assets/Editor/MiniBossFactory.cs`) each get a pad, a live spawner and a `SpawnEnemyInFront` index.
+
+**`Legendary_Marionette` — THE PALE MARIONETTE — is a prototype and lives here only.** It is in no
+`LevelDefinition` and no `LevelRegistry`, and this pad plus index **6** is the only way to meet it. It
+is also the project's first ANIMATED enemy: a rigged forge model driven by an `Animator` through
+`PuppetVisuals`, whose whirl peaks around 4 revolutions a second while its damaging passes arrive on a
+fixed 0.76 s beat. Six clean deflects break it; the break is a 4.0 s stagger straight into a deathblow.
+See `docs/ARCHITECTURE.md` → *The Pale Marionette*.
 Unlike the Warden they are plain `EnemyController`s, not `BossController`s, so:
 
 - their spawners have `isBoss = false` and they respawn/reset exactly like a grunt,
@@ -67,6 +74,24 @@ Unlike the Warden they are plain `EnemyController`s, not `BossController`s, so:
 `Spawn_Boss` spawns the boss on load, but `BossController` starts **aggro-locked** and the sandbox has
 no `BossArenaTrigger`, so it stands inert until you wake it. Use `SandboxController.ActivateBoss()`
 (component context menu) to start the fight.
+
+## Pad enemies respawn
+
+A pad enemy comes back **4 seconds after it dies**, asleep on its pad with its wake switch re-armed —
+practising a fight should not mean walking back to a menu between attempts. Controlled by
+`autoRespawnPadEnemies` and `respawnDelay` on `SandboxController` (both written by `SandboxBuilder`, so
+change them there to make a change stick).
+
+Two details worth knowing:
+
+- **The replacement is asleep.** A freshly spawned prefab ships `aggroLocked = false`, and the pad's wake
+  switch tracks woken enemies by *instance*, so a respawn is a stranger to it. Without an explicit
+  re-arm the new enemy would walk off its pad at you the moment it appeared — the exact state the wake
+  switches exist to prevent.
+- **This is sandbox-only.** Campaign respawn is still tied to the *player* dying, which is what a
+  checkpoint means. Nothing about `LevelManager.ResetEnemies` changed.
+
+---
 
 ## SandboxController
 
@@ -82,13 +107,13 @@ context-menu item (right-click the component header in the Inspector):
 
 | Method | What it does |
 |---|---|
-| `SpawnEnemyInFront(int index)` | Drops `enemyPrefabs[index]` on the NavMesh in front of you, facing you. **0** = Grunt · **1** = Heavy · **2** = Boss · **3** = Legendary_Ninja (THE THIRTEENTH SHADE) · **4** = Legendary_Knight (THE IRON PENITENT) · **5** = Legendary_Spellsword (THE ASHEN CHORISTER). The list is **append-only** — 0–2 are documented everywhere and must never be renumbered |
+| `SpawnEnemyInFront(int index)` | Drops `enemyPrefabs[index]` on the NavMesh in front of you, facing you. **0** = Grunt · **1** = Heavy · **2** = Boss · **3** = Legendary_Ninja (THE THIRTEENTH SHADE) · **4** = Legendary_Knight (THE IRON PENITENT) · **5** = Legendary_Spellsword (THE ASHEN CHORISTER) · **6** = Legendary_Marionette (THE PALE MARIONETTE, prototype). The list is **append-only** — 0–2 are documented everywhere and must never be renumbered |
 | `SpawnDummy()` | An **inert practice dummy**: a Grunt with `aggroLocked = true` and ~1M HP, for drilling swing timing, hit reactions and posture damage against a target that never fights back |
 | `ActivateBoss()` | Wakes the boss (no arena trigger in this scene) |
-| `ClearAllEnemies()` | Instant **despawn** of everything, spawner-owned included — no death animation, no souls. `TestMenu`'s "Kill Nearby" is the one that kills properly |
+| `ClearAllEnemies()` | Instant **despawn** of everything, spawner-owned included — no death animation, no souls. `TestMenu`'s "Kill Nearby" is the one that kills properly. **Also switches pad auto-respawn off**, or the pads would simply refill a few seconds later and "clear" would look broken |
 | `ToggleInfiniteFlask()` | Flask silently refills whenever it is not full |
 | `ToggleInfiniteItems()` | A used item is handed straight back |
-| `ResetSandbox()` | Removes hand-spawned enemies, restores the pads, full-heals and returns you to spawn |
+| `ResetSandbox()` | Removes hand-spawned enemies, restores the pads, full-heals and returns you to spawn. Re-enables pad auto-respawn, so `ClearAllEnemies()` is not a one-way door |
 
 Inspector fields worth knowing: `spawnDistance` (how far in front enemies appear),
 `navSampleRadius` (how far the spawn point may be nudged to find NavMesh), `dummyPrefabIndex`

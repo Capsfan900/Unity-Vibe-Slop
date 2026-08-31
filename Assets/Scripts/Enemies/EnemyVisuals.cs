@@ -114,18 +114,38 @@ namespace VibeGame1
         /// </summary>
         bool cuePeak;
 
-        /// <summary>Shoulder angles for one attack: where the arm rears to, and where it swings through to.</summary>
+        /// <summary>
+        /// The full anticipation SHAPE for one attack: the shoulder angles it rears to and swings through
+        /// to, plus the whole-body offset and rotation that carry the silhouette. The body channel matters
+        /// more than the arm at fighting distance — a blocky enemy 3-4.5 m away is mostly torso.
+        /// </summary>
         struct ArmPose
         {
-            public Vector3 windup;
-            public Vector3 strike;
-            public ArmPose(Vector3 w, Vector3 s) { windup = w; strike = s; }
+            public Vector3 windup;      // shoulder Euler at the peak
+            public Vector3 strike;      // shoulder Euler the swing carries through to
+            public Vector3 bodyOffset;  // LungeRoot local offset at the peak, metres
+            public Vector3 bodyEuler;   // LungeRoot local Euler at the peak
+            public float weaponLag;     // how much the hand trails the shoulder
+
+            public ArmPose(Vector3 w, Vector3 s) : this(w, s, GenericBodyOffset, GenericBodyEuler, 0.45f) { }
+
+            public ArmPose(Vector3 w, Vector3 s, Vector3 bo, Vector3 be, float lag)
+            { windup = w; strike = s; bodyOffset = bo; bodyEuler = be; weaponLag = lag; }
         }
 
-        // Read off the attack's own shape so no new data fields are needed:
+        // The generic body lean, used by every attack that does NOT author its own pose: the enemy rocks
+        // back and up as it charges. Kept as constants so an authored pose is a deliberate DEPARTURE from
+        // a known shape rather than a value invented against nothing.
+        static readonly Vector3 GenericBodyOffset = new Vector3(0f, 0.15f, -0.25f);
+        static readonly Vector3 GenericBodyEuler = new Vector3(-12f, 0f, 0f);
+
+        // FALLBACK vocabulary, read off the attack's own shape so an unauthored attack still gets a pose:
         //   wide cone  -> a horizontal sweep, arm winds across the body
         //   narrow cone-> a thrust, arm cocks straight back
         //   otherwise  -> an overhead, arm rears high (the biggest, slowest read)
+        // This is what gap 3.5 was about: three poses shared by 25+ attacks means Grunt_Jab and
+        // Grunt_Heavy are the same shape. An attack that matters authors EnemyAttackData.windupPose
+        // instead; these remain for the ones that do not.
         static readonly ArmPose PoseOverhead = new ArmPose(new Vector3(-136f, 0f, -26f), new Vector3(64f, 0f, 16f));
         static readonly ArmPose PoseSweep = new ArmPose(new Vector3(-24f, -106f, -44f), new Vector3(-8f, 88f, 32f));
         static readonly ArmPose PoseThrust = new ArmPose(new Vector3(-58f, -20f, 0f), new Vector3(20f, 8f, 0f));
@@ -150,9 +170,18 @@ namespace VibeGame1
             if (deathblowMarker != null) deathblowMarker.SetActive(false);
         }
 
+        /// <summary>
+        /// The pose this attack winds up into. An authored <see cref="WindupPose"/> on the asset wins;
+        /// otherwise the cone-derived fallback plays, so no attack is ever without a wind-up and none of
+        /// the 25+ existing assets had to be authored to ship per-attack silhouettes.
+        /// </summary>
         static ArmPose PoseFor(EnemyAttackData atk)
         {
             if (atk == null) return PoseOverhead;
+            WindupPose p = atk.windupPose;
+            if (p != null && p.authored)
+                return new ArmPose(p.armWindup, p.armStrike, p.bodyOffset, p.bodyEuler,
+                                   Mathf.Clamp01(p.weaponLag));
             if (atk.coneDeg >= 90f) return PoseSweep;
             if (atk.coneDeg <= 45f) return PoseThrust;
             return PoseOverhead;
@@ -266,7 +295,7 @@ namespace VibeGame1
 
             if (alertMarker != null) alertMarker.SetActive(unblockable);
             cuePeak = true;
-            SetArm(currentPose.windup * 1.12f, 0.45f);
+            SetArm(currentPose.windup * 1.12f, currentPose.weaponLag);
         }
 
         /// <summary>Beat 3: the swing itself. <paramref name="seconds"/> is authoritative (contract rule 1).</summary>
@@ -439,7 +468,7 @@ namespace VibeGame1
                     lungeRoot.localPosition = lungeBase + Vector3.down * 0.14f * dip + Vector3.forward * 0.09f * dip;
                     lungeRoot.localRotation = lungeBaseRot * Quaternion.Euler(6f * dip, 0f, 0f);
                 }
-                SetArm(Vector3.Lerp(Vector3.zero, -currentPose.windup * 0.12f, dip), 0.45f);
+                SetArm(Vector3.Lerp(Vector3.zero, -currentPose.windup * 0.12f, dip), currentPose.weaponLag);
                 t += Time.deltaTime; yield return null;
             }
 
@@ -457,13 +486,15 @@ namespace VibeGame1
                 float eased = 1f - (1f - k) * (1f - k);
                 if (lungeRoot != null)
                 {
-                    lungeRoot.localPosition = lungeBase + Vector3.back * 0.25f * k + Vector3.up * 0.15f * k;
-                    lungeRoot.localRotation = lungeBaseRot * Quaternion.Euler(-12f * k, 0f, 0f);
+                    // The body carries the pose, not just the arm. Both channels come from the attack:
+                    // an authored pose supplies its own, an unauthored one gets the generic rock-back.
+                    lungeRoot.localPosition = lungeBase + currentPose.bodyOffset * k;
+                    lungeRoot.localRotation = lungeBaseRot * Quaternion.Euler(currentPose.bodyEuler * k);
                 }
-                SetArm(Vector3.Lerp(armFrom, currentPose.windup, eased), 0.45f);
+                SetArm(Vector3.Lerp(armFrom, currentPose.windup, eased), currentPose.weaponLag);
                 t += Time.deltaTime; yield return null;
             }
-            if (!cuePeak) SetArm(currentPose.windup, 0.45f);
+            if (!cuePeak) SetArm(currentPose.windup, currentPose.weaponLag);
         }
 
         /// <summary>

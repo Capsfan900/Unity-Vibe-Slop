@@ -15,7 +15,7 @@ MonoBehaviour:
   levelId: samplescene
   displayName: The Hollow Ascent
   sceneName: Level_01
-  parTime: 240
+  parTime: 225
   orderIndex: 0
   playerStart: {x: 0, y: 1.2, z: -4}
   playerStartYaw: 0
@@ -44,6 +44,13 @@ MonoBehaviour:
   - name: T1_Stone_3
     center: {x: -3.5, y: 0.5, z: 30}
     size: {x: 4, y: 1, z: 4}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T1_Fast_1
+    center: {x: 0, y: 0, z: 28}
+    size: {x: 2.5, y: 1, z: 6}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
@@ -89,6 +96,13 @@ MonoBehaviour:
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T1_Fallen_Obelisk
+    center: {x: 0, y: 3.7, z: 63}
+    size: {x: 5, y: 0.8, z: 1.2}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Stone_5
     center: {x: 0, y: 2.5, z: 70}
@@ -377,6 +391,34 @@ MonoBehaviour:
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
+  - name: T3_Recovery_W1
+    center: {x: -3.4, y: 20, z: 221}
+    size: {x: 1.2, y: 8, z: 1.2}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonRed
+    isStatic: 1
+  - name: T3_Recovery_E1
+    center: {x: 3.4, y: 20, z: 221}
+    size: {x: 1.2, y: 8, z: 1.2}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonRed
+    isStatic: 1
+  - name: T3_Recovery_W2
+    center: {x: -3.4, y: 20, z: 231}
+    size: {x: 1.2, y: 8, z: 1.2}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonRed
+    isStatic: 1
+  - name: T3_Recovery_E2
+    center: {x: 3.4, y: 20, z: 231}
+    size: {x: 1.2, y: 8, z: 1.2}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonRed
+    isStatic: 1
   - name: T3_Step_1
     center: {x: 3, y: 25, z: 241}
     size: {x: 4, y: 1, z: 4}
@@ -654,6 +696,8 @@ MonoBehaviour:
     basePosition: {x: 7, y: 0, z: 7}
   - name: Torch_T1_A
     basePosition: {x: 2.2, y: 0, z: 14}
+  - name: Torch_T1_Fast
+    basePosition: {x: 0.9, y: 0.5, z: 30}
   - name: Torch_T1_B
     basePosition: {x: -2.2, y: 1.5, z: 38}
   - name: Torch_T1_Causeway_S

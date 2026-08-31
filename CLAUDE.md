@@ -15,6 +15,7 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | `docs/BACKLOG.md` | Requested but not yet built, with the intended shape. |
 | [docs/TOOLING.md](docs/TOOLING.md) | Before building any tool — it probably exists. Menus, tests, harness, debug keys, sandbox, configs. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Changing systems or combat. Module map, event bus, singletons, feel contracts, art direction, audio. |
+| [docs/ANIMATION-VFX.md](docs/ANIMATION-VFX.md) | **Touching an animation, a viewmodel pose or any effect.** Craft principles, an audit of what this project gets right, and the open gaps. |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | **Adding a level, enemy, moveset or item.** Content is data — ScriptableObjects plus a menu item, not new code. |
 | [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md) | Session start/end checklist and token discipline. |
 | [docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md) | What is proven vs unproven, current test results, and what still needs a human playtest. |
@@ -59,6 +60,8 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | 2. Create Materials | `MaterialFactory.CreateAll()` | `Assets/Materials/M_*.mat` |
 | 3. Create Data | `DataFactory.CreateAll()` | ScriptableObjects — **overwrites Inspector tuning** |
 | 4. Build Prefabs | `PrefabFactory.BuildAll()` | Player, Managers, enemies, boss, weapons, pickups |
+| 4a. Split Forge Animation Clips | `ForgeClipSplitter.SplitAll()` | Named `AnimationClip`s from each `Assets/Enemies/*.clips.json`. **Not in Rebuild Everything** — run after importing or re-exporting an animated forge FBX |
+| 4b. Build Mini-Bosses | `MiniBossFactory.CreateAll()` | The four `Legendary_*` prefabs, plus the generated Animator controller for any animated one. **Not in Rebuild Everything** |
 | 5. Build HUD | `HudBuilder.Build()` | `Assets/Prefabs/HUD.prefab` |
 | 6. Build Level | `LevelGreyboxBuilder.Build()` | `Level` root, NavMesh bake, scene instances |
 | 7. Build Sandbox | `SandboxBuilder.Build()` | `Assets/Scenes/Sandbox.unity` |
@@ -78,7 +81,7 @@ Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 | Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
 | Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
 
-Current: EditMode **20/20**, feature suite **522 passed / 0 failed / 0 skipped**, from a fresh
+Current: EditMode **32/32**, feature suite **666 passed / 0 failed / 0 skipped**, from a fresh
 play-mode session ([report](docs/VERIFICATION-REPORT.md)). **A session that has been recompiled under
 is not a fresh one** — a domain reload wipes every static without re-running `Awake`, so `GameManager.I`
 is null and the suite reports failures that are not real. Check `GameManager.I != null` first.

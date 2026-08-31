@@ -35,6 +35,12 @@ namespace VibeGame1
         /// </summary>
         static readonly Color DeflectSteel = new Color(0.78f, 0.88f, 1f);
 
+        /// <summary>
+        /// The guard colour. Deliberately duller and warmer than <see cref="DeflectSteel"/>: a guarded
+        /// hit is steel scraping steel, and it must never be mistaken on screen for a deflect.
+        /// </summary>
+        static readonly Color GuardSteel = new Color(0.62f, 0.63f, 0.60f);
+
         void Awake()
         {
             health = GetComponent<Health>();
@@ -123,19 +129,46 @@ namespace VibeGame1
                     break;
 
                 case ParryResult.Blocked:
-                    health.TakeDamage(new DamageInfo { damage = a.damage * d.blockDamageMultiplier * dmgMult, source = a.attacker.gameObject });
-                    AddPosture(a.damage * d.blockPostureMultiplier * postureMult);
+                {
+                    // Two roads reach Blocked and they cost different things.
+                    //   TIMED BLOCK (a press that landed in the late window): 30% damage, 0.9x posture,
+                    //     and a fraction of the Pyre — you timed SOMETHING, just not well enough.
+                    //   HELD GUARD  (the Sekiro stance, no press in window): NO damage at all and the
+                    //     largest posture bill in the game, and no Pyre whatsoever. The guard is the
+                    //     floor under a fight, not an achievement.
+                    // The ladder stays monotone from the player's side: deflect (nothing, + Pyre,
+                    // + enemy posture) > guard (posture only) > hit (health AND posture).
+                    bool guarded = parry != null && parry.LastResolveWasGuard;
+                    float chip = a.damage * (guarded ? d.guardChipDamageMultiplier : d.blockDamageMultiplier) * dmgMult;
+                    if (chip > 0f)
+                        health.TakeDamage(new DamageInfo { damage = chip, source = a.attacker.gameObject });
+                    AddPosture(a.damage * (guarded ? d.guardPostureMultiplier : d.blockPostureMultiplier) * postureMult);
                     a.attacker.OnBlocked();
-                    // A block IS a successful parry, so it stokes the Pyre — but at a fraction of a
-                    // perfect deflect. You still took damage and posture for it; the fire should reward
-                    // the timing, not the survival.
-                    resources.AddPyre((stats.PyrePerPerfect + w.pyreBonus) * d.pyreBlockFraction);
+                    if (!guarded)
+                    {
+                        // A timed block IS a successful parry, so it stokes the Pyre — but at a fraction
+                        // of a perfect deflect. You still took damage and posture for it; the fire
+                        // should reward the timing, not the survival. A HELD guard timed nothing, so it
+                        // earns nothing: this is what stops turtling from charging the super.
+                        resources.AddPyre((stats.PyrePerPerfect + w.pyreBonus) * d.pyreBlockFraction);
+                    }
                     if (CameraShake.I) CameraShake.I.Medium();
-                    // Scraped, not deflected: fewer sparks, slower, desaturated toward steel.
-                    SparkAt(a, Color.Lerp(feel.hurtFlash, Color.gray, 0.6f), 5, 5f, 34f);
-                    if (ScreenFlash.I) ScreenFlash.I.Flash(feel.hurtFlash, feel.hurtFlashAlpha * 0.18f, 0.12f);
-                    AudioManager.Play(Sfx.Block);
+                    if (guarded)
+                    {
+                        // The guard eats the damage, so the impact has to arrive as FORCE or it reads as
+                        // nothing happening: a hitstop beat, a spark where steel met steel on the raised
+                        // blade, a shove off the line, and the stance itself kicked back and recovering.
+                        GuardImpact(a, feel, to);
+                    }
+                    else
+                    {
+                        // Scraped, not deflected: fewer sparks, slower, desaturated toward steel.
+                        SparkAt(a, Color.Lerp(feel.hurtFlash, Color.gray, 0.6f), 5, 5f, 34f);
+                        if (ScreenFlash.I) ScreenFlash.I.Flash(feel.hurtFlash, feel.hurtFlashAlpha * 0.18f, 0.12f);
+                        AudioManager.Play(Sfx.Block);
+                    }
                     break;
+                }
 
                 case ParryResult.Hit:
                     health.TakeDamage(new DamageInfo { damage = a.damage * dmgMult, source = a.attacker.gameObject });
@@ -160,6 +193,36 @@ namespace VibeGame1
             return result;
         }
 
+
+        /// <summary>
+        /// Feedback for a blow absorbed by the HELD guard. Deliberately percussive rather than bright:
+        /// the deflect owns the pale-steel flash and the chromatic pulse, and a guard that borrowed them
+        /// would make the two outcomes look like the same event.
+        /// </summary>
+        void GuardImpact(in AttackInfo a, GameFeelSettings feel, Vector3 to)
+        {
+            TimeScaleController.I.HitStop(feel.guardHitStop, feel.hitStopScale);
+
+            // The spark belongs ON THE BLADE, not floating in front of the chest — the guard is the
+            // weapon doing the work, and a spark anywhere else reads as an unattributed effect.
+            // Half-way from the blade tip out to the incoming line: steel on steel.
+            Vector3 p = ContactPoint(a);
+            var vm = GetComponentInChildren<WeaponViewmodel>(true);
+            if (vm != null) p = Vector3.Lerp(vm.TipWorldPosition, p, 0.55f);
+            Vector3 dir = a.attacker != null
+                ? (a.attacker.transform.position - transform.position).normalized
+                : transform.forward;
+            dir = (dir + Vector3.up * 0.35f).normalized;
+            SlashFx.Sparks(p, dir, GuardSteel, 9, 6.5f, 30f);
+            if (vm != null) vm.GuardImpact();
+
+            // Grounded-only, no upward component — same rule as a clean hit: launching the player off a
+            // 6 m walkway over a pit turns every blow into a fall.
+            if (motor != null && motor.IsGrounded && to.sqrMagnitude > 0.01f)
+                motor.AddImpulse(-to.normalized * feel.guardShove);
+
+            AudioManager.Play(Sfx.Block, 1f, 0.85f, 0.06f);
+        }
 
         /// <summary>
         /// Contact point for an incoming attack: roughly chest height, out along the line to the

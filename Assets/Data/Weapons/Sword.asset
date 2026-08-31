@@ -15,7 +15,7 @@ MonoBehaviour:
   displayName: Cerulean Edge
   neon: {r: 0.56078434, g: 0.70980394, b: 0.8509804, a: 1}
   viewmodelPrefab: {fileID: 5872092951120182316, guid: 8f65a56eb9228a9409d6884c6f1bae17, type: 3}
-  viewmodelScale: 0.5
+  viewmodelScale: 0.52
   baseDamage: 22
   postureDamage: 12
   executeDamage: 300
@@ -61,6 +61,9 @@ MonoBehaviour:
   parry:
     pos: {x: 0.05, y: -0.15, z: 0.6}
     euler: {x: 0, y: 90, z: 80}
+  guard:
+    pos: {x: 0.33, y: -0.14, z: 0.6}
+    euler: {x: -12, y: 42, z: 58}
   drink:
     pos: {x: 0.7, y: -0.6, z: 0.5}
     euler: {x: 30, y: -40, z: 0}

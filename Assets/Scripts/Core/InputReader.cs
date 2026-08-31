@@ -14,7 +14,7 @@ namespace VibeGame1
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
                     debugWarpBoss, debugRestore, debugSouls, debugGodMode;
-        InputAction useItem, testMenu, wandCycle, interact, lockOn;
+        InputAction useItem, testMenu, wandCycle, interact, lockOn, slide;
 
         void Awake()
         {
@@ -48,6 +48,7 @@ namespace VibeGame1
             wandCycle = map.FindAction("WandCycle", false);
             interact = map.FindAction("Interact", false);
             lockOn = map.FindAction("LockOn", false);
+            slide = map.FindAction("Slide", false);
             // optional actions: missing ones must not crash startup
             slot4 = map.FindAction("WeaponSlot4", false);
             debugWarpBoss = map.FindAction("DebugWarpBoss", false);
@@ -67,6 +68,14 @@ namespace VibeGame1
         public bool DashPressed => dash != null && dash.WasPressedThisFrame();
         public bool AttackPressed => attack != null && attack.WasPressedThisFrame();
         public bool ParryPressed => parry != null && parry.WasPressedThisFrame();
+
+        /// <summary>
+        /// RMB held: the Sekiro GUARD stance. Same button and same binding as <see cref="ParryPressed"/>
+        /// by design — in Sekiro the deflect is not a different input from the guard, it is the guard
+        /// pressed at the right moment. <see cref="ParryController"/> reads the press for the window and
+        /// this for the stance underneath it.
+        /// </summary>
+        public bool ParryHeld => parry != null && parry.IsPressed();
         public bool HealPressed => heal != null && heal.WasPressedThisFrame();
         public bool UltimatePressed => ultimate != null && ultimate.WasPressedThisFrame();
         public bool PrevPressed => previous != null && previous.WasPressedThisFrame();
@@ -76,6 +85,16 @@ namespace VibeGame1
         public bool UseItemPressed => useItem != null && useItem.WasPressedThisFrame();
         public bool TestMenuPressed => testMenu != null && testMenu.WasPressedThisFrame();
         public bool WandCyclePressed => wandCycle != null && wandCycle.WasPressedThisFrame();
+
+        /// <summary>
+        /// Left Ctrl (or gamepad left trigger): the momentum slide. Checked against the whole map before
+        /// binding — <c>C</c> looked free but still carries the template's unread <c>Crouch</c> action,
+        /// and giving one key two actions is exactly the bug that made <c>F</c> fire the flask and the
+        /// wand altar together. Left Ctrl and left trigger were bound to nothing at all.
+        /// Held, not tapped: <see cref="FirstPersonMotor"/> ends the slide when this goes false.
+        /// </summary>
+        public bool SlidePressed => slide != null && slide.WasPressedThisFrame();
+        public bool SlideHeld => slide != null && slide.IsPressed();
 
         /// <summary>
         /// Middle mouse (or right stick click): Souls target lock. One key acquires, switches and
@@ -107,6 +126,6 @@ namespace VibeGame1
             }
         }
 
-        public bool AnyMovementInput => MoveAxis.sqrMagnitude > 0.01f || JumpPressed || DashPressed;
+        public bool AnyMovementInput => MoveAxis.sqrMagnitude > 0.01f || JumpPressed || DashPressed || SlidePressed;
     }
 }

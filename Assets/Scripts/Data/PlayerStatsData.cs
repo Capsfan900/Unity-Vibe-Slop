@@ -46,6 +46,22 @@ namespace VibeGame1
         [Tooltip("Damage amplification while the player's posture is broken.")]
         public float staggeredDamageMultiplier = 1.6f;
 
+        [Header("Guard (HOLD the parry button — the Sekiro stance)")]
+        [Tooltip("Chip damage per point of incoming damage taken through a HELD guard. Shipped at 0: " +
+                 "the Sekiro contract is that a guard costs POSTURE, not health, and that is the entire " +
+                 "reason posture exists as a second bar. Guarding is still strictly worse than " +
+                 "deflecting (it costs posture and stokes no Pyre) and strictly better than eating the " +
+                 "hit (no health at all), so the ladder Perfect > Guard > Hit holds without chip.")]
+        public float guardChipDamageMultiplier = 0f;
+        [Tooltip("Posture gained per point of incoming damage taken through a HELD guard. The largest " +
+                 "multiplier in the game — larger than a timed block (0.9) and three times a raw hit " +
+                 "(0.5) — because posture is the ONLY price the guard charges. Three guarded hits from " +
+                 "a 20-damage attack fill the bar and break you.")]
+        public float guardPostureMultiplier = 1.5f;
+        [Tooltip("Multiplier on posture regeneration WHILE the guard is held. Shipped at 0: turtling " +
+                 "must not be free, or the fight becomes a stalemate you can win by standing still.")]
+        public float guardPostureRegenMultiplier = 0f;
+
         [Header("Pyre (the parry charge meter) / Super attack")]
         [Tooltip("Full bar. At full the equipped weapon's super attack unlocks on Q.")]
         public float maxPyre = 100f;

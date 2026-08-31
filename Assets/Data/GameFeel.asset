@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.GameFeelSettings
   maxSimultaneousAttackers: 1
   parryHitStop: 0.09
+  guardHitStop: 0.05
   executeHitStop: 0.14
   hitStopScale: 0.02
   shakeSmallAmp: 0.06
@@ -29,5 +30,6 @@ MonoBehaviour:
   ultFlash: {r: 0.1, g: 0.9, b: 1, a: 1}
   parryChromatic: 0.6
   parryChromaticTime: 0.25
+  guardShove: 1.2
   dashFovKick: 8
   ultFovKick: 15

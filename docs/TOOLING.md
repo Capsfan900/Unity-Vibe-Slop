@@ -19,6 +19,8 @@ wiped scene is a rebuild, not a data-loss event.
 | `3. Create Data` | `Editor/DataFactory.cs` | All ScriptableObjects. ⚠️ **Overwrites Inspector tuning** — see [ENGINEERING-LOG](ENGINEERING-LOG.md). |
 | `3b. Create Wands` | `Editor/WandFactory.cs` | The four riposte wands in `Assets/Data/Wands/`. **Must run before `4. Build Prefabs`**, which assigns the viewmodels back onto these assets. Included in `0. Rebuild Everything` between Data and Prefabs. Skip it and every riposte silently falls back to the melee deathblow. |
 | `4. Build Prefabs` | `Editor/PrefabFactory.cs` | Player, Managers, enemies, boss, weapon and wand viewmodels, checkpoint, bloodstain, item pickup. |
+| `4a. Split Forge Animation Clips` | `Editor/ForgeClipSplitter.cs` | For every `Assets/Enemies/*.clips.json`, writes `ModelImporter.clipAnimations` from the manifest and forces the rig to `Generic`. An animated forge FBX imports as ONE take (`Take 001`) until this runs. **Not** in `0. Rebuild Everything`: run it after copying in or re-exporting an animated model, then `4b`. |
+| `4b. Build Mini-Bosses` | `Editor/MiniBossFactory.cs` | The four `Legendary_*` prefabs. A sibling of step 4, not part of it, so re-tuning a duellist never rebuilds the player rig. For an animated model it also calls `PuppetAnimatorFactory` to generate `Assets/Animation/<Prefab>_Animator.controller`. |
 | `5. Build HUD` | `Editor/HudBuilder.cs` | `Assets/Prefabs/HUD.prefab` — bars, item slots, menus, test menu, EventSystem (`InputSystemUIInputModule`). |
 | `6. Build Level` | `Editor/LevelGreyboxBuilder.cs` | Rebuilds the `Level` root in the open scene, bakes NavMesh, places Player/Managers/HUD. Never touches a `Level_Manual` sibling root. |
 | `7. Build Sandbox Scene` | `Editor/SandboxBuilder.cs` | Builds `Assets/Scenes/Sandbox.unity`. Preserves a `Sandbox_Manual` root. See [README_Sandbox](../Assets/Scenes/README_Sandbox.md). |
@@ -145,6 +147,22 @@ origin — the frame looks like the viewmodel vanished. See the engineering log.
 every static — singletons, `GameEvents` subscriptions — without re-running `Awake`. Play mode looks fine
 and nothing works. **After any script edit, exit and re-enter play mode.**
 
+`LoadoutTour` walks **all four weapons** in one editor-driven sequence — equip, let a tick pass, shoot
+the idle, play the swing and burst across it — which is the only reliable way to compare the weapons,
+because every frame then shares a camera, a light and a scene state.
+
+```csharp
+VibeGame1.EditorTools.ViewmodelCapture.LoadoutTour(@"C:/tmp/weapons", 3f);  // 3f = swing playback stretch
+VibeGame1.EditorTools.ViewmodelCapture.TourStatus;
+```
+
+⚠️ **Never equip and shoot in the same frame.** `SetWeapon` frees the old model with `Destroy`, which
+Unity defers to end of frame, so the shot contains two weapons stacked on each other. `LoadoutTour`
+waits; a hand-rolled loop will not.
+
+⚠️ The `slowFactor` stretches only the swing. The pose path is a normalised lerp, so a 3× swing walks
+exactly the same poses — it just gives the ~8 Hz editor tick enough samples to see a 0.22 s dagger arc.
+
 ### Filming a whole beat, frame by frame — `FrameFilm`
 
 `Assets/Scripts/Debug/FrameFilm.cs` (runtime, not editor). Captures in `LateUpdate`, so it gets **every
@@ -162,10 +180,66 @@ iposte", "Enemy_Grunt");   // whole parry-to-riposte, every frame
 VibeGame1.FrameFilm.Status;                                   // done / frames / log
 ```
 
+`RunSwings(dir)` films **one real swing per weapon at the shipped attack speed**, flushing per weapon
+(four weapons of 1024×576 frames at once is a quarter of a gigabyte). Use it for anything about the
+swing itself — the arc, the trail, the follow-through hold, the wind-up easing. `LoadoutTour` cannot
+answer those: the swing trail is open for the strike leg only, which is 0.044–0.14 s, and an ~8 Hz
+editor tick samples that window less than once and reports "there is no trail".
+
+`RunWindups(dir, prefabName, distance)` films **every wind-up pose in one enemy's moveset**, from the
+player's eye, at a chosen fighting distance, in the real lighting. It stages a fresh enemy, switches off
+its brain, its agent and its **colliders** (a 2.2x boss otherwise shoves the camera off the mark), parks
+the player square in front and keeps re-parking between poses, then writes two frames per attack: `_mid`
+at ~55% of the wind-up and `_peak` immediately after `CueFlash`, where the arm hitches past full
+extension and freezes. **The `_peak` frame is the one the parry decision is made on.** It enumerates
+`BossData.phases[].patterns` as well as `combos`, because a boss does not attack out of `combos`.
+
+```csharp
+VibeGame1.FrameFilm.RunWindups(@"C:/tmp/windups", "Enemy_Grunt", 3.8f);   // Heavy 4.2, Boss 8.0
+```
+
+Suggested distances: Grunt **3.8 m**, Heavy **4.2 m**, Boss **8 m** — the boss fights from 4.6 m, but at
+2.2x scale it fills the frame there, so film it further out to judge the silhouette and remember the
+real read is closer. **A wind-up pose is judged from these photographs, never from the authored Euler**
+— see ENGINEERING-LOG.md.
+
+`RunGuardEntry(dir)` films the three entry paths into the held guard.
+
+⚠️ **Restart play mode before judging a VFX frame.** A domain reload (any script edit anywhere,
+including another agent's) wipes non-serialized fields but leaves pooled `GameObject`s in the scene, so
+things like the Pyre embers freeze mid-flight wearing whatever they last had and are photographed as
+artefacts that no longer exist in the code.
+
 It borrows a standing spot from an enemy the level already placed (a blind NavMesh spawn on a platformer
 course lands on whatever ledge is nearest), switches that enemy off and stages a **fresh** one of the
 requested prefab there — an enemy the level has been fighting cannot be reliably staggered on demand,
 because one caught inside a committed combo returns to `Windup` on the next frame.
+
+---
+
+## 4b. Performance measurement — `PerfProbe`
+
+`Assets/Editor/PerfProbe.cs`. Driven from outside play mode like `FeatureTestRunner`:
+
+```csharp
+VibeGame1.EditorTools.PerfProbe.Start("running", 300);   // label, frames
+VibeGame1.EditorTools.PerfProbe.Poll();                  // progress, then the report
+```
+
+Reports **mean / p50 / p95 / p99 / worst** frame time, the **count of frames over 16.7 ms**, and mono
+heap delta in KB and KB/frame.
+
+Two things it does deliberately, because they change how you read it:
+
+- **Percentiles and the worst frame, not just a mean.** This is a speedrun game — it is ruined by the
+  worst frame, not the average. A change that is fine on average but adds a p99 spike has failed.
+- **Samples `Time.unscaledDeltaTime`.** Hitstop and the super's slow-mo drive `Time.timeScale` to 0.02;
+  scaled delta would report those frames as impossibly fast.
+
+**Compare runs, never read absolutes.** Editor play mode carries editor overhead and is not a build. The
+useful measurement is the same scenario in the same scene, before versus after a change. The number that
+matters most for movement code is **KB/frame while moving, which should be ~0** — steady per-frame
+garbage is what eventually produces the collection hitch that loses a run.
 
 ---
 

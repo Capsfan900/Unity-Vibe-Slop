@@ -23,10 +23,20 @@ namespace VibeGame1
         public float jumpFovKick = 2.5f;
         public float jumpHopMeters = 0.05f;
 
+        [Header("Slide")]
+        [Tooltip("How far the eye drops while sliding. Not the full collider drop - a camera on the " +
+                 "floor reads as a bug, and you still have to see the thing you are sliding under.")]
+        public float slideCameraDrop = 0.55f;
+        [Tooltip("How fast the eye follows the slide, in metres per second. Fast enough to feel like a " +
+                 "drop, slow enough not to snap.")]
+        public float slideCameraSpeed = 6f;
+        public float slideFovKick = 6f;
+
         FirstPersonMotor motor;
         Transform pivot;
         Vector3 pivotBase;
         float dip, dipVel;
+        float crouch;
         float stepAccum;
         Vector3 lastPos;
 
@@ -45,6 +55,8 @@ namespace VibeGame1
             motor.OnJumped += OnJumped;
             motor.OnLanded += OnLanded;
             motor.OnDashed += OnDashed;
+            motor.OnSlideStarted += OnSlideStarted;
+            motor.OnWallJumped += OnWallJumped;
         }
 
         void OnDisable()
@@ -53,6 +65,8 @@ namespace VibeGame1
             motor.OnJumped -= OnJumped;
             motor.OnLanded -= OnLanded;
             motor.OnDashed -= OnDashed;
+            motor.OnSlideStarted -= OnSlideStarted;
+            motor.OnWallJumped -= OnWallJumped;
         }
 
         void OnJumped()
@@ -85,6 +99,25 @@ namespace VibeGame1
             }
         }
 
+        /// <summary>Reuses the dash whoosh, pitched down: a slide is the same gesture with weight on it.
+        /// Sfx enum names are folder names and append-only, so a new one is a content change, not a
+        /// feedback change - see hard rule 7.</summary>
+        void OnSlideStarted()
+        {
+            AudioManager.Play(Sfx.Dash, 0.75f, 0.72f, 0.05f);
+            if (CameraFX.I != null) CameraFX.I.FovKick(slideFovKick);
+        }
+
+        /// <summary>The jump sound, pitched up and harder: it must read as a DIFFERENT jump, or a player
+        /// cannot tell a wall jump fired from a jump that silently did not.</summary>
+        void OnWallJumped()
+        {
+            AudioManager.Play(Sfx.Jump, 0.95f, 1.28f, 0.06f);
+            if (CameraFX.I != null) CameraFX.I.FovKick(jumpFovKick * 1.6f);
+            if (CameraShake.I != null) CameraShake.I.Small();
+            dip -= jumpHopMeters * 1.5f;
+        }
+
         void Update()
         {
             float udt = Time.unscaledDeltaTime;
@@ -110,7 +143,13 @@ namespace VibeGame1
 
             // spring the camera dip back to neutral
             dip = Mathf.SmoothDamp(dip, 0f, ref dipVel, 1f / dipRecoverySpeed, Mathf.Infinity, udt);
-            if (pivot != null) pivot.localPosition = pivotBase + Vector3.down * dip;
+
+            // The eye follows the slide separately from the landing dip, so the two never fight: dip is
+            // a spring back to zero, crouch is a held offset for as long as the slide lasts.
+            float wantCrouch = (motor != null && motor.IsSliding) ? slideCameraDrop : 0f;
+            crouch = Mathf.MoveTowards(crouch, wantCrouch, slideCameraSpeed * udt);
+
+            if (pivot != null) pivot.localPosition = pivotBase + Vector3.down * (dip + crouch);
         }
     }
 }

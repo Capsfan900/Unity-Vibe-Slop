@@ -36,8 +36,13 @@ namespace VibeGame1
         GameObject overrideInstance;
         FirstPersonMotor motor;
         Coroutine anim;
+        WeaponTrail trail;
         Pose current;
         bool holding;
+        /// <summary>True between <see cref="PlayGuard"/> and <see cref="EndGuard"/>. The guard is a
+        /// STANCE, so it outlives every momentary pose: an attack, a parry flick or a weapon swap that
+        /// ends while the button is still down falls back into the stance, not into idle.</summary>
+        bool guarding;
         Vector3 sway;
         float bobT;
 
@@ -98,6 +103,7 @@ namespace VibeGame1
         void Awake()
         {
             motor = GetComponentInParent<FirstPersonMotor>();
+            trail = GetComponent<WeaponTrail>();
             if (model == null)
             {
                 var m = new GameObject("Model");
@@ -113,6 +119,7 @@ namespace VibeGame1
         {
             data = w;
             Stop();
+            if (trail != null) trail.Clear();
             holding = false;
             ClearOverride();   // a swap mid-riposte must not leave the wand model parented alongside
             if (instance != null) Destroy(instance);
@@ -133,6 +140,8 @@ namespace VibeGame1
                 CloseHandOn(instance);
             }
             if (w != null) { current = w.idle; ApplyPose(current); }
+            // Swapping weapons with the guard still held must come back up in the stance, not idle.
+            if (guarding && w != null) PlayGuard();
         }
 
         /// <summary>
@@ -206,6 +215,10 @@ namespace VibeGame1
         }
 
         static float EaseOut(float t) { t = Mathf.Clamp01(t); return 1f - (1f - t) * (1f - t); }
+        /// <summary>Slow, then accelerating. ANTICIPATION ONLY: a wind-up that starts fast and
+        /// settles reads as drifting into position; one that starts slow and gathers reads as
+        /// STORING ENERGY, which is the entire job of the phase.</summary>
+        static float EaseIn(float t) { t = Mathf.Clamp01(t); return t * t; }
         static float EaseInOut(float t) { t = Mathf.Clamp01(t); return t * t * (3f - 2f * t); }
 
         static Pose Mirror(Pose p, bool m)
@@ -213,6 +226,11 @@ namespace VibeGame1
             if (!m) return p;
             return new Pose(new Vector3(-p.pos.x * 0.6f, p.pos.y, p.pos.z), new Vector3(p.euler.x, -p.euler.y, -p.euler.z));
         }
+
+        /// <summary>Seconds held on the end-of-arc pose before recovery starts. ~4 frames at 60 Hz:
+        /// enough for the eye to catch the contact pose, short enough that the recovery leg it is
+        /// taken from still reads as a settle rather than a snap. Capped at 45% of that leg.</summary>
+        const float FollowThroughHold = 0.07f;
 
         public void PlayAttack(int comboIndex, float duration, float hitDelay)
         {
@@ -230,24 +248,51 @@ namespace VibeGame1
             float t = 0f;
             while (t < hitDelay)
             {
-                current = Pose.Lerp(start, wind, EaseOut(t / hitDelay));
+                current = Pose.Lerp(start, wind, EaseIn(t / hitDelay));
                 ApplyPose(current); t += Time.deltaTime; yield return null;
             }
             float swing = Mathf.Clamp(dur * 0.2f, 0.04f, Mathf.Max(0.04f, dur - hitDelay));
+            // The ribbon is opened HERE and closed below, so it spans exactly the strike leg: no trail
+            // on the wind-up (nothing is dangerous yet) and none on the recovery (nothing is any more).
+            // The trail therefore reads as the hitbox window, not as decoration on the whole animation.
+            if (trail != null) trail.BeginStrike();
             t = 0f;
             while (t < swing)
             {
                 current = Pose.Lerp(wind, end, EaseOut(t / swing));
                 ApplyPose(current); t += Time.deltaTime; yield return null;
             }
+            // Land the arc EXACTLY on swingEnd before the ribbon closes: EndStrike takes its final
+            // sample from the pose that is applied right now, and a ribbon whose newest point is a
+            // frame short of the end of the arc hangs visibly detached from the blade.
+            current = end; ApplyPose(current);
+            if (trail != null) trail.EndStrike();
+            // FOLLOW-THROUGH HOLD. Sitting on the end-of-arc pose for a few frames is the cheapest
+            // weight cue there is — without it the blade never arrives anywhere, it only passes through.
+            // It is taken OUT OF the recovery leg, never added to the attack: attackDuration, hitDelay
+            // and comboWindow are tuned data and the parry window is calibrated against them, so the
+            // total here must equal hitDelay + swing + rest exactly as it did before.
             float rest = Mathf.Max(0.01f, dur - hitDelay - swing);
+            float hold = Mathf.Min(FollowThroughHold, rest * 0.45f);
+            rest = Mathf.Max(0.01f, rest - hold);
+            t = 0f;
+            while (t < hold) { ApplyPose(end); t += Time.deltaTime; yield return null; }
+            current = end;
+            // MID-SWING INTO GUARD IS ONE MOTION. Swinging drops the guard mechanically, but the
+            // RECOVERY leg of the arc is retargeted at the STANCE whenever the button is down, so the
+            // blade travels from wherever the swing left it directly into the guard. Landing in idle and
+            // then raising the stance was two motions with a visible beat between them, and it is the
+            // case a real fight hits most often.
+            // Read AFTER the hold, so a guard pressed during the follow-through is still caught.
+            Pose settle = GuardWanted ? data.guard : data.idle;
             t = 0f;
             while (t < rest)
             {
-                current = Pose.Lerp(end, data.idle, EaseInOut(t / rest));
+                current = Pose.Lerp(end, settle, EaseInOut(t / rest));
                 ApplyPose(current); t += Time.deltaTime; yield return null;
             }
             anim = null;
+            if (guarding || GuardWanted) PlayGuard();
         }
 
         public void PlayParry(float activeSeconds)
@@ -261,6 +306,152 @@ namespace VibeGame1
         {
             holding = false;
             Stop();
+            // The parry flick is the FIRST 0.25 s of a held guard: pressing RMB opens the window and
+            // holding it keeps the stance. Dropping to idle here made a held guard visibly flinch back
+            // to the hip every time the window closed.
+            if (guarding) PlayGuard();
+        }
+
+        // ---- held guard stance -------------------------------------------------------------------
+
+        /// <summary>True while the katana stance is up. Read by tests and tooling.</summary>
+        public bool IsGuarding => guarding;
+
+        /// <summary>
+        /// The BUTTON is down, whether or not the stance is mechanically allowed right now. Written every
+        /// frame by <see cref="ParryController"/>. It exists so an attack can END IN the stance instead of
+        /// ending in idle and then raising it: mechanically your swing drops your guard, but visually the
+        /// blade must travel from wherever the arc left it straight into the stance, as ONE motion.
+        /// </summary>
+        public bool GuardWanted { get; set; }
+
+        /// <summary>
+        /// Raise the blade across the body and HOLD it there until <see cref="EndGuard"/>. Unlike
+        /// <see cref="PlayParry"/> this has no duration — the button, not a timer, ends it.
+        ///
+        /// <para>RULE 1: the ease-in runs on <see cref="TimeScaleController.PlayerDelta"/>. The stance is
+        /// driven by the player's own button, and a guard that freezes halfway up during the hitstop of
+        /// the blow it is absorbing is exactly the stutter rule 1 exists to prevent.</para>
+        /// </summary>
+        public void PlayGuard()
+        {
+            if (data == null) return;
+            // Already settled in the stance (or mid guard-kick): re-raising would restart the blend and
+            // read as a hitch. This is what lets ParryController re-assert the stance every frame safely.
+            if (guarding && holding && anim != null) return;
+            guarding = true;
+            Stop(); holding = true;
+            anim = StartCoroutine(GuardCo(GuardRise));
+        }
+
+        /// <summary>
+        /// Blend into the stance. 0.08 s: the perfect window is 130 ms, so a stance that takes longer
+        /// than this to arrive lags the button in the only exchange that matters. Short enough to feel
+        /// instant, long enough not to read as a snap.
+        /// </summary>
+        const float GuardRise = 0.08f;
+
+        /// <summary>Blend back out. Slower than the rise on purpose - putting the blade down is a
+        /// deliberate beat, not a flinch - but still one continuous motion.</summary>
+        const float GuardFall = 0.16f;
+
+        /// <summary>Release the stance with a distinct, slower settle back to idle.</summary>
+        public void EndGuard()
+        {
+            if (!guarding) return;
+            guarding = false;
+            holding = false;
+            Stop();
+            if (data != null) anim = StartCoroutine(GuardReleaseCo(GuardFall));
+        }
+
+        /// <summary>
+        /// ONE CONTINUOUS BLEND from wherever the weapon actually is into the stance. Three things make
+        /// that true, and all three were wrong once:
+        ///   - the start is the LIVE model transform, not the authored idle, so interrupting a swing
+        ///     does not teleport the blade home first;
+        ///   - the rotation is a quaternion slerp taken directly from the live rotation to the stance,
+        ///     so it travels the shortest arc and can never swing through an orientation nobody
+        ///     authored (interpolating in euler space between two perfectly good poses routinely passes
+        ///     through "pointing forward", which is exactly what this looked like);
+        ///   - there is NO WAYPOINT. The parry flick is not on the path any more.
+        /// </summary>
+        IEnumerator GuardCo(float rise)
+        {
+            Vector3 p0 = model.localPosition;
+            Quaternion r0 = model.localRotation;
+            Quaternion r1 = Quaternion.Euler(data.guard.euler);
+            float t = 0f;
+            while (t < rise)
+            {
+                float k = EaseOut(t / rise);
+                model.localPosition = Vector3.Lerp(p0, data.guard.pos, k);
+                model.localRotation = Quaternion.Slerp(r0, r1, k);
+                current = new Pose(model.localPosition, model.localRotation.eulerAngles);
+                t += TimeScaleController.PlayerDelta; yield return null;
+            }
+            current = data.guard; ApplyPose(current);
+            while (holding) yield return null;
+            anim = null;
+        }
+
+        IEnumerator GuardReleaseCo(float fall)
+        {
+            // Same single-blend rule on the way out: from the live transform, quaternion-native, no
+            // waypoint. EaseInOut rather than EaseOut so the drop reads as a deliberate settle.
+            Vector3 p0 = model.localPosition;
+            Quaternion r0 = model.localRotation;
+            Quaternion r1 = Quaternion.Euler(data.idle.euler);
+            float t = 0f;
+            while (t < fall)
+            {
+                float k = EaseInOut(t / fall);
+                model.localPosition = Vector3.Lerp(p0, data.idle.pos, k);
+                model.localRotation = Quaternion.Slerp(r0, r1, k);
+                current = new Pose(model.localPosition, model.localRotation.eulerAngles);
+                t += TimeScaleController.PlayerDelta; yield return null;
+            }
+            current = data.idle; ApplyPose(current);
+            anim = null;
+        }
+
+        /// <summary>
+        /// Kick the guard on impact: a short shove of the stance away from the blow, snapping back.
+        /// A guard that eats all the damage has to show the hit somewhere or it reads as nothing
+        /// happening. No-op when the stance is not up.
+        /// </summary>
+        public void GuardImpact()
+        {
+            if (!guarding || data == null) return;
+            Stop(); holding = true;
+            anim = StartCoroutine(GuardImpactCo());
+        }
+
+        IEnumerator GuardImpactCo()
+        {
+            Pose g = data.guard;
+            // MEASURED, not guessed. The first kick was (+0.05, -0.05, -0.10) with a -7 deg yaw: pulling
+            // the blade 0.10 m toward the lens magnified it and the yaw swung the tip INWARD, so at the
+            // peak of the kick the point crossed screen centre and sat on the enemy — during the one
+            // beat the player most needs to see them. The kick is now driven DOWN AND OUT (away from the
+            // crosshair on both axes) with no yaw at all, and barely any depth change.
+            Pose shoved = new Pose(g.pos + new Vector3(0.07f, -0.09f, -0.02f),
+                                   g.euler + new Vector3(14f, 0f, -10f));
+            float t = 0f, push = 0.045f;
+            while (t < push)
+            {
+                current = Pose.Lerp(g, shoved, EaseOut(t / push));
+                ApplyPose(current); t += TimeScaleController.PlayerDelta; yield return null;
+            }
+            t = 0f; float recover = 0.13f;
+            while (t < recover)
+            {
+                current = Pose.Lerp(shoved, g, EaseOut(t / recover));
+                ApplyPose(current); t += TimeScaleController.PlayerDelta; yield return null;
+            }
+            current = g; ApplyPose(current);
+            while (holding) yield return null;
+            anim = null;
         }
 
         IEnumerator ToPoseAndHold(Pose target, float seconds)
@@ -324,6 +515,8 @@ namespace VibeGame1
         public void Interrupt()
         {
             holding = false;
+            if (trail != null) trail.Clear();
+            guarding = false;
             Stop();
             ClearOverride();
         }

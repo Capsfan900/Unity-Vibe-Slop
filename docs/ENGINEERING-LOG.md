@@ -11,6 +11,220 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## A wind-up pose cannot be computed, only photographed
+
+**Symptom.** Eleven per-attack wind-up poses were authored into `EnemyAttackData.windupPose`, each with a
+careful comment saying what shape it made — "PURE VERTICAL, no yaw, nothing horizontal at all", "PURE
+HORIZONTAL, deliberately no pitch", "the exact mirror of hit A", "the boss REARS, arm past vertical, the
+tallest shape in the game". The assets shipped, the tests were green, and the enemies still all looked
+like they were doing the same thing.
+
+Measured on screen from the player's eye at real fighting distance, **ten of the eleven made a different
+shape than their comment claimed**:
+
+| Authored intent | What the player actually saw |
+|---|---|
+| `Heavy_Overhead` "pure vertical" | tilt **74°**, and only **0.51** of a blade long |
+| `Heavy_Sweep` "pure horizontal" | tilt **63°** — the same steep diagonal, in the same place, 11° apart |
+| `Grunt_Heavy` "a mast a body-height above the head" | tilt **−3°**, length **0.38** — a short horizontal stub at head height, *smaller* than the jab it is meant to contrast with |
+| `Boss_Slam` "past vertical, the tallest in the game" | tilt 63°, length 0.54 |
+| `Boss_DoubleSlash_B` "the exact mirror of A" | tilt 71° vs A's 72° — the same lean, not the mirror |
+
+Four of the boss's five wind-ups were one shape. The two Heavy attacks with **opposite correct answers**
+— dodge-vertical versus dodge-horizontal — were indistinguishable.
+
+**Root cause. `armWindup` is not the blade's angle; it is the first of three rotations.** The blade's
+on-screen orientation is
+
+```
+bodyEuler (at LungeRoot)  ×  armWindup × 1.12 (at the shoulder)  ×  armWindup × 1.12 × weaponLag (at the hand)
+```
+
+then perspective. `weaponLag` exists so the hand *trails* the shoulder and the blade whips — which means
+the same authored shoulder Euler produces a different blade angle at every lag value, and the body yaw
+underneath it rotates the whole result again. Hand algebra ("−100 keeps it in the view plane", "the arm's
+−56 yaw cancels the body's +46") is confident, plausible, and wrong by tens of degrees.
+
+Two secondary effects made it worse, and both are invisible until you look at a frame:
+
+- **Foreshortening eats the pose.** A blade cocked back over the head points *away* from a first-person
+  player, and a 1.0-length blade renders as a 0.38 stub. The biggest, most-damaging attack drew the
+  smallest mark on screen.
+- **The lighting turns with the blade.** Rotating the same blade away from the key light took it from
+  bright tan to near-black on a near-black enemy. `Heavy_Overhead` was both the shortest *and* the
+  darkest shape in its own moveset.
+
+**Fix.** Stop deriving, start measuring. `FrameFilm.RunWindups(dir, prefabName, distance)` stages a fresh
+enemy, switches off its brain, its agent and its colliders, parks the player square in front at a chosen
+fighting distance and films the `_mid` and the `_peak` (post-`CueFlash`, arm frozen) of every attack in
+the moveset. A solver then searched shoulder-Euler space against the **measured** on-screen signature —
+blade angle, foreshortened length, and where the tip sits in body-heights — for a target silhouette per
+attack. Every shipped value is a solver result that was then photographed and looked at.
+
+**Invariant.** **Author the silhouette, solve for the Euler; never the reverse.** A wind-up pose is
+specified as a shape on screen (angle, length, tip position, in body-heights) and the numbers in
+`DataFactory` are whatever produces it. A pose comment that describes an intent rather than a measurement
+is a comment that will be wrong. `FeatureTests → WindupPoses` re-measures all eleven on the real prefabs
+and fails if a pair that matters stops being separable — it deliberately does **not** assert the authored
+Eulers, because asserting those would have passed on every single one of the broken poses.
+
+**Two smaller traps paid for in the same session.**
+
+- **A boss shoves the camera off the mark.** A 2.2× body's capsule overlaps the stand point, so a capture
+  that parks the player once at the top of the run photographs the arena from 52 m away by the fifth
+  attack — while still logging `dist=5.50` from staging. Re-park before *every* frame, and switch the
+  prop's colliders off: a photo model does not need them.
+- **A boss does not attack out of `combos`.** `BossData.phases[].patterns` is where its attacks live;
+  `combos` holds a one-entry fallback used only before a phase is applied. A sweep that enumerates
+  `ResolveCombos()` alone finds one of the boss's five wind-ups and silently reports the other four as
+  not existing.
+
+---
+
+## The swing trail hung in mid-air, detached from the blade that drew it
+
+**Symptom.** The first weapon trail read, frame by frame, as a bright streak floating to the right of the
+screen with nothing attached to it — the blade was already down and left, and the ribbon just sat there
+for five frames before fading. On the sword the gap between the blade tip and the ribbon's head was about
+150 px.
+
+**Root cause.** Two separate faults that looked like one.
+
+1. **A frame of lag at the head.** The trail samples the tip in `LateUpdate`; the swing loop ends in
+   `Update`. So the newest point in the ribbon was always one frame behind the end of the arc — and on a
+   weapon whose strike leg is three frames long, one frame of arc is a hand's width on screen.
+2. **It dimmed in place instead of retracting.** Fading only the alpha and the width leaves the ribbon at
+   full LENGTH for its entire dissolve, so the detached streak stays exactly as long as it was while it
+   dies.
+
+**Fix.** `WeaponTrail.EndStrike()` takes one final sample before it closes, and `AttackCo` applies the
+`swingEnd` pose immediately *before* calling it, so that sample lands on the true end of the arc. During
+the fade the ribbon **retracts from the tail** (`count → ceil(peak × fade)`), so it closes toward where
+the blade left off rather than hanging at full length.
+
+**Invariant.** *A trail sampled in `LateUpdate` from an animation driven in `Update` is one frame short by
+construction — the phase that closes it must take the last sample itself, and the caller must apply the
+final pose first. And a trail dies by getting SHORTER, not only dimmer: a ribbon that keeps its length
+while it fades sits over the fight for an extra beat.*
+
+---
+
+## The trail left the screen at full width, because the taper was linear
+
+**Symptom.** The first ribbon ran off the right edge of the frame still several pixels wide and at full
+brightness — a wire strung across the image rather than a sweep behind a blade.
+
+**Root cause.** A `LineRenderer`'s `startWidth`/`endWidth` is a **linear** ramp, and the ribbon held 18
+samples, so the oldest third of it was still at ~30% width where it left the frame. The obvious
+alternative — fading alpha along the ribbon with `colorGradient` — does nothing here: **URP/Unlit ignores
+vertex colour**, so there is no per-vertex alpha channel at all.
+
+**Fix.** 12 samples, and an explicit `widthCurve` with a fast decay (`1 → 0.5 @0.3 → 0.18 @0.65 → 0.03`)
+driven by `widthMultiplier` so the whole-ribbon fade still scales it.
+
+**Invariant.** *On a URP/Unlit line, WIDTH is the only head-to-tail channel there is. Reach for
+`widthCurve`, never `colorGradient`, and never assume a linear ramp reads as a taper — it does not.*
+
+---
+
+## Growing the embers turned them into black slivers, and some of them were ghosts
+
+**Symptom.** The Pyre embers were made larger and stretched into sparks (12 mm cube → 12 × 68 mm streak),
+and dark slivers appeared around the weapon and in the sky — holes in the frame where a spark should be.
+
+**Root cause, part one: a lit black box.** The embers borrowed the **blade's** URP/Lit material and were
+drawn by writing `_EmissionColor` over a black `_BaseColor`. Any ember past the bright part of its life
+was therefore a black, unlit object in front of a lit sky. At 12 mm nobody could see that; at 68 mm it is
+a stripe. *A shape too small to see is also too small to be visibly wrong.*
+
+**Root cause, part two: half of them were not real.** `WeaponEmber` builds its pool in `Awake`. A **domain
+reload during play mode** (another agent recompiling) wipes the component's non-serialized fields but
+leaves the ember `GameObject`s in the scene — so they freeze mid-flight, wearing whatever material and
+colour they last had, and never animate again. Several of the "dark slivers" being diagnosed were these
+orphans from a previous assembly.
+
+**Fix.** The embers own an **additive** URP/Unlit material (`SlashFx.CreateAdditiveMaterial`) and are
+drawn by writing `_BaseColor` with alpha — additive can only ever *add* light, so a dim spark is faint
+instead of black. The brightness ramp also went from `(1−k)²` to `(1−k)^0.45` so a spark stays hot for
+almost all of its life and then goes out. And every judgement was re-made from a **freshly restarted**
+play session.
+
+**Invariant.** *A particle that can be dim must be ADDITIVE, never a lit surface with emission on a black
+base — the lit version is a hole in the frame the moment it is big enough to see. And a play session that
+has survived a domain reload cannot be trusted for a VFX screenshot: pooled objects built in `Awake` are
+still on screen but are no longer being driven by anything.*
+
+---
+
+## A CharacterController moving 0.8 m in one frame is not grounded, and the slide died of it
+
+**Symptom.** The slide covered **4.0 m at 500 fps and 1.8 m at 20 fps** from the same press, and the short
+one always ended at exactly 0.12 s — `coyoteTime`, to three decimal places. The feature suite reported it as
+a working slide with a small number; only comparing two framerates showed it was the *same bug* both times,
+just less of it.
+
+**Root cause.** Two compounding facts about `CharacterController`. First, **resizing it drops its ground
+contact until the next `Move`**, so the frame after a slide started reported `isGrounded == false` and the
+airborne branch cancelled the slide outright. Second, and worse, **a mostly-horizontal sweep on a flat floor
+does not re-establish contact**: at 16 m/s and 20 fps the controller moves 0.8 m sideways and 0.1 m down in
+one step, the sweep grazes the floor, and `isGrounded` stays false indefinitely. The slide branch — which is
+where friction and the end conditions live — therefore never ran, so the slide neither bled speed nor
+reached its floor; it simply sat there until the coyote window expired and the airborne branch killed it.
+`slideHeight` was also exactly `2 * (radius + skinWidth)` = 0.9 m, which degenerates the capsule to a sphere
+and makes grazing contact even weaker.
+
+**Fix.** Three things, in order of importance. The slide branch now runs on `slideOnGround = sliding &&
+(IsGrounded || within coyoteTime)` rather than on `IsGrounded` alone, so a one-frame contact flicker cannot
+stall it — and the same tolerance means a lip, a platform seam or a kerb no longer eats a slide. `TrySlide`
+reseats the controller with one tiny downward `Move` immediately after shrinking it. `slideHeight` went
+0.9 → **1.0 m**, keeping a real cylindrical section. Verified across **20 / 30 / 60 / 144 / 400 fps**:
+3.75 / 3.97 / 3.94 / 3.97 / 3.98 m.
+
+**Invariant.** **Measure movement at more than one framerate before believing it.** Anything that resizes a
+`CharacterController`, or moves it fast and horizontally, must not treat `isGrounded` as authoritative for a
+single frame — gate on coyote time, not on the flag. And keep a controller's height comfortably above
+`2 * (radius + skinWidth)`; at exactly that value it is a sphere and its ground contact is fragile.
+
+---
+
+## A slide that ends when you release the key is a slide that ends when the frame is long
+
+**Symptom.** Every scripted slide lasted 0.00 s and covered 4 cm, while the same code played fine by hand.
+
+**Root cause.** The slide ended on key-release after a `slideMinDuration`, and `Time.deltaTime` is clamped to
+`maximumDeltaTime` (0.333 s) — so **one long frame is longer than the minimum**, and the release check fired
+on the very first update. It also made the mechanic untestable in principle: a test calls `TrySlide()` and
+holds no key, so the slide it starts is always cancelled immediately.
+
+**Fix.** The release-cancel was removed outright. A slide is a **committed** 0.35 s of speed that ends on its
+speed floor or its duration cap; you cancel it by jumping or dashing out, which is the tech anyway.
+
+**Invariant.** **A mechanic whose lifetime depends on a key being held cannot be driven by the `Try*` entry
+points**, and every input-gated behaviour in this project is required to have one. If a design needs
+hold-to-continue, the hold has to be state the entry point can set, not a poll of the device.
+
+---
+
+## Measuring movement on level geometry measures the level, not the movement
+
+**Symptom.** The slide/wall-jump tests reported a 1.8 m slide, "no wall in range" *finding* a wall, and "the
+same wall twice" being allowed. Three different mechanics apparently broken, all at once.
+
+**Root cause.** The test runway was the boss approach, which is 6 m wide with rails at x = ±3.1. A 16 m/s
+slide reached the far rail in 1.8 m, and both rails sat inside the wall scan's ~0.9 m reach — so the "open
+air" check found one rail and the "same wall" check found the other. In the sandbox the same code measured
+3.99 m and behaved perfectly.
+
+**Fix.** The test builds its own rig — a 60 x 60 plate parked at (300, 40, 0), far outside the course, with
+its own walls — and destroys it afterwards. The wall-jump measurement also had to `Launch` high enough to
+still be airborne past coyote time and drift *into* the wall; a 2 m hop landed before the press.
+
+**Invariant.** **A measurement rig owns its own space.** Never measure a movement capability against shipped
+geometry: you are measuring the geometry. Level geometry is for *reachability* assertions
+(`CheckHop` off the built renderer bounds), which is a different question and belongs in a different test.
+
+---
+
 ## A matte material cannot show curvature, so no amount of light will shape it
 
 **Symptom.** Enemies rendered as flat cutouts against the dark. The ambient pass had already lifted a
@@ -1174,6 +1388,329 @@ film.** Also worth keeping: film from a body the level already placed rather tha
 NavMesh sample in a platformer lands on whatever ledge is nearest — one whole run photographed an empty
 platform), and stage a **fresh** enemy rather than one the level has been fighting, because an enemy
 caught inside a committed combo returns to `Windup` on the next frame and cannot be reliably staggered.
+
+---
+
+## Four weapons photographed as one weapon, stacked on top of each other
+
+**Symptom.** Rebuilding the whole loadout at dagger scale, a comparison shot of each weapon was taken by
+looping `wc.Equip(i)` and `ViewmodelCapture.Shoot(...)` in one `execute_code` call. Slot 1 was clean;
+slots 2, 3 and 4 came back with the *previous* weapon still in the frame, orange hammer band and violet
+kris overlapping. It reads as a broken prefab, and the first instinct was to go looking at the geometry.
+
+**Root cause.** `WeaponViewmodel.SetWeapon` releases the old model with `Destroy(instance)`, which Unity
+defers to the **end of the frame**. Equipping and rendering inside the same frame therefore renders both
+models. Nothing was wrong with any prefab.
+
+**Second trap, on the retry.** Splitting the capture across one MCP call per weapon fixed the stacking
+and broke something worse: the other agent working in the project recompiled, which dropped play mode,
+and three of the four "weapons" were photographed in **edit mode** — an empty course, no arms, no
+weapon. The tell was that the three PNGs had *byte-identical* sizes.
+
+**Fix.** `ViewmodelCapture.LoadoutTour(dir, slowFactor)` — equip, **let a tick pass**, shoot the idle,
+then play the swing and burst across it, for all four slots, driven from one `EditorApplication.update`
+sequence so nothing can recompile between the equip and the shutter. `slowFactor` stretches the swing
+only: the pose path is a normalised lerp, so a 3× swing walks exactly the same poses, and the editor's
+~8 Hz tick actually samples the dagger's 0.22 s arc more than twice.
+
+**Invariants.** **A `Destroy` is not a disappearance until the frame ends** — never swap a model and
+render it in the same frame. And **a multi-call capture is a capture with a recompile in the middle**:
+check `EditorApplication.isPlaying` *and* `GameManager.I != null` in the same call that takes the frame,
+or drive the whole sequence from one call. Identical PNG file sizes across supposedly different subjects
+means you photographed the same thing every time.
+
+---
+
+## A hammer that is dagger-sized cannot tell you it is a hammer by being long
+
+**Symptom / decision, not a bug.** The whole loadout was taken to dagger scale because the arms made
+long blades read as poles across the frame. Four short blades are four weapons the player cannot tell
+apart, and a hammer shaped like a dagger actively *lies* about what it does.
+
+**What the shapes carry now.** Length was given up as the differentiator and replaced by mass and edge:
+a wide knobbed **cross** (sword), a **top-heavy** blocky mass head with the thickest grip in the set
+(hammer), the thinnest **needle** (dagger), and a wavy **serrated** blade with twin rings in a colour no
+other weapon uses (dev). All four sit in a 0.27–0.32 m on-screen band, so nothing is told by size.
+
+**The honest cost.** Reach information is gone from the viewmodel — though it was never really there:
+`hitOffset` / `hitRadius` are camera-space (1.3–1.8 m) and no viewmodel has ever been longer than about
+0.6 m, so the model was never a range cue. What *is* genuinely weaker is the pre-swing weight read: a
+long haft used to imply a slow swing before it started. That now rests entirely on the head's volume and
+on `attackDuration`. If a playtest says the hammer feels like a fast weapon, the fix is the head's mass
+and the wind-up pose — **not** the numbers, which were deliberately left untouched.
+
+---
+
+## Rigged forge FBXs: an animated model imports as one useless take
+
+**Symptom.** `Assets/Enemies/PaleMarionette.fbx` ships fifteen animations. Unity imported it with a
+single clip called `Take 001`, 21.6 s long, playing every animation back to back. Nothing named `Walk`
+or `AttackSwing` existed to play, so an `Animator` pointed at it just ran the whole reel.
+
+**Root cause.** enemy-forge concatenates every animation onto ONE timeline and ships the frame ranges
+separately, as `<model>.clips.json`. Unity has no idea that file exists. Compounding it,
+`EnemyForgeImporter` (the tool's own vendored `AssetPostprocessor`) sets `importAnimation = false` and
+`animationType = Human` on first import — so the take was not even read, and `importedTakeInfos` came
+back empty.
+
+**Fix.** `Assets/Editor/ForgeClipSplitter.cs` + **VibeGame1 -> 4a. Split Forge Animation Clips**: reads
+the manifest and writes `ModelImporter.clipAnimations`, forcing `Generic`. Typing those ranges into the
+Rig inspector by hand would have "worked" and then evaporated on the next reimport, silently.
+
+**Invariant.** The manifest is the source of truth for clip ranges and **nothing may write
+`clipAnimations` except that menu item**. An animated forge model is not usable until 4a has run, and
+4a must be re-run after any re-export. Also: `takeName` on a `ModelImporterClipAnimation` that does not
+match a real take imports the clip **empty**, with no error anywhere and the enemy standing in its bind
+pose — so read the name from `importer.importedTakeInfos[0]`, never hard-code `"Take 001"`.
+
+---
+
+## The obvious clip for a spin was the wrong clip — measure the pose, do not read the name
+
+**Symptom.** The Pale Marionette's spin passes played `AttackSwing`, the clip whose name says "this is
+an attack". Screenshots of the whirl showed a thin turning stick. The whole silhouette the fight is
+built on — the wide-armed clown puppet — was missing, and the revolution barely read as a revolution.
+
+**Root cause.** `AttackSwing` tucks the arms in to swing. Sampling the `LeftHand`/`RightHand`
+separation at 25/50/75 % of every clip in the model gave: `AttackSwing` **0.38 / 0.76 / 1.02 m**,
+`AttackOverhead` 0.11 / 1.55 / 1.16, `IdleCombat` 1.24 flat, `Roar` **2.04 / 1.95 / 2.03** with the
+hands at 1.37 m. `Roar` is the only clip that HOLDS the arms out for its whole length.
+
+**Fix.** `ModelSpec.spinClip = "Roar"`, played as a pose rather than as a roar, and
+`ForgeClipSplitter.ReadHitNormalizedTime` falls back to the manifest's `OnRoar` when a clip has no
+`OnAttackHit`. That is safe here precisely because the arms are out for the whole clip, so no single
+frame is "the contact" and the anchor only chooses which part of the hold is on screen.
+
+**Invariant.** For a whirl or any pose-driven move, **pick the clip by measuring the rig, not by
+reading the clip name.** A clip named for its verb tells you nothing about its silhouette. The
+measurement is four lines of `AnimationClip.SampleAnimation` plus a bone-distance read and it is worth
+running before committing to any clip choice.
+
+---
+
+## A whirl that never stopped made the tempo break invisible
+
+**Symptom.** `Marionette_Overhead` is a 1.0 s wind-up dropped into a fight of 0.76 s beats, and it
+exists to punish parrying on the metronome. In the sandbox it did not read as a break at all. The
+overhead *clip* played square-on, but the body kept rotating underneath it at the idle drift rate, so
+every frame of the wind-up looked exactly like another pass coming around.
+
+**Root cause.** `PuppetVisuals.UnwindToSquare()` only cleared `passInFlight`, which handed the yaw to
+the free-spin drift instead of driving it to zero. There was no "the whirl is OFF" state at all.
+
+**Fix.** An explicit `squaring` flag, set by every non-spin `Telegraph`, by `Settle`, by
+`ClearTelegraph` and by `Slump(true)`, and cleared only by `BeginPass`. While squaring the phase is
+driven FORWARD to the nearest alignment (never reversed — a puppet reversing its spin reads as a
+second, different move) and then holds with a plus/minus 5 degree wobble. Verified by capture: the
+overhead's whole wind-up, strike and recovery now hold yaw between 355 and 5 degrees, and the next spin
+pass sweeps 359 -> 65 -> 121 -> 169 immediately after.
+
+**Invariant.** **If a body's motion is the tell, the absence of that motion has to be a state you can
+name.** "Not currently attacking" is not the same as "deliberately still", and the difference is the
+whole read of a tempo break.
+
+---
+
+## A spin phase integrated forward will drift; re-derive it every beat
+
+**Symptom / risk.** The Marionette's whole design is that the player learns one interval. Anything that
+lets the body's rotation and the data's impact time diverge — a dropped frame, a hitstop, a deflect
+that shortens the recovery — turns the arrival into a lie, and the player is timing off a body that is
+no longer where the maths thinks it is.
+
+**Fix.** `PuppetVisuals.BeginPass` does not advance a running angle. Every beat it reads the CURRENT
+yaw, computes the arc to the next alignment, and interpolates that arc against the data's own
+time-to-impact. Nothing accumulates because nothing is accumulated. Measured over five consecutive
+passes at ~8 Hz the yaw ladder was identical to the degree:
+`16 -> 100 -> 178 -> 245 -> 292 -> 320 -> 338 -> 352 -> 6`.
+
+**The other half is in the DATA.** An unparried beat is `windup + gap + impactDelay + strike`, but a
+parried one is `parryRecoilSeconds x lerp(1, 0.55, aggression) + windup + gap + impactDelay` — a
+different expression, so the two are equal only by construction. `Marionette.parryRecoilSeconds` is
+**0.167** because 0.167 x 0.719 = 0.120, which is the 0.12 s strike it replaces, giving a 0.760 s
+parried beat against a 0.760 s unparried one. It is a derived number, not a felt one.
+
+**Invariant.** For any enemy whose fight is a rhythm: **the parried and unparried beat must be equal,
+and the visual phase must be re-derived from the data clock rather than integrated.** If you retune
+`aggression`, re-derive `parryRecoilSeconds`. (The residual is bounded: a perfect parry may land up to
+`parryPerfectWindow / 2` = 0.065 s early, which pulls the next beat in by that much.)
+
+---
+
+## A spinning enemy that will not chase can be walked away from
+
+**Symptom.** Measured, not theorised. `Marionette_Overhead`'s knockback put the player 7.4 m out. The
+puppet then spent the remaining ~7 s of its eight-pass phrase whirling at nothing, closing at roughly
+0.1 m per beat, while the player stood and watched. The far-band `Marionette_Lash` could not answer it
+because a moveset entry is selected ONCE per phrase.
+
+**Fix.** Two changes, both in data. `Marionette_SpinPass.lungeDistance` 0.35 -> **0.60**, so the spin
+walks ~4.8 m over a phrase and is on top of you again by the exit (`lungeMinDistance 2.8` still stops
+it burrowing in). And every spin entry is range-gated to `maxRange 6` instead of 99, so a spin is never
+*started* from outside its own reach and the far-band lash gets selected instead.
+
+**Invariant.** **A moveset entry is chosen once and then runs to its end**, so range gating is about
+where a phrase may BEGIN, not where it stays legal. Any long phrase needs either enough lunge to hold
+its own spacing for its whole length, or a `maxRange` that stops it being picked from somewhere it can
+never reach.
+
+---
+
+## An Animator on the same transform as a code-driven spin is two writers on one channel
+
+**Symptom / avoided.** `PuppetVisuals` writes the whirl as a local yaw. The obvious place for it was
+the model root — the transform the `Animator` sits on.
+
+**Root cause.** `ForgeClipSplitter` imports the clips with `keepOriginalOrientation`, so the take's root
+curves stay in the clips and the Animator writes the model's own local rotation every frame. A whirl
+written to the same transform would be overwritten or would overwrite, depending on script execution
+order, and the failure mode is a spin that stutters or silently does nothing with a clean console.
+
+**Fix.** `MiniBossFactory.WireAnimatedBody` inserts a dedicated empty `SpinRoot` between `LungeRoot`
+and the model. Three transforms, three owners: `LungeRoot` = the base class's lean and lunge,
+`SpinRoot` = the whirl, `Model` = the Animator.
+
+**Invariant.** **One transform, one writer.** Before driving a transform from code, check whether an
+`Animator`, a `NavMeshAgent` or a base-class coroutine already owns it — and if so, insert a parent
+rather than sharing.
+
+---
+
+## A held guard that could produce a Perfect would have killed the timing game
+
+**Symptom / avoided.** The obvious way to add a Sekiro guard is to make the stance a *state* that
+`ParryController.Resolve` branches on: guarding? then evaluate leniently. Every version of that is the
+same bug — the moment holding the button widens, extends or short-circuits the window, the correct play
+becomes "hold RMB and press vaguely", and a game whose entire design is a 0.13 s window has no reason to
+exist.
+
+**Root cause.** The guard and the deflect are the same button, so it is very easy to write them as one
+decision. They are not one decision. They are two rungs of a ladder and the ladder must stay monotone.
+
+**Fix.** `ParryMath.Evaluate` gained a `guarding` argument that is read **last**. The windows are
+evaluated exactly as before; only a result that already came out `Hit` is upgraded to `Blocked`. Nothing
+about a hold can reach the Perfect branch. `ParryController.Resolve` passes `elapsed = float.MaxValue`
+when the window is not open, which falls through the same path.
+
+**Invariant.** **Timing first, stance second, and the stance may only ever upgrade a Hit.** Any future
+defensive option (a second guard, a shield, a parry-ring item) is added the same way: after the windows,
+never inside them. `FeatureTests > Guard_TimedPressStillPerfect` and `Guard_ConvertsHitToBlocked` are
+the pair that pins it — breaking either one means the ladder has collapsed.
+
+---
+
+## Free posture regeneration turns a guard into an unloseable stalemate
+
+**Symptom / avoided.** With chip damage at 0 (the Sekiro contract) a guarded hit costs *only* posture.
+If posture keeps regenerating while the blade is up, the arithmetic of an ordinary grunt exchange is:
+guarded hit +30 posture, ~1.3 s of enemy cooldown × 22/s regen = −29. The bar never fills. The player
+takes no damage, deals no damage, and the fight runs forever.
+
+**Root cause.** `PlayerPosture.Update` regenerated on a timer that knew nothing about defensive state.
+Every posture cost in the game up to then came with damage attached, so the timer alone was enough.
+
+**Fix.** `PlayerPosture.Update` returns before regenerating while `ParryController.IsGuarding`
+(`guardPostureRegenMultiplier` 0, shipped from `DataFactory`). Turtling now fills the bar in three
+20-damage hits and the break — 1.5 s at 0.4× speed, no parry, 1.6× damage — is reachable by standing
+still, which is the point.
+
+**Invariant.** **Any defensive option that costs only posture must also suspend posture regeneration
+while it is active**, or it is free. If you add chip damage back, this can be relaxed to a multiplier
+rather than a hard stop — but the two numbers are one decision, not two.
+
+---
+
+## A stance is on screen for seconds; a flick is on screen for 0.25 s
+
+**Symptom / avoided.** `WeaponData.parry` sits at local x `0.05` — essentially on the crosshair — and
+that is fine, because it exists for the length of the parry window. Reusing it as the held guard would
+have parked a weapon and a gauntleted fist over the centre of the frame for as long as the player kept
+the button down: precisely over the enemy they are guarding against, and over the cue flash that is the
+only signal telling them when to deflect.
+
+**Root cause.** The two poses look like the same pose ("blade up, across the body") and differ only in
+how long they are held. Duration is the design constraint, and it is invisible in the pose data.
+
+**Fix.** A separate `WeaponData.guard` pose, authored per weapon in `DataFactory` and held right of
+centre (x `0.29`–`0.38`) and above idle. `WeaponViewmodel.PlayGuard/EndGuard` hold and release it, and
+the stance survives an attack, a parry flick and a weapon swap — each re-enters it on the way out,
+because dropping to idle when the parry window closed made a held guard flinch back to the hip every
+quarter second.
+
+**Invariant.** **A pose that is HELD must be authored separately from the momentary pose it resembles,
+and must clear screen centre.** `FeatureTests > GuardPose_OffTheCrosshair_*` asserts `guard.pos.x >=
+0.20` for every weapon in the loadout. This project has already paid for the other choice once — the
+riposte that rendered as a black screen.
+
+---
+
+## Feedback for a hit that deals no damage has to be force, not light
+
+**Symptom / avoided.** A guarded hit costs 0 health. With no flash, no shake and no shove it reads as
+the attack having simply missed, and the player learns nothing about the posture they just spent.
+
+**Root cause.** Every other outcome in `ReceiveAttack` announces itself with damage. The guard is the
+first one that does not.
+
+**Fix.** `PlayerCombat.GuardImpact`: `guardHitStop` 0.05, a `guardShove` of 1.2 m off the line
+(grounded-only, no upward component — same rule as a clean hit, because launching the player off a 6 m
+walkway over a pit turns every blow into a fall), nine dull grey-steel sparks struck half-way between
+the blade tip and the incoming line, and `WeaponViewmodel.GuardImpact` kicking the stance back and
+recovering it.
+
+**Measured, after getting it wrong once.** The first kick was `(+0.05, -0.05, -0.10)` with a `-7 deg`
+yaw. Pulling the blade 0.10 m toward the lens magnified it and the yaw swung the point *inward*, so at
+the peak of the kick the tip crossed screen centre and sat on the enemy - during the one beat the player
+most needs to see them. The kick now drives **down and out** with no yaw at all:
+`(+0.07, -0.09, -0.02)`, `(+14, 0, -10) deg`. Shipped angles off the camera axis, measured on the real
+viewmodel: idle `32.9 deg`, stance `9.4 deg`, **kick peak `18.5 deg`** - the shove moves the blade
+*away* from the crosshair, never across it. `FeatureTests > GuardImpact_KicksAwayFromTheFight` fails if
+that inequality ever inverts.
+
+**Invariant.** **The guard borrows none of the deflect’s vocabulary.** No pale-steel screen flash, no
+chromatic pulse, a duller spark colour and a shorter hitstop. Enemies no longer glow at all, so the
+deflect is the only bright event in a fight; a guard that looked like one would make the two outcomes
+indistinguishable at exactly the moment the player is deciding whether to keep holding or start pressing.
+
+---
+
+## Raising the guard pointed the blade forward first, because the press went through the flick
+
+**Symptom.** Reported from play, not from a test: "it needs to not point forward first when trying to
+guard, it needs to be one smooth motion into guard." Holding RMB read as *present the weapon, then
+guard* - the blade shot out and came back before settling into the stance.
+
+**Root cause.** Three separate things, all of which produce the same two-stage motion, and the first was
+the one actually firing:
+
+1. **A waypoint.** The guard and the parry are the same button, so a press always ran
+   `PlayParry` first and only reached `PlayGuard` when the window closed 0.25 s later.
+   `WeaponData.parry` sits at local x `0.05`, z `0.60` - inward and forward, almost on the crosshair.
+   So the authored path was idle (right, back) -> flick (centre, FORWARD) -> guard (right, up). The
+   forward excursion was not a bug in the blend; it was a pose on the path.
+2. **Euler interpolation.** Interpolating `Vector3` euler angles between two perfectly good poses
+   routinely swings the weapon through an orientation nobody authored, and "pointing forward" is a
+   very common one.
+3. **Blending from the authored idle rather than the live transform**, which teleports the weapon home
+   before it starts travelling and reads as a hitch.
+
+**Fix.** No waypoint: `StartParry` calls `PlayGuard()` directly when the button is down and only falls
+back to the flick for a press made with the button already released. `GuardCo` / `GuardReleaseCo` blend
+from `model.localPosition` / `model.localRotation` - the LIVE transform - with `Quaternion.Slerp` to the
+target, so the rotation takes the shortest arc. And `AttackCo` retargets its **recovery leg** at
+`data.guard` whenever `WeaponViewmodel.GuardWanted` is set, so coming out of a swing with the button
+down travels from wherever the arc left the blade straight into the stance instead of landing in idle
+and raising afterwards. Rise **0.08 s**, release 0.16 s.
+
+**Invariant.** **A held pose is reached by ONE blend from the live transform, never via another pose.**
+Three rules fall out of it, and all three are cheap to check: no intermediate pose on the path; slerp
+the rotation rather than lerping eulers; start from where the transform actually is. And the test for
+it is visual, not an assertion - film the entry and look for any frame where the weapon is further from
+the body than *both* the start and the end pose. There should not be one.
+
+**Note.** `WeaponViewmodel.GuardWanted` (the raw button) is deliberately separate from
+`ParryController.IsGuarding` (the mechanical stance, which a swing suppresses). Swinging drops your
+guard's *protection*; it must not interrupt the blade's *journey* back to the stance.
 
 ---
 

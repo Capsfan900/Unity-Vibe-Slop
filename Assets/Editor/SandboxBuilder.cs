@@ -40,7 +40,7 @@ namespace VibeGame1.EditorTools
         static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss;
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
-        static GameObject pLegNinja, pLegKnight, pLegSpellsword;
+        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -395,6 +395,15 @@ namespace VibeGame1.EditorTools
             Box("Pad_Legendary_Knight", new Vector3(21f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
             Box("Pad_Legendary_Spellsword", new Vector3(26f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
 
+            // The Pale Marionette goes at the WEST end of the row, not on it. The eastern half is
+            // already at its limit (the Spellsword pad's edge is 1.5 m off the x = 30 wall), and a
+            // fourth 4.5 m pad squeezed in there would have the two duellists inside each other's
+            // 18 m aggro. West of the Grunt pad there is 14 m of empty floor: x = -22 leaves 1.75 m
+            // clear of the Grunt pad, 5.75 m clear of the west wall, and ~8 m clear of the item
+            // pedestal column (which runs down x = -22 but stops around z = -10). It is 28.4 m from
+            // the player spawn, comfortably outside its own 18 m aggro, so the arena stays quiet.
+            Box("Pad_Legendary_Marionette", new Vector3(-22f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+
             // Enemies sit south of the player, so they face +Z (identity), unlike the campaign level.
             var sGrunt = Spawner("Spawn_Grunt", new Vector3(-14f, spawnY, z), pGrunt, false, root);
             var sHeavy = Spawner("Spawn_Heavy", new Vector3(-5f, spawnY, z), pHeavy, false, root);
@@ -406,6 +415,7 @@ namespace VibeGame1.EditorTools
             var sNinja = Spawner("Spawn_Legendary_Ninja", new Vector3(16f, spawnY, z), pLegNinja, false, root);
             var sKnight = Spawner("Spawn_Legendary_Knight", new Vector3(21f, spawnY, z), pLegKnight, false, root);
             var sSpell = Spawner("Spawn_Legendary_Spellsword", new Vector3(26f, spawnY, z), pLegSpellsword, false, root);
+            var sMarionette = Spawner("Spawn_Legendary_Marionette", new Vector3(-22f, spawnY, z), pLegMarionette, false, root);
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -421,6 +431,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Ninja", new Vector3(16f, FloorTop, switchZ), sNinja, "NIGHTJAR", root);
             Switch("Wake_Legendary_Knight", new Vector3(21f, FloorTop, switchZ), sKnight, "IRON PENITENT", root);
             Switch("Wake_Legendary_Spellsword", new Vector3(26f, FloorTop, switchZ), sSpell, "ASHEN CHORISTER", root);
+            Switch("Wake_Legendary_Marionette", new Vector3(-22f, FloorTop, switchZ), sMarionette, "PALE MARIONETTE", root);
         }
 
         /// <summary>
@@ -562,9 +573,15 @@ namespace VibeGame1.EditorTools
             go.transform.SetParent(root, false);
             var controller = go.AddComponent<SandboxController>();
 
+            // Rule 9: a field initialiser does nothing to a component already serialized in the scene, so
+            // the shipped respawn values are written here. Practising a fight should not mean walking
+            // back to a menu — pad enemies come back a few seconds after they die.
+            controller.autoRespawnPadEnemies = true;
+            controller.respawnDelay = 4f;
+
             // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
-            controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword };
+            controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -573,6 +590,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Ninja"),
                 LoadEnemyData("Legendary_Knight"),
                 LoadEnemyData("Legendary_Spellsword"),
+                LoadEnemyData("Legendary_Marionette"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -614,6 +632,7 @@ namespace VibeGame1.EditorTools
             pLegNinja = LoadPrefab("Legendary_Ninja");
             pLegKnight = LoadPrefab("Legendary_Knight");
             pLegSpellsword = LoadPrefab("Legendary_Spellsword");
+            pLegMarionette = LoadPrefab("Legendary_Marionette");
         }
 
         static Material LoadMat(string name)

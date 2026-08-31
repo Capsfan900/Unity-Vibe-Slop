@@ -60,6 +60,9 @@ MonoBehaviour:
   parry:
     pos: {x: 0.05, y: -0.2, z: 0.6}
     euler: {x: 0, y: 90, z: 80}
+  guard:
+    pos: {x: 0.38, y: -0.22, z: 0.62}
+    euler: {x: -6, y: 34, z: 48}
   drink:
     pos: {x: 0.7, y: -0.6, z: 0.5}
     euler: {x: 30, y: -40, z: 0}
