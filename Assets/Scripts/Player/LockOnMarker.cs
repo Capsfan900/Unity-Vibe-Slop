@@ -74,12 +74,8 @@ namespace VibeGame1
             Show(visible);
             if (!visible) return;
 
-            if (cam == null)
-            {
-                var c = Camera.main;
-                if (c == null) return;
-                cam = c.transform;
-            }
+            cam = ViewCamera.Transform;
+            if (cam == null) return;
 
             float udt = Time.unscaledDeltaTime;
             ease = acquireEase > 0.0001f ? Mathf.Min(1f, ease + udt / acquireEase) : 1f;

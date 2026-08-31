@@ -94,7 +94,12 @@ namespace VibeGame1
         static readonly List<EnemyController> activeEnemies = new List<EnemyController>();
         public static IReadOnlyList<EnemyController> ActiveEnemies => activeEnemies;
 
-        /// <summary>How many enemies may be mid-attack at once. 1 reads best; 2 is chaotic but survivable.</summary>
+        /// <summary>
+        /// How many enemies may be mid-attack at once. 1 reads best; 2 is chaotic but survivable.
+        /// Static for the hot path, but the SHIPPED value lives on <see cref="GameFeelSettings"/> and is
+        /// seeded by <see cref="GameManager.Awake"/> — a bare static resets to this initialiser on every
+        /// domain reload, so it is not a place tuning can survive. Change it in the asset, not here.
+        /// </summary>
         public static int MaxSimultaneousAttackers = 1;
 
         /// <summary>Time this enemy's committed attack will land, or MaxValue when it has no hit pending.</summary>

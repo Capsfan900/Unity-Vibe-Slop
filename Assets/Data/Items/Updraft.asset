@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Hurls you skyward. For roads that go up.
   effect: 0
   color: {r: 3.019608, g: 4.392157, b: 2.3921568, a: 1}
-  viewmodelPrefab: {fileID: 2872277088637826703, guid: 7490a281e4691d94fafb29827ddcd0b7, type: 3}
+  viewmodelPrefab: {fileID: 0}
   viewmodelScale: 0.5
   radius: 12
   damage: 250

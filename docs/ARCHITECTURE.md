@@ -454,7 +454,10 @@ structural albedos in `Editor/MaterialFactory.Table`, and the enemy body albedos
 | `M_Ground` | `#262023` | ~0.020 linear — most of the structural surface area |
 | `M_Stone` | `#3A3134` | ~0.033 linear — walls, pillars, obelisks; above ground so a wall separates from the floor |
 | `M_Platform` | `#56504A` | ~0.082 linear — ash top, footing legibility, never trim |
-| `M_Enemy` | `#1F1D24` | material default only — **the body albedo comes from `EnemyData.bodyColor`** |
+| `M_Enemy` | `#1F1D24` | material default only — **the body albedo comes from `EnemyData.bodyColor`**; smoothness **0.34** (see below) |
+
+**Smoothness is per-material, and it is the only thing that gives an enemy shape.** Everything else in this palette is matte by design, and `MaterialFactory.Configure` used to force smoothness 0 plus `_SPECULARHIGHLIGHTS_OFF` on *every* material. The course is backlit, so an enemy facing the player gets no key light — with only a diffuse term its whole torso renders as one flat value and no amount of extra ambient can carve it. Specs now carry their own `smoothness` (default 0, so the neon shapes are untouched) and `M_Enemy` ships at 0.34: enough for the ambient sky term to skim a shoulder, not enough to look wet. Deliberately **not** emission — *enemies do not glow*, because light on an enemy means you deflected.
+
 | `EnemyData.bodyColor` | grunt `#3A3340` · heavy `#423630` · boss `#40304C` · ninja `#2E363C` · knight `#443A34` · spellsword `#3A3050` | ~8–10/255 on screen against a ~36/255 floor |
 | vignette / film grain | 0.27 / 0.26 | still a vignette, no longer a footing tax |
 

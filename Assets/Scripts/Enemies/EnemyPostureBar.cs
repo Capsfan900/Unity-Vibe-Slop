@@ -112,12 +112,10 @@ namespace VibeGame1
 
         void Billboard()
         {
-            if (cam == null)
-            {
-                var c = Camera.main;
-                if (c == null) return;
-                cam = c.transform;
-            }
+            // Yaw only — the bar must stay upright. See ViewCamera for why the facing maths is NOT
+            // shared with the deathblow mark or the lock-on dot, only the camera lookup.
+            cam = ViewCamera.Transform;
+            if (cam == null) return;
             Vector3 dir = billboard.position - cam.position;
             dir.y = 0f;                                   // stay upright; only yaw toward the player
             if (dir.sqrMagnitude < 0.0001f) return;

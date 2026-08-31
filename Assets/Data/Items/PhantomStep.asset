@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Walk as the dead do. Briefly untouchable, and swift.
   effect: 2
   color: {r: 3.764706, g: 2.8039217, b: 5, a: 1}
-  viewmodelPrefab: {fileID: 5555393952131501160, guid: 31095b63971cff54cb5a502a2c14d620, type: 3}
+  viewmodelPrefab: {fileID: 0}
   viewmodelScale: 0.5
   radius: 12
   damage: 250

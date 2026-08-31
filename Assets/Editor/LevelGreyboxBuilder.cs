@@ -70,6 +70,16 @@ namespace VibeGame1.EditorTools
         [MenuItem("VibeGame1/Legacy: Build Hard-Coded Greybox", priority = 400)]
         public static void BuildHardcoded()
         {
+            // This is the PRE-REWORK course, kept only so the original layout is recoverable. It is NOT
+            // the shipped level: `6. Build Level` forwards to LevelDefinitionBuilder and the definition
+            // asset is the source of truth. It also speaks a different SPAWNER NAMING DIALECT
+            // (Spawn_GruntA/B/C/D, Spawn_Heavy) than the four-tile level (Spawn_T1_GruntA, ...), which is
+            // exactly the mismatch that made DebugHarness report success while finding nothing. Anything
+            // that looks a spawner up by name must tolerate both; see DebugHarness.FindSpawned.
+            Debug.LogWarning("[" + nameof(LevelGreyboxBuilder) + "] Building the LEGACY hard-coded course. "
+                + "This replaces the four-tile level in the open scene and uses the old spawner names. "
+                + "Run 'VibeGame1/6. Build Level' to restore the shipped level from its definition.");
+
             // PLAY MODE GUARD: this method destroys the Level root before rebuilding it.
             // In play mode the EditorSceneManager calls throw, leaving the scene wiped and
             // unsaveable - which is exactly how the level was lost once already.

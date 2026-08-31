@@ -5,6 +5,12 @@ namespace VibeGame1
     [CreateAssetMenu(menuName = "VibeGame1/Game Feel")]
     public class GameFeelSettings : ScriptableObject
     {
+        [Header("Attack arbitration")]
+        [Tooltip("How many enemies may be mid-attack at once. 1 reads best; 2 is chaotic but survivable. " +
+                 "Two attacks landing from different angles inside the same 130 ms window are not " +
+                 "simultaneously parryable, so this is what keeps a crowd ANSWERABLE rather than unfair.")]
+        [Range(1, 4)] public int maxSimultaneousAttackers = 1;
+
         [Header("Hitstop (realtime seconds)")]
         public float parryHitStop = 0.09f;
         public float executeHitStop = 0.14f;

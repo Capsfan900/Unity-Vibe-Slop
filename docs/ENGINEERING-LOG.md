@@ -11,6 +11,29 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## A matte material cannot show curvature, so no amount of light will shape it
+
+**Symptom.** Enemies rendered as flat cutouts against the dark. The ambient pass had already lifted a
+backlit grunt from a measured 0.0 to 8.8 against a 36.3 floor — the silhouette was there, but the inside
+of it had no tone at all, and raising ambient further only greyed the whole frame.
+
+**Root cause.** `MaterialFactory.Configure` set `_Smoothness = 0` **and** `_SPECULARHIGHLIGHTS_OFF` on
+every material unconditionally, for the flat neon look. With both, a surface has only a diffuse term.
+This course is deliberately backlit, so the side of an enemy facing the player receives no key light —
+diffuse alone therefore renders one uniform value across the whole torso no matter how the geometry
+curves. There was no term left in the shading that *could* describe shape.
+
+**Fix.** Smoothness became per-`Spec` (default 0, so the neon shapes are unchanged) and the specular
+keyword is only forced off when a spec actually asks to be matte. `M_Enemy` ships at **0.34**: enough
+for the ambient sky term to skim a shoulder, not enough to look wet.
+
+**Invariant.** Reach for the **shading model** before reaching for more light. If a surface looks flat
+and adding light only makes it a brighter flat, the missing thing is a specular term, not lumens. And
+note `M_Enemy`'s base colour is overridden per-enemy by `EnemyData.bodyColor` through a
+`MaterialPropertyBlock` — smoothness is not, so it applies to every enemy at once.
+
+---
+
 ## A suite that "waits and nothing happens" is one leaked time handle, not 24 bugs
 
 **Symptom.** A full run reported 24 failures spread across Weapons, Arms, LockOn, Items, Flask,

@@ -161,11 +161,7 @@ namespace VibeGame1
 
         void Place()
         {
-            if (cam == null)
-            {
-                var c = Camera.main;
-                if (c != null) cam = c.transform;
-            }
+            cam = ViewCamera.Transform;
 
             Transform p = transform.parent;
             Vector3 local = new Vector3(0f, bodyHeight + Mathf.Sin(t * bobSpeed) * bobAmount, 0f);

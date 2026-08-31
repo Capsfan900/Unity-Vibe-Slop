@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a742bc75390e47d40b6daada0ff74d33, type: 3}
   m_Name: GameFeel
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.GameFeelSettings
+  maxSimultaneousAttackers: 1
   parryHitStop: 0.09
   executeHitStop: 0.14
   hitStopScale: 0.02

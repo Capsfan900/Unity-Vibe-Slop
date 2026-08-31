@@ -23,6 +23,10 @@ namespace VibeGame1
             // Keep the game loop ticking when the window loses focus. Without this the editor stalls
             // play mode the moment you alt-tab, which also blocks all automated play-mode testing.
             Application.runInBackground = true;
+            // Seed the attack-arbitration static from shipped data. It stays a static because it is read
+            // in the enemy hot path, but a static ALONE silently resets to its field initialiser on every
+            // domain reload, so the tuned value never survived a recompile and could not be inspected.
+            if (feel != null) EnemyController.MaxSimultaneousAttackers = feel.maxSimultaneousAttackers;
         }
 
         void Start()

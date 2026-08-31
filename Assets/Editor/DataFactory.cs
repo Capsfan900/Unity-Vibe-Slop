@@ -660,6 +660,10 @@ namespace VibeGame1.EditorTools
             var table = GetOrCreate<UpgradeTable>(DataRoot + "/UpgradeTable.asset");
             EditorUtility.SetDirty(table);
             var feel = GetOrCreate<GameFeelSettings>(DataRoot + "/GameFeel.asset");
+            // Rule 9: a field initialiser does nothing to an asset that already exists on disk, so the
+            // shipped arbitration value is written here. 1 is deliberate — two attacks landing from
+            // different angles inside the same 130 ms parry window are not simultaneously answerable.
+            feel.maxSimultaneousAttackers = 1;
             EditorUtility.SetDirty(feel);
 
             // ---- campaign registry ----

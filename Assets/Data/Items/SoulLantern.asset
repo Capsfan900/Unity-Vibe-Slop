@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Restores flesh, composure and flask in one breath.
   effect: 1
   color: {r: 4.392157, g: 3.137255, b: 0.9411765, a: 1}
-  viewmodelPrefab: {fileID: 9045612283823977247, guid: cbed04327617d3f4ba7838ae509a6a42, type: 3}
+  viewmodelPrefab: {fileID: 0}
   viewmodelScale: 0.5
   radius: 12
   damage: 250

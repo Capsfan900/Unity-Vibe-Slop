@@ -23,7 +23,18 @@ namespace VibeGame1.EditorTools
             public string name;
             public Color baseColor;
             public Color emission;
-            public Spec(string n, Color b, Color e) { name = n; baseColor = b; emission = e; }
+            /// <summary>
+            /// 0 = fully matte, which is the house style for the flat neon shapes and the default here.
+            /// Above 0 the material keeps its specular highlight, which is the ONLY way a non-emissive
+            /// surface can show curvature in this game: the course is backlit, so an enemy facing the
+            /// player receives no key light and ambient alone renders it as a flat cutout. A little
+            /// smoothness lets the ambient sky term skim the shoulders and give the silhouette an
+            /// interior. It is deliberately NOT emission — "enemies do not glow" is a feel contract,
+            /// because light on an enemy means you deflected.
+            /// </summary>
+            public float smoothness;
+            public Spec(string n, Color b, Color e, float s = 0f)
+            { name = n; baseColor = b; emission = e; smoothness = s; }
         }
 
         static Spec[] Table => new[]
@@ -107,7 +118,12 @@ namespace VibeGame1.EditorTools
             // a backlit grunt a flat black CUTOUT with no interior shading at all. The new value is a cool
             // near-black: it separates by HUE from the warm ember-lit floor, so the silhouette holds
             // without the enemy becoming a light source.
-            new Spec("M_Enemy",         Hex("#1F1D24"), Color.black),
+            // Smoothness 0.34: enough for the ambient sky term to skim a shoulder and give the torso an
+            // interior, not enough to look wet. This is the other half of the ambient pass — that lifted
+            // the enemy from a measured 0.0 to 8.8, but a matte surface still had no shape within the
+            // silhouette. Note M_Enemy's BASE COLOUR is overridden per-enemy by EnemyData.bodyColor via
+            // a MaterialPropertyBlock; smoothness is not, so it applies to every enemy in the game.
+            new Spec("M_Enemy",         Hex("#1F1D24"), Color.black, 0.34f),
             new Spec("M_EnemyEye",      Hex("#180400"), Hex("#FF5A18") * 0.9f),       // faint ember, findable in the dark
             new Spec("M_Boss",          Hex("#0D0709"), Color.black),
             new Spec("M_Weapon_Sword",  Hex("#0A0C10"), Hex("#9FB4C6") * 0.9f),
@@ -204,15 +220,20 @@ namespace VibeGame1.EditorTools
 
         static void Configure(Material mat, Spec spec)
         {
-            mat.SetFloat(SmoothnessId, 0f);
+            mat.SetFloat(SmoothnessId, spec.smoothness);
             mat.SetFloat(MetallicId, 0f);
             mat.SetColor(BaseColorId, spec.baseColor);
             mat.SetColor(EmissionColorId, spec.emission);
             mat.EnableKeyword("_EMISSION");
             mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-            // Matte look: no specular highlights on the flat neon shapes.
-            if (mat.HasProperty("_SpecularHighlights")) mat.SetFloat("_SpecularHighlights", 0f);
-            mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            // Matte by default: no specular highlights on the flat neon shapes. But this used to be
+            // unconditional, and that is why a backlit enemy rendered as a flat black cutout — with
+            // smoothness 0 AND highlights off there is no term left that can describe curvature. A spec
+            // asking for smoothness keeps its highlight.
+            bool matte = spec.smoothness <= 0.0001f;
+            if (mat.HasProperty("_SpecularHighlights")) mat.SetFloat("_SpecularHighlights", matte ? 0f : 1f);
+            if (matte) mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            else mat.DisableKeyword("_SPECULARHIGHLIGHTS_OFF");
 
             // The eclipse backdrop is built from Quads, which are single-sided. Rendering them
             // double-sided means a wrong-way rotation can never silently blank the entire sky.

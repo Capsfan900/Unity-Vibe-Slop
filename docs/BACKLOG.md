@@ -31,31 +31,36 @@ They prove the state machine, never that the game feels good or is fair.
 
 ---
 
-## 2. Enemy silhouettes are only half-fixed
+## 2. ~~Enemy silhouettes are only half-fixed~~ — closed
 
-The ambient/albedo pass lifted the backlit grunt from a measured 0.0 to 8.8 against a 36.3 floor — a
-readable silhouette, but with essentially no interior modelling. The course is deliberately backlit, so
-the side of an enemy facing the player receives **zero** key light and ambient is all it gets.
-
-The honest remaining fix is a **rim/fresnel term** on `M_Enemy`, which needs a per-spec smoothness field
-in `MaterialFactory.Configure`. It is explicitly **not** emission: "enemies do not glow" is a documented
-feel contract — light means you deflected.
+`MaterialFactory.Configure` was forcing smoothness 0 **and** specular-highlights-off on every material,
+so a backlit enemy had only a diffuse term and could not show curvature at any light level. Smoothness is
+now per-`Spec` (default 0, neon shapes unchanged) and `M_Enemy` ships at 0.34. The torso now carries an
+interior gradient instead of reading as a uniform cutout. Not emission — "enemies do not glow" holds.
 
 ---
 
 ## 3. Known drift and fragility
 
-- **`LevelGreyboxBuilder` still writes stale spawner names** (`Spawn_GruntA`) that no longer match the
-  built level (`Spawn_T1_GruntA`). The two builders are out of sync.
+- ~~`LevelGreyboxBuilder` writes stale spawner names.~~ **Closed as documentation, not a rename.** Its
+  `GruntA/B/C/D` names are internally consistent for the pre-rework course it builds, and renaming a
+  deprecated path is churn. `BuildHardcoded` now logs a warning that it is the legacy course with the old
+  naming dialect and that `6. Build Level` restores the shipped level.
 - ~~`DebugHarness` cannot reach the sandbox.~~ **Closed** — `FindSpawned` now falls back to matching on
   enemy KIND after the exact and suffix passes, so a scene-specific naming dialect degrades to finding
   the right kind of enemy rather than to a silent no-op.
-- **Three marker classes duplicate the same billboard code.** `EnemyPostureBar`, `DeathblowMarker` and
-  `LockOnMarker` each reimplement "unscaled-time presentation animation on a world-space primitive". A
-  small `WorldMarker` base with `Billboard(yawOnly)` would fold all three.
+- ~~Three marker classes duplicate the same billboard code.~~ **Closed, but not as proposed.** On
+  inspection the three do NOT share facing maths — the posture bar yaws only and stays upright, the
+  deathblow mark billboards then rolls about the view axis, and the lock-on dot billboards on all three
+  axes. Those are three different reads, and a base class with a mode enum would have hidden that. Only
+  the genuinely duplicated part — the `Camera.main` cache and its null/destroyed guard — was extracted,
+  into `ViewCamera`.
 - ~~`WeaponController.Awake` caches the viewmodel with an active-only `GetComponentInChildren`.~~
   **Closed** — now passes `includeInactive: true`.
-- **`MaxSimultaneousAttackers`** is a static with no Inspector exposure; resets to 1 on domain reload.
+- ~~`MaxSimultaneousAttackers` is a static with no Inspector exposure.~~ **Closed** — the shipped value
+  lives on `GameFeelSettings` (written by `DataFactory`, rule 9) and is seeded into the static by
+  `GameManager.Awake`. It stays a static for the enemy hot path, but tuning now survives a reload and
+  is inspectable.
 - **`WandFactory`** runs as step `3b` inside `0. Rebuild Everything` but has no test covering it.
 
 ---
