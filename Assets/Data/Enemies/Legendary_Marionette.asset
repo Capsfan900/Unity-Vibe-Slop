@@ -23,7 +23,7 @@ MonoBehaviour:
   aggroRange: 18
   attackRange: 3.2
   attackCooldown: 0.35
-  parryRecoilSeconds: 0.167
+  parryRecoilSeconds: 0.1387
   aggression: 0.62
   windupTurnMultiplier: 0.28
   stepSpeedMultiplier: 0.3
@@ -53,9 +53,11 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
+    - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
   - hits:
     - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+    - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}

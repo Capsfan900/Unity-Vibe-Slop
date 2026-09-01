@@ -606,35 +606,52 @@ namespace VibeGame1.EditorTools
             // "Spin really fast" and "no wind-up below 0.45 s" cannot both be satisfied by one number,
             // because the parry cue fires cueLead (0.28 s) before impact and a faster wind-up would
             // need it to fire before the wind-up began. THE VISUAL SPIN RATE AND THE HIT CADENCE ARE
-            // THEREFORE DIFFERENT QUANTITIES. The body's peak rate is ~4.5 revolutions per second
+            // THEREFORE DIFFERENT QUANTITIES. The body's peak rate is ~9 revolutions per second
             // (PuppetVisuals.spinPeakMultiple, pure presentation, no timing attached); the damaging
-            // passes arrive every 0.76 s, from a 0.50 s wind-up. One revolution still equals one pass:
+            // passes arrive every 0.69 s, from a 0.45 s wind-up. One revolution still equals one pass:
             // the whirl is non-uniform, blurring through the back of the turn and DECELERATING into
             // the player, so the slow-down is the wind-up and the cue lands as it comes around.
             //
             // ===== THE BEAT, AND WHY IT CANNOT DRIFT =============================================
-            // Unparried beat = windup(0.50) + gap(0.10) + impactDelay(0.04) + strike(0.12) = 0.76 s.
-            // Parried beat   = recoil + windup(0.50) + gap(0.10) + impactDelay(0.04).
+            // Unparried beat = windup(0.45) + gap(0.10) + impactDelay(0.04) + strike(0.10) = 0.69 s.
+            // Parried beat   = recoil + windup(0.45) + gap(0.10) + impactDelay(0.04).
             // A deflect routes through EnemyController.OnParried -> Recover(parryRecoilSeconds x
             // lerp(1,0.55,aggression)) -> ResumeCombo, so the two are only equal if the recoil is
-            // sized to stand in for the strike. At aggression 0.62 the multiplier is 0.719, so
-            // parryRecoilSeconds 0.167 gives a 0.120 s recoil and a 0.760 s parried beat — the SAME
-            // beat, to within a millisecond. That is the whole reason the number is 0.167 and not a
-            // round one: a fight whose tempo changes depending on whether you succeeded is a fight
-            // nobody can learn. (Residual: a perfect parry may land up to parryPerfectWindow / 2
-            // early, so the beat can be pulled in by <= 0.065 s. Bounded, player-caused, and it
-            // rewards parrying late-in-window rather than punishing anything.)
+            // sized to STAND IN FOR THE STRIKE. Which collapses to one identity worth stating plainly,
+            // because it is the thing every future retune of this fight has to preserve:
+            //
+            //     parryRecoilSeconds  ==  strikeDuration / lerp(1, 0.55, aggression)
+            //
+            // At aggression 0.62 the multiplier is 0.721, so 0.10 / 0.721 = 0.1387 — which is why the
+            // number below is 0.1387 and not a round one. A fight whose tempo changes depending on
+            // whether you succeeded is a fight nobody can learn, so this is derived, never felt.
+            // Change strikeDuration or aggression and you MUST re-run that division;
+            // MarionetteDataTests.ParriedAndUnparriedBeat_AreEqual fails loudly if you do not.
+            // (Residual: a perfect parry may land up to parryPerfectWindow / 2 early, so the beat can
+            // be pulled in by <= 0.065 s. Bounded, player-caused, and it rewards parrying
+            // late-in-window rather than punishing anything.)
             // The gap is ALSO drift-proof by construction: NextGap floors at 0.10 s and
-            // 0.12 x 0.719 = 0.086 is already under the floor, so neither aggression nor the parry
-            // streak can compress it further. The beat is the same on hit 1 and on hit 9.
+            // 0.12 x 0.721 = 0.087 is already UNDER the floor, so the floor is what binds and neither
+            // aggression nor the parry streak (which subtracts a further 0.03 per deflect) can
+            // compress it. The beat is identical on pass 1 and on pass 9 of a nine-pass phrase, which
+            // is the only reason a nine-pass phrase is learnable at all. Asserted by
+            // MarionetteDataTests.TheGapIsPinnedToTheFloor.
             var marSpinPass = Attack("Marionette_SpinPass", a =>
             {
-                // THE BEAT. 0.50 s wind-up: 0.05 over the floor, so the deceleration into alignment
-                // has room to read and the cue at 0.28 s out still lands with the body ~85 deg off and
-                // visibly slowing. 200 deg cone because a thing with a 1.75 m arm span coming around
-                // at you is not something you sidestep; 0.35 m of lunge per pass so backing off half a
-                // metre a beat does not walk you out of the fight for free.
-                a.windup = 0.50f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.20f;
+                // THE BEAT, AND IT IS NOW AT THE FLOOR. 0.45 s wind-up is exactly the project-wide
+                // minimum, which makes 0.69 s THE FASTEST PARRY CADENCE THIS GAME CAN LEGALLY ASK FOR.
+                // That is not a tuning preference, it is arithmetic: the cue fires cueLead (0.28 s)
+                // before impact, and impact is windup + impactDelay, so a wind-up under ~0.24 s would
+                // need the cue to fire before the wind-up existed and the pass would stop being
+                // parryable at all. 0.45 keeps a real charge phase (0.21 s of wind-up before the cue
+                // even lands) on top of that. If a future session wants the passes closer together
+                // than 0.69 s, the honest lever is parryPerfectWindow in PlayerStatsData — a GLOBAL
+                // change affecting every enemy in the game — and not this number.
+                // At 0.45 the cue lands with the body ~63 deg off and visibly slowing (was ~85 at
+                // 0.50; the arrival curve is steeper now, see PuppetVisuals.Ease). 200 deg cone
+                // because a thing with a 1.75 m arm span coming around at you is not something you
+                // sidestep.
+                a.windup = 0.45f; a.impactDelay = 0.04f; a.strikeDuration = 0.10f; a.recovery = 0.20f;
                 // lungeDistance 0.60, not 0.35. THE SPIN HAS TO CHASE. Measured in the sandbox: after
                 // the overhead's knockback put the player 7.4 m out, a 0.35 m pass closed the gap at
                 // roughly 0.1 m per beat, so the puppet spent the rest of a seven-second phrase
@@ -648,10 +665,16 @@ namespace VibeGame1.EditorTools
             });
             var marSpinUp = Attack("Marionette_SpinUp", a =>
             {
-                // The spool-up: the strings go taut and it starts to turn. Longest read in the set, so
+                // The spool-up: the strings go taut and it starts to turn. Longest read in the SPIN, so
                 // "the spin is starting" is never a surprise. Same name prefix as the beat, so
                 // PuppetVisuals whirls on it too — the first revolution is the slowest one.
-                a.windup = 0.95f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.20f;
+                // 0.80, down from 0.95. Its impactDelay and strikeDuration are deliberately IDENTICAL
+                // to the pass's, which makes the spool-up -> first-pass interval
+                // 0.10 + 0.04 + 0.10 + 0.45 = 0.69 s — the cadence exactly. The player is therefore
+                // locked onto the metronome from beat ONE rather than having to find it on beat two;
+                // the only thing the longer wind-up buys is the warning, and it should not also cost
+                // the player their footing in the rhythm.
+                a.windup = 0.80f; a.impactDelay = 0.04f; a.strikeDuration = 0.10f; a.recovery = 0.20f;
                 a.range = 3.9f; a.coneDeg = 200f; a.damage = 18f; a.lungeDistance = 0.55f;
                 a.comboGap = 0.12f; a.parryPostureMultiplier = 1.4f;
             });
@@ -664,7 +687,15 @@ namespace VibeGame1.EditorTools
                 // progress the break) and cash the spin-out for damage instead. Two routes to the same
                 // corpse: deflect it to death by posture, or tank it and out-damage it. Its 170 HP —
                 // low for a duellist — is what makes the second route real.
-                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 2.0f;
+                // windup 0.65, and the 0.21 s it adds to the beat is THE POINT. The exit arrives
+                // 0.90 s after the last pass instead of 0.69 s, so a player parrying the metronome
+                // presses 0.21 s early — outside parryPerfectWindow (0.13) but comfortably inside the
+                // block window (0.13 + 0.12 = 0.25). Metronome play therefore BLOCKS the exit instead
+                // of deflecting it: it costs you the posture and the punish, and it does not cost you
+                // 26 health. That is the fight's thesis in one beat — parry the body, not the count —
+                // charged at exactly the right price. Pinned by
+                // MarionetteDataTests.TheExitBreaksTheMetronome_ButOnlyIntoABlock.
+                a.windup = 0.65f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 2.0f;
                 a.range = 4.1f; a.coneDeg = 200f; a.damage = 26f; a.lungeDistance = 0.55f;
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.6f;
             });
@@ -712,9 +743,10 @@ namespace VibeGame1.EditorTools
             marionette.moveSpeed = 5f; marionette.turnSpeed = 300f; marionette.aggroRange = 18f;
             marionette.attackRange = 3.2f;
             marionette.attackCooldown = 0.35f;
-            // 0.167 x lerp(1, 0.55, 0.62) = 0.120 s. See the beat arithmetic above — this number is
-            // derived, not tuned by feel, and changing aggression means re-deriving it.
-            marionette.parryRecoilSeconds = 0.167f; marionette.aggression = 0.62f;
+            // 0.1387 x lerp(1, 0.55, 0.62) = 0.1000 s = the pass's strikeDuration exactly. See the
+            // identity in the beat arithmetic above — this number is DERIVED, not tuned by feel, and
+            // changing either strikeDuration or aggression means re-running the division.
+            marionette.parryRecoilSeconds = 0.1387f; marionette.aggression = 0.62f;
             // Low windup turn: a whirling thing that tracked you perfectly would make the arc
             // unavoidable AND unreadable. It commits its facing and the arc is wide enough (200 deg)
             // that stepping out is a real but not free answer.
@@ -728,8 +760,8 @@ namespace VibeGame1.EditorTools
             // span whirling at 4.5 rev/s is a legible silhouette rather than a screenful of noise.
             marionette.preferredRange = 3.7f; marionette.commitTolerance = 0.7f;
             marionette.repositionDeadzone = 0.45f;
-            // lungeMinDistance 2.8: eight passes of 0.35 m would otherwise walk it from 3.7 m to 0.9 m
-            // over one phrase, exactly the failure the preferredRange note warns about.
+            // lungeMinDistance 2.8: nine passes of 0.60 m would otherwise walk it from 3.7 m to well
+            // inside contact over one phrase, exactly the failure the preferredRange note warns about.
             marionette.backStepSpeedMultiplier = 0.34f; marionette.strafeSpeedMultiplier = 0.26f;
             marionette.lungeMinDistance = 2.8f;
             marionette.soulValue = 550;
@@ -739,22 +771,30 @@ namespace VibeGame1.EditorTools
             marionette.scale = 1.15f;
             marionette.moveset = Moveset("Legendary_Marionette_Moveset", "The Pale Marionette", new[]
             {
-                // THE SIGNATURE, and by far the most common thing it does: spool up, then eight passes
-                // on an unwavering 0.76 s beat, then the exit. ~7.1 s of held cadence. Eight is chosen
-                // against the posture economy above: six clean deflects break it, so the phrase is two
+                // THE SIGNATURE, and by far the most common thing it does: spool up, then NINE passes
+                // on an unwavering 0.69 s beat, then the exit. Nine, up from eight, because the faster
+                // beat would otherwise have made the phrase SHORTER — 8 x 0.69 is 5.5 s where 8 x 0.76
+                // was 6.1 s — and "more parries" was the point, not "the same fight over quicker".
+                // At nine the whole phrase is ~7.9 s wall-clock, within a tenth of what it was, so the
+                // change reads as a denser rhythm rather than a shorter one. Nine still sits against
+                // the posture economy above: six clean deflects break it, so the phrase is now THREE
                 // passes longer than a perfect player needs.
                 // maxRange 6 on every spin phrase, not 99. A phrase is chosen ONCE and then runs to its
-                // end, so a spin selected from 8 m is eight passes of whirling at nothing — measured,
+                // end, so a spin selected from 8 m is nine passes of whirling at nothing — measured,
                 // not theorised. 6 m is preferredRange (3.7) plus commitTolerance (0.7) plus room for
                 // the player to have backed off a step, and it is under the lash's 5 m floor by enough
                 // that the two bands genuinely overlap rather than leaving a dead zone.
-                Entry("SPIN-UP + 8 passes + OUT (the cadence)",        4f,   0f,   6f,
-                      marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
+                Entry("SPIN-UP + 9 passes + OUT (the cadence)",        4f,   0f,   6f,
+                      marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
                       marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
                 // The short spin: same beat, fewer passes, so the LENGTH of a spin is not predictable
-                // and you cannot count your way to the exit without watching for it.
-                Entry("short spin (same beat, four passes)",           2f,   0f,   6f,
-                      marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
+                // and you cannot count your way to the exit without watching for it. Five rather than
+                // four keeps it just under the six needed to break — so the short spin is the one that
+                // can NEVER be broken through, and a player who has learned to count is still made to
+                // watch for the exit.
+                Entry("short spin (same beat, five passes)",           2f,   0f,   6f,
+                      marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
+                      marSpinOut),
                 // The tempo break. One square-on 1.0 s wind-up, no whirl at all.
                 Entry("OVERHEAD (the tempo break)",                    1.2f, 0f,   99f, marOverhead),
                 Entry("overhead into the spin",                        1f,   0f,   6f,

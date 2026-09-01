@@ -844,9 +844,16 @@ EnemyController.BeginWindup(atk, gap)
         → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
              BeginPass  re-derives the whole revolution from the CURRENT yaw and the data
                         clock, so phase can never accumulate error → the beat cannot drift
+                        └ ResolvePeak(arc/dur, smoothedDt)   alias guard, once per pass:
+                           lowers the PEAK (never the phase) so the body steps <= 75 deg
+                           per rendered frame. Slack at 60 fps, binds at 30.
              UnwindToSquare  stops the whirl and squares the body up — the tempo-break
                         overhead and the far-band lash read as a break BECAUSE the body stops
-   → FireCue()   → base.CueFlash()   (unchanged; body is ~85 deg out and decelerating)
+   → (each frame)  spinPhase = arc * (1 - Ease(k, passPeak, spinTailMultiple))
+                        Ease is exact at both ends: f'(0) = peak, f'(1) = tail, as multiples
+                        of the average rate. f(1) = 1 EXACTLY, which is what puts the body
+                        square-on to the player at the impact instant.
+   → FireCue()   → base.CueFlash()   (unchanged; body is ~63 deg out and decelerating)
    → BeginStrike → Strike(): the whirl carries THROUGH, it does not stop on the blow
    → OnParried   → Recoil(): the "Hit" clip as a jar. The spin survives a deflect; only the
                    posture bar records it.
@@ -857,6 +864,13 @@ EnemyController.BeginWindup(atk, gap)
 **Invariants specific to this path**
 - The whirl writes `SpinRoot.localRotation` and NOTHING else. It never touches a collider, a range, a
   cone or a time — the impact test is exactly the one every other enemy uses.
+- **The frame-rate guard clamps the PEAK, never the phase.** `ResolvePeak` may make the turn more
+  uniform on a slow machine; it may never make the body arrive late. The whirl's one invariant is that
+  `Ease(1) == 1` puts it square-on at impact, and a clamped phase would break it. General form: a
+  performance guard may degrade how something *looks*, never *when it happens*.
+- **`Ease`'s peak and tail are exact, and the tests measure the curve rather than the inputs.** The
+  previous cubic saturated at 3× and silently ignored the top quarter of its own `[Range]`. Any test
+  that asserted the authored value would have passed on it. See ENGINEERING-LOG.md.
 - `SpinRoot` is its own transform, not the model root. The generic clips keep their root curves, so the
   Animator writes the model's local rotation every frame; the whirl on the same transform would be two
   writers on one channel and would stutter or vanish with nothing in the console.

@@ -26,9 +26,10 @@ namespace VibeGame1
     ///
     /// <para><b>The whirl is presentation and nothing else.</b> It writes one local yaw on
     /// <see cref="spinRoot"/> and touches no timing, no collider and no damage. That is the entire
-    /// resolution of "spin really fast" versus the 0.45 s wind-up floor: the BODY may rotate at ~4.5
-    /// revolutions a second, while the damaging passes arrive on a 0.76 s beat that is comfortably above
-    /// the floor. See <see cref="BeginPass"/> for why the two can never drift apart.</para>
+    /// resolution of "spin really fast" versus the 0.45 s wind-up floor: the BODY peaks at about NINE
+    /// revolutions a second, while the damaging passes arrive on a 0.69 s beat built from a wind-up
+    /// sitting exactly ON the floor. See <see cref="BeginPass"/> for why the two can never drift apart,
+    /// and <see cref="Ease"/> for the curve that buys the speed.</para>
     ///
     /// <para><b>Hitstop.</b> Everything here runs on scaled time — <c>Time.time</c>, <c>Time.deltaTime</c>
     /// and the Animator's default <c>Normal</c> update mode. So the puppet FREEZES with the rest of the
@@ -96,11 +97,26 @@ namespace VibeGame1
                  "what makes those two read as a break FROM the rhythm.")]
         public string spinAttackPrefix = "Marionette_Spin";
 
-        [Tooltip("Peak angular speed as a multiple of the pass's average. The whirl is deliberately " +
-                 "NON-UNIFORM: it blurs through most of the revolution and decelerates into the " +
-                 "alignment, so the slowdown IS the wind-up. 1 would be a metronome twirl; 2.5 is a blur " +
-                 "that arrives.")]
-        [Range(1f, 4f)] public float spinPeakMultiple = 2.5f;
+        [Tooltip("Peak angular speed as a multiple of the pass's average, at the START of the revolution. " +
+                 "The whirl is deliberately NON-UNIFORM: it blurs through most of the turn and " +
+                 "decelerates into the alignment, so the slowdown IS the wind-up. 1 would be a metronome " +
+                 "twirl. 4.5 on a 0.49 s pass is a peak of ~3300 deg/s — about 9 revolutions a second.")]
+        [Range(1f, 8f)] public float spinPeakMultiple = 4.5f;
+
+        [Tooltip("Angular speed at the END of the revolution, as a multiple of the average. This is the " +
+                 "rate the body is still turning at when it arrives, so it is what the deceleration " +
+                 "actually decelerates TO. It must not be 0: a whirl that comes to a dead stop on the " +
+                 "alignment reads as a separate 'pose' beat rather than as one continuous arrival.")]
+        [Range(0f, 0.9f)] public float spinTailMultiple = 0.25f;
+
+        [Tooltip("ALIAS GUARD, degrees of body yaw per RENDERED frame. Rotation only reads as rotation " +
+                 "while the per-frame step stays under about half the silhouette's rotational symmetry " +
+                 "period; a humanoid with its arms out is roughly 2-fold symmetric, so past ~90 deg a " +
+                 "frame the spin stops looking like a spin and starts looking like random orientation. " +
+                 "The peak multiple is clamped against the MEASURED frame time so the blur is as fast as " +
+                 "the display can actually show and no faster — at 60 fps this never binds, at 30 fps it " +
+                 "quietly makes the turn more uniform instead of letting it strobe.")]
+        public float maxDegPerFrame = 75f;
 
         [Tooltip("Degrees the follow-through carries past alignment during the strike. Small: the next " +
                  "pass has to start almost a full revolution out or it stops reading as 'coming around'.")]
@@ -127,6 +143,15 @@ namespace VibeGame1
         /// <summary>True while a pass is in flight and the phase is on the data clock.</summary>
         bool passInFlight;
         float passArc, passT0, passDur;
+        /// <summary>
+        /// The peak multiple actually used for the pass in flight — <see cref="spinPeakMultiple"/> after
+        /// the <see cref="maxDegPerFrame"/> alias guard. Resolved once per pass rather than per frame so
+        /// the eased curve is a single fixed shape for the whole revolution; re-solving it every frame
+        /// would let a frame-time spike bend the arrival curve mid-pass.
+        /// </summary>
+        float passPeak = 2.5f;
+        /// <summary>Smoothed REAL frame time. Unscaled on purpose: hitstop must not be read as a stutter.</summary>
+        float smoothedDt = 1f / 60f;
         /// <summary>Free rotation rate (deg/s) used between passes and during the follow-through.</summary>
         float freeSpin;
         /// <summary>Set while staggered / dead: the whirl stops dead, which is the punish read.</summary>
@@ -276,6 +301,7 @@ namespace VibeGame1
             passArc = arc;
             passT0 = Time.time;
             passDur = Mathf.Max(0.05f, secondsToImpact);
+            passPeak = ResolvePeak(passArc / passDur, smoothedDt);
             passInFlight = true;
             squaring = false;
             freeSpin = 0f;
@@ -288,14 +314,69 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// 0..1 in, 0..1 out. Derivative at 0 is <c>1 + 2w</c> and at 1 is <c>1 - w</c>, so
-        /// <c>w = (peak - 1) / 2</c> gives exactly the requested peak multiple of the average rate.
+        /// The arrival curve. 0..1 of the revolution travelled, given 0..1 of the pass elapsed.
+        ///
+        /// <para><b>Both endpoints are authored, and both are exact.</b>
+        /// <c>f(k) = m(1 - (1-k)^p) + tail·k</c> with <c>m = 1 - tail</c> and
+        /// <c>p = (peak - tail) / m</c> gives <c>f(0)=0</c>, <c>f(1)=1</c>, <c>f'(0)=peak</c> and
+        /// <c>f'(1)=tail</c> — so <see cref="spinPeakMultiple"/> and <see cref="spinTailMultiple"/>
+        /// mean literally what they say, as multiples of the average rate, rather than being knobs
+        /// that happen to correlate with speed.</para>
+        ///
+        /// <para><b>This replaced a cubic whose peak SATURATED AT 3.</b> The old form was
+        /// <c>w·(1-(1-k)³) + (1-w)k</c> with <c>w = clamp01((peak-1)/2)</c>: at <c>peak = 3</c> the
+        /// clamp pinned <c>w</c> to 1, so every authored value from 3 to the Inspector's own maximum of
+        /// 4 produced the identical curve. The field could be raised and nothing on screen would change,
+        /// with nothing in the console — the same class of trap as an authored angle that is not an
+        /// on-screen angle. The form here reduces EXACTLY to the old one at <c>peak 2.5, tail 0.25</c>
+        /// (both give <c>m=0.75, p=3</c>), so this is a widening of the reachable range and not a
+        /// re-tune of the shape. <see cref="PuppetSpinTests"/> pins both facts.</para>
+        ///
+        /// <para>Monotone for every legal input: <c>f'(k) = m·p·(1-k)^(p-1) + tail</c>, and all three
+        /// factors are non-negative. The body can therefore never travel backwards mid-pass, which would
+        /// read as a second, different move.</para>
         /// </summary>
-        static float Ease(float k, float peakMultiple)
+        public static float Ease(float k, float peakMultiple, float tailMultiple)
         {
-            float w = Mathf.Clamp01((peakMultiple - 1f) * 0.5f);
-            float inv = 1f - k;
-            return w * (1f - inv * inv * inv) + (1f - w) * k;
+            k = Mathf.Clamp01(k);
+            float tail = Mathf.Clamp(tailMultiple, 0f, 0.9f);
+            float m = 1f - tail;
+            // peak may not drop below 1, or p < 1 and the curve would start SLOW and accelerate into
+            // the player — the exact opposite of the read the whole fight is built on.
+            float peak = Mathf.Max(peakMultiple, 1f);
+            float p = (peak - tail) / m;
+            return m * (1f - Mathf.Pow(1f - k, p)) + tail * k;
+        }
+
+        /// <summary>
+        /// <see cref="spinPeakMultiple"/> lowered, if it must be, so that the fastest instant of the
+        /// revolution still steps less than <see cref="maxDegPerFrame"/> per RENDERED frame.
+        ///
+        /// <para>Pure and static so it can be unit tested; see <see cref="maxDegPerFrame"/> for why the
+        /// limit exists at all. Note what is NOT done here: the phase is never clamped. Clamping the
+        /// phase would let the body lag its own schedule and arrive late, breaking the one invariant the
+        /// whirl has — square-on to the player at the impact instant. Lowering the PEAK instead keeps
+        /// the arrival exact and spends the frame budget by making the turn more uniform, which is the
+        /// right thing to lose: on a machine that cannot render the blur, the blur was never going to
+        /// be seen anyway.</para>
+        /// </summary>
+        /// <param name="averageDegPerSec">The pass's mean angular rate, <c>arc / duration</c>.</param>
+        /// <param name="frameSeconds">Smoothed REAL seconds per frame.</param>
+        public static float ResolvePeak(float peakMultiple, float tailMultiple,
+                                        float averageDegPerSec, float frameSeconds, float maxDegPerFrame)
+        {
+            if (averageDegPerSec <= 0.01f || frameSeconds <= 0.0001f || maxDegPerFrame <= 0f)
+                return Mathf.Max(peakMultiple, 1f);
+            float affordable = (maxDegPerFrame / frameSeconds) / averageDegPerSec;
+            // Never below 1: a perfectly uniform turn is the floor. Below that the guard would start
+            // making the body DECELERATE into a slower arrival than a plain constant spin, which is a
+            // worse read than the aliasing it is trying to avoid.
+            return Mathf.Clamp(peakMultiple, 1f, Mathf.Max(1f, affordable));
+        }
+
+        float ResolvePeak(float averageDegPerSec, float frameSeconds)
+        {
+            return ResolvePeak(spinPeakMultiple, spinTailMultiple, averageDegPerSec, frameSeconds, maxDegPerFrame);
         }
 
         // ---------------------------------------------------------------- clip playback
@@ -356,6 +437,11 @@ namespace VibeGame1
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
 
+            // Unscaled, so a hitstop is not mistaken for a 50 ms frame and does not talk the alias guard
+            // into flattening the next pass. Smoothed hard (about a 0.4 s window) because the guard is a
+            // decision about the DISPLAY, and a display does not change speed for one frame.
+            smoothedDt = Mathf.Lerp(smoothedDt, Time.unscaledDeltaTime, 1f - Mathf.Exp(-2.5f * dt));
+
             // ---- the whirl -------------------------------------------------------------------
             if (spinRoot != null)
             {
@@ -366,7 +452,7 @@ namespace VibeGame1
                 else if (passInFlight)
                 {
                     float k = Mathf.Clamp01((Time.time - passT0) / passDur);
-                    spinPhase = passArc * (1f - Ease(k, spinPeakMultiple));
+                    spinPhase = passArc * (1f - Ease(k, passPeak, spinTailMultiple));
                 }
                 else if (squaring)
                 {

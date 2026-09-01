@@ -398,6 +398,23 @@ namespace VibeGame1.EditorTools
             pv.clipSpin = string.IsNullOrEmpty(spec.spinClip) ? spec.attackClip : spec.spinClip;
             pv.spinAttackPrefix = spec.spinPrefix;
 
+            // ---- the whirl's SHIPPED values, hard rule 9 ----------------------------------------
+            // These have C# field initialisers on PuppetVisuals and were previously left to them,
+            // which meant the numbers on the prefab were whatever the initialiser happened to be on
+            // the day the prefab was last built. Editing the initialiser afterwards changed nothing
+            // and said nothing — the exact trap rule 9 exists for. Written here, they are rebuilt
+            // with the prefab and MarionetteDataTests reads them back off the asset.
+            //
+            // peak 4.5 / tail 0.25 on a 0.49 s pass is ~3300 deg/s at the fastest instant (about NINE
+            // revolutions a second) decaying to ~184 deg/s as it arrives. The pair is what makes the
+            // spin fast and the arrival readable at the same time; raising peak alone would just move
+            // the blur later, not make the fight harder.
+            pv.spinPeakMultiple = 4.5f;
+            pv.spinTailMultiple = 0.25f;
+            // 75 deg/frame: the alias guard. Never binds above ~55 fps at these values; below that it
+            // trades blur for legibility rather than letting the body strobe. See PuppetVisuals.
+            pv.maxDegPerFrame = 75f;
+
             pv.attackClipLength = PuppetAnimatorFactory.ClipLength(fbx, spec.attackClip, 1f);
             pv.attackHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, spec.attackClip, 0.55f);
             pv.spinClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipSpin, 1f);

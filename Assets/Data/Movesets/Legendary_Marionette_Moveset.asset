@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
   displayName: The Pale Marionette
   entries:
-  - label: SPIN-UP + 8 passes + OUT (the cadence)
+  - label: SPIN-UP + 9 passes + OUT (the cadence)
     combo:
       hits:
       - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
       - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
       - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
       - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
@@ -30,10 +31,11 @@ MonoBehaviour:
     weight: 4
     minRange: 0
     maxRange: 6
-  - label: short spin (same beat, four passes)
+  - label: short spin (same beat, five passes)
     combo:
       hits:
       - {fileID: 11400000, guid: 6e2ebf6206d547641a6168d2094cb928, type: 2}
+      - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
       - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
       - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
       - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}

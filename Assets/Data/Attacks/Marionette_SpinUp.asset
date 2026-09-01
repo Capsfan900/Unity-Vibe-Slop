@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Marionette_SpinUp
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Marionette_SpinUp
-  windup: 0.95
-  impactDelay: 0.05
-  strikeDuration: 0.14
+  windup: 0.8
+  impactDelay: 0.04
+  strikeDuration: 0.1
   recovery: 0.2
   range: 3.9
   coneDeg: 200

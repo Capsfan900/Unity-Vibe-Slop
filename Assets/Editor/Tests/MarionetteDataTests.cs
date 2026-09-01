@@ -79,14 +79,114 @@ namespace VibeGame1.Tests
             float recoil = d.parryRecoilSeconds * Mathf.Lerp(1f, 0.55f, d.aggression);
             float parried = recoil + pass.windup + gap + pass.impactDelay;
 
-            Assert.AreEqual(unparried, parried, 0.02f,
+            Assert.AreEqual(unparried, parried, 0.005f,
                 "beat drifts on a deflect: unparried=" + unparried.ToString("F3") +
-                "s parried=" + parried.ToString("F3") + "s. Re-derive parryRecoilSeconds from aggression " +
-                d.aggression + " — see docs/ENGINEERING-LOG.md.");
+                "s parried=" + parried.ToString("F3") + "s. parryRecoilSeconds must be " +
+                (pass.strikeDuration / Mathf.Lerp(1f, 0.55f, d.aggression)).ToString("F4") +
+                " for strikeDuration " + pass.strikeDuration + " at aggression " + d.aggression +
+                " — see docs/ENGINEERING-LOG.md.");
+        }
 
-            // And the beat itself must sit in the band the design claims.
-            Assert.That(unparried, Is.InRange(0.70f, 0.85f),
-                "the spin beat is " + unparried.ToString("F3") + "s; the design (and every doc) says ~0.76s.");
+        [Test]
+        public void TheBeatSitsExactlyOnTheParryContractsFloor()
+        {
+            // The cadence is deliberately the FASTEST this game can legally ask for, and that is a
+            // statement about the parry contract rather than a taste call: the cue fires cueLead
+            // before impact, so a wind-up short enough to push the passes closer together would need
+            // its cue to fire before the wind-up began, and the pass would stop being parryable.
+            //
+            // This test is therefore INTENTIONALLY brittle. If a playtest says 0.69 s is too fast to
+            // hold for nine passes, the fix is to raise the wind-up AND change this test and the
+            // DataFactory comment together — deliberately, and knowing you have left the floor. What
+            // must never happen is the beat drifting back up without anybody noticing.
+            var d = Data();
+            var pass = Atk("Marionette_SpinPass");
+
+            Assert.AreEqual(WindupFloor, pass.windup, 0.001f,
+                "the spin pass wind-up is " + pass.windup + ", not the " + WindupFloor +
+                "s floor. The whole point of the cadence is that it sits ON the floor.");
+
+            float gap = Mathf.Max(GapFloor, pass.comboGap * Mathf.Lerp(1f, 0.45f, d.aggression));
+            float beat = pass.windup + gap + pass.impactDelay + pass.strikeDuration;
+            Assert.AreEqual(0.69f, beat, 0.005f,
+                "the spin beat is " + beat.ToString("F3") + "s; the design and every doc say 0.69s.");
+        }
+
+        [Test]
+        public void TheGapIsPinnedToTheFloor()
+        {
+            // Half of why the beat cannot drift. NextGap is
+            //   max(0.10, comboGap * lerp(1, 0.45, aggression) - parryStreak * 0.03)
+            // so as long as the FIRST term is already under the floor, neither aggression nor a
+            // growing parry streak can compress the gap, and the ninth pass of a phrase arrives on
+            // exactly the same interval as the first. If comboGap were ever raised above the floor
+            // this silently becomes false and the fight speeds up the better you play — which is the
+            // single most disorienting thing a rhythm enemy can do.
+            var d = Data();
+            var pass = Atk("Marionette_SpinPass");
+            float unfloored = pass.comboGap * Mathf.Lerp(1f, 0.45f, d.aggression);
+            Assert.Less(unfloored, GapFloor,
+                "comboGap " + pass.comboGap + " x " + Mathf.Lerp(1f, 0.45f, d.aggression).ToString("F3") +
+                " = " + unfloored.ToString("F3") + "s is ABOVE the " + GapFloor +
+                "s floor, so the gap is no longer pinned and the beat now shortens with the parry streak.");
+        }
+
+        [Test]
+        public void TheSpoolUp_HandsOffOnTheCadence()
+        {
+            // The player must be able to lock onto the metronome from beat ONE. The spool-up is
+            // allowed a longer wind-up — it is the warning that the cadence is starting — but the
+            // interval from ITS blow to the first pass's blow has to be the cadence itself, which
+            // means its impactDelay and strikeDuration have to match the pass's.
+            var d = Data();
+            var up = Atk("Marionette_SpinUp");
+            var pass = Atk("Marionette_SpinPass");
+
+            float upGap = Mathf.Max(GapFloor, up.comboGap * Mathf.Lerp(1f, 0.45f, d.aggression));
+            float passGap = Mathf.Max(GapFloor, pass.comboGap * Mathf.Lerp(1f, 0.45f, d.aggression));
+            float handoff = up.strikeDuration + upGap + pass.windup + pass.impactDelay;
+            float beat = pass.strikeDuration + passGap + pass.windup + pass.impactDelay;
+
+            Assert.AreEqual(beat, handoff, 0.01f,
+                "spool-up hands off after " + handoff.ToString("F3") + "s but the cadence is " +
+                beat.ToString("F3") + "s, so the player has to find the rhythm on beat two.");
+            Assert.Greater(up.windup, pass.windup,
+                "the spool-up must still be the longest wind-up in the spin, or nothing warns that " +
+                "the cadence is about to start.");
+        }
+
+        [Test]
+        public void TheExitBreaksTheMetronome_ButOnlyIntoABlock()
+        {
+            // The spin-out arrives LATE on purpose, so a player parrying the count rather than the
+            // body presses early on it. Both halves of that are load-bearing:
+            //   - the stretch must EXCEED parryPerfectWindow, or metronome play deflects the exit for
+            //     free and the fight never asks anyone to watch the body;
+            //   - it must stay INSIDE perfect + late, or metronome play eats a 26-damage blow, which
+            //     punishes an otherwise reasonable read far harder than the lesson is worth.
+            // Getting a block instead of a deflect is exactly the right price: it costs the posture
+            // progress and the punish window, and it costs no health.
+            var d = Data();
+            var stats = AssetDatabase.LoadAssetAtPath<PlayerStatsData>("Assets/Data/PlayerStats.asset");
+            Assert.IsNotNull(stats, "PlayerStats.asset missing — run VibeGame1/3. Create Data");
+
+            var pass = Atk("Marionette_SpinPass");
+            var exit = Atk("Marionette_SpinOut");
+            float gap = Mathf.Max(GapFloor, pass.comboGap * Mathf.Lerp(1f, 0.45f, d.aggression));
+
+            // Both measured blow-to-blow, so the two are directly comparable.
+            float beat = pass.strikeDuration + gap + pass.windup + pass.impactDelay;
+            float exitBeat = pass.strikeDuration + gap + exit.windup + exit.impactDelay;
+            float stretch = exitBeat - beat;
+
+            Assert.Greater(stretch, stats.parryPerfectWindow,
+                "the exit arrives only " + stretch.ToString("F3") + "s late, inside the " +
+                stats.parryPerfectWindow + "s perfect window — parrying on the metronome would deflect " +
+                "it for free and the fight would never make anyone watch the body.");
+            Assert.Less(stretch, stats.parryPerfectWindow + stats.parryLateWindow,
+                "the exit arrives " + stretch.ToString("F3") + "s late, past the " +
+                (stats.parryPerfectWindow + stats.parryLateWindow) + "s block window — a metronome " +
+                "press would take the full hit rather than blocking it.");
         }
 
         [Test]
@@ -217,6 +317,60 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(pv.deathblowMarker);
             StringAssert.StartsWith("Universal Render Pipeline/", pv.body.sharedMaterial.shader.name,
                 "a non-URP shader renders magenta.");
+        }
+
+        [Test]
+        public void TheWhirlSpeedIsShippedOnThePrefab_NotLeftToAFieldInitialiser()
+        {
+            // Hard rule 9, for the three numbers that decide how fast the thing actually looks. These
+            // used to rely on PuppetVisuals' C# field initialisers, which meant the prefab carried
+            // whatever the initialiser said on the day it was last built and editing the initialiser
+            // afterwards changed nothing, silently. MiniBossFactory.WireAnimatedBody now writes them.
+            var pv = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Legendary_Marionette.prefab")
+                        .GetComponentInChildren<PuppetVisuals>(true);
+            Assert.IsNotNull(pv);
+
+            Assert.Greater(pv.spinPeakMultiple, 3f,
+                "spinPeakMultiple is " + pv.spinPeakMultiple + ". Anything at or below 3 is the OLD " +
+                "cubic's saturation point and the fight is back to the slow whirl — rebuild with " +
+                "VibeGame1/4b. Build Mini-Bosses.");
+            Assert.That(pv.spinTailMultiple, Is.InRange(0.05f, 0.5f),
+                "spinTailMultiple " + pv.spinTailMultiple + " — at 0 the body stops dead on the " +
+                "alignment and the arrival reads as a separate pose beat; above ~0.5 there is not " +
+                "enough deceleration left for the slowdown to BE the wind-up.");
+            Assert.Greater(pv.maxDegPerFrame, 0f,
+                "the alias guard is disabled; on a 30 fps machine the whirl will strobe into noise.");
+        }
+
+        [Test]
+        public void ThePeakWhirlRate_IsFastButStillReadsAsRotation()
+        {
+            // The user-facing claim ("way faster") and the perceptual ceiling, in one place.
+            // One revolution per pass, travelled in (windup + impactDelay), with the peak instant at
+            // spinPeakMultiple x the average. Above roughly 90 deg per rendered frame a 2-fold
+            // symmetric silhouette stops reading as rotation at all, so the guard has to leave real
+            // headroom at 60 fps or it would be doing nothing.
+            var pv = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Legendary_Marionette.prefab")
+                        .GetComponentInChildren<PuppetVisuals>(true);
+            var pass = Atk("Marionette_SpinPass");
+
+            float passSeconds = pass.windup + pass.impactDelay;
+            float average = 360f / passSeconds;
+            float peak = average * pv.spinPeakMultiple;
+
+            Assert.Greater(peak, 2500f,
+                "peak whirl is " + peak.ToString("F0") + " deg/s. The brief was 'way faster'; the " +
+                "version this replaced peaked at ~1350 deg/s.");
+            Assert.Less(peak * (1f / 60f), 90f,
+                "at 60 fps the body steps " + (peak / 60f).ToString("F0") + " deg per frame, past the " +
+                "~90 deg alias threshold for a 2-fold symmetric silhouette — the spin would read as " +
+                "random orientation rather than as rotation, on a machine hitting the target frame rate.");
+
+            // And the guard must be slack at 60 fps: if it were binding there it would be flattening
+            // the curve on ordinary hardware rather than only rescuing slow machines.
+            Assert.AreEqual(pv.spinPeakMultiple,
+                PuppetVisuals.ResolvePeak(pv.spinPeakMultiple, pv.spinTailMultiple, average, 1f / 60f, pv.maxDegPerFrame),
+                0.001f, "the alias guard is clamping the peak at 60 fps, so the shipped value is a lie.");
         }
 
         [Test]

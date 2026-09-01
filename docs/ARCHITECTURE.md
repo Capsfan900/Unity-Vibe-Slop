@@ -329,30 +329,61 @@ It exists to answer two questions the project had not answered:
 
 **1. Can an enemy spin genuinely fast without breaking the 0.45 s wind-up floor?**
 Yes, because *visual spin rate and hit cadence are different quantities*. The body's peak angular speed
-is about **1500 °/s — roughly 4 revolutions a second** — and the damaging passes arrive every
-**0.76 s** from a **0.50 s** wind-up. One revolution is still exactly one pass, so "parry it each time
-it comes around" holds literally; the speed comes from the revolution being **non-uniform**. Each pass
-travels a whole turn on an ease-out curve that starts at 2.5× the average rate and decays to about
-0.25×, so the puppet blurs through the back of the turn and **decelerates into you**. The deceleration
-IS the wind-up: at the cue, 0.28 s out, it is still ~85° off and visibly slowing, and the cue flash
-lands as it comes round the corner. Nothing about that touches timing — `PuppetVisuals` writes one
-local yaw on a dedicated `SpinRoot` transform and nothing else.
+is **3306 °/s — 9.2 revolutions a second** — and the damaging passes arrive every **0.69 s** from a
+**0.45 s** wind-up. One revolution is still exactly one pass, so "parry it each time it comes around"
+holds literally; the speed comes from the revolution being **non-uniform**. Each pass travels a whole
+turn on a curve that starts at 4.5× the average rate and arrives at 0.25×, so the puppet blurs through
+the back of the turn and **decelerates into you**. The deceleration IS the wind-up: at the cue, 0.28 s
+out, it is still ~63° off and turning at only 0.56× its own average, and the cue flash lands as it
+comes round the corner. Nothing about that touches timing — `PuppetVisuals` writes one local yaw on a
+dedicated `SpinRoot` transform and nothing else.
+
+**The wind-up is exactly ON the floor, and that is the ceiling.** 0.69 s is the fastest parry cadence
+this game can legally ask for, which is arithmetic rather than taste: the cue fires `cueLead` (0.28 s)
+before impact and impact is `windup + impactDelay`, so a wind-up under ~0.24 s would need its cue to
+fire before the wind-up began and the pass would stop being parryable at all. The remaining lever is
+`parryPerfectWindow` in `PlayerStatsData`, which is **global to every enemy in the game**. If a future
+session wants the passes closer together, that is the conversation to have — not this number.
+`MarionetteDataTests.TheBeatSitsExactlyOnTheParryContractsFloor` is deliberately brittle about it.
+
+**Two guards on the whirl, both new.** The arrival curve is `PuppetVisuals.Ease`, and its peak and tail
+are now *exact* — `f'(0) = peak`, `f'(1) = tail`, as multiples of the average rate — where the previous
+cubic **saturated at 3×** and silently ignored anything above it. And `ResolvePeak` clamps the peak
+against the *measured* frame time so the body never steps more than 75° per rendered frame: past roughly
+90° a frame a 2-fold-symmetric silhouette stops reading as rotation and becomes random orientation. At
+60 fps the guard is slack (55°/frame); at 30 fps it trades blur for legibility rather than strobing. It
+lowers the **peak**, never the phase — clamping the phase would let the body arrive late and break the
+one invariant the whirl has.
 
 **The cadence cannot drift**, which is the other half of making a rhythm learnable. The whirl's phase
 is not integrated forward between passes; it is re-derived every beat from where the body actually is
 and the data's own time-to-impact, so a dropped frame, a hitstop or a deflect cannot accumulate. And
 the beat itself is equal whether you deflect or not: an unparried pass is
-`windup 0.50 + gap 0.10 + impactDelay 0.04 + strike 0.12 = 0.76 s`, and a parried one is
-`recoil + 0.50 + 0.10 + 0.04`, so `parryRecoilSeconds` is set to **0.167** — which times aggression
-0.62's 0.719 multiplier gives a 0.120 s recoil and a 0.760 s parried beat. That number is *derived*,
-not felt; changing `aggression` means re-deriving it. (Residual: a perfect parry may land up to half
-the perfect window early, so the next beat can be pulled in by ≤ 0.065 s. Bounded and player-caused.)
+`windup 0.45 + gap 0.10 + impactDelay 0.04 + strike 0.10 = 0.69 s`, and a parried one is
+`recoil + 0.45 + 0.10 + 0.04`. Which reduces to one identity every future retune has to preserve:
+
+> `parryRecoilSeconds  ==  strikeDuration / lerp(1, 0.55, aggression)`
+
+At aggression 0.62 the multiplier is 0.721, so `parryRecoilSeconds` is **0.1387** and the recoil is
+0.1000 s — the strike's duration exactly, and a 0.690 s parried beat. That number is *derived*, not
+felt; changing `strikeDuration` **or** `aggression` means re-running the division. (Residual: a perfect
+parry may land up to half the perfect window early, so the next beat can be pulled in by ≤ 0.065 s.
+Bounded and player-caused.)
+
+**The gap is pinned, so the beat cannot shorten as you get better.** `NextGap` is
+`max(0.10, comboGap × lerp(1, 0.45, aggression) − parryStreak × 0.03)`, and `0.12 × 0.721 = 0.087` is
+already under the floor — so the floor is what binds, and neither aggression nor a growing deflect
+streak can compress it. Pass 9 of a nine-pass phrase arrives on exactly the interval pass 1 did.
 
 **The economy: six clean deflects break it, and the spin breaks EARLY.** With the sword a deflected
 pass is `parryPostureDamage 25 × parryPostureMultiplier 1.4 = 35`, so 6 × 35 = its whole 210 bar. The
-signature phrase is *eight* passes long, so a clean player breaks it two passes before it would have
+signature phrase is *nine* passes long, so a clean player breaks it three passes before it would have
 ended on its own and a sloppy one has to survive the whole thing — **the player's rhythm decides how
-long the spin lasts, not a script.** That is the choice over "run N revolutions then self-recover",
+long the spin lasts, not a script.** (Nine, up from eight, because the faster beat would otherwise have
+made the phrase *shorter*: 9 × 0.69 s gives a 7.95 s phrase against the old 7.94 s, so the change reads
+as a denser rhythm rather than a shorter fight. The brief was more parries, not the same fight over
+quicker. The short spin went 4 → 5 passes, which keeps it just under the six needed to break — so the
+short spin is the one that can never be broken through.) That is the choice over "run N revolutions then self-recover",
 which would make skill irrelevant to the outcome; in the reference fight deflecting *is* the offence.
 It uses the ordinary posture system, with no special case anywhere.
 
@@ -367,11 +398,21 @@ under it, so the break from the rhythm is visible in the silhouette and not only
 
 | | `windup` | `impactDelay` | `strike` | `recovery` | cone | dmg | parry × |
 |---|---|---|---|---|---|---|---|
-| `Marionette_SpinUp` | 0.95 | 0.05 | 0.14 | 0.20 | 200° | 18 | 1.4 |
-| `Marionette_SpinPass` | **0.50** | 0.04 | 0.12 | 0.20 | 200° | 17 | 1.4 |
-| `Marionette_SpinOut` | 0.60 | 0.05 | 0.18 | **2.00** | 200° | 26 | 1.6 |
+| `Marionette_SpinUp` | 0.80 | 0.04 | 0.10 | 0.20 | 200° | 18 | 1.4 |
+| `Marionette_SpinPass` | **0.45** | 0.04 | 0.10 | 0.20 | 200° | 17 | 1.4 |
+| `Marionette_SpinOut` | 0.65 | 0.05 | 0.18 | **2.00** | 200° | 26 | 1.6 |
 | `Marionette_Overhead` | 1.00 | 0.07 | 0.24 | 1.00 | 65° | 40 | 1.9 |
 | `Marionette_Lash` (unblockable) | 1.05 | 0.08 | 0.30 | 1.50 | 175° | 30 | — |
+
+Two intervals in that table are deliberately *not* the cadence. `Marionette_SpinUp` carries a longer
+wind-up (it is the warning) but its `impactDelay` and `strikeDuration` match the pass's exactly, so the
+spool-up hands off after 0.69 s and **the player is on the metronome from beat one** rather than having
+to find it on beat two. `Marionette_SpinOut` does the opposite on purpose: it arrives **0.21 s late**,
+outside `parryPerfectWindow` (0.13) but comfortably inside the block window (0.25). So a player parrying
+the *count* rather than the *body* blocks the exit instead of deflecting it — it costs them the posture
+and the punish window, and it costs them no health. That is the fight's thesis charged at exactly the
+right price, and both halves are pinned by
+`MarionetteDataTests.TheExitBreaksTheMetronome_ButOnlyIntoABlock`.
 
 **2. How should a rigged, clip-carrying model be animated?**
 With an `Animator`, through **`PuppetVisuals : EnemyVisuals`**. Three decisions, in order of how much
@@ -392,7 +433,7 @@ they matter:
   a wind-up the attack would stop being parryable.
 - **The clip bends to the data.** `Animator.speed` is scaled so the clip's own contact frame (the
   manifest's `OnAttackHit`, baked onto the prefab at build time) lands on the impact `EnemyAttackData`
-  specifies — 1.36× for a spin pass. If a clip is the wrong length, the clip loses.
+  specifies — 1.50× for a spin pass. If a clip is the wrong length, the clip loses.
 
 Hitstop: the Animator runs in `Normal` update mode and the whirl runs on `Time.time` / `Time.deltaTime`,
 so the puppet **freezes with the world** on impact. Rule 1 reserves `PlayerDelta` for what the *player*

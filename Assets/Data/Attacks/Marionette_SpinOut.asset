@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Marionette_SpinOut
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Marionette_SpinOut
-  windup: 0.6
+  windup: 0.65
   impactDelay: 0.05
   strikeDuration: 0.18
   recovery: 2

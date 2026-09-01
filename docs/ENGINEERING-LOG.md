@@ -1714,6 +1714,96 @@ guard's *protection*; it must not interrupt the blade's *journey* back to the st
 
 ---
 
+## An eased curve whose peak silently saturated, so half its Inspector range was decorative
+
+**Symptom.** The brief was "make the spin way faster". The Pale Marionette's whirl speed is
+`PuppetVisuals.spinPeakMultiple`, a `[Range(1, 4)]` field. Raising it from 2.5 toward 4 would have
+changed nothing on screen, and nothing would have said so.
+
+**Root cause.** The arrival curve was `w·(1-(1-k)³) + (1-w)·k` with `w = clamp01((peak - 1) / 2)`.
+That reaches `w = 1` at `peak = 3`. Every authored value from 3 up to the slider's own maximum of 4
+therefore produced a byte-identical curve — a quarter of the exposed range was inert. The clamp was
+correct for the formula and the formula was correct for `peak ≤ 3`; nobody had checked that the
+*slider* and the *maths* agreed about their limits.
+
+**Fix.** A form where both endpoints are exact rather than emergent:
+`f(k) = m(1-(1-k)^p) + tail·k`, with `m = 1 - tail` and `p = (peak - tail) / m`. That gives
+`f(0)=0`, `f(1)=1`, `f'(0)=peak` and `f'(1)=tail`, so `spinPeakMultiple` and the new
+`spinTailMultiple` mean literally what their names say, as multiples of the average rate, at any
+value. It reduces **exactly** to the old cubic at the old values (both give `m=0.75, p=3`,
+max divergence measured at 0.00e+00 over 501 samples), so the retune is a widening of the reachable
+range and not a silent change of shape underneath the numbers that already shipped.
+
+**Invariant.** **An exposed range must be a reachable range.** If a serialized field has a
+`[Range]`, some test must show that the top of it differs from the middle of it.
+`PuppetSpinTests.Ease_ActuallyRespondsAboveThreeX` compares the measured slope at peak 3 against
+peak 4.5 and asserts the top of the slider is live.
+
+**And note how it is asserted.** Every test in that file measures the curve — numeric derivatives,
+monotonicity, endpoint values — and never asserts the value that was passed in. Asserting the input
+would have passed on the broken version, which is the same failure that cost this project eleven
+wind-up poses: *an authored angle is not an on-screen angle*, and an authored peak is not an
+on-screen peak.
+
+---
+
+## The whirl now has a frame-rate guard, and it clamps the PEAK rather than the phase
+
+**Symptom / risk.** At `peak 4.5` the body's fastest instant is 3306 °/s — 9.2 revolutions a second.
+That is 55° per frame at 60 fps and **110° per frame at 30**. Rotation only reads as rotation while
+the per-frame step stays under about half the silhouette's rotational symmetry period; a humanoid with
+its arms out is roughly 2-fold symmetric, so past ~90° a frame the spin stops looking like a spin and
+starts looking like random orientation. The fight's whole readability rests on the body arriving, so
+on a slow machine the headline feature would have destroyed the thing it exists to serve.
+
+**Fix.** `PuppetVisuals.ResolvePeak` lowers `spinPeakMultiple` against the *measured* frame time so the
+step never exceeds `maxDegPerFrame` (75°). Resolved **once per pass**, not per frame — re-solving every
+frame would let a single frame-time spike bend the arrival curve mid-revolution. The frame time is
+smoothed off `Time.unscaledDeltaTime`, so a hitstop is not mistaken for a stutter.
+
+**The part worth remembering: it clamps the peak, never the phase.** Clamping the phase is the obvious
+implementation and it is wrong. The phase is re-derived every beat precisely so the body is square-on
+to the player at the impact instant; a clamped phase would lag its own schedule and arrive late,
+destroying the one invariant the whirl has. Lowering the peak keeps the arrival exact and spends the
+frame budget by making the turn more uniform — which is the right thing to lose, because on a machine
+that cannot render the blur, the blur was never going to be seen.
+
+**Invariant.** **A performance guard may degrade how something looks, never when it happens.**
+Anything that anchors to a gameplay instant is off limits to a frame-rate adaptation.
+
+---
+
+## The fastest legal parry cadence is 0.69 s, and it is arithmetic rather than taste
+
+**Symptom.** "Make the parry more frequent" has a hard ceiling, and it is worth writing down so the
+next session does not go looking for room that is not there.
+
+**The constraint.** The cue fires `cueLead` (0.28 s) before impact, and impact is
+`windup + impactDelay`. A wind-up under ~0.24 s would need its cue to fire *before the wind-up began*,
+at which point the attack is not parryable at all — and the project floor is 0.45 s, which leaves a
+real charge phase on top of that (0.21 s of wind-up before the cue lands). The mid-combo beat is
+`windup + gap + impactDelay + strike`, `gap` floors at 0.10 in `NextGap`, and a strike shorter than
+~0.10 s stops reading as a blow. So **0.45 + 0.10 + 0.04 + 0.10 = 0.69 s** is the floor, and the
+Marionette now sits exactly on it.
+
+**The only remaining lever is global.** `parryPerfectWindow` (0.13) and `parryLateWindow` (0.12) live
+on `PlayerStatsData` and apply to **every enemy in the game**. There is no per-attack or per-enemy
+window multiplier, and adding one is a real design decision, not a tuning change — it would mean the
+player's most fundamental timing is no longer one learnable quantity.
+
+**Invariant.** **`MarionetteDataTests.TheBeatSitsExactlyOnTheParryContractsFloor` is deliberately
+brittle.** It asserts the wind-up *equals* 0.45, not that it is above it. If a playtest says the
+cadence is too fast to hold for nine passes, the fix is to raise the wind-up and change that test and
+the `DataFactory` comment together — deliberately, knowing the floor has been left. What must never
+happen is the beat drifting back up unnoticed.
+
+**Second invariant, and the one that actually breaks things.** The parried and unparried beats must be
+equal, which reduces to
+`parryRecoilSeconds == strikeDuration / lerp(1, 0.55, aggression)`. Three separate fields, in two
+different assets, and no compiler will ever connect them. Change any one and re-run the division.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |
