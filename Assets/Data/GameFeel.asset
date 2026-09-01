@@ -33,3 +33,12 @@ MonoBehaviour:
   guardShove: 1.2
   dashFovKick: 8
   ultFovKick: 15
+  parryKickPitch: 1.6
+  parryKickYaw: 1.1
+  parryKickRoll: 1.3
+  parryKickOffset: 0.035
+  parryKickTime: 0.16
+  parryFovPunch: -2.2
+  parryHitStopRelease: 0.07
+  parryHitStopReleaseScale: 0.45
+  parryLayeredAudio: 1

@@ -40,7 +40,7 @@ namespace VibeGame1.EditorTools
         static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss;
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
-        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette;
+        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -404,6 +404,13 @@ namespace VibeGame1.EditorTools
             // the player spawn, comfortably outside its own 18 m aggro, so the arena stays quiet.
             Box("Pad_Legendary_Marionette", new Vector3(-22f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
 
+            // The Ember Revenant goes WEST of the Marionette, continuing the same reasoning: x = -28
+            // leaves 1.5 m clear of the Marionette pad and 2 m clear of the west wall at x = -32. Its
+            // aggro is 20 m, so it is placed 6 m from the Marionette on purpose -- both are woken by
+            // their own switch, and two duellists that pull each other is a sandbox that cannot be used
+            // to look at either of them.
+            Box("Pad_Legendary_Revenant", new Vector3(-28f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+
             // Enemies sit south of the player, so they face +Z (identity), unlike the campaign level.
             var sGrunt = Spawner("Spawn_Grunt", new Vector3(-14f, spawnY, z), pGrunt, false, root);
             var sHeavy = Spawner("Spawn_Heavy", new Vector3(-5f, spawnY, z), pHeavy, false, root);
@@ -416,6 +423,7 @@ namespace VibeGame1.EditorTools
             var sKnight = Spawner("Spawn_Legendary_Knight", new Vector3(21f, spawnY, z), pLegKnight, false, root);
             var sSpell = Spawner("Spawn_Legendary_Spellsword", new Vector3(26f, spawnY, z), pLegSpellsword, false, root);
             var sMarionette = Spawner("Spawn_Legendary_Marionette", new Vector3(-22f, spawnY, z), pLegMarionette, false, root);
+            var sRevenant = Spawner("Spawn_Legendary_Revenant", new Vector3(-28f, spawnY, z), pLegRevenant, false, root);
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -432,6 +440,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Knight", new Vector3(21f, FloorTop, switchZ), sKnight, "IRON PENITENT", root);
             Switch("Wake_Legendary_Spellsword", new Vector3(26f, FloorTop, switchZ), sSpell, "ASHEN CHORISTER", root);
             Switch("Wake_Legendary_Marionette", new Vector3(-22f, FloorTop, switchZ), sMarionette, "PALE MARIONETTE", root);
+            Switch("Wake_Legendary_Revenant", new Vector3(-28f, FloorTop, switchZ), sRevenant, "EMBER REVENANT", root);
         }
 
         /// <summary>
@@ -581,7 +590,8 @@ namespace VibeGame1.EditorTools
 
             // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
-            controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette };
+            controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
+                                              pLegMarionette, pLegRevenant };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -591,6 +601,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Knight"),
                 LoadEnemyData("Legendary_Spellsword"),
                 LoadEnemyData("Legendary_Marionette"),
+                LoadEnemyData("Legendary_Revenant"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -633,6 +644,7 @@ namespace VibeGame1.EditorTools
             pLegKnight = LoadPrefab("Legendary_Knight");
             pLegSpellsword = LoadPrefab("Legendary_Spellsword");
             pLegMarionette = LoadPrefab("Legendary_Marionette");
+            pLegRevenant = LoadPrefab("Legendary_Revenant");
         }
 
         static Material LoadMat(string name)

@@ -64,6 +64,17 @@ namespace VibeGame1
         /// <summary>Most recent parry press, whether or not the state machine could act on it yet.</summary>
         float bufferedPressTime = -99f;
 
+        /// <summary>
+        /// Where the last blow this controller judged came from. Captured in <see cref="Resolve"/>
+        /// because that is the only place the AttackInfo is in scope, and spent one call later in
+        /// <see cref="NotifyDeflected"/> — PlayerCombat calls the two back to back on the same frame,
+        /// so this is never stale by more than that.
+        /// It exists so the deflect's camera kick can point somewhere. A kick with no direction is a
+        /// shake, and this game already has one of those.
+        /// </summary>
+        Vector3 lastBlowFrom;
+        bool haveBlowFrom;
+
         PlayerStatsData d;
         WeaponController weapons;
         WeaponViewmodel viewmodel;
@@ -223,6 +234,9 @@ namespace VibeGame1
             // The timing is evaluated FIRST and the stance only ever upgrades what would have been a
             // Hit. A hold can never manufacture a Perfect, so the deflect stays strictly better than
             // the guard and the whole design keeps pointing at the window.
+            haveBlowFrom = a.attacker != null;
+            if (haveBlowFrom) lastBlowFrom = a.attacker.transform.position;
+
             bool guarding = IsGuarding;
             float elapsed = Current == State.Active ? Time.time - pressTime : float.MaxValue;
             var r = ParryMath.Evaluate(elapsed, PerfectWindow, LateWindow, facing, a.unblockable, guarding);
@@ -240,12 +254,28 @@ namespace VibeGame1
         /// letting it idle out: in a flurry you are ready again in parrySuccessRecovery (~0.08s) rather
         /// than coasting on a stale window for up to another 0.25s. This is what makes back-to-back
         /// deflects feel continuous.
+        ///
+        /// <para>It is also the deflect's one guaranteed same-frame hook, so the impact package hangs
+        /// off it: <see cref="ParryImpact"/> adds the directional camera kick, the FOV punch, the
+        /// stepped hitstop release and the extra audio voices that PlayerCombat's own feedback does not
+        /// cover. All of it is force rather than light, on purpose — see ParryImpact.</para>
         /// </summary>
         public void NotifyDeflected()
         {
             if (Current != State.Active) return;
             consumed = true;
             EnterRecovery();
+
+            // AFTER EnterRecovery, never before. EnterRecovery calls EndParry, which re-asserts the
+            // stance when the button is still down; kicking the blade first and then re-raising the
+            // guard on top of it would eat the kickback entirely.
+            ParryImpact.Deflect(transform, lastBlowFrom, haveBlowFrom);
+
+            // The blade's own recoil. GuardImpact runs on PlayerDelta (rule 1), so while the world is
+            // frozen at 0.02 the weapon is the ONE thing still moving — the strongest weight cue in the
+            // package and it costs nothing. It is a no-op unless the stance is actually up, which is
+            // correct: a tap parry has no raised blade to kick.
+            if (viewmodel != null && viewmodel.IsGuarding) viewmodel.GuardImpact();
         }
 
         public void Cancel()

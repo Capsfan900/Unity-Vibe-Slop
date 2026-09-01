@@ -58,13 +58,15 @@ namespace VibeGame1.EditorTools
             BuildMiniBoss("Legendary_Spellsword", EnemyDataDir + "/Legendary_Spellsword.asset", Silhouette.Spellsword);
             // PROTOTYPE. Not in Level_01 — sandbox pad only. See docs/ARCHITECTURE.md → The Pale Marionette.
             BuildMiniBoss("Legendary_Marionette", EnemyDataDir + "/Legendary_Marionette.asset", Silhouette.Marionette);
+            // PROTOTYPE. Sandbox pad only. The ai_skelly_tool test body, and the first BURNING enemy.
+            BuildMiniBoss("Legendary_Revenant", EnemyDataDir + "/Legendary_Revenant.asset", Silhouette.Revenant);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[MiniBossFactory] Built 4 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 5 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant }
 
         // ------------------------------------------------------------------ the rig
 
@@ -184,6 +186,27 @@ namespace VibeGame1.EditorTools
             // Posture bar, as on Grunt/Heavy. The HUD boss bar belongs to the Warden alone — these three
             // are read from the world-space bar, which is also the "execute me now" pulse on stagger.
             BuildPostureBar(visual.transform);
+
+            // ---- burning enemies ---------------------------------------------------------------
+            // EmberAura is a presentation component like any other: it adds fire without the brain,
+            // the timing or the moveset knowing anything about it, so any enemy can be lit by adding
+            // it here. Hard rule 9 — the values are written, not left to field initialisers.
+            if (shape == Silhouette.Revenant)
+            {
+                var aura = root.AddComponent<EmberAura>();
+                // Over the 1.05 bloom threshold so it blooms, and far under the parry glow's 3.2 so a
+                // deflect is still unmistakably the brightest thing this enemy ever does.
+                aura.emberHot = new Color(1f, 0.45f, 0.12f, 1f) * 1.5f;
+                aura.glowAtRest = 0.22f;
+                aura.glowAtBreak = 0.55f;
+                // The ember column is sized to THIS body, from the probe: bones run 0.96..1.20 but the
+                // mesh reaches 1.96, so the fire has to rise past the spikes or it looks like it is
+                // coming from the enemy's waist.
+                aura.emberRadius = 0.38f;
+                aura.emberFromHeight = 0.15f;
+                aura.emberToHeight = 1.75f;
+                aura.lightHeight = 1.0f;
+            }
 
             Save(root, PrefabDir + "/" + name + ".prefab");
         }
@@ -332,6 +355,42 @@ namespace VibeGame1.EditorTools
                         spinClip = "Roar",
                         idleClip = "IdleCombat",
                         spinPrefix = "Marionette_Spin"
+                    };
+
+                case Silhouette.Revenant:
+                    return new ModelSpec
+                    {
+                        fbx = "EmberRevenant.fbx",
+                        yLift = 0f,
+                        // EVERY NUMBER BELOW WAS MEASURED, by VibeGame1/Probe Forge Models. That matters
+                        // more on this body than on any previous one: the mesh spans y -0.17..1.96, but
+                        // the SKELETON only spans 0.96 (Hips) to 1.20 (Head). The top 0.76 m is shoulder
+                        // spikes and hood with no bones in it, so every pivot inferred from the bounds --
+                        // the eye, the deathblow glyph -- would have floated most of a metre above the
+                        // body, in mid-air, pointing at nothing.
+                        yaw = 0f,          // 1.97 m wide in X, 1.49 deep: faces +Z like the others
+                        // The head bone is at 1.20; the eye sits on it, pushed forward to the face.
+                        eyePos = new Vector3(0f, 1.20f, 0.20f),
+                        eyeSize = new Vector3(0.17f, 0.09f, 0.08f),
+                        // RightShoulder measured at (0.03, 1.11, 0); the hand hangs to 0.78 and out to
+                        // -0.16, so the blade lives low and to one side rather than out at shoulder
+                        // height. weaponFxPos throws the cue sparks from along that blade.
+                        armPos = new Vector3(0.05f, 1.11f, 0f),
+                        handPos = new Vector3(-0.21f, -0.33f, 0.12f),
+                        weaponFxPos = new Vector3(-0.30f, -0.05f, 0.10f),
+                        // The CHEST bone, not a fraction of the bounds. 1.11 puts the glyph on the body
+                        // and clear of the head at 1.20.
+                        markHeight = 1.11f,
+                        note = "tall lanky blade-bearer; 0.76 m of spike above the head bone -- measure, do not infer",
+
+                        animated = true,
+                        attackClip = "AttackSwing",
+                        heavyClip = "AttackOverhead",
+                        idleClip = "IdleCombat",
+                        // It does not whirl. No spinPrefix, so PuppetVisuals plays every attack
+                        // square-on and the whirl code never runs for this body.
+                        spinClip = "",
+                        spinPrefix = ""
                     };
             }
             return null;   // Ninja keeps the primitive silhouette

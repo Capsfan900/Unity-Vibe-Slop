@@ -203,6 +203,27 @@ namespace VibeGame1
         /// unlit shader is the one that multiplies vertex colour through, so the tint survives. The blend
         /// setup below is otherwise the same additive recipe SlashFx uses.</para>
         /// </summary>
+        /// <summary>
+        /// The soft additive particle material, shared with <see cref="PyreMist"/> so the two mist
+        /// systems batch together and only one 32x32 falloff texture exists in the process.
+        /// Callers MUST bracket their use with <see cref="RetainShared"/> / <see cref="ReleaseShared"/>
+        /// — the material is destroyed with the last holder, and a renderer left pointing at a
+        /// destroyed material draws nothing at all (not magenta, which is why it is easy to miss).
+        /// </summary>
+        internal static Material MistMaterial() { return SharedMaterial(); }
+
+        /// <summary>Claim a share of the mist material/texture. Balanced by <see cref="ReleaseShared"/>.</summary>
+        internal static void RetainShared() { liveInstances++; }
+
+        /// <summary>Give it back. The last release frees the material and the generated texture.</summary>
+        internal static void ReleaseShared()
+        {
+            liveInstances = Mathf.Max(0, liveInstances - 1);
+            if (liveInstances > 0) return;
+            if (sharedMat != null) { Destroy(sharedMat); sharedMat = null; }
+            if (sharedTex != null) { Destroy(sharedTex); sharedTex = null; }
+        }
+
         static Material SharedMaterial()
         {
             if (sharedMat != null) return sharedMat;
@@ -289,12 +310,9 @@ namespace VibeGame1
         void OnDestroy()
         {
             // Only a real teardown reaches here — pooled systems are never destroyed during play. The
-            // shared material and texture outlive individual systems, so they go with the last one.
-            liveInstances = Mathf.Max(0, liveInstances - 1);
-            if (liveInstances > 0) return;
-
-            if (sharedMat != null) { Destroy(sharedMat); sharedMat = null; }
-            if (sharedTex != null) { Destroy(sharedTex); sharedTex = null; }
+            // shared material and texture outlive individual systems, so they go with the last one —
+            // and "the last one" now counts PyreMist's pool too, via the same counter.
+            ReleaseShared();
         }
     }
 }

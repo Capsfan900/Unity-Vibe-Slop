@@ -57,11 +57,18 @@ namespace VibeGame1
         [Tooltip("Optional forearm/hand pivot, given a secondary lag so the swing whips rather than rotating rigidly.")]
         public Transform weaponPivot;
 
-        // ENEMIES DO NOT GLOW. The telegraph is carried by SILHOUETTE (the arm rig) and AUDIO
-        // (Sfx.ParryCue), punctuated at the cue by a world-space spark and a hard snap of the enemy's
-        // BASE colour. The single exception is a successful parry: Recoil() is the one and only moment
-        // an enemy emits light, which makes a deflect unmistakable and makes light itself mean
-        // "you did that", not "something is happening".
+        // ENEMIES DO NOT GLOW BY DEFAULT. The telegraph is carried by SILHOUETTE (the arm rig) and
+        // AUDIO (Sfx.ParryCue), punctuated at the cue by a world-space spark and a hard snap of the
+        // enemy's BASE colour. Emission is reserved so that light on an enemy means "you deflected",
+        // never "an attack is happening".
+        //
+        // TWO exceptions, and they are different in kind:
+        //   1. A successful parry (Recoil) — a bright SPIKE. Still the loudest light in the fight.
+        //   2. A burning enemy (EmberAura, via SetAura) — a dim, CONSTANT floor, and one that is
+        //      modulated by chargeDark like everything else, so a body on fire still visibly inhales
+        //      on a wind-up. A floor and a spike coexist without either becoming ambiguous; a floor
+        //      as bright as the spike would have destroyed the deflect read, which is why the aura
+        //      ships well under it. Anything that wants an enemy to glow goes through SetAura.
         static readonly Color CueTint = new Color(0.82f, 0.80f, 0.76f);   // base-colour snap (NOT emission)
         static readonly Color CueTintUnblockable = new Color(0.75f, 0.10f, 0.12f);
         static readonly Color CueSpark = new Color(1f, 0.93f, 0.78f);     // world FX, additive, not on the enemy
@@ -101,6 +108,15 @@ namespace VibeGame1
         float glowAmount;                  // 0..1 emission, ONLY driven by a successful parry
         Color glowColor = Color.white;
         float chargeDark;                  // 0..1 darkening during a wind-up ("inhale")
+
+        /// <summary>
+        /// A CONSTANT emission floor under the parry glow, for enemies that are lit from inside —
+        /// see <see cref="EmberAura"/>. Set through <see cref="SetAura"/> and never written directly,
+        /// because <see cref="WriteBody"/> is the single writer of these renderers' channels and this
+        /// project has twice lost a feature to a second writer on one material channel.
+        /// </summary>
+        Color auraColor = Color.black;
+        float auraAmount;
 
         Quaternion armBaseRot = Quaternion.identity;
         Quaternion weaponBaseRot = Quaternion.identity;
@@ -235,6 +251,21 @@ namespace VibeGame1
             // make the boss self-illuminate.
             accent = emission.maxColorComponent > 0.001f ? emission / emission.maxColorComponent : Color.white;
             bodyBase = Color.Lerp(bodyBase, accent * 0.10f, 0.5f);
+            WriteBody();
+        }
+
+        /// <summary>
+        /// Set the constant emission floor for an enemy that burns from inside.
+        ///
+        /// <para>Asked for rather than written, exactly as <see cref="WeaponEmber"/> asks
+        /// <see cref="EnergyGlow"/> for heat instead of poking the blade's emission: <see cref="WriteBody"/>
+        /// owns <c>_EmissionColor</c> on these renderers and would overwrite an outside property block on
+        /// the very next frame. ONE WRITER PER MATERIAL CHANNEL.</para>
+        /// </summary>
+        public void SetAura(Color color, float amount)
+        {
+            auraColor = color;
+            auraAmount = Mathf.Max(0f, amount);
             WriteBody();
         }
 
@@ -703,7 +734,16 @@ namespace VibeGame1
             }
 
             bodyMpb.SetColor(BaseColorId, baseCol);
-            bodyMpb.SetColor(EmissionId, glowAmount > 0f ? glowColor * glowAmount : Color.black);
+
+            // Emission = the burning floor + the parry spike. The floor is modulated by chargeDark on
+            // purpose, so a body that is on fire still INHALES on a wind-up: the fire is drawn in as it
+            // charges and returns as it strikes. Without that the aura would flatten the single most
+            // important tell the enemy has, and "light on an enemy means you deflected" would stop
+            // being true for burning enemies specifically.
+            Color emission = Color.black;
+            if (auraAmount > 0f) emission += auraColor * (auraAmount * Mathf.Lerp(1f, 0.25f, chargeDark));
+            if (glowAmount > 0f) emission += glowColor * glowAmount;
+            bodyMpb.SetColor(EmissionId, emission);
             for (int i = 0; i < bodyRenderers.Length; i++)
                 if (bodyRenderers[i] != null) bodyRenderers[i].SetPropertyBlock(bodyMpb);
         }

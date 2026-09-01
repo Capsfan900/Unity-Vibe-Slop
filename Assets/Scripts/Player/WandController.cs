@@ -234,12 +234,17 @@ namespace VibeGame1
 
                 offhandView.MuzzleFlash();                            // the tip lights the victim
                 SlashFx.Flare(tip, wand.color, 0.34f, 0.13f);         // muzzle glint AT the wand
-                SlashFx.Beam(tip, contact, wand.color, 0.055f, 0.20f); // the bolt leaving the tip
 
-                // A lance keeps going past the victim, so the beam does too — the pierce is visible as
-                // one continuous line from the hand rather than as damage that happens off screen.
+                // THE DISCHARGE. A braided BUNDLE of jagged bolts plus a misty flow riding the same
+                // channel, both anchored at the wand tip and both terminating in the victim — see
+                // Feel/PyreArc.cs. This replaced a single SlashFx.Beam, which is a straight tube: it
+                // answered "where did that come from" but read as a laser sight, not as a discharge.
+                PyreArc.Cast(tip, contact, wand.color, vScale);
+
+                // A lance keeps going past the victim, so the bundle does too — the pierce is visible
+                // as one continuous channel from the hand rather than as damage that happens off screen.
                 if (wand.kind == WandKind.Lance)
-                    SlashFx.Beam(contact, contact + fireDir * Mathf.Max(2f, wand.blastRadius), wand.color, 0.045f, 0.22f);
+                    PyreArc.Cast(contact, contact + fireDir * Mathf.Max(2f, wand.blastRadius), wand.color, vScale * 0.8f);
 
                 // Sparks spray back along the beam toward the player: the discharge is happening at the
                 // far end of an arm, inside a body, not floating in mid-air.
@@ -282,8 +287,25 @@ namespace VibeGame1
                 // Bolt: single target, nothing further.
             }
 
-            if (wand.kind == WandKind.Chain || wand.kind == WandKind.Lance)
-                LightningEffect.Strike(origin, arcPoints, wand.color, Mathf.Max(2f, wand.blastRadius));
+            // The chain and the pierce are drawn as MORE BUNDLES, jumping from the contact point out to
+            // each further victim. LightningEffect.Strike used to be called here, which drops bolts out
+            // of the SKY onto each position — a storm. That is the right shape for a thrown item and
+            // the wrong one for a wand: nothing about it left the wand, so a chain read as unrelated
+            // weather happening near the enemies rather than as the charge leaping throat to throat.
+            // Lance is not listed: its pierce is already drawn above as one continuous bundle straight
+            // through the victim, and a second pass here would double-draw the same line.
+            if (wand.kind == WandKind.Chain)
+            {
+                Vector3 chainFrom = contact;
+                for (int i = 0; i < arcPoints.Count; i++)
+                {
+                    Vector3 p = arcPoints[i] + Vector3.up * 0.9f;
+                    PyreArc.Cast(chainFrom, p, wand.color, 0.8f);
+                    // Each jump starts where the last one landed, so the arc is one path with a
+                    // direction, not a starburst from the first body.
+                    chainFrom = p;
+                }
+            }
 
             var feel = GameManager.I != null ? GameManager.I.feel : null;
             if (TimeScaleController.I != null)

@@ -1,0 +1,178 @@
+using UnityEngine;
+
+namespace VibeGame1
+{
+    /// <summary>
+    /// The MATH of a deflect's impact, with no Unity objects in it, so every shape here can be unit
+    /// tested instead of asserted in prose. <see cref="ParryImpact"/> is the thin layer that hands
+    /// these numbers to the camera, the clock and the mixer.
+    ///
+    /// <para>Three separate shapes live here and they are deliberately different from each other:</para>
+    /// <list type="bullet">
+    ///   <item><b>The camera kick</b> (<see cref="KickCurve"/>) — a fast authored rise and a quadratic
+    ///   settle. Directional, because a Perlin shake says "something happened" and a kick says
+    ///   "something hit you FROM THERE". This is the single biggest missing layer on the deflect.</item>
+    ///   <item><b>The hitstop</b> (<see cref="WorldScaleAt"/>) — a HARD onset and a stepped release.
+    ///   See the note on gap 3.4 below; the asymmetry is the whole argument.</item>
+    ///   <item><b>The sound</b> (<see cref="DeflectLayers"/>) — three voices an octave-and-a-bit apart,
+    ///   because a single clip cannot be both bright and heavy.</item>
+    /// </list>
+    ///
+    /// <para><b>Nothing here adds light.</b> <c>EnemyVisuals.CueFlash</c> and <c>Recoil</c> own the
+    /// brightness budget in a fight and must stay the loudest events in the frame, so every lever in
+    /// this file is FORCE (rotation, translation, FOV, time, air) rather than luminance.</para>
+    ///
+    /// <para><b>Nothing here touches the player's clock.</b> The hitstop requests all pass
+    /// <c>affectsPlayer: false</c> through <see cref="TimeScaleController"/> (rule 1) and the camera kick
+    /// runs on unscaled time, so not one millisecond of input latency is added and the 0.13 s perfect
+    /// window is unmoved.</para>
+    /// </summary>
+    public static class ParryImpulse
+    {
+        // ---------------------------------------------------------------- camera kick
+
+        /// <summary>
+        /// Fraction of the kick's life spent travelling out. 0.18 of a 0.16 s kick is 29 ms — under two
+        /// frames at 60 Hz. Any slower and the kick reads as a camera drift rather than as a blow; any
+        /// faster and it is a single-frame teleport that the eye cannot follow back.
+        /// </summary>
+        public const float KickAttackFraction = 0.18f;
+
+        /// <summary>
+        /// Normalised kick envelope. Ease-OUT on the way out (most of the displacement is delivered in
+        /// the first few milliseconds — that is the hit), quadratic falloff on the way back (the same
+        /// shape <see cref="CameraShake"/> already uses for its Perlin channel, so the two decay
+        /// together instead of one outliving the other).
+        /// </summary>
+        public static float KickCurve(float t01, float attackFraction)
+        {
+            float a = Mathf.Clamp(attackFraction, 0.01f, 0.9f);
+            if (t01 <= 0f) return 0f;
+            if (t01 >= 1f) return 0f;
+            if (t01 < a)
+            {
+                float u = t01 / a;
+                return 1f - (1f - u) * (1f - u);
+            }
+            float d = (t01 - a) / (1f - a);
+            return (1f - d) * (1f - d);
+        }
+
+        /// <summary>A directional camera impulse: an euler delta and a positional offset, both local
+        /// to the shake root (i.e. to the camera).</summary>
+        public struct Kick
+        {
+            public Vector3 euler;
+            public Vector3 offset;
+        }
+
+        /// <summary>
+        /// Turn "the blow came from THERE" into a camera impulse.
+        ///
+        /// <para><paramref name="blowLocal"/> is the unit direction from the player to the attacker,
+        /// expressed in CAMERA space. The camera is then driven AWAY from it: an attack from your right
+        /// yaws the view left, rolls it right, and drops the head — the crossed motion (head sinks,
+        /// view lifts) is what reads as absorbing a blow rather than as being nudged.</para>
+        ///
+        /// <para>A perfectly frontal blow has no lateral component and therefore no yaw and no roll —
+        /// honestly so. Its force is carried by the pitch, the head sink and the FOV punch, which is why
+        /// those three do not scale with direction.</para>
+        /// </summary>
+        public static Kick FromBlow(Vector3 blowLocal, float pitchDeg, float yawDeg, float rollDeg, float offsetMetres)
+        {
+            float lateral = 0f;
+            if (blowLocal.sqrMagnitude > 1e-6f) lateral = Mathf.Clamp(blowLocal.normalized.x, -1f, 1f);
+
+            Kick k;
+            // Negative euler.x pitches the view UP in Unity. Constant, not directional: your guard is
+            // driven up by every deflect you win.
+            k.euler = new Vector3(-pitchDeg, -lateral * yawDeg, lateral * rollDeg);
+            // Head sinks under the blow and slides away from it. No z component on purpose — a dolly
+            // back would fight the FOV punch-in and the pair reads as a dolly zoom, not as an impact.
+            k.offset = new Vector3(-lateral * offsetMetres, -0.35f * offsetMetres, 0f);
+            return k;
+        }
+
+        // ---------------------------------------------------------------- hitstop shape
+
+        /// <summary>
+        /// Share of the release spent on the first (slower) step. Two steps, not a per-frame ramp: at
+        /// 60 Hz a 0.07 s release is four frames, and four frames of a continuous curve and four frames
+        /// of a two-step staircase are the same picture for a third of the cost and none of the
+        /// per-frame churn on <see cref="TimeScaleController"/>.
+        /// </summary>
+        public const float ReleaseFirstStepFraction = 0.55f;
+
+        /// <summary>Scale of the second release step: half way from the first step back to real time.</summary>
+        public static float SecondStepScale(float releaseScale) => 0.5f * (1f + Mathf.Clamp01(releaseScale));
+
+        /// <summary>
+        /// World time scale <paramref name="t"/> seconds (unscaled) after a deflect lands.
+        ///
+        /// <para><b>Gap 3.4, settled asymmetrically.</b> The doc asks whether the binary freeze should
+        /// become a curve. The onset stays BINARY — it is the punctuation, and a ramp INTO a freeze is
+        /// a stall, because there is no frame the eye can point at and call the hit. What was actually
+        /// missing is at the other end: snapping from 0.02 straight back to 1.00 discards the moment in
+        /// a single frame, which is why the freeze read as a hiccup rather than as weight. So the
+        /// release is stepped and the attack is not.</para>
+        /// </summary>
+        public static float WorldScaleAt(float t, float freeze, float freezeScale, float releaseTime, float releaseScale)
+        {
+            if (t < 0f) return 1f;
+            if (freeze > 0f && t < freeze) return Mathf.Clamp01(freezeScale);
+            if (releaseTime <= 0f) return 1f;
+            float u = t - Mathf.Max(0f, freeze);
+            if (u < releaseTime * ReleaseFirstStepFraction) return Mathf.Clamp01(releaseScale);
+            if (u < releaseTime) return SecondStepScale(releaseScale);
+            return 1f;
+        }
+
+        /// <summary>
+        /// Seconds of WORLD time the whole hitstop swallows. The player keeps running at 1.0 throughout
+        /// (rule 1), so this is exactly how far the rest of the fight — including the next parry cue —
+        /// is pushed back in real time. It is a budget, and the tests hold it to one.
+        /// </summary>
+        public static float LostWorldSeconds(float freeze, float freezeScale, float releaseTime, float releaseScale)
+        {
+            float lost = Mathf.Max(0f, freeze) * (1f - Mathf.Clamp01(freezeScale));
+            if (releaseTime > 0f)
+            {
+                float a = releaseTime * ReleaseFirstStepFraction;
+                lost += a * (1f - Mathf.Clamp01(releaseScale));
+                lost += (releaseTime - a) * (1f - SecondStepScale(releaseScale));
+            }
+            return lost;
+        }
+
+        // ---------------------------------------------------------------- sound
+
+        /// <summary>One voice in the deflect stack.</summary>
+        public struct AudioLayer
+        {
+            public Sfx sfx;
+            public float volume;
+            public float pitch;
+            public float jitter;
+
+            public AudioLayer(Sfx s, float v, float p, float j) { sfx = s; volume = v; pitch = p; jitter = j; }
+        }
+
+        /// <summary>
+        /// The two voices stacked UNDER and OVER the existing <c>Sfx.Parry</c> that
+        /// <c>PlayerCombat</c> already plays at unity gain and pitch.
+        ///
+        /// <para>A deflect is steel arriving at speed: it needs a bright transient to read as SHARP and
+        /// a low body to read as HEAVY, and one clip at one pitch cannot be both. Both layers are
+        /// deliberately quiet — this is spectral width, not volume. Sfx enum names are folder names and
+        /// append-only (rule 7), so this reuses existing entries rather than adding any.</para>
+        /// </summary>
+        public static readonly AudioLayer[] DeflectLayers =
+        {
+            // Bright transient. Parry pitched up more than an octave: pure attack, no body, and it is
+            // what the ear hears as the edge of the sound.
+            new AudioLayer(Sfx.Parry, 0.42f, 2.15f, 0.06f),
+            // Low body. Block pitched down almost an octave: the mass behind the edge.
+            new AudioLayer(Sfx.Block, 0.55f, 0.55f, 0.04f)
+        };
+    }
+}

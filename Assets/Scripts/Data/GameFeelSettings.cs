@@ -39,5 +39,37 @@ namespace VibeGame1
         public float guardShove = 1.2f;
         public float dashFovKick = 8f;
         public float ultFovKick = 15f;
+
+        [Header("Deflect impact — FORCE, never light")]
+        // The deflect was already legible; what it lacked was weight. Every value below is motion,
+        // time or air. Nothing here brightens the frame, because EnemyVisuals.CueFlash owns the
+        // brightness budget and has to stay the loudest event on screen. See ParryImpulse / ParryImpact.
+        [Tooltip("Degrees the view pitches UP on a deflect. Constant, not directional: every deflect " +
+                 "you win drives your guard up. 1.6 deg at 95 deg FOV is under 2% of screen height.")]
+        public float parryKickPitch = 1.6f;
+        [Tooltip("Degrees the view yaws AWAY from the blow, scaled by how lateral the blow was. Zero " +
+                 "for a perfectly frontal attack, which is honest — a frontal blow has no sideways force.")]
+        public float parryKickYaw = 1.1f;
+        [Tooltip("Degrees of roll, signed with the blow. Roll is free readability: it never moves the " +
+                 "aim vector, so it can be the loudest part of the kick at no cost to the next swing.")]
+        public float parryKickRoll = 1.3f;
+        [Tooltip("Metres the head sinks and slides under the blow at the peak of the kick.")]
+        public float parryKickOffset = 0.035f;
+        [Tooltip("Kick lifetime, unscaled seconds. Must be shorter than the ~0.28 s cue lead so the " +
+                 "camera is dead still again before the next 'parry now' signal.")]
+        public float parryKickTime = 0.16f;
+        [Tooltip("FOV delta on a deflect. NEGATIVE = punch in, pulling the enemy you just deflected " +
+                 "toward the lens on the frame the world stops.")]
+        public float parryFovPunch = -2.2f;
+
+        [Tooltip("Length of the STEPPED RELEASE after the hard freeze (gap 3.4). The onset stays " +
+                 "binary — that is the punctuation — but snapping from 0.02 straight back to 1.00 threw " +
+                 "the moment away in one frame. 0 restores the old pure-binary hitstop exactly.")]
+        public float parryHitStopRelease = 0.07f;
+        [Tooltip("World scale of the first release step. The second is half way from here back to 1.")]
+        [Range(0.05f, 1f)] public float parryHitStopReleaseScale = 0.45f;
+        [Tooltip("Stack a bright transient over and a low body under Sfx.Parry. Spectral width, not " +
+                 "volume: one clip at one pitch cannot be both sharp and heavy.")]
+        public bool parryLayeredAudio = true;
     }
 }

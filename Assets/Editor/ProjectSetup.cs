@@ -26,6 +26,13 @@ namespace VibeGame1.EditorTools
             // Starfield builds its material at runtime via Shader.Find, so nothing references this
             // shader from an asset and it would otherwise be stripped from player builds.
             EnsureAlwaysIncludedShader("Sprites/Default");
+            // Particles/Unlit is resolved by Shader.Find at RUNTIME (DeathMist, PyreMist) and is
+            // referenced by no asset, so a player build strips it. The failure mode is not magenta --
+            // a ParticleSystemRenderer whose material has a null shader draws NOTHING, silently. The
+            // death dissolve and the Pyre mist would simply be absent from a shipped build while
+            // looking perfect in the editor. Found by inspection, never by a test: nothing in this
+            // project builds a player.
+            EnsureAlwaysIncludedShader("Universal Render Pipeline/Particles/Unlit");
             // Keep play mode ticking when the Editor window loses focus (needed for scripted
             // play-mode verification, and stops the game freezing when you alt-tab).
             PlayerSettings.runInBackground = true;

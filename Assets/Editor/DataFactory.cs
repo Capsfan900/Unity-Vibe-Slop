@@ -807,6 +807,111 @@ namespace VibeGame1.EditorTools
             marionette.combos = marionette.moveset.ToComboArray();
             EditorUtility.SetDirty(marionette);
 
+            // --- Revenant: THE EMBER REVENANT. PROTOTYPE. ------------------------------------------
+            //
+            // The test body for the ai_skelly_tool pipeline, and the first BURNING enemy. Sandbox pad
+            // only, like the Marionette -- it is in no LevelDefinition and no LevelRegistry.
+            //
+            // ===== WHAT IT IS FOR =================================================================
+            // Two things the project had not answered:
+            //   1. Can an enemy be lit from inside without wrecking the readability language? Emission
+            //      on an enemy already MEANS "you deflected". The answer is EmberAura: a dim constant
+            //      floor far under the parry spike, modulated by the same chargeDark as everything
+            //      else, so a burning body still visibly INHALES on a wind-up. See EnemyVisuals.
+            //   2. Does a second forge model drop in without bespoke code? It does; the only new code
+            //      is the aura, which is a presentation component any enemy can take.
+            //
+            // ===== THE FIGHT ======================================================================
+            // A long-limbed thing with a heavy blade. Where the Marionette is a metronome you hold,
+            // this is a READ: slow, enormous, committed swings with real openings between them, so it
+            // is the tutorial for "watch the body" rather than "hold the beat". Everything is well
+            // clear of the wind-up floor because nothing here is trying to be fast.
+            var revSlash = Attack("Revenant_Slash", a =>
+            {
+                // The bread-and-butter cut. 0.62 s is generous on purpose: this enemy exists to be
+                // read, and a player who cannot yet hold the Marionette's 0.69 s cadence should be
+                // able to deflect this one on sight.
+                a.windup = 0.62f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.55f;
+                a.range = 3.4f; a.coneDeg = 95f; a.damage = 20f; a.lungeDistance = 0.9f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.3f;
+            });
+            var revStab = Attack("Revenant_Stab", a =>
+            {
+                // The thrust. The forge clip brings both hands together and drives forward -- measured,
+                // not assumed: AttackStab samples 0.81/0.19/0.24 m of hand separation, the only clip in
+                // the set that CLOSES. Narrow cone to match what the animation actually does, so
+                // stepping aside is a real answer to this one specifically.
+                a.windup = 0.55f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.5f;
+                a.range = 3.9f; a.coneDeg = 40f; a.damage = 24f; a.lungeDistance = 1.5f;
+                a.comboGap = 0.2f; a.parryPostureMultiplier = 1.45f;
+            });
+            var revOverhead = Attack("Revenant_Overhead", a =>
+            {
+                // THE PUNISH WINDOW. A full-body overhead with 1.4 s of recovery -- by a wide margin
+                // the biggest opening any enemy in the game offers, because this is where a new player
+                // learns that a whiffed heavy is free damage.
+                a.windup = 0.95f; a.impactDelay = 0.07f; a.strikeDuration = 0.22f; a.recovery = 1.4f;
+                a.range = 3.6f; a.coneDeg = 70f; a.damage = 38f; a.lungeDistance = 1.3f;
+                a.comboGap = 0.3f; a.parryPostureMultiplier = 1.8f;
+            });
+            var revKick = Attack("Revenant_Kick", a =>
+            {
+                // THE ANTI-TURTLE, and the only unblockable it has. A long-legged shove that answers a
+                // player who simply holds guard: the pink alert tell means "steel will not answer this
+                // one", and the honest reply is to step out of a 55 deg cone.
+                a.windup = 0.7f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.9f;
+                a.range = 3.2f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 1.1f;
+                a.comboGap = 0.28f; a.unblockable = true;
+            });
+
+            var revenant = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Revenant.asset");
+            revenant.displayName = "THE EMBER REVENANT";
+            // Softer than the Marionette in every direction: more HP, less posture, slower. It is a
+            // punching bag with a good silhouette, which is exactly what a test body should be.
+            revenant.maxHP = 240f; revenant.maxPosture = 160f; revenant.postureRegen = 8f;
+            revenant.postureRegenDelay = 2.5f; revenant.staggerSeconds = 4.5f;
+            revenant.moveSpeed = 3.4f; revenant.turnSpeed = 220f; revenant.aggroRange = 20f;
+            revenant.attackRange = 3.2f;
+            revenant.attackCooldown = 0.75f;
+            // parryRecoilSeconds x lerp(1, 0.55, 0.38) = 0.35 x 0.829 = 0.29 s. It is NOT held to the
+            // Marionette's beat identity because this fight is not a cadence -- a visible stumble after
+            // a deflect is the reward here, not a metronome that must not drift.
+            revenant.parryRecoilSeconds = 0.35f; revenant.aggression = 0.38f;
+            revenant.windupTurnMultiplier = 0.35f; revenant.stepSpeedMultiplier = 0.35f;
+            revenant.stepAcceleration = 5f; revenant.stepDeadzone = 1f;
+            revenant.comboBreathSeconds = 0.35f; revenant.readyDistanceMultiplier = 1.5f;
+            // preferredRange 3.4 MUST stay >= attackRange 3.2. It was 3.1 and the test caught it: an
+            // enemy that stands nearer than the distance it decides to attack from is permanently
+            // inside its own commit band, so it never settles at a readable distance and every wind-up
+            // starts on top of the player. Every attack still covers preferredRange + commitTolerance
+            // (4.1 m) once its lunge is counted -- slash reaches 4.3, stab 5.4, overhead 4.9, kick 4.3.
+            revenant.preferredRange = 3.4f; revenant.commitTolerance = 0.7f;
+            revenant.repositionDeadzone = 0.5f;
+            revenant.backStepSpeedMultiplier = 0.3f; revenant.strafeSpeedMultiplier = 0.28f;
+            revenant.lungeMinDistance = 2.2f;
+            revenant.soulValue = 400;
+            // Charcoal body so the fire inside it has something to read against. EmberAura supplies the
+            // glow; this is the UNLIT colour, and it is dark on purpose -- a bright body with a bright
+            // aura is one flat shape.
+            revenant.bodyColor = Hex("#2A2320"); revenant.emission = Hex("#FF7A1E") * 2.2f;
+            // 1.0: the forge mesh already stands 2.13 m to the tips of its shoulder spikes. Scaling it
+            // up would put the blade through the camera at preferredRange.
+            revenant.scale = 1f;
+            revenant.moveset = Moveset("Legendary_Revenant_Moveset", "The Ember Revenant", new[]
+            {
+                Entry("slash",                           3f,   0f,  6f, revSlash),
+                Entry("slash, slash",                    2f,   0f,  6f, revSlash, revSlash),
+                // The read: a wide cut, then the thrust down the middle. Two different cones back to
+                // back, so sidestepping the first puts you in front of the second.
+                Entry("slash into THRUST",               2f,   0f,  7f, revSlash, revStab),
+                Entry("OVERHEAD (the big punish)",       1.5f, 0f,  6f, revOverhead),
+                Entry("thrust from range",               1.5f, 3.5f, 8f, revStab),
+                Entry("KICK (unblockable, anti-turtle)", 1.2f, 0f,  5f, revKick),
+                Entry("slash into the kick",             1f,   0f,  5f, revSlash, revKick),
+            });
+            revenant.combos = revenant.moveset.ToComboArray();
+            EditorUtility.SetDirty(revenant);
+
             // ---------------- Weapons ----------------
             var sword = GetOrCreate<WeaponData>(WeaponsDir + "/Sword.asset");
             sword.displayName = "Cerulean Edge";
@@ -1004,6 +1109,22 @@ namespace VibeGame1.EditorTools
             // has to land somewhere the player can feel.
             feel.guardHitStop = 0.05f;
             feel.guardShove = 1.2f;
+            // Deflect impact (rule 9). Every one of these is FORCE — rotation, translation, FOV, time,
+            // spectral width. Nothing here brightens the frame: EnemyVisuals.CueFlash owns the
+            // brightness budget and must remain the loudest event on screen. ParryImpulse holds the
+            // shapes and ParryImpactTests holds them to their budgets.
+            feel.parryKickPitch = 1.6f;    // deg, up, constant — every deflect drives the guard up
+            feel.parryKickYaw = 1.1f;      // deg, away from the blow, scaled by its lateral component
+            feel.parryKickRoll = 1.3f;     // deg, with the blow; roll never moves the aim vector
+            feel.parryKickOffset = 0.035f; // m, head sinks and slides
+            feel.parryKickTime = 0.16f;    // s, dead still again well before the ~0.28 s cue lead
+            feel.parryFovPunch = -2.2f;    // deg, punch IN on the frame the world stops
+            // Gap 3.4, settled asymmetrically: the ONSET stays binary (it is the punctuation) and only
+            // the RELEASE is stepped. 0.07 s at 0.45 then 0.725 costs 0.030 s of world time, which is
+            // 23% of the 0.13 s perfect window and shifts the whole world — cue included — uniformly.
+            feel.parryHitStopRelease = 0.07f;
+            feel.parryHitStopReleaseScale = 0.45f;
+            feel.parryLayeredAudio = true;
             EditorUtility.SetDirty(feel);
 
             // ---- campaign registry ----

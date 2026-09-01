@@ -211,6 +211,11 @@ namespace VibeGame1
             // The muzzle: the bolt tears out of the weapon before it is anywhere.
             SlashFx.Flare(from, fire, 0.42f, 0.10f);
 
+            // The braided bolt bundle and the mist flowing along it, weapon tip into the victim.
+            // Cast once, up front: it lives 0.34 s and the bolt's own flight is 0.06-0.20 s, so it is
+            // still crackling when the detonation lands rather than being a separate second event.
+            PyreArc.Cast(from, to, fire, 1f);
+
             float t = 0f;
             Vector3 at = from;
             while (t < flight)
@@ -221,7 +226,9 @@ namespace VibeGame1
                 Vector3 target = e != null ? e.DeathblowPoint(eye) : to;
                 at = Vector3.Lerp(from, target, k * (2f - k));
                 SlashFx.Flare(at, fire, Mathf.Lerp(0.34f, 0.52f, k), 0.09f);   // head plus its own tail
-                if (k < 0.4f) SlashFx.Beam(from, at, fire, 0.055f, 0.07f);     // the streak off the tip
+                // The single tube streak is gone: PyreArc above already draws the channel, and a beam
+                // over a braided bundle just fills the gaps between the strands and reads as a laser
+                // sight again. See docs/ENGINEERING-LOG.md.
                 t += Time.unscaledDeltaTime;
                 yield return null;
             }
