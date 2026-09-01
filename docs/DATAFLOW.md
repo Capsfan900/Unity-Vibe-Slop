@@ -842,18 +842,26 @@ EnemyController.BeginWindup(atk, gap)
              Animator.speed = clipContactTime / secondsToImpact      ← clip bends to data
              CrossFadeInFixedTime(spin ? clipSpin : clipAttack/clipHeavy)
         → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
-             BeginPass  re-derives the whole revolution from the CURRENT yaw and the data
-                        clock, so phase can never accumulate error → the beat cannot drift
-                        └ ResolvePeak(arc/dur, smoothedDt)   alias guard, once per pass:
-                           lowers the PEAK (never the phase) so the body steps <= 75 deg
-                           per rendered frame. Slack at 60 fps, binds at 30.
+             BeginPass  re-anchors WITHOUT changing speed. The rate is constant; the ARC is
+                        what gets chosen -- the whole number of revolutions whose implied
+                        speed is closest to spinDegPerSec. Re-derived every beat from the
+                        CURRENT yaw, so phase can never accumulate error.
+                        └ ResolveRate(spinDegPerSec, smoothedDt)   alias guard: caps the
+                           constant rate so the body steps <= 75 deg per rendered frame.
+                           Slack at 60 fps (34.8 deg), engages below ~28 fps.
+                        └ if no whole-revolution arc fits inside maxRateCorrection (12%),
+                           the RATE WINS and the body lands off-square. A visible speed
+                           change is worse than a few tens of degrees of misalignment.
              UnwindToSquare  stops the whirl and squares the body up — the tempo-break
                         overhead and the far-band lash read as a break BECAUSE the body stops
-   → (each frame)  spinPhase = arc * (1 - Ease(k, passPeak, spinTailMultiple))
-                        Ease is exact at both ends: f'(0) = peak, f'(1) = tail, as multiples
-                        of the average rate. f(1) = 1 EXACTLY, which is what puts the body
-                        square-on to the player at the impact instant.
-   → FireCue()   → base.CueFlash()   (unchanged; body is ~63 deg out and decelerating)
+   → (each frame)  spinPhase = passArc * (1 - k)        LINEAR. No curve, anywhere.
+                        Reaches 0 exactly at the impact, which is what puts the body
+                        square-on to the player at the blow.
+   → (between passes)  spinPhase -= ResolveRate() * dt    the SAME constant rate, not a
+                        follow-through decaying to an idle drift -- that sag was half of
+                        the pulse this design exists to remove.
+   → FireCue()   → base.CueFlash()   the ONLY tell. A constant spin has no positional
+                        wind-up by design, so the parry rides on the flash and its audio.
    → BeginStrike → Strike(): the whirl carries THROUGH, it does not stop on the blow
    → OnParried   → Recoil(): the "Hit" clip as a jar. The spin survives a deflect; only the
                    posture bar records it.
@@ -864,13 +872,16 @@ EnemyController.BeginWindup(atk, gap)
 **Invariants specific to this path**
 - The whirl writes `SpinRoot.localRotation` and NOTHING else. It never touches a collider, a range, a
   cone or a time — the impact test is exactly the one every other enemy uses.
-- **The frame-rate guard clamps the PEAK, never the phase.** `ResolvePeak` may make the turn more
-  uniform on a slow machine; it may never make the body arrive late. The whirl's one invariant is that
-  `Ease(1) == 1` puts it square-on at impact, and a clamped phase would break it. General form: a
-  performance guard may degrade how something *looks*, never *when it happens*.
-- **`Ease`'s peak and tail are exact, and the tests measure the curve rather than the inputs.** The
-  previous cubic saturated at 3× and silently ignored the top quarter of its own `[Range]`. Any test
-  that asserted the authored value would have passed on it. See ENGINEERING-LOG.md.
+- **The spin speed NEVER changes.** Not between passes, not into an impact, not during a strike. Any
+  easing at all is a speed change, and a speed change every 0.69 s is a pulse rather than a spin. This
+  is the property the whole presentation rests on; `SpinFilm` reports per-frame yaw step, which is flat
+  when it holds and visibly ramped when it does not.
+- **`spinDegPerSec` × the beat must be a whole number of revolutions.** 2087 × 0.69 = 1440 = 4 turns.
+  Otherwise every pass needs its arc corrected to land square-on, a corrected arc is a changed speed,
+  and the pulse returns quietly through arithmetic. Retuning the beat means retuning the rate.
+- **The frame-rate guard clamps the RATE, never the phase.** `ResolveRate` may slow the spin on a
+  machine that cannot render it; it may never make the body arrive late. General form: a performance
+  guard may degrade how something *looks*, never *when it happens*.
 - `SpinRoot` is its own transform, not the model root. The generic clips keep their root curves, so the
   Animator writes the model's local rotation every frame; the whirl on the same transform would be two
   writers on one channel and would stutter or vanish with nothing in the console.

@@ -26,10 +26,12 @@ namespace VibeGame1
     ///
     /// <para><b>The whirl is presentation and nothing else.</b> It writes one local yaw on
     /// <see cref="spinRoot"/> and touches no timing, no collider and no damage. That is the entire
-    /// resolution of "spin really fast" versus the 0.45 s wind-up floor: the BODY peaks at about NINE
-    /// revolutions a second, while the damaging passes arrive on a 0.69 s beat built from a wind-up
-    /// sitting exactly ON the floor. See <see cref="BeginPass"/> for why the two can never drift apart,
-    /// and <see cref="Ease"/> for the curve that buys the speed.</para>
+    /// resolution of "spin really fast" versus the 0.45 s wind-up floor: the BODY turns at a CONSTANT
+    /// 2087 deg/s — 5.8 revolutions a second — while the damaging passes arrive on a 0.69 s beat built
+    /// from a wind-up sitting exactly ON the floor. Since 2087 x 0.69 is exactly four revolutions, the
+    /// body is at the same yaw on every impact without its speed ever changing. See
+    /// <see cref="BeginPass"/> for how the alignment is bought with the ARC rather than with the rate,
+    /// and <see cref="spinDegPerSec"/> for why any easing at all was the wrong answer.</para>
     ///
     /// <para><b>Hitstop.</b> Everything here runs on scaled time — <c>Time.time</c>, <c>Time.deltaTime</c>
     /// and the Animator's default <c>Normal</c> update mode. So the puppet FREEZES with the rest of the
@@ -97,34 +99,37 @@ namespace VibeGame1
                  "what makes those two read as a break FROM the rhythm.")]
         public string spinAttackPrefix = "Marionette_Spin";
 
-        [Tooltip("Peak angular speed as a multiple of the pass's average, at the START of the revolution. " +
-                 "The whirl is deliberately NON-UNIFORM: it blurs through most of the turn and " +
-                 "decelerates into the alignment, so the slowdown IS the wind-up. 1 would be a metronome " +
-                 "twirl. 4.5 on a 0.49 s pass is a peak of ~3300 deg/s — about 9 revolutions a second.")]
-        [Range(1f, 8f)] public float spinPeakMultiple = 4.5f;
+        [Tooltip("THE SPIN RATE, degrees per second, and it is CONSTANT. The body holds this speed for " +
+                 "the whole phrase — through each pass, through the strike, through the gap between " +
+                 "passes. It does not wind up, ease, decelerate into the player or drift between " +
+                 "beats.\n\n" +
+                 "This replaced a curve that started fast and decelerated into each impact, on the " +
+                 "theory that the slowdown could serve as the wind-up tell. It could not: what it " +
+                 "actually produced was a PULSE — blur, slow, blur, slow — which reads as a stuttering " +
+                 "animation rather than as a spinning body, and the fight is supposed to be a single " +
+                 "unbroken menace you time against. With a constant rate there is no positional tell " +
+                 "left, so the parry rides entirely on the cue flash and the audio at cueLead, which is " +
+                 "exactly the precision the fight is meant to demand.\n\n" +
+                 "2087 deg/s is 5.8 revolutions a second, and it is chosen against the beat rather than " +
+                 "picked by feel: 2087 x 0.69 = 1440 = exactly FOUR revolutions per beat, so the body " +
+                 "returns to the same yaw on every single impact without anything having to correct it.")]
+        public float spinDegPerSec = 2087f;
 
-        [Tooltip("Angular speed at the END of the revolution, as a multiple of the average. This is the " +
-                 "rate the body is still turning at when it arrives, so it is what the deceleration " +
-                 "actually decelerates TO. It must not be 0: a whirl that comes to a dead stop on the " +
-                 "alignment reads as a separate 'pose' beat rather than as one continuous arrival.")]
-        [Range(0f, 0.9f)] public float spinTailMultiple = 0.25f;
+        [Tooltip("How far the rate may be nudged, as a fraction, to land the body square-on at an " +
+                 "impact whose interval is NOT a whole number of revolutions — the spin-out, which " +
+                 "arrives 0.21 s late on purpose. Small: past about this the correction stops being " +
+                 "invisible and the pulse comes back. If a correction cannot fit inside the band, the " +
+                 "constant rate WINS and the body simply arrives at a different yaw.")]
+        [Range(0f, 0.35f)] public float maxRateCorrection = 0.12f;
 
         [Tooltip("ALIAS GUARD, degrees of body yaw per RENDERED frame. Rotation only reads as rotation " +
                  "while the per-frame step stays under about half the silhouette's rotational symmetry " +
                  "period; a humanoid with its arms out is roughly 2-fold symmetric, so past ~90 deg a " +
                  "frame the spin stops looking like a spin and starts looking like random orientation. " +
-                 "The peak multiple is clamped against the MEASURED frame time so the blur is as fast as " +
-                 "the display can actually show and no faster — at 60 fps this never binds, at 30 fps it " +
-                 "quietly makes the turn more uniform instead of letting it strobe.")]
+                 "The CONSTANT rate is clamped against the MEASURED frame time, so on a machine that " +
+                 "cannot show the spin it is slowed rather than allowed to strobe. At 60 fps and " +
+                 "2087 deg/s the step is 35 deg and this never binds.")]
         public float maxDegPerFrame = 75f;
-
-        [Tooltip("Degrees the follow-through carries past alignment during the strike. Small: the next " +
-                 "pass has to start almost a full revolution out or it stops reading as 'coming around'.")]
-        public float followThroughDegPerSec = 260f;
-
-        [Tooltip("Idle drift in the gap between two passes, while the whirl is still live. A puppet on " +
-                 "strings never quite stops.")]
-        public float idleSpinDegPerSec = 55f;
 
         [Tooltip("Amplitude of the squared-up wobble, in degrees. This is what it does when the whirl is " +
                  "OFF — during the tempo-break overhead, the far-band lash and every recovery. Small on " +
@@ -144,12 +149,12 @@ namespace VibeGame1
         bool passInFlight;
         float passArc, passT0, passDur;
         /// <summary>
-        /// The peak multiple actually used for the pass in flight — <see cref="spinPeakMultiple"/> after
-        /// the <see cref="maxDegPerFrame"/> alias guard. Resolved once per pass rather than per frame so
-        /// the eased curve is a single fixed shape for the whole revolution; re-solving it every frame
-        /// would let a frame-time spike bend the arrival curve mid-pass.
+        /// The rate the pass in flight is actually turning at, deg/s. Normally exactly
+        /// <see cref="spinDegPerSec"/>; nudged inside <see cref="maxRateCorrection"/> only when the
+        /// interval to this impact is not a whole number of revolutions. Resolved once per pass, never
+        /// per frame — a frame-time spike must not be able to bend the rate mid-pass.
         /// </summary>
-        float passPeak = 2.5f;
+        float passRate;
         /// <summary>Smoothed REAL frame time. Unscaled on purpose: hitstop must not be read as a stutter.</summary>
         float smoothedDt = 1f / 60f;
         /// <summary>Free rotation rate (deg/s) used between passes and during the follow-through.</summary>
@@ -207,7 +212,11 @@ namespace VibeGame1
             // The pass has landed. Hand the whirl back to free rotation so it carries THROUGH rather
             // than stopping on the blow; the next Telegraph re-anchors it (see BeginPass).
             passInFlight = false;
-            if (!spinHalted) freeSpin = Mathf.Max(freeSpin, followThroughDegPerSec);
+            // Straight back onto the constant rate. NOT a follow-through that decays to an idle drift —
+            // that was the second half of the pulse, and it was the worse half: the body ran at ~735
+            // deg/s through the pass and then fell to 55 between passes, so the spin visibly sagged in
+            // every gap. Between passes it now turns at exactly the speed it turns at during one.
+            if (!spinHalted) freeSpin = ResolveRate();
         }
 
         public override void Recoil()
@@ -276,35 +285,59 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// Anchor one revolution to this pass's impact.
+        /// Anchor the spin to this pass's impact WITHOUT changing its speed.
         ///
         /// <para><b>This is what makes the cadence undriftable.</b> The phase is not integrated forward
         /// from the last pass — it is RE-DERIVED every beat from wherever the body actually is and the
         /// data's own time-to-impact. A dropped frame, a hitstop, a deflect that shortened the recovery:
-        /// none of them can accumulate, because nothing is accumulated. The body is square-on to the
-        /// player at the impact instant, every single time, or the maths is wrong.</para>
+        /// none of them can accumulate, because nothing is accumulated.</para>
         ///
-        /// <para>The travel is deliberately non-uniform. <c>Ease</c> starts at
-        /// <see cref="spinPeakMultiple"/>× the average rate and decays to a small fraction of it, so the
-        /// puppet blurs through the back of the revolution and DECELERATES into the player. The
-        /// deceleration is the wind-up: at the cue (0.28 s out) it is still ~85 degrees off and visibly
-        /// slowing, which is the frame the flash lands on.</para>
+        /// <para><b>The rate is constant; the ARC is what gets chosen.</b> The body has to be square-on
+        /// at the impact instant, so the arc it travels must be a whole number of revolutions past its
+        /// current yaw. Rather than bending the speed to cover a fixed arc — which is what produced the
+        /// pulse — this picks the arc whose implied speed is CLOSEST to <see cref="spinDegPerSec"/> and
+        /// then holds that speed flat for the whole pass. Because 2087 deg/s x the 0.69 s beat is
+        /// exactly four revolutions, the chosen arc is normally exactly right and the correction is
+        /// zero.</para>
+        ///
+        /// <para>When it cannot be zero — the spin-out arrives 0.21 s late by design — the nudge is
+        /// capped at <see cref="maxRateCorrection"/>. <b>If the cap binds, the constant rate wins and
+        /// the body arrives at whatever yaw it arrives at.</b> A visible speed change is a worse defect
+        /// than a body that is 40 degrees off at the blow: the spin is the whole read.</para>
         /// </summary>
         void BeginPass(float secondsToImpact)
         {
             if (spinHalted) return;
-            // Travel forward from wherever the follow-through left us to the next alignment. Below most
-            // of a revolution it stops reading as "it came around" and starts reading as a twitch, so a
-            // short remainder is topped up with a whole extra turn instead.
-            float arc = Mathf.Repeat(spinPhase, 360f);
-            if (arc < 280f) arc += 360f;
-            passArc = arc;
-            passT0 = Time.time;
+
             passDur = Mathf.Max(0.05f, secondsToImpact);
-            passPeak = ResolvePeak(passArc / passDur, smoothedDt);
+            float want = ResolveRate();
+
+            // Arc must be congruent to the current yaw mod 360 to land square-on, so the candidates are
+            // phi, phi+360, phi+720... Pick the one closest to the constant rate, and never fewer than
+            // one whole turn: below that it reads as a twitch rather than as the body coming round.
+            float phi = Mathf.Repeat(spinPhase, 360f);
+            float turns = Mathf.Round((want * passDur - phi) / 360f);
+            if (turns < 1f) turns = 1f;
+            float arc = phi + 360f * turns;
+
+            float implied = arc / passDur;
+            float lo = want * (1f - maxRateCorrection), hi = want * (1f + maxRateCorrection);
+            if (implied < lo || implied > hi)
+            {
+                // No whole-revolution arc fits inside the band. Hold the speed, drop the alignment.
+                passRate = want;
+                passArc = want * passDur;
+            }
+            else
+            {
+                passRate = implied;
+                passArc = arc;
+            }
+
+            passT0 = Time.time;
             passInFlight = true;
             squaring = false;
-            freeSpin = 0f;
+            freeSpin = passRate;
         }
 
         void UnwindToSquare()
@@ -314,69 +347,27 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// The arrival curve. 0..1 of the revolution travelled, given 0..1 of the pass elapsed.
+        /// <see cref="spinDegPerSec"/>, lowered only if the display cannot show it: the body may never
+        /// step more than <see cref="maxDegPerFrame"/> of yaw per RENDERED frame.
         ///
-        /// <para><b>Both endpoints are authored, and both are exact.</b>
-        /// <c>f(k) = m(1 - (1-k)^p) + tail·k</c> with <c>m = 1 - tail</c> and
-        /// <c>p = (peak - tail) / m</c> gives <c>f(0)=0</c>, <c>f(1)=1</c>, <c>f'(0)=peak</c> and
-        /// <c>f'(1)=tail</c> — so <see cref="spinPeakMultiple"/> and <see cref="spinTailMultiple"/>
-        /// mean literally what they say, as multiples of the average rate, rather than being knobs
-        /// that happen to correlate with speed.</para>
+        /// <para>Past roughly 90 deg a frame a 2-fold-symmetric silhouette (a humanoid with its arms
+        /// out) stops reading as rotation and becomes apparent random orientation, so on a machine that
+        /// cannot render the spin the honest thing is to slow it rather than let it strobe. At 60 fps
+        /// and the shipped 2087 deg/s the step is 35 deg and this never binds.</para>
         ///
-        /// <para><b>This replaced a cubic whose peak SATURATED AT 3.</b> The old form was
-        /// <c>w·(1-(1-k)³) + (1-w)k</c> with <c>w = clamp01((peak-1)/2)</c>: at <c>peak = 3</c> the
-        /// clamp pinned <c>w</c> to 1, so every authored value from 3 to the Inspector's own maximum of
-        /// 4 produced the identical curve. The field could be raised and nothing on screen would change,
-        /// with nothing in the console — the same class of trap as an authored angle that is not an
-        /// on-screen angle. The form here reduces EXACTLY to the old one at <c>peak 2.5, tail 0.25</c>
-        /// (both give <c>m=0.75, p=3</c>), so this is a widening of the reachable range and not a
-        /// re-tune of the shape. <see cref="PuppetSpinTests"/> pins both facts.</para>
-        ///
-        /// <para>Monotone for every legal input: <c>f'(k) = m·p·(1-k)^(p-1) + tail</c>, and all three
-        /// factors are non-negative. The body can therefore never travel backwards mid-pass, which would
-        /// read as a second, different move.</para>
+        /// <para>Pure and static so it can be unit tested. Degenerate inputs — a zero frame time on the
+        /// first frame of a scene, a disabled guard — return the authored rate rather than a nonsense
+        /// one.</para>
         /// </summary>
-        public static float Ease(float k, float peakMultiple, float tailMultiple)
+        public static float ResolveRate(float degPerSec, float frameSeconds, float maxDegPerFrame)
         {
-            k = Mathf.Clamp01(k);
-            float tail = Mathf.Clamp(tailMultiple, 0f, 0.9f);
-            float m = 1f - tail;
-            // peak may not drop below 1, or p < 1 and the curve would start SLOW and accelerate into
-            // the player — the exact opposite of the read the whole fight is built on.
-            float peak = Mathf.Max(peakMultiple, 1f);
-            float p = (peak - tail) / m;
-            return m * (1f - Mathf.Pow(1f - k, p)) + tail * k;
+            if (frameSeconds <= 0.0001f || maxDegPerFrame <= 0f) return Mathf.Max(0f, degPerSec);
+            return Mathf.Min(Mathf.Max(0f, degPerSec), maxDegPerFrame / frameSeconds);
         }
 
-        /// <summary>
-        /// <see cref="spinPeakMultiple"/> lowered, if it must be, so that the fastest instant of the
-        /// revolution still steps less than <see cref="maxDegPerFrame"/> per RENDERED frame.
-        ///
-        /// <para>Pure and static so it can be unit tested; see <see cref="maxDegPerFrame"/> for why the
-        /// limit exists at all. Note what is NOT done here: the phase is never clamped. Clamping the
-        /// phase would let the body lag its own schedule and arrive late, breaking the one invariant the
-        /// whirl has — square-on to the player at the impact instant. Lowering the PEAK instead keeps
-        /// the arrival exact and spends the frame budget by making the turn more uniform, which is the
-        /// right thing to lose: on a machine that cannot render the blur, the blur was never going to
-        /// be seen anyway.</para>
-        /// </summary>
-        /// <param name="averageDegPerSec">The pass's mean angular rate, <c>arc / duration</c>.</param>
-        /// <param name="frameSeconds">Smoothed REAL seconds per frame.</param>
-        public static float ResolvePeak(float peakMultiple, float tailMultiple,
-                                        float averageDegPerSec, float frameSeconds, float maxDegPerFrame)
+        float ResolveRate()
         {
-            if (averageDegPerSec <= 0.01f || frameSeconds <= 0.0001f || maxDegPerFrame <= 0f)
-                return Mathf.Max(peakMultiple, 1f);
-            float affordable = (maxDegPerFrame / frameSeconds) / averageDegPerSec;
-            // Never below 1: a perfectly uniform turn is the floor. Below that the guard would start
-            // making the body DECELERATE into a slower arrival than a plain constant spin, which is a
-            // worse read than the aliasing it is trying to avoid.
-            return Mathf.Clamp(peakMultiple, 1f, Mathf.Max(1f, affordable));
-        }
-
-        float ResolvePeak(float averageDegPerSec, float frameSeconds)
-        {
-            return ResolvePeak(spinPeakMultiple, spinTailMultiple, averageDegPerSec, frameSeconds, maxDegPerFrame);
+            return ResolveRate(spinDegPerSec, smoothedDt, maxDegPerFrame);
         }
 
         // ---------------------------------------------------------------- clip playback
@@ -451,8 +442,11 @@ namespace VibeGame1
                 }
                 else if (passInFlight)
                 {
+                    // LINEAR. The body covers passArc at a flat passRate and reaches 0 exactly at the
+                    // impact. There is no curve here any more and there must not be one: any easing,
+                    // however gentle, is a speed change, and a speed change every 0.69 s IS the pulse.
                     float k = Mathf.Clamp01((Time.time - passT0) / passDur);
-                    spinPhase = passArc * (1f - Ease(k, passPeak, spinTailMultiple));
+                    spinPhase = passArc * (1f - k);
                 }
                 else if (squaring)
                 {
@@ -466,9 +460,11 @@ namespace VibeGame1
                 }
                 else
                 {
-                    // Between passes: carry the follow-through, decaying toward the idle drift, and
-                    // keep counting DOWN toward alignment so the next BeginPass has a sane remainder.
-                    freeSpin = Mathf.MoveTowards(freeSpin, idleSpinDegPerSec, spinSettleAccel * dt);
+                    // Between passes: the SAME constant rate, not a follow-through that decays to an
+                    // idle drift. The gap between two passes is 0.2 s of a 0.69 s beat, so a body that
+                    // sagged from 2087 to 55 deg/s in it spent nearly a third of every beat visibly
+                    // slowing down and speeding back up. That was half the pulse.
+                    freeSpin = ResolveRate();
                     spinPhase -= freeSpin * dt;
                     if (spinPhase < 0f) spinPhase += 360f;
                 }

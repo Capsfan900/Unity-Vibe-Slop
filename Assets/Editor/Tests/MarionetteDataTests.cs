@@ -322,55 +322,52 @@ namespace VibeGame1.Tests
         [Test]
         public void TheWhirlSpeedIsShippedOnThePrefab_NotLeftToAFieldInitialiser()
         {
-            // Hard rule 9, for the three numbers that decide how fast the thing actually looks. These
-            // used to rely on PuppetVisuals' C# field initialisers, which meant the prefab carried
-            // whatever the initialiser said on the day it was last built and editing the initialiser
-            // afterwards changed nothing, silently. MiniBossFactory.WireAnimatedBody now writes them.
+            // Hard rule 9, for the numbers that decide how the thing actually moves. These used to rely
+            // on PuppetVisuals' C# field initialisers, which meant the prefab carried whatever the
+            // initialiser said on the day it was last built and editing it afterwards changed nothing,
+            // silently. MiniBossFactory.WireAnimatedBody now writes them.
             var pv = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Legendary_Marionette.prefab")
                         .GetComponentInChildren<PuppetVisuals>(true);
             Assert.IsNotNull(pv);
 
-            Assert.Greater(pv.spinPeakMultiple, 3f,
-                "spinPeakMultiple is " + pv.spinPeakMultiple + ". Anything at or below 3 is the OLD " +
-                "cubic's saturation point and the fight is back to the slow whirl — rebuild with " +
-                "VibeGame1/4b. Build Mini-Bosses.");
-            Assert.That(pv.spinTailMultiple, Is.InRange(0.05f, 0.5f),
-                "spinTailMultiple " + pv.spinTailMultiple + " — at 0 the body stops dead on the " +
-                "alignment and the arrival reads as a separate pose beat; above ~0.5 there is not " +
-                "enough deceleration left for the slowdown to BE the wind-up.");
+            Assert.Greater(pv.spinDegPerSec, 1440f,
+                "spinDegPerSec is " + pv.spinDegPerSec + " — under 4 revolutions a second is not the " +
+                "aggressive constant spin the fight is built on. Rebuild with VibeGame1/4b.");
             Assert.Greater(pv.maxDegPerFrame, 0f,
-                "the alias guard is disabled; on a 30 fps machine the whirl will strobe into noise.");
+                "the alias guard is disabled; on a slow machine the whirl will strobe into noise.");
+            Assert.That(pv.maxRateCorrection, Is.InRange(0.01f, 0.2f),
+                "maxRateCorrection " + pv.maxRateCorrection + " — at 0 the body can never land square-on " +
+                "at an off-beat impact, and much above 0.2 the correction becomes a visible speed change, " +
+                "which is the pulse coming back.");
         }
 
         [Test]
-        public void ThePeakWhirlRate_IsFastButStillReadsAsRotation()
+        public void TheSpinIsCONSTANT_AWholeNumberOfRevolutionsPerBeat()
         {
-            // The user-facing claim ("way faster") and the perceptual ceiling, in one place.
-            // One revolution per pass, travelled in (windup + impactDelay), with the peak instant at
-            // spinPeakMultiple x the average. Above roughly 90 deg per rendered frame a 2-fold
-            // symmetric silhouette stops reading as rotation at all, so the guard has to leave real
-            // headroom at 60 fps or it would be doing nothing.
+            // The property the whole fight now rests on, checked against the SHIPPED beat rather than a
+            // constant copied into the test. If the beat is retuned and the rate is not, every pass
+            // needs its arc corrected, a corrected arc is a changed speed, and the pulse is back.
+            var d = Data();
+            var pass = Atk("Marionette_SpinPass");
             var pv = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Legendary_Marionette.prefab")
                         .GetComponentInChildren<PuppetVisuals>(true);
-            var pass = Atk("Marionette_SpinPass");
 
-            float passSeconds = pass.windup + pass.impactDelay;
-            float average = 360f / passSeconds;
-            float peak = average * pv.spinPeakMultiple;
+            float gap = Mathf.Max(GapFloor, pass.comboGap * Mathf.Lerp(1f, 0.45f, d.aggression));
+            float beat = pass.windup + gap + pass.impactDelay + pass.strikeDuration;
 
-            Assert.Greater(peak, 2500f,
-                "peak whirl is " + peak.ToString("F0") + " deg/s. The brief was 'way faster'; the " +
-                "version this replaced peaked at ~1350 deg/s.");
-            Assert.Less(peak * (1f / 60f), 90f,
-                "at 60 fps the body steps " + (peak / 60f).ToString("F0") + " deg per frame, past the " +
-                "~90 deg alias threshold for a 2-fold symmetric silhouette — the spin would read as " +
-                "random orientation rather than as rotation, on a machine hitting the target frame rate.");
+            float revs = pv.spinDegPerSec * beat / 360f;
+            Assert.AreEqual(Mathf.Round(revs), revs, 0.02f,
+                "the spin covers " + revs.ToString("F3") + " revolutions per " + beat.ToString("F3") +
+                "s beat, so it cannot land square-on without changing speed. Set spinDegPerSec to " +
+                (360f * Mathf.Round(revs) / beat).ToString("F0") + ".");
 
-            // And the guard must be slack at 60 fps: if it were binding there it would be flattening
-            // the curve on ordinary hardware rather than only rescuing slow machines.
-            Assert.AreEqual(pv.spinPeakMultiple,
-                PuppetVisuals.ResolvePeak(pv.spinPeakMultiple, pv.spinTailMultiple, average, 1f / 60f, pv.maxDegPerFrame),
-                0.001f, "the alias guard is clamping the peak at 60 fps, so the shipped value is a lie.");
+            // And it must survive the alias guard on the hardware the game targets.
+            Assert.AreEqual(pv.spinDegPerSec,
+                PuppetVisuals.ResolveRate(pv.spinDegPerSec, 1f / 60f, pv.maxDegPerFrame), 0.01f,
+                "the alias guard clamps at 60 fps, so the shipped rate is not the rate anyone sees.");
+            Assert.Less(pv.spinDegPerSec / 60f, 90f,
+                "at 60 fps the body steps " + (pv.spinDegPerSec / 60f).ToString("F0") +
+                " deg per frame, past the ~90 deg alias threshold.");
         }
 
         [Test]

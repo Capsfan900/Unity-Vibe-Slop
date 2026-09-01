@@ -405,12 +405,16 @@ namespace VibeGame1.EditorTools
             // and said nothing — the exact trap rule 9 exists for. Written here, they are rebuilt
             // with the prefab and MarionetteDataTests reads them back off the asset.
             //
-            // peak 4.5 / tail 0.25 on a 0.49 s pass is ~3300 deg/s at the fastest instant (about NINE
-            // revolutions a second) decaying to ~184 deg/s as it arrives. The pair is what makes the
-            // spin fast and the arrival readable at the same time; raising peak alone would just move
-            // the blur later, not make the fight harder.
-            pv.spinPeakMultiple = 4.5f;
-            pv.spinTailMultiple = 0.25f;
+            // 2087 deg/s CONSTANT — 5.8 revolutions a second, and the rate never changes: not between
+            // passes, not into an impact, not during the strike. It is derived from the beat rather
+            // than picked by feel: 2087 x 0.69 s = 1440 deg = exactly FOUR revolutions per beat, so the
+            // body returns to the same yaw on every impact with a correction of zero.
+            //
+            // The previous value was an eased curve peaking at 4.5x average and decaying to 0.25x, on
+            // the theory that decelerating into the player was a readable wind-up. Played, it read as a
+            // PULSE — blur, slow, blur, slow — not as a spinning body. Constant is the brief.
+            pv.spinDegPerSec = 2087f;
+            pv.maxRateCorrection = 0.12f;
             // 75 deg/frame: the alias guard. Never binds above ~55 fps at these values; below that it
             // trades blur for legibility rather than letting the body strobe. See PuppetVisuals.
             pv.maxDegPerFrame = 75f;

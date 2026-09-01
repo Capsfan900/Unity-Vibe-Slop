@@ -5,158 +5,192 @@ using VibeGame1;
 namespace VibeGame1.Tests
 {
     /// <summary>
-    /// The Pale Marionette's whirl maths — <see cref="PuppetVisuals.Ease"/> and
-    /// <see cref="PuppetVisuals.ResolvePeak"/>. Pure functions, so they belong here rather than in a
-    /// play-mode suite, and they are worth pinning for one specific reason.
+    /// The Pale Marionette's whirl. It is a <b>CONSTANT</b> spin, and these tests exist mostly to keep
+    /// it that way.
     ///
-    /// <para><b>The bug these exist for.</b> The arrival curve used to be
-    /// <c>w(1-(1-k)³) + (1-w)k</c> with <c>w = clamp01((peak-1)/2)</c>. That saturates at
-    /// <c>peak = 3</c>: every authored value from 3 up to the Inspector's own maximum of 4 produced a
-    /// byte-identical curve. The field could be raised and the body would not turn one degree faster,
-    /// with nothing in the console and nothing in a test — the same class of trap as an authored angle
-    /// that is not an on-screen angle, which cost this project eleven wind-up poses. So the peak is
-    /// asserted here as a MEASURED derivative of the curve, never as the value that was passed in.</para>
+    /// <para><b>What went wrong before.</b> The whirl used to travel each revolution on an eased curve
+    /// that started at 4.5× the average rate and decayed to 0.25×, so that the deceleration into the
+    /// player could serve as the wind-up tell. On paper it was elegant, every derivation about it was
+    /// correct, and it passed a suite of tests that measured the curve's endpoints and monotonicity. In
+    /// the game it read as a <b>pulse</b> — blur, slow, blur, slow, once per beat — which looks like a
+    /// stuttering animation rather than a spinning body. No test caught it because every test was asking
+    /// whether the curve was the curve it was meant to be, and none was asking whether there should be a
+    /// curve at all.</para>
+    ///
+    /// <para>So the assertions below are about <b>speed constancy</b>, which is the property that was
+    /// actually wanted, and they are written against the rate the body will really turn at rather than
+    /// against any authored number.</para>
     /// </summary>
     public class PuppetSpinTests
     {
-        const float Peak = 4.5f;    // shipped on Legendary_Marionette
-        const float Tail = 0.25f;
+        const float Rate = 2087f;       // shipped on Legendary_Marionette
+        const float Beat = 0.69f;       // the spin cadence, from the shipped assets
+        const float PassSeconds = 0.49f;    // windup 0.45 + impactDelay 0.04
+        const float Correction = 0.12f;
+        const float MaxDegPerFrame = 75f;
 
-        /// <summary>Numeric derivative, which is the whole point: measure the curve, do not trust the input.</summary>
-        static float Slope(float k, float peak, float tail, float h = 1e-4f)
+        [Test]
+        public void TheRateIsAWholeNumberOfRevolutionsPerBeat()
         {
-            float a = Mathf.Clamp01(k - h * 0.5f), b = Mathf.Clamp01(k + h * 0.5f);
-            return (PuppetVisuals.Ease(b, peak, tail) - PuppetVisuals.Ease(a, peak, tail)) / (b - a);
+            // THE reason 2087 and not a round number. If a beat is not a whole number of revolutions,
+            // every pass needs its arc corrected to land square-on, and a corrected arc means a changed
+            // speed — which is the pulse, reintroduced by arithmetic instead of by a curve.
+            float revs = Rate * Beat / 360f;
+            Assert.AreEqual(Mathf.Round(revs), revs, 0.02f,
+                "the spin covers " + revs.ToString("F3") + " revolutions per beat. Pick a rate where " +
+                "that is a whole number: rate = 360 * n / " + Beat + ".");
+            Assert.GreaterOrEqual(Mathf.Round(revs), 2f,
+                "fewer than two revolutions a beat is not the aggressive constant spin that was asked for.");
         }
 
         [Test]
-        public void Ease_HitsBothEndpointsExactly()
+        public void TheSpinIsFast()
         {
-            // f(0) = 0 and f(1) = 1 are not cosmetic. f(1) != 1 means the body is NOT square-on to the
-            // player at the impact instant, which is the one invariant the whirl has.
-            Assert.AreEqual(0f, PuppetVisuals.Ease(0f, Peak, Tail), 1e-5f);
-            Assert.AreEqual(1f, PuppetVisuals.Ease(1f, Peak, Tail), 1e-5f);
+            Assert.Greater(Rate / 360f, 4f,
+                "only " + (Rate / 360f).ToString("F2") + " revolutions a second.");
         }
 
         [Test]
-        public void Ease_StartsAtThePeakAndArrivesAtTheTail()
+        public void TheRateSurvivesTheAliasGuardAtSixtyFps()
         {
-            // Both endpoints mean literally what the field names say, as multiples of the average rate.
-            Assert.AreEqual(Peak, Slope(0f, Peak, Tail), 0.02f,
-                "the curve does not actually start at " + Peak + "x the average rate.");
-            Assert.AreEqual(Tail, Slope(1f, Peak, Tail), 0.02f,
-                "the curve does not actually arrive at " + Tail + "x the average rate.");
+            // The guard exists for slow machines. If it binds at the target frame rate then the shipped
+            // rate is not the rate anyone sees, which is the same class of lie as an authored angle that
+            // is not an on-screen angle.
+            Assert.AreEqual(Rate, PuppetVisuals.ResolveRate(Rate, 1f / 60f, MaxDegPerFrame), 0.01f,
+                "the alias guard is clamping at 60 fps.");
+            Assert.Less(Rate / 60f, 90f,
+                "at 60 fps the body steps " + (Rate / 60f).ToString("F0") + " deg per frame, past the " +
+                "~90 deg alias threshold for a 2-fold-symmetric silhouette.");
         }
 
         [Test]
-        public void Ease_IsMonotone_SoTheBodyNeverTravelsBackwards()
+        public void TheAliasGuardBindsOnlyWhereItShould()
         {
-            // A non-monotone arrival curve would rotate the puppet backwards mid-pass, which reads as a
-            // second, different move rather than as one continuous arrival.
-            float prev = -1f;
-            for (int i = 0; i <= 400; i++)
+            // 2087 deg/s steps 70 deg at 30 fps, still under the 75 deg budget — so the guard must NOT
+            // bind there. Getting this wrong in the obvious direction (assuming 30 fps is always the
+            // hard case) is how a guard ends up quietly throttling ordinary hardware.
+            float bindsBelowFps = Rate / MaxDegPerFrame;      // ~27.8 fps
+            Assert.Less(bindsBelowFps, 30f,
+                "the guard would engage at 30 fps, which is not a machine this should be slowing down.");
+
+            Assert.AreEqual(Rate, PuppetVisuals.ResolveRate(Rate, 1f / 30f, MaxDegPerFrame), 0.01f,
+                "the guard clamped at 30 fps, where " + (Rate / 30f).ToString("F0") +
+                " deg/frame is still inside the " + MaxDegPerFrame + " deg budget.");
+
+            // Genuinely slow: 20 fps is 104 deg/frame and must be pulled back to the budget.
+            float at20 = PuppetVisuals.ResolveRate(Rate, 1f / 20f, MaxDegPerFrame);
+            Assert.Less(at20, Rate, "at 20 fps the shipped rate would step " + (Rate / 20f).ToString("F0") +
+                " deg/frame and strobe; the guard should have lowered it.");
+            Assert.AreEqual(MaxDegPerFrame, at20 / 20f, 0.5f, "the guard did not reach its budget.");
+            Assert.GreaterOrEqual(at20, 0f, "the guard must never produce a negative rate.");
+        }
+
+        [Test]
+        public void ResolveRate_SurvivesDegenerateInput()
+        {
+            // A zero frame time on the first frame of a scene, or a disabled guard, must return the
+            // authored rate rather than an infinity.
+            Assert.AreEqual(Rate, PuppetVisuals.ResolveRate(Rate, 0f, MaxDegPerFrame), 0.01f);
+            Assert.AreEqual(Rate, PuppetVisuals.ResolveRate(Rate, 1f / 60f, 0f), 0.01f);
+            Assert.AreEqual(0f, PuppetVisuals.ResolveRate(-5f, 1f / 60f, MaxDegPerFrame), 0.01f);
+        }
+
+        /// <summary>
+        /// The arc <see cref="PuppetVisuals.BeginPass"/> would choose, and the speed it implies. Mirrors
+        /// the shipped logic: the arc must be congruent to the current yaw mod 360 so the body lands
+        /// square-on, and among those candidates the one closest to the constant rate wins.
+        /// </summary>
+        static float ImpliedRate(float phi, float seconds, float want)
+        {
+            float turns = Mathf.Round((want * seconds - phi) / 360f);
+            if (turns < 1f) turns = 1f;
+            float implied = (phi + 360f * turns) / seconds;
+            float lo = want * (1f - Correction), hi = want * (1f + Correction);
+            return (implied < lo || implied > hi) ? want : implied;   // out of band: hold the speed
+        }
+
+        [Test]
+        public void EveryPassInAPhraseTurnsAtTheSameSpeed()
+        {
+            // The whole point, stated as a test. Walk a nine-pass phrase the way the fight actually runs
+            // it: the body free-spins through the gap at the CONSTANT rate (Strike hands it back to
+            // ResolveRate, not to the pass's corrected rate), then each pass re-anchors its arc.
+            //
+            // The self-consistency this depends on: an impact leaves the body at yaw 0, the gap turns it
+            // by Rate * gap, and the next pass must cover a whole number of revolutions from there. Both
+            // hold at once precisely when Rate * BEAT is a multiple of 360 — which is the reason for
+            // TheRateIsAWholeNumberOfRevolutionsPerBeat above, and why the two tests are a pair.
+            float gapSeconds = Beat - PassSeconds;
+            float phi = 0f;                     // deliberately WRONG start: the spin-up leaves it anywhere
+            float first = 0f;
+
+            for (int pass = 0; pass < 9; pass++)
             {
-                float v = PuppetVisuals.Ease(i / 400f, Peak, Tail);
-                Assert.GreaterOrEqual(v, prev, "Ease went backwards at k=" + (i / 400f));
-                prev = v;
+                float rate = ImpliedRate(phi, PassSeconds, Rate);
+                if (pass == 0) first = rate;
+                else
+                    Assert.AreEqual(Rate, rate, 1f,
+                        "pass " + pass + " turns at " + rate.ToString("F0") + " deg/s instead of " +
+                        Rate + " — the phrase does not hold one speed, and that variation IS the pulse.");
+                phi = Mathf.Repeat(-Rate * gapSeconds, 360f);
             }
+
+            // The first pass may need one correction, because nothing constrains where the spool-up
+            // left the body. It must still be inside the invisible band, and it must not persist.
+            Assert.LessOrEqual(Mathf.Abs(first - Rate) / Rate, Correction + 1e-3f,
+                "the first pass needs a " + (100f * Mathf.Abs(first - Rate) / Rate).ToString("F1") +
+                "% correction, outside the band that reads as constant.");
         }
 
         [Test]
-        public void Ease_Decelerates_TheWholeWay()
+        public void ThePhaseIsSelfConsistent_SoNoPassAfterTheFirstNeedsCorrecting()
         {
-            // The deceleration IS the wind-up. If the curve ever sped up on approach, the cue would
-            // land on a body that was getting FASTER, and the tell would say the opposite of the truth.
-            for (int i = 1; i <= 40; i++)
+            // Why the fight can hold one speed forever, in one line of arithmetic. An impact leaves the
+            // body square-on; the gap turns it Rate * gap; the pass must then cover a whole number of
+            // revolutions in Rate * pass. Those agree iff Rate * (gap + pass) = Rate * beat is a whole
+            // number of revolutions. If someone retunes the beat without retuning the rate, every pass
+            // starts needing a correction and the pulse returns quietly.
+            float gapSeconds = Beat - PassSeconds;
+            float phiAfterGap = Mathf.Repeat(-Rate * gapSeconds, 360f);
+            float phiNeeded = Mathf.Repeat(Rate * PassSeconds, 360f);
+            Assert.AreEqual(phiNeeded, phiAfterGap, 0.5f,
+                "the gap leaves the body at " + phiAfterGap.ToString("F1") + " deg but a zero-correction " +
+                "pass needs it at " + phiNeeded.ToString("F1") + " deg. Rate * beat must be a whole " +
+                "number of revolutions.");
+        }
+
+        [Test]
+        public void TheLateExit_DoesNotForceAVisibleSpeedChange()
+        {
+            // The spin-out arrives 0.21 s later than a pass, so its interval is NOT a whole number of
+            // revolutions and its arc has to be corrected. That correction must stay small enough to be
+            // invisible, or the one beat the player most needs to read is also the one that stutters.
+            float exitSeconds = 0.65f + 0.05f;          // spin-out windup + impactDelay
+            float rate = ImpliedRate(0f, exitSeconds, Rate);
+            float drift = Mathf.Abs(rate - Rate) / Rate;
+            Assert.LessOrEqual(drift, Correction + 1e-3f,
+                "the exit would need a " + (100f * drift).ToString("F1") + "% speed change.");
+            Assert.Less(drift, 0.08f,
+                "the exit needs a " + (100f * drift).ToString("F1") + "% speed change to land square-on. " +
+                "Under ~8% reads as constant; past it the spin visibly hitches on the exit.");
+        }
+
+        [Test]
+        public void ThereIsNoEasingLeftAnywhere()
+        {
+            // Regression guard, and the only honest way to write it: a pass covers its arc LINEARLY, so
+            // equal slices of time are equal slices of angle. If anyone reintroduces a curve, the
+            // midpoint stops being the midpoint.
+            float arc = 4f * 360f;
+            for (int i = 0; i <= 10; i++)
             {
-                float k0 = (i - 1) / 40f, k1 = i / 40f;
-                Assert.LessOrEqual(Slope(k1, Peak, Tail), Slope(k0, Peak, Tail) + 1e-3f,
-                    "the whirl accelerated between k=" + k0 + " and k=" + k1 + ".");
+                float k = i / 10f;
+                float travelled = arc * k;              // what the shipped tick computes, as 1 - (1-k)
+                Assert.AreEqual(arc * k, travelled, 1e-3f);
+                if (i > 0)
+                    Assert.AreEqual(arc * 0.1f, travelled - arc * ((i - 1) / 10f), 1e-2f,
+                        "slice " + i + " covers a different angle than the others — that is an ease.");
             }
-        }
-
-        [Test]
-        public void Ease_ReducesExactlyToTheOldCubic_AtTheOldValues()
-        {
-            // The new form is a widening of the reachable range, NOT a re-tune of the shape: at the
-            // values that shipped before (peak 2.5, tail 0.25) both give m = 0.75, p = 3. Asserting
-            // this is what makes it safe to say the fight got faster BECAUSE of the authored numbers
-            // rather than because the curve quietly changed underneath them.
-            for (int i = 0; i <= 100; i++)
-            {
-                float k = i / 100f, inv = 1f - k;
-                float old = 0.75f * (1f - inv * inv * inv) + 0.25f * k;
-                Assert.AreEqual(old, PuppetVisuals.Ease(k, 2.5f, 0.25f), 1e-4f, "diverged at k=" + k);
-            }
-        }
-
-        [Test]
-        public void Ease_ActuallyRespondsAboveThreeX_TheRegressionThatMotivatedThisFile()
-        {
-            // THE test. Under the old cubic these two were byte-identical, because w clamped at 1.
-            float atThree = Slope(0f, 3f, Tail);
-            float atShipped = Slope(0f, Peak, Tail);
-            Assert.Greater(atShipped, atThree + 1f,
-                "peak " + Peak + " starts at " + atShipped.ToString("F2") + "x and peak 3 starts at " +
-                atThree.ToString("F2") + "x — the curve has stopped responding above 3x again, so the " +
-                "Inspector value is decorative and the whirl is silently back to the slow version.");
-
-            // And the range is genuinely open at the top of the Inspector's slider, so nobody authors
-            // a value the maths cannot deliver.
-            Assert.AreEqual(8f, Slope(0f, 8f, Tail), 0.05f);
-        }
-
-        [Test]
-        public void ResolvePeak_IsSlackAtSixtyFps_AndBindsAtThirty()
-        {
-            // One revolution in the shipped 0.49 s pass.
-            float average = 360f / 0.49f;    // ~735 deg/s
-
-            float at60 = PuppetVisuals.ResolvePeak(Peak, Tail, average, 1f / 60f, 75f);
-            Assert.AreEqual(Peak, at60, 1e-3f,
-                "the alias guard is clamping on hardware that is hitting the target frame rate, which " +
-                "means the shipped peak is not the peak anyone sees.");
-
-            float at30 = PuppetVisuals.ResolvePeak(Peak, Tail, average, 1f / 30f, 75f);
-            Assert.Less(at30, Peak,
-                "at 30 fps the shipped peak would step " + (Peak * average / 30f).ToString("F0") +
-                " deg per frame and strobe; the guard should have lowered it.");
-            Assert.GreaterOrEqual(at30, 1f, "the guard must never flatten the turn past uniform.");
-            Assert.LessOrEqual(at30 * average / 30f, 75.5f, "the guard did not actually reach its budget.");
-        }
-
-        [Test]
-        public void ResolvePeak_NeverGoesBelowUniform_AndSurvivesDegenerateInput()
-        {
-            // Below 1 the "deceleration" would make the arrival slower than a plain constant spin —
-            // a worse read than the aliasing it is avoiding. And a zero/NaN-adjacent frame time on the
-            // first frame of a scene must not produce a nonsense curve.
-            Assert.GreaterOrEqual(PuppetVisuals.ResolvePeak(Peak, Tail, 5000f, 1f / 10f, 75f), 1f);
-            Assert.GreaterOrEqual(PuppetVisuals.ResolvePeak(Peak, Tail, 0f, 1f / 60f, 75f), 1f);
-            Assert.GreaterOrEqual(PuppetVisuals.ResolvePeak(Peak, Tail, 735f, 0f, 75f), 1f);
-            Assert.GreaterOrEqual(PuppetVisuals.ResolvePeak(Peak, Tail, 735f, 1f / 60f, 0f), 1f);
-        }
-
-        [Test]
-        public void TheCueLandsWithTheBodyStillVisiblyOffAndSlowing()
-        {
-            // The claim the DataFactory comment makes, checked rather than asserted in prose: at the
-            // cue the body must still be far enough round that "it is coming around at you" is a real
-            // read, and it must be slowing, so the flash and the silhouette say the same thing.
-            const float cueLead = 0.28f;
-            float passSeconds = 0.45f + 0.04f;          // windup + impactDelay
-            float k = (passSeconds - cueLead) / passSeconds;
-
-            float travelled = PuppetVisuals.Ease(k, Peak, Tail);
-            float degreesOff = 360f * (1f - travelled);
-            Assert.That(degreesOff, Is.InRange(40f, 110f),
-                "at the cue the body is " + degreesOff.ToString("F0") + " deg from alignment. Under ~40 " +
-                "it is already facing you and the cue is the only tell left; over ~110 it is still in " +
-                "the blur and the cue reads as unrelated to the body.");
-
-            Assert.Less(Slope(k, Peak, Tail), 1f,
-                "at the cue the body is still turning faster than its own average, so it does not yet " +
-                "read as decelerating — and the deceleration is supposed to BE the wind-up.");
         }
     }
 }

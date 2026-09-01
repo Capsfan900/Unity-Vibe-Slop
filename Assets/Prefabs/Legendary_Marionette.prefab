@@ -1484,11 +1484,9 @@ MonoBehaviour:
   maxClipSpeed: 3.5
   clipBlend: 0.07
   spinAttackPrefix: Marionette_Spin
-  spinPeakMultiple: 4.5
-  spinTailMultiple: 0.25
+  spinDegPerSec: 2087
+  maxRateCorrection: 0.12
   maxDegPerFrame: 75
-  followThroughDegPerSec: 260
-  idleSpinDegPerSec: 55
   squaredWobbleDeg: 5
   squaredWobbleHz: 0.8
   spinSettleAccel: 900

@@ -328,15 +328,33 @@ what was asked for.
 It exists to answer two questions the project had not answered:
 
 **1. Can an enemy spin genuinely fast without breaking the 0.45 s wind-up floor?**
-Yes, because *visual spin rate and hit cadence are different quantities*. The body's peak angular speed
-is **3306 °/s — 9.2 revolutions a second** — and the damaging passes arrive every **0.69 s** from a
-**0.45 s** wind-up. One revolution is still exactly one pass, so "parry it each time it comes around"
-holds literally; the speed comes from the revolution being **non-uniform**. Each pass travels a whole
-turn on a curve that starts at 4.5× the average rate and arrives at 0.25×, so the puppet blurs through
-the back of the turn and **decelerates into you**. The deceleration IS the wind-up: at the cue, 0.28 s
-out, it is still ~63° off and turning at only 0.56× its own average, and the cue flash lands as it
-comes round the corner. Nothing about that touches timing — `PuppetVisuals` writes one local yaw on a
+Yes, because *visual spin rate and hit cadence are different quantities*. The body turns at a
+**CONSTANT 2087 °/s — 5.8 revolutions a second** — and never changes speed: not into an impact, not
+during the strike, not in the gap between passes. The damaging passes arrive every **0.69 s** from a
+**0.45 s** wind-up. Nothing about the spin touches timing — `PuppetVisuals` writes one local yaw on a
 dedicated `SpinRoot` transform and nothing else.
+
+**It used to ease, and that was wrong.** The first version travelled each revolution on a curve starting
+at 4.5× the average rate and decaying to 0.25×, so that decelerating into the player could serve as the
+wind-up tell. Every derivation about that curve was correct and it passed a suite of tests measuring its
+endpoints, monotonicity and exactness. Played, it read as a **pulse** — blur, slow, blur, slow, once a
+beat — which looks like a stuttering animation, not a spinning body. *No test caught it, because every
+test asked whether the curve was the curve it was meant to be and none asked whether there should be a
+curve at all.* There were two pulse sources, and the second was worse: between passes the body fell to a
+55 °/s "idle drift", so it visibly sagged and re-spooled in every one of the 0.20 s gaps.
+
+**With a constant rate there is no positional tell left, and that is the point.** The parry rides
+entirely on the cue flash and its audio at `cueLead`, so the fight demands precise timing against a
+signal rather than pattern-matching against a slowdown.
+
+**2087 is derived, not chosen by feel.** 2087 × 0.69 s = 1440° = exactly **four revolutions per beat**,
+so an impact leaves the body square-on, the gap turns it by a whole-number remainder, and the next pass
+covers a whole number of revolutions from there — all at one unchanging speed, forever, with a
+correction of zero. That self-consistency is what
+`MarionetteDataTests.TheSpinIsCONSTANT_AWholeNumberOfRevolutionsPerBeat` and
+`PuppetSpinTests.ThePhaseIsSelfConsistent_SoNoPassAfterTheFirstNeedsCorrecting` protect: retune the
+beat without retuning the rate and every pass silently starts needing a speed correction, which is the
+pulse returning by arithmetic instead of by a curve.
 
 **The wind-up is exactly ON the floor, and that is the ceiling.** 0.69 s is the fastest parry cadence
 this game can legally ask for, which is arithmetic rather than taste: the cue fires `cueLead` (0.28 s)
@@ -346,14 +364,21 @@ fire before the wind-up began and the pass would stop being parryable at all. Th
 session wants the passes closer together, that is the conversation to have — not this number.
 `MarionetteDataTests.TheBeatSitsExactlyOnTheParryContractsFloor` is deliberately brittle about it.
 
-**Two guards on the whirl, both new.** The arrival curve is `PuppetVisuals.Ease`, and its peak and tail
-are now *exact* — `f'(0) = peak`, `f'(1) = tail`, as multiples of the average rate — where the previous
-cubic **saturated at 3×** and silently ignored anything above it. And `ResolvePeak` clamps the peak
-against the *measured* frame time so the body never steps more than 75° per rendered frame: past roughly
-90° a frame a 2-fold-symmetric silhouette stops reading as rotation and becomes random orientation. At
-60 fps the guard is slack (55°/frame); at 30 fps it trades blur for legibility rather than strobing. It
-lowers the **peak**, never the phase — clamping the phase would let the body arrive late and break the
-one invariant the whirl has.
+**The alias guard.** `PuppetVisuals.ResolveRate` clamps the constant rate against the *measured* frame
+time so the body never steps more than 75° per rendered frame: past roughly 90° a frame a
+2-fold-symmetric silhouette stops reading as rotation and becomes apparent random orientation. At 60 fps
+the step is **34.8°** and the guard is slack; it only engages below ~28 fps, where it slows the spin
+rather than letting it strobe. It never clamps the *phase* — that would let the body arrive late and
+break the one invariant the whirl has.
+
+**Alignment is bought with the ARC, never with the rate.** When an impact's interval is not a whole
+number of revolutions — the spin-out, which arrives 0.21 s late by design — `BeginPass` nudges the arc
+within `maxRateCorrection` (12%). If no whole-revolution arc fits inside that band, **the constant rate
+wins and the body simply arrives at a different yaw**: a visible speed change is a worse defect than a
+body that is a few tens of degrees off at the blow, because the spin is the whole read.
+
+Measured from the rendered frames (`SpinFilm`, 31 frames at 60 fps): **34.8° every single frame, speed
+variation 0.0**, 4.000 revolutions per beat.
 
 **The cadence cannot drift**, which is the other half of making a rhythm learnable. The whirl's phase
 is not integrated forward between passes; it is re-derived every beat from where the body actually is
