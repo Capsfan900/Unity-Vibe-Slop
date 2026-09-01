@@ -42,7 +42,7 @@ the origin and the widest aggro range in the arena is 18 m, so you walk to the f
 | **Player spawn** | centre `(0, 1.2, 0)`, facing +Z | `StartSpawn`, also wired to `LevelManager.startSpawn` |
 | **Platforming staircase** | north-east, `Jump_1`…`Jump_5` | Five steps, each a **1.5 m rise over a ~1.7 m gap** — the project reachability limit is rise ≤ 1.5 m with gap ≤ 4.5 m. Tops at 1.5 / 3.0 / 4.5 / 6.0 / 7.5 |
 | **Dash gap** | north-west, `Dash_A` → `Dash_B` | Two level pads **7 m apart edge-to-edge**: too far to jump, comfortable with a dash. Yellow trim |
-| **Enemy pads** | south wall, z = −18 | Seven pads, each with a live `EnemySpawner`: `Pad_Legendary_Marionette` (x −22), `Pad_Grunt` (x −14), `Pad_Heavy` (x −5), `Pad_Boss` (x 8), then `Pad_Legendary_Ninja` (x 16), `Pad_Legendary_Knight` (x 21), `Pad_Legendary_Spellsword` (x 26). The Marionette is at the **west** end rather than on the eastern run: the Spellsword pad's edge is already 1.5 m off the x = 30 wall, and two duellists squeezed together there would sit inside each other's 18 m aggro |
+| **Enemy pads** | south wall, z = −18 | Eight pads, each with a live `EnemySpawner`: `Pad_Legendary_Revenant` (x −28), `Pad_Legendary_Marionette` (x −22), `Pad_Grunt` (x −14), `Pad_Heavy` (x −5), `Pad_Boss` (x 8), then `Pad_Legendary_Ninja` (x 16), `Pad_Legendary_Knight` (x 21), `Pad_Legendary_Spellsword` (x 26). The two prototypes are at the **west** end rather than on the eastern run: the Spellsword pad's edge is already 1.5 m off the x = 30 wall, and duellists squeezed together there would sit inside each other's aggro. The Revenant sits 6 m west of the Marionette for the same reason — its own aggro is 20 m, and two duellists that pull each other make a sandbox you cannot use to look at either of them |
 | **Wand altar** | `(0, 0, 2.5)`, 2.5 m in front of the spawn | `WandPedestal_Start` — stone plinth, cyan crystal, 3 m trigger that reaches the spawn point. Look at it and press **F** to open the wand-select menu. Same contract as the campaign level: the riposte loadout is a pre-run commitment |
 | **Item pedestals** | west side, x = −22 | One stone pedestal per `ItemData` in `Assets/Data/Items`, 5 m apart, pickup floating 1.2 m above the pedestal top |
 | **Weapon rack** | east side, x = 22 | Four marker pads with posts colour-keyed to Sword / Hammer / Dagger / DevBlade. Purely visual — swap weapons with keys **1–4** |
@@ -56,6 +56,14 @@ or run `VibeGame1/1. Project Setup` with this scene open.
 
 `Legendary_Ninja`, `Legendary_Knight`, `Legendary_Spellsword` and `Legendary_Marionette` (built by
 `Assets/Editor/MiniBossFactory.cs`) each get a pad, a live spawner and a `SpawnEnemyInFront` index.
+
+**`Legendary_Revenant` — THE EMBER REVENANT — is a prototype and lives here only**, alongside the
+Marionette. It is the test body for the `ai_skelly_tool` pipeline and the project's first BURNING
+enemy: `EmberAura` gives it a constant emission floor, embers rising off the body and one weak light,
+all riding `Posture.Ratio` so it stokes up as its posture breaks. Where the Marionette is a cadence you
+HOLD, the Revenant is a READ — slow, committed swings with real openings, and the longest punish window
+in the game on its overhead. Wake it with `Wake_Legendary_Revenant` at x − 28.
+See `docs/ARCHITECTURE.md` → *The Ember Revenant*.
 
 **`Legendary_Marionette` — THE PALE MARIONETTE — is a prototype and lives here only.** It is in no
 `LevelDefinition` and no `LevelRegistry`, and this pad plus index **6** is the only way to meet it. It
@@ -107,7 +115,7 @@ context-menu item (right-click the component header in the Inspector):
 
 | Method | What it does |
 |---|---|
-| `SpawnEnemyInFront(int index)` | Drops `enemyPrefabs[index]` on the NavMesh in front of you, facing you. **0** = Grunt · **1** = Heavy · **2** = Boss · **3** = Legendary_Ninja (THE THIRTEENTH SHADE) · **4** = Legendary_Knight (THE IRON PENITENT) · **5** = Legendary_Spellsword (THE ASHEN CHORISTER) · **6** = Legendary_Marionette (THE PALE MARIONETTE, prototype). The list is **append-only** — 0–2 are documented everywhere and must never be renumbered |
+| `SpawnEnemyInFront(int index)` | Drops `enemyPrefabs[index]` on the NavMesh in front of you, facing you. **0** = Grunt · **1** = Heavy · **2** = Boss · **3** = Legendary_Ninja (THE THIRTEENTH SHADE) · **4** = Legendary_Knight (THE IRON PENITENT) · **5** = Legendary_Spellsword (THE ASHEN CHORISTER) · **6** = Legendary_Marionette (THE PALE MARIONETTE, prototype) · **7** = Legendary_Revenant (THE EMBER REVENANT, prototype). The list is **append-only** — 0–2 are documented everywhere and must never be renumbered |
 | `SpawnDummy()` | An **inert practice dummy**: a Grunt with `aggroLocked = true` and ~1M HP, for drilling swing timing, hit reactions and posture damage against a target that never fights back |
 | `ActivateBoss()` | Wakes the boss (no arena trigger in this scene) |
 | `ClearAllEnemies()` | Instant **despawn** of everything, spawner-owned included — no death animation, no souls. `TestMenu`'s "Kill Nearby" is the one that kills properly. **Also switches pad auto-respawn off**, or the pads would simply refill a few seconds later and "clear" would look broken |
