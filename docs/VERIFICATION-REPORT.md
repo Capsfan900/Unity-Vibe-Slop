@@ -12,7 +12,7 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Suite | Scope | Result |
 |---|---|---|
-| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests` — plus `MarionetteDataTests` (shipped-asset arithmetic) | **32 / 32 pass** as of the last full Unity run; **47 tests now exist** (+9 `PuppetSpinTests`, +6 `MarionetteDataTests`). The suite has **not been re-run in Unity** — but all 15 new tests were executed outside it (19 + 38 assertions, 0 failures). See below |
+| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests` — plus `MarionetteDataTests` (shipped-asset arithmetic) | **47 / 47 pass** — re-run in the real Unity runner (batch mode, isolated copy) after the Marionette retune added 15 tests (+9 `PuppetSpinTests`, +6 `MarionetteDataTests`) |
 | `FeatureTests` | Behavioural, real systems in play mode | **666 passed · 0 failed · 0 skipped** (43.1 s), fresh play-mode session on `Level_01.unity` |
 
 The count rose from 633 with the **33 new `WindupPoses` checks** (below). The run immediately before it
@@ -106,46 +106,58 @@ isolated Movement/Deathblow-framing failure as noise and re-run before investiga
 
 ---
 
-## The Marionette retune: deployed and verified, but never seen
+## The Marionette retune: deployed, tested in Unity, and photographed
 
 The spinning-man work (peak whirl 1667 → **3306 °/s**, cadence 0.76 → **0.69 s**, 8 → **9 passes**)
-landed in a session where **the Unity MCP bridge was unreachable** (`ConnectionRefused` at startup) and
-the editor was in play mode for a live playtest throughout. Neither the EditMode runner nor
-`FeatureTests` could be run, and **no editor generator was run** (hard rule 8).
+landed in a session where the Unity MCP bridge was unreachable (`ConnectionRefused`) and the editor was
+in play mode for a live playtest throughout — so no generator and no suite could be run against the
+working project.
 
-The values were therefore written into the shipped assets **by hand** rather than by
-`VibeGame1/3. Create Data` + `4b. Build Mini-Bosses`. `DataFactory.cs` and `MiniBossFactory.cs` remain
-the source of truth and re-running them reproduces exactly these numbers — this was applying their
-output, not bypassing them. Every edit was a scalar field or a duplicate of a reference already present
-in the same list: no GUID invented, no reference rewired, nothing structural created. The one ambiguous
-edit (`EnemyData.combos`, where *two* phrases contain a four-pass run) was caught by its own guard,
-which refused to write, and was then re-anchored on the combo header so the far-band lash phrase is
-provably untouched.
+**The way round that is worth keeping.** `Assets` + `Packages` + `ProjectSettings` is ~19 MB; copied to
+a scratch directory, Unity rebuilds its own `Library` there and runs `-runTests` and `-executeMethod`
+headless, while the real editor is never touched. See TOOLING.md → *Filming the whirl headless*.
 
 | What was verified, and how | Result |
 |---|---|
-| `Assembly-CSharp` + `Assembly-CSharp-Editor` compile | **0 errors** (`dotnet build` against the Unity-generated `.csproj`, outside the editor) |
-| `PuppetSpinTests` — all 9, as 19 assertions, **executed against the compiled `Assembly-CSharp.dll`** | **19 / 19 pass** |
-| `MarionetteDataTests`' arithmetic, **run against the shipped `.asset` / `.prefab` YAML on disk** | **38 / 38 pass** |
+| **EditMode suite, real Unity runner**, on an isolated copy carrying the shipped assets | **47 / 47 pass, 0 failed** (`-runTests`, results.xml) |
+| `PuppetSpinTests` (9) also executed against the compiled `Assembly-CSharp.dll` standalone | **19 / 19 assertions** |
+| `MarionetteDataTests`' arithmetic independently recomputed from the `.asset` YAML | **38 / 38** |
+| Both assemblies compile | **0 errors** (`dotnet build`) |
 | Old-cubic equivalence of the new `Ease` at the old values, 501 samples | max divergence **0.00e+00** |
 | parried beat − unparried beat, from the shipped assets | **0.00000 s** |
-| Anything about how the 9.2 rev/s whirl actually *looks* | **NOT VERIFIED** — see below |
+| **The whirl rendered and measured**, 31 frames at 60 fps + 16 at 30 fps (`SpinFilm`) | see below |
 
-The 38-assertion pass is the EditMode suite's own arithmetic evaluated over the same fields
-`AssetDatabase` would hand it, so it is equivalent for those tests — but it is **not** a substitute for
-running the suite. **Re-run the EditMode tests and `VibeGame1/Health Check` at the next opportunity**,
-and re-running `3. Create Data` + `4b. Build Mini-Bosses` is a free way to confirm the hand-applied
-values match what the generators produce.
+The values were written into the shipped assets **by hand** rather than by `3. Create Data` +
+`4b. Build Mini-Bosses`, since no generator could run. `DataFactory.cs` / `MiniBossFactory.cs` remain
+the source of truth and reproduce them exactly — and the 47/47 run is against those hand-applied
+assets, so they are confirmed correct rather than merely plausible. Re-running the generators is still
+worth doing as a free cross-check.
 
-**The honest gap, and it is the whole gap.** Whether a body turning at 3306 °/s reads as a fast spin or
-as visual noise cannot be settled by arithmetic, and not one frame of it has been seen. The alias guard
-(≤90°/frame for a 2-fold-symmetric silhouette) is a *principled* bound, not a measured one. **4.5 is a
-value to argue with, not a result.** The things only a human can answer:
+### What the frames actually show
 
-- Does the whirl read as one body coming around, or as strobing?
-- Is 0.69 s holdable for nine consecutive passes, or exhausting?
-- Does the 0.21 s late exit read as *the exit*, or just as a dropped beat?
-- Is the spool-up still a clear enough warning at 0.80 s?
+| | 60 fps (target) | 30 fps (worst case) |
+|---|---|---|
+| effective peak | 4.50× (guard slack) | 3.06× (**guard engaged**) |
+| fastest step | 51 °/frame | 69 °/frame |
+| arrival, worst area change | **×1.11** | ×1.60 |
+| arrival, mean area change | **×1.02** over 18 frames | ×1.12 over 9 frames |
+
+**At 60 fps the read works, and it is not close.** The silhouette grows monotonically from 73% to 98%
+of its widest across the 18 frames after the parry cue — the body visibly opens up and squares onto the
+player, which is exactly the tell the fight is built on. The blur before it swings by ×2.09 and is
+supposed to: readability lives in the deceleration, not in the fast third.
+
+**At 30 fps the arrival flickers**, because the body's silhouette collapses to 38% of its widest right
+at the cue. That is a real defect, it was found by photographing rather than by reasoning, and the alias
+guard *caused* it. Documented in ENGINEERING-LOG.md, deliberately not fixed — 60 fps is the target and
+the fix would cost the invariant that keeps the cadence undriftable.
+
+### Still unproven
+
+Nobody has **played** it. Measurement says the arrival is legible frame-by-frame; it cannot say whether
+holding a 0.69 s beat for nine consecutive passes is exhilarating or exhausting, whether the 0.21 s late
+exit reads as *the exit*, or whether 0.80 s is still enough warning on the spool-up. **4.5 remains a
+value to argue with** — it is now a measured one, not a guessed one, but taste is not a measurement.
 
 `MarionetteDataTests` is EditMode rather than a `FeatureTests` section on purpose: the Pale Marionette
 is a sandbox prototype with no spawner in `Level_01`, so a play-mode test would have to either Skip in

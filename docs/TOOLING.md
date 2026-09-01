@@ -205,6 +205,34 @@ real read is closer. **A wind-up pose is judged from these photographs, never fr
 
 `RunGuardEntry(dir)` films the three entry paths into the held guard.
 
+### Filming the Marionette's whirl headless — `SpinFilm`
+
+`Assets/Editor/SpinFilm.cs`. **The one capture tool that needs neither play mode nor a working MCP
+bridge**, which is why it exists separately from `FrameFilm`: it drives `SpinRoot` directly at the frame
+times a player at a given frame rate would see, renders the real prefab through a camera at
+`preferredRange`, and writes the frames plus the number that actually matters — **degrees of body yaw
+per rendered frame**.
+
+```csharp
+VibeGame1.EditorTools.SpinFilm.Capture(@"C:/tmp/spin", 60f);   // menu: VibeGame1/Film the Whirl
+```
+
+Or fully headless, on a *copy* of the project so it never touches a running editor:
+
+```
+Unity.exe -batchmode -projectPath <copy> -executeMethod VibeGame1.EditorTools.SpinFilm.Batch -logFile <log>
+```
+
+`Batch()` films at **60 and 30 fps** — 30 being where `PuppetVisuals.ResolvePeak`'s alias guard is
+supposed to start earning its keep, so the report shows the guard engaging rather than asserting that it
+would. Past roughly **90°/frame** a 2-fold-symmetric silhouette (a humanoid with its arms out) aliases
+into apparent random orientation; the report states the fastest step and whether it clears that.
+
+**Copying the project to run Unity headless is a general escape hatch worth remembering.** `Assets` +
+`Packages` + `ProjectSettings` is ~19 MB; Unity rebuilds its own `Library` in the copy. That gives you
+the EditMode suite (`-runTests -testPlatform EditMode -testResults <xml>`) and any `-executeMethod`
+while the real editor stays untouched — including while someone is mid-playtest in it.
+
 ⚠️ **Restart play mode before judging a VFX frame.** A domain reload (any script edit anywhere,
 including another agent's) wipes non-serialized fields but leaves pooled `GameObject`s in the scene, so
 things like the Pyre embers freeze mid-flight wearing whatever they last had and are photographed as

@@ -1804,6 +1804,45 @@ different assets, and no compiler will ever connect them. Change any one and re-
 
 ---
 
+## The alias guard fixed orientation aliasing and CREATED an area flicker at 30 fps
+
+**Symptom.** Found by photographing the whirl (`SpinFilm`), not by reasoning about it. At 60 fps the
+Marionette's arrival is beautifully smooth — the silhouette grows 73% → 98% of its widest over the 18
+frames after the cue, with a worst frame-to-frame area change of **×1.11** and a mean of **×1.02**. At
+30 fps the same arrival measures **×1.60**, and the frames show why: the body's silhouette collapses to
+**38%** of its widest exactly at the cue.
+
+**Root cause, and it is a hole in my own reasoning.** `maxDegPerFrame` bounds ORIENTATION aliasing: past
+~90° per frame a 2-fold-symmetric shape stops reading as rotation. That argument silently assumes the
+silhouette is roughly the same size at every yaw. This body is strongly **anisotropic** — wide from the
+front and back, close to a vertical sliver edge-on — so its on-screen AREA collapses twice per
+revolution, and the failure mode at speed is *flicker*, which begins well below 90°/frame. Worse, the
+guard *caused* the 30 fps case: by flattening the curve it moved the edge-on instant later, out of the
+blur (where nobody is meant to be reading) and onto the cue (where everybody is).
+
+At 60 fps both edge-on instants (yaw ~265° and ~96°, areas 42% and 44%) fall **before** the cue, so the
+player's read window contains only the body opening up. That is not luck so much as it is untested —
+nothing pins it, and a future change to the peak, the tail or the pass length could walk the sliver into
+the cue at 60 fps too.
+
+**Status: documented, not fixed.** 60 fps is the target and the project has enormous headroom (main
+thread measured at 1.18 ms). The honest fix is not obvious — one revolution per pass means the body
+*must* pass edge-on twice, so guaranteeing where that lands would mean anchoring the arc to the cue
+instead of to the impact, and the impact anchor is the invariant that makes the cadence undriftable.
+Not worth trading for a 30 fps case until someone has actually played at 30 fps.
+
+**Invariant.** **A per-frame ANGULAR bound does not bound per-frame SHAPE.** For any anisotropic
+silhouette, measure the rendered area as well as the rotation, and measure it *across the window the
+player has to read* rather than across the whole motion — the two give opposite verdicts here, and only
+the second one matters. `SpinFilm` reports both.
+
+**And the general lesson, again.** The degrees-per-frame bound was principled, arithmetic-clean, and
+passed every test I wrote for it. It took rendering thirty-one frames and counting pixels to find that it
+measured the wrong quantity. This is the third time in this project that photographing the result
+contradicted a confident derivation about it.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |
