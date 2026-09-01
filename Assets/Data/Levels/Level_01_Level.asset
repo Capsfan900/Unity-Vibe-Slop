@@ -174,6 +174,13 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
+  - name: T2_Buttress
+    center: {x: 4.6, y: 10.2, z: 122.5}
+    size: {x: 0.8, y: 7.4, z: 3}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
   - name: T2_L1
     center: {x: 7, y: 4.5, z: 116}
     size: {x: 4, y: 1, z: 4}
@@ -360,6 +367,13 @@ MonoBehaviour:
     center: {x: 0, y: 24, z: 226}
     size: {x: 4, y: 1, z: 22}
     materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonRed
+    isStatic: 1
+  - name: T3_Fallen_Lintel
+    center: {x: 0, y: 26.15, z: 222}
+    size: {x: 5, y: 0.8, z: 1.2}
+    materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
@@ -722,6 +736,8 @@ MonoBehaviour:
     basePosition: {x: 3, y: 4, z: 105}
   - name: Torch_T2_Mid
     basePosition: {x: 0, y: 12.5, z: 111}
+  - name: Torch_T2_Buttress
+    basePosition: {x: 6, y: 6.5, z: 122.5}
   - name: Torch_T2_Top
     basePosition: {x: 0, y: 20, z: 142}
   - name: Torch_T2_Arena_159_-12

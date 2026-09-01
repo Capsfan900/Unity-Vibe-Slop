@@ -47,6 +47,69 @@ namespace VibeGame1.EditorTools
             Build(def);
         }
 
+        /// <summary>
+        /// Open a definition's own target scene, rebuild it and SAVE — the one entry point that works
+        /// under <c>-batchmode -executeMethod</c>.
+        ///
+        /// <para>Batch mode starts with an empty scene, so `6. Build Level` refuses there: the
+        /// active-scene guard below (correctly) will not build the campaign level into whatever happens
+        /// to be open. That guard is worth keeping — it exists because the level was once built into the
+        /// sandbox — so the headless path opens the right scene itself rather than weakening it.</para>
+        ///
+        /// <para><b>Load the definition AFTER opening the scene.</b> `OpenScene` in Single mode unloads
+        /// unused assets, and a `LevelDefinition` held only by a local counts as unused: the reference
+        /// survives as Unity's fake-null, this method refuses with "Null LevelDefinition" in a log nobody
+        /// reads, and a capture taken afterwards shows the OLD scene looking entirely plausible. That
+        /// exact sequence cost a level-geometry session its first round of screenshots.</para>
+        /// </summary>
+        /// <param name="definitionPath">Defaults to the canonical `Level_01_Level.asset`.</param>
+        public static void BuildHeadless(string definitionPath)
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                Debug.LogError("[LevelDefinitionBuilder] Refusing to build during play mode.");
+                return;
+            }
+
+            var probe = AssetDatabase.LoadAssetAtPath<LevelDefinition>(definitionPath);
+            if (probe == null)
+            {
+                Debug.LogError("[LevelDefinitionBuilder] No LevelDefinition at " + definitionPath);
+                return;
+            }
+            string scenePath = "Assets/Scenes/" + probe.sceneName + ".unity";
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                scenePath, UnityEditor.SceneManagement.OpenSceneMode.Single);
+
+            // Re-load AFTER the scene swap — see the remark above. This is not defensive noise.
+            var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(definitionPath);
+            if (def == null)
+            {
+                Debug.LogError("[LevelDefinitionBuilder] The definition went null across the scene load. " +
+                               "Nothing was built.");
+                return;
+            }
+
+            Build(def);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(
+                UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log("[LevelDefinitionBuilder] Headless build complete and SAVED: " + scenePath);
+        }
+
+        /// <summary>
+        /// Zero-argument wrapper for the canonical level, because <c>-executeMethod</c> refuses anything
+        /// else: "Only methods with 0 arguments are supported", and an OPTIONAL parameter still counts as
+        /// an argument. It fails at the very end of a multi-minute batch launch, after the whole import
+        /// and compile, which is an expensive way to learn it.
+        /// </summary>
+        [MenuItem("VibeGame1/8b. Build Level From Definition (headless)")]
+        public static void BuildCanonicalHeadless()
+        {
+            BuildHeadless("Assets/Data/Levels/Level_01_Level.asset");
+        }
+
         public static void Build(LevelDefinition def)
         {
             // PLAY MODE GUARD: this destroys the Level root before rebuilding it. In play mode the

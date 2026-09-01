@@ -61,7 +61,16 @@ interior gradient instead of reading as a uniform cutout. Not emission — "enem
   lives on `GameFeelSettings` (written by `DataFactory`, rule 9) and is seeded into the static by
   `GameManager.Awake`. It stays a static for the enemy hot path, but tuning now survives a reload and
   is inspectable.
-- **`WandFactory`** runs as step `3b` inside `0. Rebuild Everything` but has no test covering it.
+- ~~`WandFactory` runs as step `3b` inside `0. Rebuild Everything` but has no test covering it.~~
+  **Closed.** `Assets/Editor/Tests/WandDataTests.cs` — 18 EditMode assertions against the shipped
+  `.asset` files (rule 9), covering the fields another system dereferences (a null `viewmodelPrefab`
+  empties the offhand; a missing asset is a null loadout slot that silently degrades every riposte to the
+  bare melee execute), the arithmetic (the `Clamp(recover*0.7, 0.16, 0.28)` stab hold spans
+  0.160–0.280 s across the set; `cooldown > windup + recover` for all four), and every silent zero that
+  disables a blast shape without an error — `splashDamage = 0` makes `Splash` a no-op while the full VFX
+  still draws, and Lance's `Max(2f, blastRadius)` floor would ship a 2 m pierce from a 0. Plus the trades
+  the comments claim: windup order and cooldown order agree, no wand dominates another on all six axes,
+  and hue separation is ≥ 45° (measured minimum 58°) so you can tell which wand you hold.
 
 ---
 
@@ -90,30 +99,40 @@ runs with **zero skips** for the first time — `WandPedestal_FOpensMenu` exerci
 
 ---
 
-## 5b. The Ascent has no wall-jump route, and should
+## 5b. ~~The Ascent has no wall-jump route~~ — built, unplayed
 
-Wall jumping shipped with one route use (the recovery pylons on The Long Span) and one incidental one
-(`T2_Tower` is a wall like any other, so a missed ledge on the spiral can be saved off it). **The Ascent —
-a 20 m vertical tower, the obvious home for the mechanic — has no authored line.**
+`T2_Buttress` — `center (4.6, 10.2, 122.5)`, `size (0.8, 7.4, 3.0)` — hangs on `T2_L2`'s west FACE and
+forms a **1.70 m chimney** with the tower's east face, 2.50 m of face overlap, open to the sky. You leave
+L2's west edge around z 125, climb **five pushes to y 15.85** and top out on **`T2_L8`** (top 15.5),
+skipping L3–L7 and `Pickup_T2_Updraft`. Optional, out of reach of the base kit (9 m of rise), rejoins
+34 m short of the T2 arena trigger, and a miss is a death — which is the right price.
 
-What was tried and cut: two facing slabs on `T2_Entry` forming a 2.6 m chimney that climbed ~8 m and dropped
-you on `T2_L6`, skipping five ledges. It worked mechanically. It was cut because a screenshot from the
-player's own arrival angle showed it as **one undifferentiated black slab a metre from the face** — the slot
-is invisible from the only direction anyone approaches it, and moving it far enough west to be readable moved
-it out of the sightline entirely. A shortcut nobody can see is not a shortcut.
+**The blocker is gone rather than dodged.** `LevelArcAnalyzer` flies the real ballistic arc and reports
+that the fin costs `T2_L2 → T2_L3` **two of twenty-five sampled take-off points and no clearance at all**
+(best line unchanged at 2.02 m); the points it costs are on L2's south-west quarter, and the natural line
+over the north-west corner is untouched. `LevelArcClearanceTests.Buttress_DoesNotObstructTheL2ToL3Hop`
+keeps it that way, and all 29 baseline hops are clean. The fin sits entirely off the deck, so the run-up
+is intact.
 
-The design that should be tried next, and why it was not: a single **buttress fin on `T2_L2`**, at
-`center (5.6, 10.2, 123), size (0.6, 7.4, 2.6)`, forming a **2.8 m chimney with the tower's east face**
-(x = 2.5). You enter it airborne off L2's west edge, climb five pushes to ~y 17, and top out on **`T2_L8`**
-(top 15.5) directly above — skipping L3-L7. It is architecturally honest (a buttress springing from a ledge
-against the tower it circles), it is a vertical fin rather than a wall across the path so it cannot fill the
-frame, and you look through the slot from the approach rather than at a face.
+Two things the previous attempt got wrong and this one addresses: it is a **vertical fin seen edge-on**
+from the approach rather than a wall across the frame, and `Torch_T2_Buttress` at `(6, 6.5, 122.5)` lights
+it warm against the tower's unlit east face. The shot from `T2_Entry` shows **sky through the slot**,
+which is precisely the frame the cut version failed.
 
-**It was not shipped because it risks obstructing the existing `T2_L2` → `T2_L3` hop**, which leaves L2 over
-its north-west corner and passes straight through where the fin would stand. `CheckHop` measures box-to-box
-gaps and would *not* catch an obstruction in the middle of the arc, so this needs a real play test — jump
-L2 → L3 with the fin in place — before it can go in. Do that first, and shorten or shift the fin north/south
-until the hop is clean.
+**Still open, and honestly.** No human has climbed it. The analyser models far less control than a player
+has — fixed push timings, one brake, no continuous steering — so it can say the route exists and cannot
+say how forgiving it is; in its own sampling only 3 of 36 entry positions succeed, which understates a
+real player but is not nothing. And standing ON L2 the fin is a large unlit black mass filling the left
+third of the frame; the torch rescues it from below, but that face wants a second look.
+
+Shipped alongside: **`T3_Fallen_Lintel`** at `center (0, 26.15, 222)`, `size (5, 0.8, 1.2)` — a fifth
+obelisk fallen across The Long Span between the first standing pair. 1.25 m of clearance against a 0.90 m
+slide capsule and a 1.80 m stand, top 2.05 m above the deck, so it costs **time, never access** — the same
+contract `T1_Fallen_Obelisk` already keeps. Also unplayed.
+
+**Deliberately NOT added:** T2 climbs 1.5 m per ledge so no slide-jump shortcut is legal there (the
+envelope caps rise at 1 m), and T3's pillars are 2.5 m squares that cannot host a slide entry. Scattering
+more tech would have been slop.
 
 ---
 
@@ -122,10 +141,24 @@ until the hop is clean.
 - **Boss framing at deathblow range.** At the 3.5 m `range` a 2.2×-scale boss's torso is a wall across
   the middle of the shot. This is the `preferredRange`/`range` tension, not the stagger pose. Untouched
   deliberately — changing either affects every fight.
-- **The alert tell may want to be bigger, not brighter.** Past peak 3.0 you only buy white; the next
-  lever is the 0.25 m cube's size.
+- ~~**The alert tell may want to be bigger, not brighter.**~~ **Closed: leave it alone, measured.**
+  Rendered through the shipped volume profile at 1920×1080 / FOV 95 and diffed tell-on against tell-off,
+  the 0.25 m cube already covers 47 × 60 px at the grunt's 3 m `preferredRange` — 5.6% of frame height,
+  the same on-screen height as the deathblow mark. Bloom, not geometry, is most of its area. And growth is
+  spent at the wrong end: the tell is clipped by the top of the frame at 1.5 m already, and 0.40 m reaches
+  that edge sooner (gap at 2 m: 125 px → 83 px). Its top edge is also 0.025 m past the world posture bar
+  at 2.6. Pinned in `Assets/Editor/Tests/AlertTellFramingTests.cs`. **Still open, and needs a human:**
+  whether it *reads* in 0.45 s of peripheral vision, and whether angular sizing (it is 22 × 26 px at 6 m)
+  is worth having.
 - **`parTime = 240`** for the four-tile run is a guess.
-- **42 point lights** in the level, up from 25. No performance measurement has been taken.
+- ~~**42 point lights** in the level, up from 25. No performance measurement has been taken.~~
+  **Measured, and it is 55, not 42.** `VibeGame1/Audit Level Lights` over 68 camera-height probes: 55
+  additional point lights (43 with `FlickerLight`, ranges 7–9 m), **zero of them casting shadows** — the
+  only shadow caster is the directional key light. The 42 m cull leaves 21.1 enabled on average (worst
+  24); only **1.6 reach a given probe** (worst 6) against a per-object limit of 4, and only **1 probe of
+  68** exceeds it. The count buys gather-and-sort plus 43 strided `Update()`s, not overdraw. The number to
+  watch when adding torches is reaching-lights-per-point, not the total. **Not closed:** no frame cost has
+  been measured — `PerfProbe` needs play mode.
 - Two deliberate `SampleScene` leftovers: `Assets/Settings/SampleSceneProfile.asset` (a volume profile,
   not the scene) and `templateDefaultScene` in `ProjectSettings.asset` (inert URP-template residue).
 

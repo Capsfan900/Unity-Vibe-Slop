@@ -2034,6 +2034,102 @@ no test will ever catch the next one.**
 
 ---
 
+## A jump arc is geometry, not a playtest
+
+**Symptom.** BACKLOG §5b specified a buttress fin for The Ascent down to the centimetre and could not
+ship it. The blocking sentence was: "`CheckHop` measures box-to-box gaps and would *not* catch an
+obstruction in the middle of the arc, so this needs a real play test." The Ascent is a 20 m tower and the
+obvious home for wall jumping, and it had no authored line for want of one jump nobody had time to try.
+
+**Root cause.** `FeatureTests.CheckHop` compares the closest XZ distance between two `Renderer.bounds`
+against a reachability envelope. That is a *necessary* condition and it is blind to everything between
+the two boxes: a pillar standing halfway along a 4 m hop measures as zero gap and passes. But the level
+is a `LevelDefinition` — a list of axis-aligned boxes with known centres and sizes — and the player's
+flight is ballistic with constants that live on `Player.prefab`. Whether an arc is obstructed was never a
+question that needed a human. It was a question nobody had written down as arithmetic.
+
+**Fix.** `Assets/Editor/LevelArcAnalyzer.cs`: pure, static, scene-free. `SweepArc` integrates the real
+trajectory at 2 ms steps — ≤4.5 cm of travel at the motor's top speed, so a 0.6 m fin cannot be tunnelled
+— and measures the exact distance from the capsule's spine to every box using the closed form for a
+vertical segment against an AABB. `AnalyzeHop` fans 1800 arcs across take-off points, aim points, speeds
+and held/cut jumps, and reports how many arrive clean, from how many distinct take-off spots, and what
+the nearest obstruction was. `ClimbChimney` mirrors the motor's wall-jump rules — `wallCheckDistance`,
+`sameWallCosineLimit`, `maxWallJumps`, the preserved along-wall momentum. **Every constant is READ off
+the shipped `Player.prefab`;** a movement number duplicated into an analyser is a number that will
+silently stop being true.
+
+**Four things it caught that arithmetic alone did not.** (1) A uniform take-off grid over the 26 m
+`T1_Arena` puts four samples 8 m apart and misses the 6 m doorway into The Ascent entirely, reporting a
+*walk* as impossible — take-off points must be sampled in the band facing the target, which is also where
+a player actually stands. (2) The motor's wall scan falls back to `transform.forward` when velocity is
+negligible, and it must: pressed against a chimney wall the `CharacterController` has already zeroed
+horizontal velocity, so a scan requiring velocity finds nothing and every chimney stalls two pushes up.
+(3) A search that returns as soon as the wall jumps are spent throws away the final unpowered segment —
+which is the segment that decides where you land, i.e. every route worth having. (4) A fin flush with a
+ledge's face **walls the slot off everywhere it stands**: the chimney's mouth is past the fin's END, so
+sampling entries "inside the slot" reports a climbable chimney as unenterable.
+
+**And one that only a picture could catch.** `LevelRouteShots` rebuilds the level and photographs it from
+the player's real eye. Its first run silently showed the OLD scene: `EditorSceneManager.OpenScene` in
+Single mode unloads unused assets, and a `LevelDefinition` held only by a local is "unused" — the
+reference survives as Unity's fake-null and `LevelDefinitionBuilder` refuses with "Null LevelDefinition"
+in the log while the frames come back looking perfectly plausible. **Load the asset AFTER opening the
+scene**, and read the builder's own success line before believing a frame.
+
+**Invariant.** Any geometry added to `Level_01_Level.asset` must keep every hop in
+`LevelArcReport.BaseRoute` clean from at least three distinct take-off points, and
+`LevelArcClearanceTests` is what says so. `CheckHop` still measures the envelope; this measures the space
+in between. Neither replaces a human: they prove a line EXISTS, never that it feels good.
+
+---
+
+## The alert tell is already the size of the deathblow mark — bloom decides that, not geometry
+
+The backlog said the tell's next lever was the 0.25 m cube's size: "past peak 3.0 you only buy white". A
+pre-render derivation agreed — 0.25 m at the grunt's 3 m `preferredRange` subtends 0.080 rad against
+`DeathblowMarker`'s 0.115 rad `angularSize`, so the tell looked like 0.69× the mark linearly and half its
+area. **The rendered frame says otherwise.** Photographing the shipped grunt through `SampleSceneProfile`
+at 1920×1080 / FOV 95 and diffing tell-on against tell-off, the 0.25 m cube covers a 47 × 60 px bbox at
+3 m — 5.6% of frame height, matching the mark's 57 px. The bloom halo, which the derivation ignored, is
+most of the tell's on-screen area and closes the gap on its own. Emission peak 3.00 does not just make it
+whiter; it makes it *bigger*.
+
+The measurement also found the real failure mode, which is framing, not size. The tell rides 2.5 m up
+while the camera sits at 1.6 m looking down at the torso, so it climbs toward the top of the frame as the
+enemy closes. **At 1.5 m it is clipped by the top edge** — gap 0 px, and zero pixels above 90% peak,
+meaning the saturated core is off-screen and only the skirt of the halo is left. Growing the cube makes
+that arrive sooner: 0.25 → 0.40 drops the gap at 2 m from 125 px to 83 px. And the airspace is already
+taken — the world posture bar sits at 2.6 and a 0.25 cube's top edge is at 2.625.
+
+**Invariant: the tell's size is not the lever, and the numbers behind that live in
+`Assets/Editor/Tests/AlertTellFramingTests.cs`.** If it ever needs more presence, the lever is angular
+sizing (as `DeathblowMarker` uses, so it stops shrinking with distance — it is 22 × 26 px at 6 m) or
+lowering it, and either needs a play test. **Third time this project has had a confident derivation
+contradicted by the rendered frame: measure, then photograph.**
+
+---
+
+## The level's light count was never the cost — the per-object limit is
+
+"42 point lights, no performance measurement taken" was two things wrong at once. There are **55**
+additional point lights (43 with `FlickerLight`), and the count was never the interesting number.
+`VibeGame1/Audit Level Lights` (`Assets/Editor/LightAudit.cs`) measures it statically over 68
+camera-height probe points at the spawn, the checkpoints, the spawners and the torches:
+
+- **Zero additional lights cast shadows.** The one shadow caster in the scene is the directional key
+  light, so the most expensive kind of light cost is entirely absent.
+- The torches are 6.00 m apart at their closest with a 9 m range, so they barely overlap: **1.6 lights on
+  average actually reach a probe** (worst 6) against a URP `AdditionalLightsPerObjectLimit` of 4, and
+  **only 1 probe of 68 exceeds that limit**. Almost nothing is being culled having contributed nothing.
+- `FlickerLight`'s 42 m cull leaves **21.1 of 55 enabled** on average (worst 24, Checkpoint_4), so it
+  drops ~62%. What survives is gather-and-sort work plus 43 `Update()`s strided by 2, not shading.
+
+**Invariant: the number to watch when adding lights is the count of lights REACHING one point, not the
+total.** Adding torches stays cheap until a cluster pushes past 4 reaching lights. No frame cost is
+claimed here — `PerfProbe` needs play mode and this was measured statically.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

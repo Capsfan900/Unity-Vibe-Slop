@@ -6,13 +6,25 @@ namespace VibeGame1
     /// Torch flicker: Perlin-noise intensity wobble plus a tiny position jitter. Unscaled time so it
     /// keeps burning during hitstop/pause.
     ///
-    /// PERFORMANCE: the level carries ~25 of these. Two things made that cost more than it looked:
+    /// PERFORMANCE: the level carries 43 of these, inside 55 additional point lights total — measured,
+    /// not estimated; run <c>VibeGame1/Audit Level Lights</c> to re-measure. Two things made that cost
+    /// more than it looked:
     /// five PerlinNoise samples plus a transform write per torch per frame (a transform write dirties
     /// the hierarchy and the light's culling data), and 25 realtime lights against a URP asset that
     /// only allows 4 additional lights per object — most were being culled every frame having
     /// contributed nothing. So a distant torch now disables its Light entirely and stops animating,
     /// and the survivors are staggered across frames. The emissive torch geometry is untouched, which
     /// is where the look actually comes from (that plus bloom); only the dynamic light is dropped.
+    ///
+    /// <para>WHAT THE CULL ACTUALLY BUYS, measured statically over 68 camera-height probe points at the
+    /// player spawn, the checkpoints, the spawners and the torches: <b>21.1 of the 55 additional lights
+    /// survive the 42 m cull on average</b> (worst probe 24, at Checkpoint_4) — so it drops about 62%
+    /// of them. But only <b>1.6 lights on average actually REACH a probe</b> (worst 6), against a URP
+    /// <c>AdditionalLightsPerObjectLimit</c> of 4, and only <b>1 probe of 68</b> exceeds that limit. The
+    /// torches are 6 m apart at their closest with a 9 m range, so they barely overlap: the light count
+    /// is not buying overdraw, it is buying gather-and-sort work and this script's own Update. Raising
+    /// the torch count further is therefore cheap up to the point where clusters start exceeding 4
+    /// reaching lights — which is the number to watch, not the total.</para>
     /// </summary>
     [RequireComponent(typeof(Light))]
     public class FlickerLight : MonoBehaviour
