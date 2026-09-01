@@ -426,6 +426,26 @@ namespace VibeGame1
 
         /// <summary>Death. Primitive-specific (scales the transform to nothing) — a model subclass
         /// overrides this with a ragdoll or a death clip.</summary>
+        /// <summary>
+        /// A world point <paramref name="localHeight"/> up the VISIBLE body — see
+        /// <see cref="IEnemyPresentation.BodyPoint"/> for why this is presentation's job.
+        ///
+        /// <para>Measured from <see cref="lungeRoot"/> when there is one, because that is the transform
+        /// the lunge, the settle dip and every authored wind-up <c>bodyOffset</c> are written to. Using
+        /// the enemy's own transform instead marks its navigation position, which is a point the body
+        /// leaves the moment it commits to anything.</para>
+        ///
+        /// <para>Deliberately NOT the renderer bounds. A skinned mesh's bounds centre moves with the
+        /// animation, so on a body with its arms out — the Marionette mid-whirl — a bounds-derived point
+        /// wanders around inside the chest several times a second. A transform plus a height is stable
+        /// by construction, which is what a marker that is up for the whole fight needs to be.</para>
+        /// </summary>
+        public virtual Vector3 BodyPoint(float localHeight)
+        {
+            Transform t = lungeRoot != null ? lungeRoot : transform;
+            return t.TransformPoint(new Vector3(0f, localHeight, 0f));
+        }
+
         public virtual void Die()
         {
             glowAmount = 0f; tintBoost = 0f; chargeDark = 0f;

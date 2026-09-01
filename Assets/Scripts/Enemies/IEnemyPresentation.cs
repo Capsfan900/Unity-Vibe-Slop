@@ -53,5 +53,17 @@ namespace VibeGame1
 
         void Roar();
         void Die();
+
+        /// <summary>
+        /// A world point on the VISIBLE body, <paramref name="localHeight"/> metres up it.
+        ///
+        /// <para>Presentation owns this because presentation is the only thing that knows where the body
+        /// actually is. The brain's transform is the enemy's FEET and its navigation position; the body
+        /// hanging off it is displaced every time it lunges, dips or holds a wind-up pose — up to a
+        /// metre and a half on the heavier attacks. Anything that wants to point at the enemy (the
+        /// lock-on dot, and the camera assist behind it) has to ask for the body, or it ends up marking
+        /// a spot in the air beside it at exactly the moments the player is watching hardest.</para>
+        /// </summary>
+        Vector3 BodyPoint(float localHeight);
     }
 }

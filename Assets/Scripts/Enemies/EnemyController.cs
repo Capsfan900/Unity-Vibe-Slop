@@ -46,6 +46,22 @@ namespace VibeGame1
 
         protected IEnemyLocomotion locomotion;
         protected IEnemyPresentation visuals;
+
+        /// <summary>
+        /// A world point on the VISIBLE body, <paramref name="localHeight"/> up it — what to aim a
+        /// marker or a camera assist at. Falls back to this transform when there is no presentation,
+        /// which is the case in a bare unit test.
+        ///
+        /// <para>Read-only and deliberately narrow: it exposes a POINT, not the presentation, so the
+        /// <see cref="IEnemyPresentation"/> seam stays closed and nothing outside can start driving the
+        /// body.</para>
+        /// </summary>
+        public Vector3 BodyPoint(float localHeight)
+        {
+            return visuals != null
+                ? visuals.BodyPoint(localHeight)
+                : transform.TransformPoint(new Vector3(0f, localHeight, 0f));
+        }
         protected Transform player;
         protected PlayerCombat playerCombat;
         protected float windupMult = 1f;
