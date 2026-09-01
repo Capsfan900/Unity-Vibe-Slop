@@ -1032,6 +1032,8 @@ MonoBehaviour:
   wandText: {fileID: 7341887331665838159}
   parryPopup: {fileID: 7666754899196177592}
   centerText: {fileID: 983906838745702313}
+  menuSceneName: MainMenu
+  returnToMenuSeconds: 4.5
   hintText: {fileID: 4958962697896276197}
   pyreReadyLabel: {fileID: 2353533607361850692}
   itemSlots:

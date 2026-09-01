@@ -909,7 +909,20 @@ BossArenaTrigger (player enters) → BossController.Activate() ⇢ BossStarted �
       → ⇢ OnZeroHealth → Posture.Break() + HoldStagger(5s)   = deathblow window
       → riposte (isExecute) → HandleDeath(): SegmentsLeft--, heal, next phase, roar
       → miss the window → HP restored to 12%, fight continues
-  3 segments consumed → ⇢ BossDefeated → timer stops, LEVEL CLEAR
+  3 segments consumed → ⇢ BossDefeated → timer stops, LEVEL CLEAR → back to the MENU
+
+     BossDefeated
+        → SpeedrunTimer.Stop, RunRecorder saves the ghost, AudioManager fades the boss track
+        → HUDController.OnBossDefeated: "LEVEL CLEAR" + the run time, 8 s
+        → WinCo (all REALTIME waits -- Won may stop the clock):
+             +2.0 s  GameManager.SetState(Won)
+             +4.5 s  cursor released, TimeScaleController.ResetScale(),
+                     SceneManager.LoadScene("MainMenu")
+     THE LOOP CLOSES HERE. It previously did not: Won was set, nothing in the project
+     listened for it, and the cursor was re-LOCKED -- a cleared level left the player in a
+     finished world with no way out. ResetScale exists for this transition: the deathblow's
+     hitstop is still live when the load starts, and a scene load destroys the controller
+     before the request expires, so without it the menu comes up running at 0.02x.
 ```
 
 **Invariants**

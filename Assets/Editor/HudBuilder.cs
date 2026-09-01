@@ -63,6 +63,12 @@ namespace VibeGame1.EditorTools
             root.AddComponent<GraphicRaycaster>();
 
             var hud = root.AddComponent<HUDController>();
+
+            // Hard rule 9: written here so they are SHIPPED on the prefab rather than left to a field
+            // initialiser that a rebuilt prefab would freeze at whatever it said that day.
+            // Clearing a level returns to the menu — MainMenuBuilder puts it at build index 0.
+            hud.menuSceneName = "MainMenu";
+            hud.returnToMenuSeconds = 4.5f;
             var prompt = root.AddComponent<PromptView>();
             var flash = root.AddComponent<ScreenFlash>();
             var pause = root.AddComponent<PauseMenu>();

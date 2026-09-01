@@ -21,6 +21,14 @@ namespace VibeGame1
         public TMP_Text wandText;
         public TMP_Text parryPopup;
         public TMP_Text centerText;
+
+        [Header("Level clear")]
+        [Tooltip("Scene loaded after a level is cleared. Build index 0 — see MainMenuBuilder.")]
+        public string menuSceneName = "MainMenu";
+        [Tooltip("Realtime seconds the LEVEL CLEAR screen stays up before returning to the menu, " +
+                 "measured from when the Won state is set (2 s after the killing blow). Must stay " +
+                 "under the clear message's own 8 s lifetime or the screen blanks before the load.")]
+        public float returnToMenuSeconds = 4.5f;
         public TMP_Text hintText;
         public TMPro.TMP_Text pyreReadyLabel;
         public ItemSlotView[] itemSlots;
@@ -333,11 +341,37 @@ namespace VibeGame1
             if (GameManager.I != null) StartCoroutine(WinCo());
         }
 
+        /// <summary>
+        /// Clearing a level ends the run and RETURNS TO THE MENU.
+        ///
+        /// <para>It used to do neither. <c>GameState.Won</c> was set and then nothing in the project
+        /// listened for it — no scene change, no prompt — and the cursor was explicitly re-LOCKED, so a
+        /// cleared level left the player standing in a finished world with a hidden cursor and no way
+        /// out but Alt-F4. The clear screen is the end of the loop, and a loop has to close.</para>
+        ///
+        /// <para>The wait is on REALTIME, because <c>Won</c> may stop the clock and a
+        /// <c>WaitForSeconds</c> here would then never return — the same trap rule 1 exists for.</para>
+        /// </summary>
         IEnumerator WinCo()
         {
             yield return new WaitForSecondsRealtime(2f);
             if (GameManager.I != null && GameManager.I.State == GameState.Playing) GameManager.I.SetState(GameState.Won);
-            if (GameManager.I != null) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+
+            // Long enough to read the time off the clear screen and feel the win land, short enough
+            // that it does not become a wait. Tuned against the 8 s ShowCenter above, which must
+            // outlast this or the screen goes blank before the scene changes.
+            yield return new WaitForSecondsRealtime(returnToMenuSeconds);
+
+            // The menu is a mouse UI, so hand the cursor back. The level scene's GameManager re-locks
+            // it on the way in, so this cannot leak into the next run.
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            // Time scale is owned by TimeScaleController (rule 1), but a scene load abandons it
+            // mid-hitstop if the killing blow was one — so restore before leaving rather than
+            // arriving at a menu running at 0.02x.
+            if (TimeScaleController.I != null) TimeScaleController.I.ResetScale();
+            AudioManager.Play(Sfx.Click);
+            UnityEngine.SceneManagement.SceneManager.LoadScene(menuSceneName);
         }
 
 

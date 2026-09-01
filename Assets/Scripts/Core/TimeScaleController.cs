@@ -80,6 +80,26 @@ namespace VibeGame1
             Apply();
         }
 
+        /// <summary>
+        /// Drop every outstanding request and return the world to full speed immediately.
+        ///
+        /// <para><b>For scene transitions only.</b> A request with no duration is released by hand, and
+        /// a request with one expires in <see cref="Update"/> — but a scene load destroys this object,
+        /// so anything still outstanding at that moment would never be released and
+        /// <c>Time.timeScale</c> would carry into the next scene. Clearing a level on the killing blow
+        /// does exactly that: the deathblow's hitstop is live when the transition starts, so without
+        /// this the menu would come up running at 0.02x.</para>
+        ///
+        /// <para>Rule 1 is why this lives here rather than the caller writing <c>Time.timeScale = 1</c>
+        /// itself: this class stays the only writer, and the requests are cleared as well as the scale,
+        /// so nothing can re-apply a stale value on the next <see cref="Apply"/>.</para>
+        /// </summary>
+        public void ResetScale()
+        {
+            reqs.Clear();
+            Apply();
+        }
+
         /// <summary>Freeze the world briefly on impact. Never slows the player.</summary>
         public void HitStop(float seconds, float scale = 0.02f)
         {
