@@ -124,6 +124,7 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Legendary_Ninja` — *The Thirteenth Shade* | `Legendary_Ninja` | `Legendary_Ninja_Moveset` | `EnemyController` | Mini-boss; sustained cadence + an unblockable sweep |
 | `Legendary_Knight` — *The Iron Penitent* | `Legendary_Knight` | `Legendary_Knight_Moveset` | `EnemyController` | Mini-boss; the spinning furnace — a sustained parry cadence with an outsized payoff. **Imported body** (`Assets/Enemies/IronPenitent.fbx`) |
 | `Legendary_Spellsword` — *The Ashen Chorister* | `Legendary_Spellsword` | `Legendary_Spellsword_Moveset` | `EnemyController` | Mini-boss; feint/transition + ranged opener + grab. **Imported body** (`Assets/Enemies/AshenChorister.fbx`) |
+| `Legendary_Revenant` — *The Ember Revenant* | `Legendary_Revenant` | `Legendary_Revenant_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x − 28).** The first BURNING enemy — `EmberAura` gives it a constant emission floor, rising embers and a weak light, all riding `Posture.Ratio`. A READ rather than a cadence: slow committed swings, a 40° thrust, an unblockable kick, and a 1.4 s overhead recovery that is the biggest punish window in the game. **Imported ANIMATED body** (`Assets/Enemies/EmberRevenant.fbx`, from `ai_skelly_tool`). See §2b. |
 | `Legendary_Marionette` — *The Pale Marionette* | `Legendary_Marionette` | `Legendary_Marionette_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only — deliberately not in `Level_01`.** The whirl: deflect every pass on a 0.69 s beat (the parry contract's floor), nine passes to a phrase, six clean deflects break it. **Imported ANIMATED body** (`Assets/Enemies/PaleMarionette.fbx`), driven by `PuppetVisuals` + an `Animator`. See §2b. |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
 
@@ -194,6 +195,11 @@ To add another animated model:
 
 1. Copy the FBX **and its `.clips.json`** into `Assets/Enemies/`, named to match
    (`Foo.fbx` + `Foo.clips.json`). Copy the source drawing in as `Foo_source.png` for provenance.
+1b. Run **VibeGame1 → Probe Forge Models** (`Editor/ForgeModelProbe.cs`) and write the `ModelSpec` from
+   what it reports. **Do not infer pivots from the bounding box.** The Ember Revenant's mesh reaches
+   y 1.96 while its head bone sits at 1.20 — the top 0.76 m is spikes and hood with no bones in it — so a
+   bounds-derived eye or deathblow glyph floats in mid-air, silently. The probe also prints per-clip hand
+   separation, which is how the spin/pose clip gets picked by measurement instead of by name.
 2. Run **4a. Split Forge Animation Clips**. Confirm in the console that it reports the clip count you
    expect, then check the FBX's sub-assets: fifteen named clips, none of them `empty`.
 3. Add a `ModelSpec` to `MiniBossFactory.ModelFor` with `animated = true` plus `idleClip`,

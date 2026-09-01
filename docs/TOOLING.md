@@ -205,6 +205,35 @@ real read is closer. **A wind-up pose is judged from these photographs, never fr
 
 `RunGuardEntry(dir)` films the three entry paths into the held guard.
 
+### Measuring an imported forge model — `ForgeModelProbe`
+
+`Assets/Editor/ForgeModelProbe.cs`, menu **VibeGame1 → Probe Forge Models**, and headless via
+`-executeMethod VibeGame1.EditorTools.ForgeModelProbe.Batch`. For every FBX in `Assets/Enemies/` it
+reports mesh bounds and facing, the full bone list, the bind-pose position of every landmark bone, a
+**suggested `ModelSpec` derived from the bones**, and per-clip hand separation sampled at 25/50/75%.
+
+Run it before writing a `ModelSpec`, and trust it over the bounding box. On the Ember Revenant the two
+disagree by 0.76 m — see ENGINEERING-LOG.md. The per-clip arm span is how the Marionette's spin clip was
+chosen: `AttackSwing` tucks the arms to 0.76 m, `Roar` holds 2.0 m throughout.
+
+### Photographing an enemy — `EnemyPortrait`
+
+`Assets/Editor/EnemyPortrait.cs`, menu **VibeGame1 → Photograph Enemies**, headless via
+`-executeMethod VibeGame1.EditorTools.EnemyPortrait.Batch`. Renders a prefab from the player's eye height
+at that enemy's own `preferredRange`, from four angles, and prints where the eye and deathblow glyph
+actually ended up. It calls `EnemyVisuals.Setup` and `SetAura` by hand because **`Awake` never runs in
+edit mode**, so without them the body renders in the wrong colour and unlit.
+
+⚠ **It discards a warm-up render, and so should anything else that captures headlessly.** Unity's first
+`Camera.Render()` in `-batchmode` returns before the pipeline has set itself up and produces a flat,
+wrongly-lit frame — the first Revenant portrait came out solid orange and read as a broken material.
+
+⚠ **Runtime-only effects do not appear.** `EmberAura`'s embers are spawned by its update loop, and
+nothing updates in edit mode. The body glow in these frames is real; the particles are absent. Assert
+those with a test instead — `RevenantDataTests.ThePrefabActuallyCarriesTheAura` resolves the component
+TYPE, which is the only thing that catches a **missing script** (a prefab whose YAML looks perfect but
+whose `GetComponent` returns null at runtime, silently).
+
 ### Filming the Marionette's whirl headless — `SpinFilm`
 
 `Assets/Editor/SpinFilm.cs`. **The one capture tool that needs neither play mode nor a working MCP

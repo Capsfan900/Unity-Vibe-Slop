@@ -1843,6 +1843,197 @@ contradicted a confident derivation about it.
 
 ---
 
+## Emission on an enemy was already spoken for, so the fire had to be a floor and not a lamp
+
+**Symptom / risk.** The brief was "make these types of enemies glow and emanate fire/energy". The
+obvious implementation — push emission onto the body renderers — collides head-on with a rule
+`EnemyVisuals` states in its own header: *light on an enemy means "you deflected", never "an attack
+is happening"*. `WriteBody` is documented as the single writer of `_BaseColor` and `_EmissionColor`
+precisely so that a deflect is the one and only moment an enemy emits light. A permanently glowing enemy
+does not just add a look; it destroys the meaning of the loudest reward signal in the game.
+
+**Resolution: a FLOOR and a SPIKE are different things, and can coexist.** `EmberAura` never writes a
+property block. It calls `EnemyVisuals.SetAura(colour, amount)` and the existing single writer folds it
+in — the same arrangement `WeaponEmber` already has with `EnergyGlow` on the player's blade. Two
+properties make it safe: the aura ships far under the parry glow (0.22 against 3.2), and it is passed
+through the same `chargeDark` as everything else. That second one turned out to be the good part rather
+than the concession: **a body on fire now visibly INHALES on a wind-up**, the fire drawn in as it charges
+and flooding back on the strike. The aura reinforces the telegraph instead of washing it out.
+
+**Invariant.** **Before adding a channel to an enemy, find out what that channel already MEANS.** The
+readability language here is small and each part of it is load-bearing; a new effect that borrows an
+occupied channel is not additive, it is a redefinition. Ask the owner for a slot instead.
+
+---
+
+## The forge rig's bones and its silhouette disagree by three quarters of a metre
+
+**Symptom.** The Ember Revenant's mesh spans y −0.17 to 1.96 — a two-metre figure. Its **head bone is at
+y 1.20**, and the entire skeleton fits between 0.96 (Hips) and 1.20 (Head). The top 0.76 m is shoulder
+spikes and hood with no bones in it at all.
+
+**Why that is dangerous rather than merely odd.** Every previous forge model had a skeleton that roughly
+filled its silhouette, so `ModelSpec` pivots were sanity-checked against the bounds without anyone
+noticing they were doing it. On this body, the deathblow glyph placed at the documented "0.74 of height"
+lands at y 1.41 — **three tenths of a metre above the head bone**, floating in the hood, marking nothing.
+The eye would have gone the same way. Neither failure produces an error; they produce an enemy that is
+subtly, silently wrong to look at.
+
+**Fix, and the tool that should have existed already.** `VibeGame1/Probe Forge Models`
+(`Editor/ForgeModelProbe.cs`) reports mesh bounds, the full bone list, per-clip hand separation, and a
+suggested `ModelSpec` derived **from the bones**. `docs/AUTHORING.md` has said "pick the clip by
+measuring, not by name" since the Marionette — whose spin clip was chosen exactly that way, by sampling
+arm span and discovering that the obviously-named `AttackSwing` tucks the arms to 0.76 m while `Roar`
+holds 2.0 m throughout. But that measurement was made ad hoc through the MCP bridge and never became a
+tool, so the next model was always going to skip it.
+
+**Invariant.** **A pivot comes from the SKELETON, never from the bounding box.** The two agree only on
+bodies without large unrigged decoration, and nothing warns you when they stop agreeing.
+
+---
+
+## Unity's first `cam.Render()` in batch mode is a lie
+
+**Symptom.** The first headless portrait of the Ember Revenant came back as a **flat orange silhouette**
+against a dark ground — exactly what a broken material looks like. Every subsequent frame in the same
+run was correct: a dark charcoal body with a small glowing eye.
+
+**Root cause.** In `-batchmode`, the first `Camera.Render()` returns before the render pipeline has
+finished setting itself up, and produces a frame with wrong lighting and wrong colour. It is not a
+material bug, an asset bug or a pipeline misconfiguration; it is a warm-up artefact.
+
+**Fix.** `EnemyPortrait` renders once into the void before believing anything. Worth propagating: the
+earlier `SpinFilm` captures used to judge the Marionette's whirl had the same flaw, so their first frames
+were suspect too.
+
+**Invariant.** **Discard the first rendered frame of any headless capture.** And more generally — the
+reason this one was caught rather than acted on — when a capture disagrees with everything else you know
+about the asset, suspect the CAMERA before the asset.
+
+---
+
+## Generated assets live in git, so a scratch-copy workflow has to copy them back
+
+**Symptom.** Verification this session ran in a throwaway copy of the project (`robocopy` of `Assets` +
+`Packages` + `ProjectSettings`, Unity rebuilds its own `Library`), because the MCP bridge was down and the
+editor was busy. Three separate failures came out of that arrangement, all the same shape:
+
+1. **`/PURGE` deletes what only exists in the copy.** Data assets generated by `DataFactory` in the scratch
+   project were wiped by the next sync, and the tests that read them failed claiming the enemy did not
+   exist — which was true, of the copy, and false of the work.
+2. **A new script gets a DIFFERENT `.meta` GUID in each project.** A prefab built in the scratch copy
+   referenced the scratch GUID for `EmberAura`. Copied back, that is a **missing script**: present in the
+   YAML, values intact, `GetComponent` returns null at runtime, nothing in the console.
+3. **The clip split lives in the FBX's `.meta`.** `4a. Split Forge Animation Clips` writes
+   `ModelImporter.clipAnimations`; a `/PURGE` sync restored the unsplit meta and the animator silently
+   built from a model with no named clips.
+
+**The rule that resolves all three.** `Assets/Data/**`, `Assets/Prefabs/**`, `Assets/Animation/**` and the
+FBX `.meta`s are **committed artefacts**, not build output. A scratch copy is a place to RUN the
+generators, and its output has to be copied back into the real project — with its `.meta`, so GUIDs
+travel with it — before the next sync destroys it.
+
+**Invariant.** **A test that reads a shipped asset is worth more than a screenshot of it.**
+`RevenantDataTests.ThePrefabActuallyCarriesTheAura` resolves the component TYPE rather than grepping the
+YAML, which is the only check that catches a missing script — a text diff of the prefab looks perfect in
+exactly that case, and the runtime failure is silent.
+
+---
+
+## A deflect was missing weight, not clarity — and gap 3.4 was two questions, not one
+
+**Symptom.** The parry was "pretty good": hitstop, shake, flash, chromatic pulse, sparks, an enemy
+emission spike, audio. Everything needed to *read* the deflect was there. What was absent was the sense
+of being hit by something. The instinct in that situation is to turn up the light, and it is the wrong
+instinct here: `EnemyVisuals` documents that `CueFlash` must stay the loudest event in the frame, and
+light on an enemy means "you deflected", never "an attack is happening". Every lever added is therefore
+**force** — rotation, translation, FOV, time, spectral width — and not one of them brightens a pixel.
+
+**Root cause 1: the camera shake was omnidirectional by construction.** `CameraShake` was pure Perlin
+noise, which can tell you that something happened and can never tell you what. It now carries two
+channels that sum: `Add` (noise, "something happened") and `Kick` (an authored *directional* impulse,
+"something hit you, from there"). The kick's envelope, `ParryImpulse.KickCurve`, eases out on the way and
+falls off quadratically on the return — at the shipped 0.16 s life, **82% of the displacement lands
+inside the first frame**. That is the load-bearing number: a kick that arrives over three frames is a
+camera drift and reads as a bug. The amplitudes are small on purpose (1.6° pitch, ±1.1° yaw, ±1.3° roll,
+3.5 cm) because ShakeRoot sits between the look pivot and the lens and *is* the aim source; roll is the
+largest component precisely because roll cannot move the aim vector.
+
+**Root cause 2, and the real answer to gap 3.4: hitstop is two questions.** `ANIMATION-VFX.md` asked
+whether to replace the binary freeze with a curve and correctly suspected the crisp version was doing a
+job. It is — but only at one end. A ramp *into* the freeze removes the single frame the eye can point at
+and call the hit, which is what this game's whole deflect is built on, so **the onset stays binary**, and
+a test samples every quarter-frame from contact to 0.090 s to keep it that way. The waste was at the
+other end: snapping from 0.02 straight back to 1.00 discarded the moment in one frame. The release is now
+a two-step staircase (0.45 for ~2.3 frames, then 0.725 for ~1.9), issued as two extra
+`TimeScaleController` requests that are invisible under the freeze because overlapping requests resolve
+to the *smallest* scale — which is why this needed no edit to `PlayerCombat` or to the controller.
+
+**Invariant.** **Gap 3.4 is settled asymmetrically: do not ramp the onset.** Setting
+`parryHitStopRelease = 0` restores the old behaviour bit-exactly, and a test proves that escape hatch
+works.
+
+**The budget that makes it safe.** The player runs at 1.0 throughout (rule 1), so the added slow costs
+**29.8 ms of world time** and shifts *everything* — the enemy, the swing, the next parry cue — by the
+same 29.8 ms. No relative timing changes, and the 0.13 s perfect window is untouched. `ParryImpactTests`
+holds the whole freeze under one perfect window and the release tail to 15–40 ms, and one test
+independently replays the min-wins overlap resolution to prove the modelled staircase and the shipped
+staircase are the same object. **Invariant: if you add a hitstop layer, add its cost to that budget
+test.**
+
+**The cheapest cue in the package was already written.** `WeaponViewmodel.GuardImpact` runs on
+`PlayerDelta`, so during a deflect's freeze the blade is the one thing in the world still moving. It was
+only ever wired to the held guard; the viewmodel did nothing at all on a Perfect. It must be called
+**after** `EnterRecovery()`, because `EndParry` re-asserts the stance and re-raising the guard on top of
+a kickback eats it entirely.
+
+---
+
+## The Pyre discharge: what a single beam cannot say, and what a capture said in one frame
+
+`SlashFx.Beam` was built to answer "where did that come from", and it does — but a beam is a *tube*, and
+a tube is a laser sight. The Pyre needed something that reads as CHARGE BEING DELIVERED, which is three
+separate claims: it has an author (it starts at the weapon), it has a destination (it stops inside the
+body, not near it), and it has *substance* crossing the gap. `LightningEffect.Bundle` and `PyreMist`
+split those: five braided jagged channels give the moment its spine and direction, and a misty flow
+seeded along the same channel gives it volume and duration. Neither works alone — bolts alone are a
+flashbulb, mist alone has no author.
+
+**Invariant: any effect that is supposed to read as one object acting on another must terminate EXACTLY
+on both endpoints.** `FillStrand` writes `points[0] = from` and `points[n-1] = to` literally rather than
+trusting the lerp, and tapers lateral deviation by `sin(k·π)` so nothing is clipped at the ends; a channel
+that merely passes near the wand tip and near the chest reads as an unrelated spark, and at 60 fps that
+failure is invisible.
+
+**A burst emitted from the source is a clump, not a flow.** The first `PyreMist` fired all its motes out
+of a cone at the weapon tip. Photographed at mid-flight that is a *ball* with a gap on either side of it
+travelling up the span — the exact opposite of a stream. The fix is arithmetic, not tuning: each mote is
+seeded at its own fraction `k` of the way along and given lifetime `Flight·(1-k)`, so the whole channel is
+populated on frame one, every mote still arrives at the victim, and the far end empties first — the flow
+visibly drains INTO the body. **Invariant: a directed particle stream is defined by where its particles
+START, not by how fast they are thrown.**
+
+**HDR content colour plus additive blending equals white, and this project ships everything at
+2.4–2.6×.** The first capture of the bundle was five identical *pure white* wires; the Stormneedle's blue
+was nowhere on screen, because every channel of `#7FD4FF × 2.6` clips. `LightningEffect.Strike` has had
+this property since it was written and nobody noticed, because a storm being white is fine. A five-strand
+rope being white is not — the braid is invisible. `FringeOf(c) = c × 0.34` is the same core-plus-fringe
+trick `SlashFx` applies to every primitive, promoted to bundle mode: the spine keeps the hot HDR value
+and blows out the bloom, the braid keeps the *hue* at an intensity that does not clip. **Invariant: in an
+additive effect with more than one element, at most ONE of them may be drawn at full HDR intensity — the
+rest carry the colour.**
+
+**And a real build bug found by inspection, now fixed.** `ProjectSetup.EnsureAlwaysIncludedShader`
+registered only `Universal Render Pipeline/Unlit` and `Sprites/Default`. `DeathMist` and `PyreMist`
+resolve `Universal Render Pipeline/Particles/Unlit` by `Shader.Find` at RUNTIME, and no asset references
+it — so a player build strips it. The failure mode is not magenta: a `ParticleSystemRenderer` whose
+material has a null shader draws **nothing**, silently. The death dissolve and the Pyre mist would have
+been absent from a shipped build while looking perfect in the editor. **Invariant: any shader reached
+only by `Shader.Find` must be in Always Included Shaders, and nothing in this project builds a player, so
+no test will ever catch the next one.**
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

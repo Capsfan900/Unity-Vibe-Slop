@@ -12,7 +12,7 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Suite | Scope | Result |
 |---|---|---|
-| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests` — plus `MarionetteDataTests` (shipped-asset arithmetic) | **47 / 47 pass** — re-run in the real Unity runner (batch mode, isolated copy) after the Marionette retune added 15 tests (+9 `PuppetSpinTests`, +6 `MarionetteDataTests`) |
+| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests`, `LockOnTrackingTests`, `ParryImpactTests`, `PyreArcTests` — plus `MarionetteDataTests` and `RevenantDataTests` (shipped-asset arithmetic) | **111 / 111 pass**, real Unity runner in batch mode |
 | `FeatureTests` | Behavioural, real systems in play mode | **666 passed · 0 failed · 0 skipped** (43.1 s), fresh play-mode session on `Level_01.unity` |
 
 The count rose from 633 with the **33 new `WindupPoses` checks** (below). The run immediately before it
@@ -103,6 +103,52 @@ platform). Every combat, enemy, parry, deathblow, `Legendaries`, `GateLoop` and 
 clean. `Movement_LandsAndGrounds` is also **flaky** — two fresh baseline runs taken before any of this
 session's changes gave 520/2/0 each time with a *different* pair of tests failing, so treat a single
 isolated Movement/Deathblow-framing failure as noise and re-run before investigating.
+
+---
+
+## ⚠ The MCP bridge was never actually down — and that mattered for a whole session
+
+Every verification note in this document dated to this session says play-mode `FeatureTests` could not
+be run because the Unity MCP bridge was unreachable. **That diagnosis was wrong, and the correction is
+worth more than the work it blocked.**
+
+What actually happened: the MCP server is configured as **HTTP transport** on `127.0.0.1:8090`, and it
+is spawned by the Unity editor as it loads. The Claude Code session's MCP client tried to connect during
+the first 7 seconds of the session, got `ConnectionRefused` because the editor had not spawned the
+server yet, gave up, and **never retried**. The server came up **4 minutes 22 seconds later** and has
+served continuously ever since — verified live from inside the session over plain HTTP:
+`initialize` → HTTP 200, `mcp-for-unity-server 3.4.7`, one connected Unity instance,
+`read_console` → 0 errors.
+
+**Port 6400 is a red herring.** 6400 belongs to the *stdio* transport, where the Python server dials
+into a Unity-side listener. This install uses HTTP: Unity dials **out** to the server. 6400 is correctly
+never bound, and "6400 is not listening" was treated as evidence of a fault when it is evidence of
+nothing.
+
+**The fix is `/mcp` → UnityMCP → Reconnect**, or relaunching with `claude --continue`. No restart of
+Unity, and nothing to install. To avoid a repeat: let the editor finish loading before starting a
+session.
+
+**The lesson for this document.** A whole session's worth of "unverified, needs a playtest" caveats were
+caused by a startup race that one HTTP request would have disproved at any point. *Check that a
+dependency is actually down before building a workflow around its absence.* The headless
+`-batchmode` workflow built to route around it is genuinely useful and worth keeping — it runs with the
+editor busy, which the bridge does not — but it was adopted for the wrong reason.
+
+### What the live editor says right now
+
+Read over the bridge while the user was in play mode in `Sandbox.unity`, with everything committed this
+session loaded:
+
+| | |
+|---|---|
+| Console errors | **0** |
+| Console warnings | **1**, unrelated (Unity Account API timeout) |
+| `[PuppetVisuals]` clip-clamp warnings | **none** — the Revenant's clips fit its attack data without being clamped |
+| Missing-script errors | **none** — `EmberAura` resolves on the shipped prefab |
+
+That is not a substitute for the play-mode suite, but it is real evidence from a real session: the
+session's committed work compiles, loads and runs in the Sandbox without error.
 
 ---
 

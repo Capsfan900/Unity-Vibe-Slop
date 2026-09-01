@@ -318,6 +318,56 @@ The Shade is fast through **combo density and short recoveries only**. No wind-u
 `0.45 s` — the contract above is not negotiable for a mini-boss, and a faster tell would need its cue to
 fire before the wind-up began.
 
+### The Ember Revenant — the burning prototype
+
+`Legendary_Revenant`. **A prototype and a sandbox exhibit, not a campaign enemy**, exactly like the
+Marionette: it has a pad at x − 28, a wake switch, and it is in no `LevelDefinition` and no
+`LevelRegistry`. The body is the first export from **`ai_skelly_tool`** — a tall, lanky blade-bearer —
+and it went through the existing forge pipeline with no bespoke code at all: FBX + `clips.json` →
+`4a. Split Forge Animation Clips` → a `ModelSpec` → `4b. Build Mini-Bosses`.
+
+It exists to answer two questions:
+
+**1. Can an enemy be lit from inside without wrecking the readability language?**
+Yes, but only by asking rather than writing. Emission on an enemy is *already spoken for* —
+`EnemyVisuals` reserves it so that light means "you deflected", never "an attack is happening". So
+**`EmberAura`** never touches a property block; it calls `EnemyVisuals.SetAura`, and the existing single
+writer folds a dim constant floor (0.22) in under the parry spike (3.2). Crucially the floor runs through
+the same `chargeDark` as everything else, so **a body on fire still visibly inhales on a wind-up** — the
+fire is drawn in as it charges and floods back on the strike. The aura reinforces the telegraph rather
+than washing it out. Intensity rides `Posture.Ratio`, so it stokes hotter as the break approaches, which
+is the language the eye already speaks on every other enemy. On top of that: embers shed from the body
+into a scene-level root (so it moves out from under its own fire rather than towing it) and one weak
+point light. See ENGINEERING-LOG.md.
+
+**2. Does a second animated forge model drop in without bespoke code?**
+It does — but only because two measurement tools now exist. This rig's **skeleton spans y 0.96 to 1.20
+while its mesh reaches 1.96**: the top 0.76 m is shoulder spikes and hood with no bones in it. Every pivot
+inferred from the bounding box would have floated in mid-air. `VibeGame1/Probe Forge Models` reads the
+bones; `VibeGame1/Photograph Enemies` checks the result on screen.
+
+**The fight is a READ, not a cadence — which is the whole point of having both prototypes.** Where the
+Marionette is a metronome you hold at the parry contract's floor, this is slow, enormous and committed,
+with real openings. It is the gentler of the two on purpose, and a test enforces that every one of its
+wind-ups is slower than a Marionette spin pass.
+
+| | `windup` | `impactDelay` | `strike` | `recovery` | cone | dmg | parry × |
+|---|---|---|---|---|---|---|---|
+| `Revenant_Slash` | 0.62 | 0.05 | 0.16 | 0.55 | 95° | 20 | 1.3 |
+| `Revenant_Stab` | 0.55 | 0.04 | 0.12 | 0.50 | **40°** | 24 | 1.45 |
+| `Revenant_Overhead` | 0.95 | 0.07 | 0.22 | **1.40** | 70° | 38 | 1.8 |
+| `Revenant_Kick` (unblockable) | 0.70 | 0.05 | 0.18 | 0.90 | 55° | 18 | — |
+
+`Revenant_Overhead`'s 1.40 s recovery is **the biggest punish window in the game** — this is where a new
+player learns that a whiffed heavy is free damage. `Revenant_Stab` is chosen against what the ART
+actually does rather than its name: sampling hand separation across every clip, `AttackStab` is the only
+one that CLOSES (0.81 → 0.19 → 0.24 m), so it is the thrust, and its 40° cone matches. `Revenant_Kick`
+is the anti-turtle: the one unblockable, so simply holding guard is never a complete answer.
+
+240 HP against 160 posture, `aggression 0.38`: tankier and far less pushy than the Marionette's 170/210
+at 0.62. It does **not** hold the Marionette's beat identity, and that is deliberate — a visible stumble
+after a deflect is the reward here, not a metronome that must not drift.
+
 ### The Pale Marionette — the animated prototype
 
 `Legendary_Marionette`. **A prototype and a sandbox exhibit, not a campaign enemy.** It has a pad, a

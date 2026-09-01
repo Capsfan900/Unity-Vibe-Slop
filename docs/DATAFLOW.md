@@ -869,6 +869,29 @@ EnemyController.BeginWindup(atk, gap)
                    the punish read, and it works because nothing else is moving.
 ```
 
+### Burning enemies — `EmberAura`
+
+```
+EmberAura.Update()                       (Legendary_Revenant; bolt onto any enemy)
+   → heat = lerp(glowAtRest, glowAtBreak, Posture.Ratio) x breath
+   → EnemyVisuals.SetAura(emberHot, heat)      ASKS. Never writes a property block.
+        └ WriteBody() folds it in as an emission FLOOR under the parry spike, and
+          multiplies it by chargeDark like everything else -- so a burning body
+          still INHALES on a wind-up and floods back on the strike.
+   → embers: a fixed pool of additive quads, spawned around the body and parented to
+        a SCENE-LEVEL root, so the enemy moves out from under its own fire instead of
+        towing it. Rate scales with heat; the pool never grows.
+   → one weak point light at chest height.
+```
+
+**Invariants**
+- **It ASKS for the glow.** `WriteBody` is the single writer of the body's `_BaseColor` /
+  `_EmissionColor`; a second writer here would be overwritten on the next frame and would silently
+  break the parry read. Same arrangement `WeaponEmber` has with `EnergyGlow`.
+- **The floor stays far under the parry spike** (0.22 vs 3.2). A deflect must remain the brightest thing
+  an enemy ever does, or "light means you deflected" stops being true for burning enemies.
+- Unscaled time throughout, so hitstop does not freeze the fire. A frozen flame reads as a dropped frame.
+
 **Invariants specific to this path**
 - The whirl writes `SpinRoot.localRotation` and NOTHING else. It never touches a collider, a range, a
   cone or a time — the impact test is exactly the one every other enemy uses.
