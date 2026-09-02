@@ -15,7 +15,8 @@ namespace VibeGame1.EditorTools
     /// this answers "why not", which is the question you actually have when it says no.
     ///
     /// <para>Headless: <c>-executeMethod VibeGame1.EditorTools.LevelWallRunProbe.Run</c>, with the line's
-    /// index in <c>LevelSpan1Report.WallRunLines</c> in the environment variable <c>VIBE_WALLRUN_LINE</c>
+    /// index in the span's <c>WallRunLines</c> in the environment variable <c>VIBE_WALLRUN_LINE</c>
+    /// (the span itself in <c>VIBE_WALLRUN_SPAN</c>, default 1)
     /// (default 0) and the entry speed in <c>VIBE_WALLRUN_SPEED</c> (default: sprint). Writes
     /// <c>LevelWallRunProbe.txt</c> beside the project.</para>
     /// </summary>
@@ -36,6 +37,19 @@ namespace VibeGame1.EditorTools
             Debug.Log("\n" + report);
         }
 
+        /// <summary>Which span's lines <c>VIBE_WALLRUN_LINE</c> indexes: <c>VIBE_WALLRUN_SPAN</c>, default 1.</summary>
+        static LevelSpan1Report.WallRunLine[] LinesForSpan()
+        {
+            int span = 1;
+            string e = Environment.GetEnvironmentVariable("VIBE_WALLRUN_SPAN");
+            if (!string.IsNullOrEmpty(e)) int.TryParse(e, out span);
+            switch (span)
+            {
+                case 3: return LevelSpan3Report.WallRunLines;
+                default: return LevelSpan1Report.WallRunLines;
+            }
+        }
+
         public static string Build(string levelPath, int lineIndex, float maxSpeed)
         {
             var sb = new StringBuilder();
@@ -47,7 +61,8 @@ namespace VibeGame1.EditorTools
 
             var all = A.BoxesFrom(def);
             float floorY = def.killZone.center.y;
-            var line = LevelSpan1Report.WallRunLines[Mathf.Clamp(lineIndex, 0, LevelSpan1Report.WallRunLines.Length - 1)];
+            var lines = LinesForSpan();
+            var line = lines[Mathf.Clamp(lineIndex, 0, lines.Length - 1)];
             sb.AppendLine("PROBE " + line.from + " -> " + line.wall + " -> " + line.to + " at max entry speed " + maxSpeed.ToString("0.0"));
 
             int ia0 = A.IndexOf(all, line.from), iw0 = A.IndexOf(all, line.wall), ib0 = A.IndexOf(all, line.to);

@@ -475,6 +475,27 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
+  - name: T3_Wall_Pillars
+    center: {x: 7.1, y: 22.5, z: 198.5}
+    size: {x: 1.2, y: 7, z: 16}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T3_Wall_Landing_S
+    center: {x: 5.5, y: 22.5, z: 210.5}
+    size: {x: 6, y: 1, z: 7}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T3_Wall_Span
+    center: {x: 7.6, y: 26, z: 224.5}
+    size: {x: 1.2, y: 8, z: 20}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
   - name: T3_Arena
     center: {x: 0, y: 27.5, z: 270}
     size: {x: 26, y: 1, z: 26}
