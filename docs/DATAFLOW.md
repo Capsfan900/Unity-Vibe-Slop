@@ -964,6 +964,38 @@ SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on ever
 - Bloom writes the runtime clone. Writing `sharedProfile` from play mode dirties the asset on disk.
 - Sliders are stock UGUI `Slider`s driven by anchors — never `Image.fillAmount` (rule 5).
 
+### Movement — wall run
+
+```
+InputReader (jump/dash only; wall running has NO binding -- entry is by arriving correctly)
+  → FirstPersonMotor.Update      dt = TimeScaleController.PlayerDelta   (rule 1)
+     → TryWallRun()               cheap gates: airborne, budget <= maxWallRuns 3, off cooldown,
+                                   fall speed < 9, speed >= 7
+        → FindRunnableWall         2 spherecasts; refuses lastWallNormal via sameWallCosineLimit
+        → WallRunMath.CanEnter     tangential >= 7, approach cos <= 0.55, look-along cos >= 0.30
+        → Enter                    drop the normal component, floor vy at +3
+                                   → OnWallRunStarted; PlayerLook.SetRollBias(+/-13 deg)
+     → AdvanceWallRun(dt)         ProbeWall → WallRunMath.Advance: 2 ms substeps, gravity
+                                   x0.10 → x0.60 on t^2, tangential x exp(-0.35 h), top-up 14 m/s^2
+                                   toward groundSpeed while holding forward
+                                   → cc.Move(disp - n * 2.5 * used)    (pressed to the face)
+        → ShouldEnd                Expired (1.6 s) | Decayed (< 5 m/s) | LostWall | Landed |
+                                   Cancelled (stagger, dash).  Unspent dt returns to the air branch.
+     → jump while running         WallRunMath.Exit: +4 along, +7 out, vy 10, clamped to dashSpeed
+                                   → EndWallRun(Jumped) → PlayerLook.AddRollKick(7 deg, 0.28 s)
+  Camera: PlayerLook sums rollBias + rollKick as pivot local Z. Unscaled time. Aim-invariant.
+  Tuning: PrefabFactory → Player.prefab → FirstPersonMotor.WallRunSettings, and the SAME prefab
+          feeds LevelArcAnalyzer.MoveProfile.WallRun -- one source for the motor and the analyser.
+```
+
+**Invariants**
+- Every timer and integration on `PlayerDelta`. Hitstop can neither freeze nor extend a run.
+- Velocity is never derived from `CharacterController` state, so the resized-controller trap that
+  produced the framerate-dependent slide is structurally absent; `TheRunIsIdenticalAtEveryFramerate`
+  integrates at 500/144/90/60/30/12 fps and holds duration to ±5 ms, distance to ±1 cm.
+- `wallRunSpeedDecay` must sit inside `(ln(minEntry/minSustain), ln(top/minSustain)) / maxDuration`
+  or one end condition is unreachable. Asserted.
+
 ## Boss
 
 ```

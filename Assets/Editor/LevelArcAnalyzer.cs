@@ -1217,9 +1217,15 @@ namespace VibeGame1.EditorTools
             public float gap;          // edge-to-edge distance from -> to
             public int entries, routes, cleanRoutes;
 
+            /// <summary>The widest-clearance arriving route. Prefer this when asking "is it safe".</summary>
             public Vector3 bestLaunchFeet, bestLaunchVel;
             public float bestLeaveAt;
             public WallRunRoute best;
+            /// <summary>The arriving route with the LONGEST time on the wall. Prefer this when asking
+            /// "does this geometry make the player actually run, or just hop off after a frame" — a gap
+            /// whose only arriving routes leave at 0.2 s is a wall jump wearing a costume.</summary>
+            public WallRunRoute longest;
+            public float longestLeaveAt;
             /// <summary>The commonest reason entry was refused, when none succeeded.</summary>
             public WallRunReject chiefReject;
             public string chiefObstruction;
@@ -1237,12 +1243,15 @@ namespace VibeGame1.EditorTools
                                          from, to, wall, entries, gap, best.runDuration, best.runDistance,
                                          string.IsNullOrEmpty(chiefObstruction) ? "none, it just falls short" : chiefObstruction);
                 return string.Format("{0} -> {1} via {2}: ok   gap {3:0.00} m   {4}/{5} clean routes from " +
-                                     "{6} entries   run {7:0.00} s / {8:0.0} m / {9:+0.00;-0.00} m net   " +
-                                     "leave at {10:0.00} s   clearance {11:0.00} m",
+                                     "{6} entries   safest: run {7:0.00} s / {8:0.0} m / {9:+0.00;-0.00} m net, " +
+                                     "leave at {10:0.00} s, clearance {11:0.00} m   longest: run {12:0.00} s / " +
+                                     "{13:0.0} m, leave at {14:0.00} s",
                                      from, to, wall, gap, cleanRoutes, routes, entries,
                                      best.runDuration, best.runDistance, best.exitFeet.y - best.entryFeet.y,
                                      bestLeaveAt >= 1e8f ? best.runDuration : bestLeaveAt,
-                                     best.minClearance >= 1e8f ? 99f : best.minClearance);
+                                     best.minClearance >= 1e8f ? 99f : best.minClearance,
+                                     longest.runDuration, longest.runDistance,
+                                     longestLeaveAt >= 1e8f ? longest.runDuration : longestLeaveAt);
             }
         }
 
@@ -1348,6 +1357,11 @@ namespace VibeGame1.EditorTools
                     }
 
                     v.cleanRoutes++;
+                    if (!v.exists || route.runDuration > v.longest.runDuration)
+                    {
+                        v.longest = route;
+                        v.longestLeaveAt = LeaveDelays[di];
+                    }
                     float clr = route.minClearance >= 1e8f ? 99f : route.minClearance;
                     float bestClr = v.exists ? (v.best.minClearance >= 1e8f ? 99f : v.best.minClearance) : float.MinValue;
                     if (!v.exists || clr > bestClr)

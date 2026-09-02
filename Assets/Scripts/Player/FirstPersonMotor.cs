@@ -99,8 +99,9 @@ namespace VibeGame1
         [Tooltip("Floor on dot(flattened look, run direction). 0.30 ~ 72 deg. The INTENT term: you may " +
                  "glance around mid-run, but a run you never looked at never starts.")]
         public float wallRunMinLookAlongCos = 0.30f;
-        [Tooltip("Hard cap on one run. A wall run that never ends is a floor; 1.6 s at ~11 m/s is about " +
-                 "16 m of wall, which is the length a corridor should be authored to.")]
+        [Tooltip("Hard cap on one run. A wall run that never ends is a floor; 1.6 s at an 11 m/s entry is " +
+                 "13.5 m of wall with the stick released and 17.6 m held forward, the lengths a " +
+                 "corridor should be authored to.")]
         public float wallRunMaxDuration = 1.6f;
         [Tooltip("Gravity multiplier at the START of a run. 0.10 of -30 is -3 m/s^2: nearly free.")]
         public float wallRunGravityStartScale = 0.10f;
@@ -110,9 +111,14 @@ namespace VibeGame1
         [Tooltip("FLOOR on vertical speed at the moment of entry — the catch. 3 m/s under the run's own " +
                  "gravity is about 1.25 m of rise over the first 0.75 s, then it is paid back.")]
         public float wallRunEntryUpSpeed = 3f;
-        [Tooltip("Exponential bleed of speed along the wall, per second. 0.20 keeps 73% over a full " +
-                 "1.6 s run: the run CARRIES, the same promise the slide makes.")]
-        public float wallRunSpeedDecay = 0.20f;
+        [Tooltip("Exponential bleed of speed along the wall, per second, stick released. 0.35 is chosen " +
+                 "so BOTH endings are real: a sprint entry (11 m/s) keeps 57% and rides the full 1.6 s " +
+                 "clock out at 6.3 m/s, while a minimum entry (7 m/s) bleeds to the 5 m/s floor at " +
+                 "~0.96 s - arrive fast and the wall carries you, scrape in and it drops you early. " +
+                 "Live only inside ln(minEntry/minSustain)/maxDuration < decay < " +
+                 "ln(groundSpeed/minSustain)/maxDuration (0.21..0.49 as shipped); outside it one of the " +
+                 "two end conditions is dead code. WallRunTunablesTests holds that window.")]
+        public float wallRunSpeedDecay = 0.35f;
         [Tooltip("Below this the run drops you. Above a walk, so you always leave a wall with something.")]
         public float wallRunMinSustainSpeed = 5f;
         [Tooltip("Top-up along the run while holding forward, capped at groundSpeed. Lets a committed " +

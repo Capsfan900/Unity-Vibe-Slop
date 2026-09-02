@@ -595,7 +595,7 @@ namespace VibeGame1.EditorTools
             motor.wallRunGravityStartScale = 0.10f;
             motor.wallRunGravityEndScale = 0.60f;
             motor.wallRunEntryUpSpeed = 3f;
-            motor.wallRunSpeedDecay = 0.20f;
+            motor.wallRunSpeedDecay = 0.35f;   // 0.20 put the sustain floor out of reach; see WallRunTunablesTests
             motor.wallRunMinSustainSpeed = 5f;
             motor.wallRunAccel = 14f;
             motor.wallRunStickSpeed = 2.5f;

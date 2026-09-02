@@ -324,9 +324,13 @@ namespace VibeGame1.EditorTools
         {
             var skyGroup = new GameObject("Sky");
             skyGroup.transform.SetParent(root, false);
+            // THE ECLIPSE, at the same 22 / 38 the shipped level carries in Level_01_Level.asset.sky.
+            // Three copies of this pair exist (Starfield.DefaultEclipse*, SkyDef's initialisers, and the
+            // level asset) and the sandbox is the fourth; keep them equal, or the place you go to look
+            // at an enemy shows a different sky than the place you fight it.
             Starfield.Build(skyGroup.transform, starCount: 1200, radius: 25f, seed: 20260830,
-                            includeEclipse: true, eclipseYawDeg: 0f, eclipsePitchDeg: 13f,
-                            eclipseDiameterDeg: 19f);
+                            includeEclipse: true, eclipseYawDeg: 0f, eclipsePitchDeg: 22f,
+                            eclipseDiameterDeg: 38f);
         }
 
         static GameObject BuildFloorAndWalls(Transform root)
@@ -368,27 +372,37 @@ namespace VibeGame1.EditorTools
         /// each part of the mechanic can be exercised and JUDGED separately rather than all at once.
         ///
         /// <para>Deliberately clear of everything else: the enemy pads run along z = -18 (x -28 to 26),
-        /// the jump staircase owns x 10-24, and the dash pads own x -16 to -12. Everything here lives in
-        /// x -9.5 to 6.6, z 5.5 to 26.2, which was empty.</para>
+        /// the jump staircase owns x 10-24, the dash pads own x -16 to -12, and the start spawn and wand
+        /// altar own z 0-5.5. Everything here lives in x -7.6 to 6.6, z 5.5 to 29.7, which was empty.</para>
         ///
         /// <list type="number">
-        ///   <item><b>WallRun_Face</b> - a 15 m x 8 m slab. Its EAST side (x 6.6, facing the jump
+        ///   <item><b>WallRun_Face</b> - a 13 m x 8 m slab. Its EAST side (x 6.6, facing the jump
         ///   staircase) is the practice lane: sprint along the floor beside it, jump, and mount it from
         ///   a standing start with nothing at stake. Its WEST side is the real run.</item>
-        ///   <item><b>The gap.</b> WallRun_Launch (top 1.5 m) to WallRun_Landing (top 4.0 m) is 12.5 m
+        ///   <item><b>The gap.</b> WallRun_Launch (top 1.5 m) to WallRun_Landing (top 4.0 m) is 13.5 m
         ///   of separation with a 2.5 m rise, and the landing pad is sheer on every side. A jump leaves
         ///   the ground at 12 m/s and hangs 0.8 s, so it covers under 9 m on the flat and less while
-        ///   climbing: the pad is NOT reachable without running the wall, which is the property that
-        ///   makes it a test rather than a decoration.</item>
-        ///   <item><b>WallRun_Corner</b> - an L off the north end of the face, its south side runnable
-        ///   heading west. Coming off the face northbound you are pointed nearly straight AT it, and the
-        ///   entry rules correctly refuse that (a face you run into is a collision, not a run); a player
-        ///   who steers west first mounts it. That contrast is the thing to judge - whether the refusal
-        ///   reads as a rule or as the game ignoring you.</item>
+        ///   climbing: LevelArcAnalyzer.AnalyzeHop finds NO arc at groundSpeed and none at slide-jump
+        ///   speed, which is the property that makes it a test rather than a decoration. The pad sits
+        ///   DOWN THE LINE of the run - a metre past the far end of the face, its east edge 0.4 m off
+        ///   the face plane - because the run exit throws you along the wall (+4 m/s tangent, 7 m/s
+        ///   out), not off it: a pad offset even 1 m further west is only reachable by leaving the wall
+        ///   inside 0.7 s, i.e. by a wall jump wearing a costume. Here the LONGEST arriving route runs
+        ///   1.27 s / 13.8 m and leaves at 1.45 s, which is the whole mechanic.</item>
+        ///   <item><b>WallRun_Corner</b> - a second, separate run wall 5.4 m west of the landing pad,
+        ///   running north-south, its EAST side runnable heading north or south. Leaving the pad
+        ///   westward you are pointed straight AT it, and the entry rules correctly refuse that (a face
+        ///   you run into is a collision, not a run); a player who steers along it first mounts it.
+        ///   That contrast is the thing to judge - whether the refusal reads as a rule or as the game
+        ///   ignoring you.</item>
         /// </list>
         ///
-        /// <para>Every number here was chosen against LevelArcAnalyzer.MeasureWallRun on the shipped
-        /// prefab (1.6 s, ~15 m of wall, +1.2 m then -2.2 m), NOT by eye. Nobody has run it.</para>
+        /// <para>Every number here was chosen against LevelArcAnalyzer on the shipped prefab, NOT by eye
+        /// (MeasureWallRun: 1.6 s, 13.5 m released / 17.6 m held, +1.25 m then -2.24 m). The first draft
+        /// put the landing 8 m west of the line with the corner across the exit, and AnalyzeWallRunGap
+        /// proved it mounted the face from 124 entries and arrived from NONE - every exit line ran into
+        /// the corner. Three sweeps later this is the analyser's answer (520 / 1800 clean routes);
+        /// WallRunGauntletTests holds it. Nobody has run it.</para>
         /// </summary>
         static void BuildWallRunGauntlet(Transform root)
         {
@@ -400,15 +414,16 @@ namespace VibeGame1.EditorTools
             // Take-off deck. Big enough to build up a full sprint along +z before leaving it.
             Trim(Box("WallRun_Launch", new Vector3(2f, 1.0f, 8f), new Vector3(5f, 1f, 5f), mPlatform, g), mCyan);
 
-            // The run wall itself. 15 m long: a full-duration run covers about that much face, so the
-            // wall ends at roughly the moment the mechanic does.
-            Trim(Box("WallRun_Face", new Vector3(6f, 4f, 17.5f), new Vector3(1.2f, 8f, 15f), mStone, g), mYellow);
-
-            // The L. Its south face is a second, separate run.
-            Trim(Box("WallRun_Corner", new Vector3(-1.5f, 4f, 25.6f), new Vector3(16f, 8f, 1.2f), mStone, g), mYellow);
+            // The run wall itself, z 10 to 23. 13 m long: a released-stick full run covers 13.5 m of
+            // face, so the wall ends at the moment the mechanic does and the pad is what comes next.
+            Trim(Box("WallRun_Face", new Vector3(6f, 4f, 16.5f), new Vector3(1.2f, 8f, 13f), mStone, g), mYellow);
 
             // Only reachable off the wall. Sheer on all four sides and 4 m up, so there is no walk-up.
-            Trim(Box("WallRun_Landing", new Vector3(-6f, 3.5f, 21f), new Vector3(6f, 1f, 6f), mPlatform, g), mCyan);
+            // z 24 to 29, x -1 to 5: a metre past the end of the face, 0.4 m west of its plane.
+            Trim(Box("WallRun_Landing", new Vector3(2f, 3.5f, 26.5f), new Vector3(6f, 1f, 5f), mPlatform, g), mCyan);
+
+            // The second run wall: x -7.6 to -6.4, z 18 to 29.7, east face runnable north or south.
+            Trim(Box("WallRun_Corner", new Vector3(-7f, 4f, 23.85f), new Vector3(1.2f, 8f, 11.7f), mStone, g), mYellow);
         }
 
         /// <summary>

@@ -37,7 +37,7 @@ namespace VibeGame1.Tests
             p.gravityStartScale = 0.10f;
             p.gravityEndScale = 0.60f;
             p.entryUpSpeed = 3f;
-            p.speedDecay = 0.20f;
+            p.speedDecay = 0.35f;
             p.minSustainSpeed = 5f;
             p.accel = 14f;
             p.topSpeed = 11f;

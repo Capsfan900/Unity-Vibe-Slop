@@ -2349,6 +2349,40 @@ against the corona, but it is the one thing to watch in a playtest.
 
 ---
 
+## Wall run: the sustain floor that could never fire (rule 9, twice)
+
+`wallRunSpeedDecay` shipped at 0.20. With `minEntry 7`, `minSustain 5`, `maxDuration 1.6` the floor is
+reachable only for a decay in `(ln(7/5)/1.6, ln(11/5)/1.6) = (0.21, 0.49)`; 0.20 is *below* it, so every run
+ended on the clock and `wallRunMinSustainSpeed` was decorative. The author's own test caught it because it
+measured the OUTCOME (which end reason fired) rather than asserting the constant. Fixed at 0.35 — a
+minimum-speed entry now bleeds out at 0.96 s, a sprint entry rides the full 1.6 s — and the window itself
+is asserted by `WallRunTunablesTests.BothEndConditionsAreReachable_TheDecayWindow`.
+**Invariant: a parameter that gates an end condition needs a test that reaches that end condition.**
+
+Second finding, and the third time today in this shape: `PrefabFactory` wrote all 19 wall-run fields but
+`Player.prefab` had never been rebuilt, so the committed asset carried none of them and the motor ran on
+C# initialisers — and so did the analyser, which reads the prefab. **Rule 9's failure mode is not only
+"initialiser changed, asset didn't"; it is also "factory changed, asset didn't".** Rebuild after editing a
+factory, and pin the asset with a test (`ThePrefabCarriesTheShippedWallRunTuning`).
+
+---
+
+## Wall-run geometry: author against `longest`, not `best`
+
+`AnalyzeWallRunGap.best` is the widest-clearance arriving route, which in practice is the one that hops off
+the wall at 0.2 s. The first sandbox gauntlet was "reachable" only that way — and its first draft was not
+reachable at all (the corner sat across every exit line; real gap 7.9 m, not the documented 12.5).
+`WallRunVerdict.longest` was added: the arriving route with the most time on the wall. **A pad that only
+`best` reaches is a wall jump wearing a costume.**
+
+The exit throws you ALONG the wall (+4 tangent, 7 out, 10 up); it does not carry you sideways. So landings
+go **down the line**, past the face's end, within ~0.5 m of its plane: 1 m further out halves the longest
+arriving run, 8 m out never arrives. A full-duration sprint run covers **13.5–17.6 m of wall** and nets
+−2.24 m of height; a minimum-speed entry covers 5.7 m and nets +1.08 m before it bleeds out. Those are the
+numbers a wall has to be sized against.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |
