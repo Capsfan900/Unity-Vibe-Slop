@@ -2211,6 +2211,48 @@ has cases, the overflow does not error — it aliases onto a neighbour and looks
 
 ---
 
+## The slide was fed, not silent — its middle was empty, and the asset was lying about all of it
+
+*"The slide and the dash don't have visual feedback or feel."* Neither was unfed. The dash shipped an 8°
+FOV kick, a chromatic pulse and a whoosh; the slide shipped a 6° kick, a 0.55 m eye drop and the same
+whoosh pitched down. Two different problems hid under one complaint.
+
+**The dash was non-specific.** A symmetric FOV widen says "the lens changed"; it cannot say which way you
+went or how far, and 0.16 s is too short for the world to sell it. Fix: a DIRECTIONAL camera kick
+(`DashImpulse.FromDash` — lens left 0.06 m *opposite* the travel and catching up, 0.9° pitch scaled by
+the forward component, 1.4° roll banking into the lateral one, **never yaw**, because a dash is usually
+the approach to a swing and a yaw kick drags the reticle off the target for exactly the 0.14 s you are
+lining it up) plus 12 camera-space speed lines that flow radially for a lunge and sideways for a strafe.
+World-space streaks were rejected for the reason `WeaponTrail` already found: turn the mouse and the
+ribbon stays in the world.
+
+**The slide's middle was empty.** Every cue except the eye drop was an *impulse*: `CameraFX.FovKick` has a
+0.18 s time constant and a full-speed slide lives ~0.5 s. For most of the move you were 0.9 m off the
+floor at 20 m/s and nothing said so — and `OnSlideEnded` was raised by the motor and **subscribed by
+nobody**. Fix: every sustained channel is a function of the SPEED BEING CARRIED, not of time
+(`SlideImpulse.SpeedFraction` maps the motor's 8→22 m/s band to 0→1). FOV is HELD (`CameraFX.FovHold`, a
+new channel summed with the kick) at `slideFovHold × speedFraction`, built to be **exactly zero at
+`slideEndSpeed`** so stand-up cannot snap the lens. Roll is HELD (`CameraShake.SetRoll`, a third channel)
+banking into the steer. Grit is shed into a scene-level root so it is left behind, and a synthesised
+scrape loop rides gain *and pitch* on the same fraction — pitch is what the ear reads as speed on
+broadband noise.
+
+**Rule 9 bit anyway, and in a new way.** `DataFactory` wrote all 17 new tunables, but `Create Data` was
+never re-run, so the on-disk `GameFeel.asset` had none of them and every value ran off code defaults.
+Worse: the test asserting "the asset carries the shipped values" **passed**, because a YAML field that is
+missing deserialises to the field initialiser — which equalled the factory value. **An asset-value test
+only proves the asset once the asset has actually been regenerated. After `Create Data`, grep the YAML for
+the new key; do not trust the green.**
+
+**Invariants.** `FovHold` and `SetRoll` each have exactly ONE writer (`SlideFx.Tick`, every frame, 0 when
+not sliding) — a second holder will fight it. Every held channel eases and snaps to exactly zero when
+released, because ShakeRoot sits between the look pivot and the lens. Nothing in either package brightens
+the frame: streaks 0.90, grit 0.55, sparks ≤ 1.0, all under the 1.05 bloom threshold — `CueFlash` still
+owns light. `SlideImpulseTests` runs the motor's real decay law (`hv *= 1 − 2·dt`) closed-loop at 20, 60
+and 240 fps and asserts the picture at any given speed is identical across all three.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

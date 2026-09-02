@@ -33,6 +33,23 @@ MonoBehaviour:
   guardShove: 1.2
   dashFovKick: 8
   ultFovKick: 15
+  dashKickPitch: 0.9
+  dashKickRoll: 1.4
+  dashKickOffset: 0.06
+  dashKickTime: 0.14
+  dashChromatic: 0.35
+  dashStreakCount: 12
+  dashStreakSeconds: 0.22
+  dashStreakAlpha: 0.85
+  dashStreakBrightness: 0.9
+  slideFovHold: 8
+  slideEndFovPunch: -2.5
+  slideRollDegrees: 3.5
+  slideKickPitch: 1.2
+  slideKickTime: 0.13
+  slideDustRate: 34
+  slideSparkRate: 5
+  slideScrapeVolume: 0.22
   parryKickPitch: 1.6
   parryKickYaw: 1.1
   parryKickRoll: 1.3
