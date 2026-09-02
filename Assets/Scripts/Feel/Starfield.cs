@@ -4,8 +4,11 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// Procedural deep-space sky: gradient dome, nebulae, a galactic band, a star field and the eclipse,
-    /// all baked into ONE mesh with ONE material — one draw call for the entire sky.
+    /// Procedural Berserk-Eclipse sky: a blood-red gradient dome, dark clotted nebulae, a dying star
+    /// field and the Eclipse itself — an enormous black solar disc ringed by burning light — all baked
+    /// into ONE mesh. Two submeshes / two materials: everything LDR shares one, and the white-hot corona
+    /// rim alone sits on an HDR-tinted second (see <see cref="CoronaHdrBoost"/>), so exactly one sky
+    /// element can cross the bloom threshold. Two draw calls for the entire sky.
     ///
     /// Why geometry and not a skybox: the gameplay camera is built by PrefabFactory with
     /// <see cref="CameraClearFlags.SolidColor"/>, so <c>RenderSettings.skybox</c> would never be drawn.
@@ -25,9 +28,10 @@ namespace VibeGame1
     /// deliberately does not depend on any per-material fog trick, which is unreliable in URP because
     /// fog keywords are global.
     ///
-    /// Draw order inside the single mesh is index order (nothing depth-sorts with ZWrite off), so the
-    /// index buffer is written back-to-front: dome, nebulae, stars, corona, then the black eclipse disc
-    /// last. That is what puts stars *behind* the disc rather than in front of it.
+    /// Draw order inside the mesh is index order (nothing depth-sorts with ZWrite off), so the
+    /// index buffer is written back-to-front: dome, nebulae, stars, halo and corona falloff, the black
+    /// disc, and finally — in submesh 1, drawn after all of submesh 0 — the white-hot rim licking the
+    /// disc's edge. That is what puts stars *behind* the disc and the burning rim *over* its limb.
     ///
     /// The mesh is on its own layer so the NavMeshSurface (which bakes from RenderMeshes on layer 0)
     /// cannot collect a 25-unit sphere as walkable geometry.
@@ -37,6 +41,23 @@ namespace VibeGame1
         /// <summary>Layer for sky geometry. Excluded from the NavMesh bake, queried by nothing.</summary>
         public const int SkyLayer = 9;
         public const string SkyLayerName = "Sky";
+
+        // ---- shipped eclipse geometry (rule 9: these ARE the shipped values; SkyEclipseTests asserts them) ----
+
+        /// <summary>Angular diameter of the eclipse. Berserk scale: at 38 degrees it fills over half the
+        /// vertical frame at FOV 70 — it must dominate the sky, not decorate it.</summary>
+        public const float DefaultEclipseDiameterDeg = 38f;
+
+        /// <summary>Elevation of the disc centre. Bottom limb = pitch - diameter/2 = 3 degrees above the
+        /// horizon: oppressively low, but the black centre stays mostly off the eye-level band that
+        /// combat-range enemy heads are read against, and the corona glow floods the horizon behind them.</summary>
+        public const float DefaultEclipsePitchDeg = 22f;
+
+        /// <summary>HDR multiplier on the corona-rim material — the ONLY sky element allowed over the 1.05
+        /// bloom threshold. Vertex colours clamp at 1.0, so submesh 0 (the whole red field) physically
+        /// cannot bloom or reach the ~1.25 ACES desaturation knee; presence there is bought with area
+        /// and contrast, never intensity.</summary>
+        public const float CoronaHdrBoost = 1.35f;
 
         /// <summary>
         /// Vertex colours and no fog. URP/Unlit ignores COLOR and applies fog, so it cannot be used here.
@@ -63,10 +84,10 @@ namespace VibeGame1
         /// sky immune to fog without relying on shader keywords.
         /// </param>
         /// <param name="seed">Fixed so a rebuild produces the same sky.</param>
-        /// <param name="includeEclipse">The Berserk-style eclipse, drawn last so it silhouettes the stars.</param>
+        /// <param name="includeEclipse">The Berserk eclipse, drawn last so it silhouettes the stars.</param>
         /// <param name="eclipseYawDeg">0 = +Z, the direction the course runs and the boss arena sits.</param>
         /// <param name="eclipsePitchDeg">Elevation above the horizon. Low, matching the ember key light.</param>
-        /// <param name="eclipseDiameterDeg">Angular diameter. Large: it is the level's focal image.</param>
+        /// <param name="eclipseDiameterDeg">Angular diameter. Enormous: it IS the level's focal image.</param>
         public static GameObject Build(
             Transform parent,
             int starCount = 1200,
@@ -74,8 +95,8 @@ namespace VibeGame1
             int seed = 20260830,
             bool includeEclipse = true,
             float eclipseYawDeg = 0f,
-            float eclipsePitchDeg = 13f,
-            float eclipseDiameterDeg = 19f)
+            float eclipsePitchDeg = DefaultEclipsePitchDeg,
+            float eclipseDiameterDeg = DefaultEclipseDiameterDeg)
         {
             var root = new GameObject("Starfield");
             root.transform.SetParent(parent, false);
@@ -105,8 +126,10 @@ namespace VibeGame1
 
             // --- 4. Eclipse ------------------------------------------------------------------------
             // Last in the index buffer: the corona burns over the stars and the disc eats its centre.
+            // The white-hot rim goes into ITS OWN triangle list — submesh 1, the HDR material.
+            var trisHot = new List<int>(1024);
             if (includeEclipse)
-                BuildEclipse(verts, colors, tris, radius, eclipseDir, eclipseDiameterDeg);
+                BuildEclipse(verts, colors, tris, trisHot, radius, eclipseDir, eclipseDiameterDeg);
 
             var mesh = new Mesh { name = "SkyMesh" };
             // 5-6k verts fits UInt16 comfortably; being explicit documents the budget.
@@ -115,7 +138,9 @@ namespace VibeGame1
                 : UnityEngine.Rendering.IndexFormat.UInt16;
             mesh.SetVertices(verts);
             mesh.SetColors(colors);
+            mesh.subMeshCount = trisHot.Count > 0 ? 2 : 1;
             mesh.SetTriangles(tris, 0, false);   // false: do NOT recalculate bounds yet
+            if (trisHot.Count > 0) mesh.SetTriangles(trisHot, 1, false);
             mesh.RecalculateBounds();
             mesh.UploadMeshData(false);
 
@@ -123,7 +148,12 @@ namespace VibeGame1
             filter.sharedMesh = mesh;
 
             var renderer = root.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = CreateSkyMaterial();
+            // Submesh 1 (the corona rim alone) gets its own material with an HDR tint: the only sky
+            // element that may cross the bloom threshold. Everything else shares the LDR material.
+            if (trisHot.Count > 0)
+                renderer.sharedMaterials = new[] { CreateSkyMaterial(1f), CreateSkyMaterial(CoronaHdrBoost) };
+            else
+                renderer.sharedMaterial = CreateSkyMaterial(1f);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
@@ -136,7 +166,7 @@ namespace VibeGame1
             return root;
         }
 
-        static Material CreateSkyMaterial()
+        static Material CreateSkyMaterial(float hdrBoost)
         {
             var shader = Shader.Find(PreferredShader);
             if (shader == null)
@@ -146,10 +176,15 @@ namespace VibeGame1
                                  "That shader ignores vertex colours, so the sky will render as a flat tint.");
             }
 
-            var mat = new Material(shader) { name = "M_Sky (runtime)" };
+            bool hot = hdrBoost > 1f;
+            var mat = new Material(shader) { name = hot ? "M_SkyCorona (runtime)" : "M_Sky (runtime)" };
             // Background queue is the whole trick: drawn before opaque geometry, writing no depth.
-            mat.renderQueue = BackgroundQueue;
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            // The corona sits one step later so its ordering after the disc never depends on submesh
+            // iteration order.
+            mat.renderQueue = hot ? BackgroundQueue + 1 : BackgroundQueue;
+            // The tint multiplies the (clamped, LDR) vertex colours. Above 1 here is what lets the rim
+            // — and only the rim — exceed 1.0 and therefore bloom.
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", new Color(hdrBoost, hdrBoost, hdrBoost, 1f));
             return mat;
         }
 
@@ -165,19 +200,22 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// An indexed sphere, vertex-coloured by elevation. Deep blue-black at the zenith, a violet
-        /// haze at the horizon, and an ember bias toward the eclipse so the sky agrees with the key
-        /// light instead of fighting it.
+        /// An indexed sphere, vertex-coloured by elevation. Black-red at the zenith — the dark itself
+        /// is red now, not violet — a blood band at the horizon, and a burning bias toward the eclipse
+        /// so the sky agrees with the key light instead of fighting it. The horizon band is deliberately
+        /// the brightest part of the field (~0.29 peak, well under 1.0): it is the backdrop every
+        /// combat-range enemy silhouette is read against, and a near-black enemy on a mid-red ground
+        /// reads far better than the old dark-on-dark violet.
         /// </summary>
         static void BuildDome(List<Vector3> v, List<Color> c, List<int> t, float radius, Vector3 eclipseDir)
         {
             const int longitude = 40;
             const int latitude = 20;
 
-            Color zenith = Hex("#050610");    // deep space overhead
-            Color horizon = Hex("#151030");   // violet haze where the sky meets the level
-            Color nadir = Hex("#03030A");     // below the floor; almost never seen
-            Color ember = Hex("#4E2110");     // warm bias added around the eclipse only
+            Color zenith = Hex("#1A0407");    // black-red overhead: dark, but the dark is red
+            Color horizon = Hex("#4A0A0D");   // blood band at eye level — the silhouette backdrop
+            Color nadir = Hex("#0A0203");     // below the floor; almost never seen
+            Color ember = Hex("#8A1A08");     // burning bias added around the eclipse
 
             int baseIndex = v.Count;
 
@@ -201,10 +239,11 @@ namespace VibeGame1
                     if (y >= 0f) col = Color.Lerp(horizon, zenith, Mathf.Pow(y, 0.75f));
                     else col = Color.Lerp(horizon, nadir, Mathf.Pow(-y, 0.6f));
 
-                    // Warm bias toward the eclipse, tight enough that it reads as a glow around it and
-                    // not as a second light source.
+                    // Burning bias toward the eclipse. Wider than the old pow-6 glow: the whole
+                    // quadrant of sky around the dead sun is on fire, which is what makes the frame
+                    // read as the Eclipse rather than a red night with a spot in it.
                     float toward = Mathf.Max(0f, Vector3.Dot(dir, eclipseDir));
-                    col += ember * Mathf.Pow(toward, 6f);
+                    col += ember * Mathf.Pow(toward, 4f);
 
                     c.Add(PM(col, 1f));
                 }
@@ -229,14 +268,14 @@ namespace VibeGame1
 
         static void BuildNebulae(List<Vector3> v, List<Color> c, List<int> t, float radius, System.Random rng)
         {
-            // Deliberately desaturated and dim. A bright nebula would compete with the eclipse and with
-            // the ember accent that marks ledges.
+            // Deliberately dim: churning clots of darker and warmer red, so the field feels like a
+            // slowly boiling sky rather than a flat gradient. Nothing here approaches the corona.
             Color[] palette =
             {
-                Hex("#2A1840"),   // deep violet
-                Hex("#12283A"),   // cold slate blue
-                Hex("#3A1A18"),   // dull ember
-                Hex("#16303A"),   // faint teal
+                Hex("#4A0E10"),   // clotted blood
+                Hex("#320609"),   // dried blood, near-black
+                Hex("#5A1A08"),   // ember rust
+                Hex("#3A0B14"),   // bruised crimson
             };
 
             const int count = 11;
@@ -256,18 +295,20 @@ namespace VibeGame1
 
         static void BuildStars(List<Vector3> v, List<Color> c, List<int> t, float radius, int starCount, System.Random rng)
         {
-            // Cold whites dominate, with a minority of blues and a few ambers so the field has
-            // temperature variation rather than looking like grey noise.
-            Color coldWhite = Hex("#DDE6FF");
-            Color blue = Hex("#9FC0FF");
+            // The Eclipse sky is not a starry night: the field survives, but dying — pale embers,
+            // not cold points. Temperature variation keeps it from reading as noise.
+            Color coldWhite = Hex("#FFC9A8");  // pale ember (name kept: still 70% of the field)
+            Color blue = Hex("#D6684A");       // dim blood-ember minority
             Color amber = Hex("#FFCE96");
 
             // A tilted great circle: a third of the stars cluster near it, giving a galactic band.
             Vector3 bandNormal = new Vector3(0.42f, 0.84f, -0.34f).normalized;
             int bandStars = starCount / 3;
 
-            float sizeMin = radius * 0.0022f;
-            float sizeMax = radius * 0.0072f;
+            // Smaller than the old cold field: against a mid-tone red ground an unlit quad reads as
+            // a pale square, not a point, so size does the work brightness used to.
+            float sizeMin = radius * 0.0014f;
+            float sizeMax = radius * 0.0044f;
 
             for (int i = 0; i < starCount; i++)
             {
@@ -288,7 +329,8 @@ namespace VibeGame1
                 // Most stars are faint; a few are bright. Squaring the roll keeps the field from
                 // looking like uniform confetti.
                 float brightRoll = (float)rng.NextDouble();
-                float brightness = Mathf.Lerp(0.30f, 1f, brightRoll * brightRoll);
+                // Capped at 0.55: the stars recede under the red field — the Eclipse owns this sky.
+                float brightness = Mathf.Lerp(0.12f, 0.55f, brightRoll * brightRoll);
                 float size = Mathf.Lerp(sizeMin, sizeMax, brightRoll * brightRoll);
                 if (brightRoll > 0.985f) size *= 1.9f;   // a handful of standouts
 
@@ -300,26 +342,42 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// Corona then disc. The corona is a ring that is brightest at its inner edge and fades outward;
-        /// the disc is pure black and drawn last, so only a burning rim survives.
+        /// The Eclipse, back to front: a vast blood halo, a hotter mid-glow, the saturated corona
+        /// falloff, the black disc — and finally, into the HOT triangle list (submesh 1, HDR material),
+        /// the thin white-hot rim drawn OVER the disc's limb. Presence is bought with AREA (the disc is
+        /// ~38 degrees across, the halo more than twice that) and CONTRAST (a near-black disc against a
+        /// rim at full brightness), never with field intensity: ACES desaturates a saturated red toward
+        /// orange above ~1.25, so everything red here stays LDR and only the near-white rim crosses the
+        /// bloom threshold — and pushing a near-white toward white is exactly what burning should do.
         /// </summary>
-        static void BuildEclipse(List<Vector3> v, List<Color> c, List<int> t, float radius, Vector3 dir, float diameterDeg)
+        static void BuildEclipse(List<Vector3> v, List<Color> c, List<int> t, List<int> tHot,
+                                 float radius, Vector3 dir, float diameterDeg)
         {
             Basis(dir, out Vector3 right, out Vector3 up);
             Vector3 center = dir * radius * 0.96f;
 
             float discR = radius * Mathf.Tan(diameterDeg * 0.5f * Mathf.Deg2Rad);
 
-            // Outer bloom: a wide, dim halo so the eclipse sits in a glow rather than being pasted on.
-            AddSoftDisc(v, c, t, center + dir * (radius * 0.005f), right * discR * 2.6f, up * discR * 2.6f,
-                        Hex("#7A2408"), 0.26f, 28);
+            // Vast outer halo: the sky around the dead sun is on fire, ~2.3x the disc.
+            AddSoftDisc(v, c, t, center + dir * (radius * 0.004f), right * discR * 2.3f, up * discR * 2.3f,
+                        Hex("#8A1206"), 0.42f, 32);
 
-            // The burning rim itself.
-            AddRing(v, c, t, center + dir * (radius * 0.01f), right, up,
-                    discR * 1.005f, discR * 1.34f, Hex("#FF6A18"), 1f, 64);
+            // Mid glow, hotter and tighter.
+            AddSoftDisc(v, c, t, center + dir * (radius * 0.008f), right * discR * 1.55f, up * discR * 1.55f,
+                        Hex("#BE2A0C"), 0.32f, 32);
 
-            // The disc: pure black, drawn last, eating the centre of the corona.
-            AddDisc(v, c, t, center + dir * (radius * 0.015f), right * discR, up * discR, Color.black, 48);
+            // Corona falloff: saturated fire fading outward. LDR — stays red, never blooms.
+            AddRing(v, c, t, center + dir * (radius * 0.012f), right, up,
+                    discR * 1.05f, discR * 1.42f, Hex("#FF4A10"), 0.9f, 64);
+
+            // The disc: a dead sun. Not float-zero black — #0D0304 keeps ~2/255 under it, so an
+            // 8-10/255 enemy body overlapping the disc is dim-on-dark rather than a hole in the world.
+            AddDisc(v, c, t, center + dir * (radius * 0.016f), right * discR, up * discR, Hex("#0D0304"), 64);
+
+            // The burning rim: white-hot at the limb, gone within ~8% of the radius. It starts just
+            // INSIDE the disc edge and is drawn after it, so the fire licks over the black limb.
+            AddRing(v, c, tHot, center + dir * (radius * 0.020f), right, up,
+                    discR * 0.995f, discR * 1.075f, Hex("#FFD9A8"), 1f, 96);
         }
 
         // ---- mesh primitives -----------------------------------------------------------------------

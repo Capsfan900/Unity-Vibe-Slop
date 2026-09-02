@@ -2315,6 +2315,40 @@ swing and 1.6 m reach. Code that describes a weapon is not a weapon until `Creat
 
 ---
 
+## The Eclipse: a bright sky that made enemies read better, not worse
+
+**Symptom.** Asked for "the eclipse from Berserk, red instead of purple". The trap list was long: ACES
+desaturates saturated colour toward orange above ~1.25, `ambientIntensity` is a no-op in Trilight, and
+the sky is the backdrop every silhouette is read against — a bright reference image on a contrast-driven
+melee game.
+
+**What shipped.** Disc 19° → **38°**, pitch 13° → **22°** (bottom limb 3° above the horizon). Dome
+`#1A0407`/`#4A0A0D`, blood halo 2.3× the disc, near-black disc `#0D0304`, white-hot rim `#FFD9A8`. Fog
+`#1A0708`, Trilight sky `#6B4045×1.35`, equator `#82503A×1.35`, ground `#1F1010×1.35`, key `#C9542E`.
+`Starfield` is now **two submeshes**: the whole red field on a material tinted exactly 1.0, the rim alone
+on `_Color = 1.35`.
+
+**Why it worked.** Vertex colours clamp at 1.0, so a field on a 1.0 tint *cannot* cross the 1.05 bloom
+threshold or the desat knee however it is tuned; only the near-white rim does, and pushing near-white
+toward white is what burning looks like. Measured after grading: sky hue **1–2°, saturation 74%** (was
+285°, violet). Every ambient hue moved at **matched luminance** (equator .209 → .204, sky .130 → .135), so
+bodies render at the same 8–10/255 they were tuned for. Silhouette at 4 m: Weber **90%** (was 89%); a head
+overlapping the disc: 83% (was 88%) — a dark body on mid-red reads *better* than dark on violet.
+
+**Invariants.** **Buy sky presence with area and contrast, never field intensity** — put anything that must
+bloom on its own material and keep the field physically unable to. **Change hue at matched luminance**:
+compute linear luminance before and after and hold the enemy-readability floor. And the trap that cost a
+round of captures: **the shipped eclipse SIZE is data on `LevelDefinition.sky`**, in
+`Level_01_Level.asset`. Changing `Starfield`'s defaults changes the legacy greybox and nothing the
+pipeline actually builds. Three copies of the number exist (`Starfield.DefaultEclipse*`, `SkyDef`'s field
+initialisers, and the asset) and they must be kept equal.
+
+**Residual, honestly.** An enemy standing *high on a platform* directly over the disc centre is
+dark-on-dark; the rim only helps at the limb. The disc sits above eye level so combat-range reads are
+against the corona, but it is the one thing to watch in a playtest.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

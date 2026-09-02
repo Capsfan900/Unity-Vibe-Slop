@@ -198,9 +198,10 @@ namespace VibeGame1.EditorTools
             skyGroup.transform.SetParent(root, false);
             // Layer SkyLayer keeps this out of the NavMesh bake below, which collects RenderMeshes on
             // layer 0 from the Level root's children - a 25-unit sphere would otherwise be bake input.
-            Starfield.Build(skyGroup.transform, starCount: 1200, radius: 25f, seed: 20260830,
-                            includeEclipse: true, eclipseYawDeg: 0f, eclipsePitchDeg: 13f,
-                            eclipseDiameterDeg: 19f);
+            // The legacy greybox takes Starfield's shipped eclipse geometry (pitch/diameter defaults,
+            // asserted by SkyEclipseTests). The SHIPPED level goes through LevelDefinitionBuilder,
+            // where the same numbers are authored on LevelDefinition.sky - keep the two in agreement.
+            Starfield.Build(skyGroup.transform, starCount: 1200, radius: 25f, seed: 20260830);
 
             // ---- Torches (dark fantasy light sources; basePos = platform top surface) ---------------
             var torches = new GameObject("Torches");

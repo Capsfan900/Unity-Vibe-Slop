@@ -264,6 +264,23 @@ namespace VibeGame1.EditorTools
 
         // -------------------------------------------------------- scene settings
 
+        // ---- shipped environment palette (rule 9: asserted by SkyEclipseTests) --------------------
+        // The Eclipse pass: every environment colour moved from blue-violet to blood red at MATCHED
+        // luminance - hue changed, light level untouched - so enemy readability (the equator's 0.15
+        // linear-luminance floor in FeatureTests) is preserved by construction, not by luck.
+
+        /// <summary>Fog and camera clear. Was #0C0912 blue-violet; distance now reads as red haze.</summary>
+        public static readonly Color VoidColor = Hex("#1A0708");
+        /// <summary>Trilight sky term - platform TOPS. Was #3E4A6B x1.35 (lin lum .130); now .135.</summary>
+        public static readonly Color AmbientSky = Hex("#6B4045") * 1.35f;
+        /// <summary>Trilight equator - EVERY vertical face and every backlit enemy torso. Was #7A5540
+        /// x1.35 (lin lum .209); now .204, still comfortably over FeatureTests' 0.15 floor.</summary>
+        public static readonly Color AmbientEquator = Hex("#82503A") * 1.35f;
+        /// <summary>Trilight ground bounce. Undersides stay heavy so shapes keep weight.</summary>
+        public static readonly Color AmbientGround = Hex("#1F1010") * 1.35f;
+        /// <summary>The dying sun behind the arena. Was #C9663A; nudged toward blood.</summary>
+        public static readonly Color KeyLightColor = Hex("#C9542E");
+
         static void SetupSceneEnvironment(List<string> log)
         {
             var scene = SceneManager.GetActiveScene();
@@ -273,14 +290,12 @@ namespace VibeGame1.EditorTools
                 return;
             }
 
-            // A deep-space void lit by one dying sun low behind the arena, under the Starfield sky.
+            // The Eclipse: a world drowned in red under a dead sun, low and enormous behind the arena.
             //
-            // FOG. Colour moved off near-black (#0A0506) to a dark blue-violet that agrees with the sky
-            // dome, so distance now reads as haze rather than as an absence of geometry. The range opened
-            // from 32-130 to 45-240 because fog no longer has to be the backdrop - the star field is. At
-            // 130 the far half of the course simply vanished, which is most of why the level read as
-            // "too dark". Combat distances (3-8m) are still completely unfogged.
-            var voidColor = Hex("#0C0912");
+            // FOG. Dark blood-red (was #0C0912 blue-violet) so distance reads as red haze and agrees
+            // with the Starfield dome's blood horizon. The 45-240 range is unchanged - fog is not the
+            // backdrop, the sky is. Combat distances (3-8m) are still completely unfogged.
+            var voidColor = VoidColor;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = voidColor;
@@ -311,7 +326,9 @@ namespace VibeGame1.EditorTools
             // 1.0 - measured, not assumed. The multiplier therefore has to live in the COLOURS, which
             // are HDR: Color * f is the only knob that actually does anything in this mode.
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Hex("#3E4A6B") * 1.35f;
+            // Was cool starlight #3E4A6B x1.35 - under a blood sky, platform tops now catch a dusty
+            // rose-red at the same linear luminance (.130 -> .135), so footing legibility is unmoved.
+            RenderSettings.ambientSkyColor = AmbientSky;
             // x1.35. The equator carries every vertical face AND every enemy: an enemy walking toward
             // the eclipse is BACKLIT, so the side facing the player receives no key light at all and
             // this term is the only thing rendering it. Tuned by measurement, not by eye: at x2.4 the
@@ -319,8 +336,11 @@ namespace VibeGame1.EditorTools
             // lands the ground at ~36/255, a ~1.6x lift that makes structure legible without
             // flattening it, and every emissive is untouched (the gate measured 154.1 -> 155.2 and the
             // alert tell 204 -> 211 across the whole pass).
-            RenderSettings.ambientEquatorColor = Hex("#7A5540") * 1.35f;
-            RenderSettings.ambientGroundColor = Hex("#191424") * 1.35f;
+            // Hue nudged red (#7A5540 -> #82503A) at matched luminance (.209 -> .204): every enemy
+            // body renders at the same 8-10/255 it was tuned to, just under a redder cast.
+            RenderSettings.ambientEquatorColor = AmbientEquator;
+            // Was #191424 violet; now dark maroon at the same near-black weight.
+            RenderSettings.ambientGroundColor = AmbientGround;
             RenderSettings.ambientIntensity = 1f;   // no-op in Trilight; kept explicit, see above
             // No skybox on purpose: the gameplay camera is built with SolidColor clear flags, so a skybox
             // would never be drawn. Starfield is geometry precisely because of that.
@@ -340,7 +360,7 @@ namespace VibeGame1.EditorTools
                 // Raised with the ambient rather than instead of it: ambient alone flattens, because
                 // Trilight gives every vertical face the same value regardless of which way it faces.
                 light.intensity = 1.05f;
-                light.color = Hex("#C9663A");                 // dying ember sun, not moonlight
+                light.color = KeyLightColor;                  // dying blood-ember sun, not moonlight
                 light.shadows = LightShadows.Soft;
                 EditorUtility.SetDirty(light);
                 EditorUtility.SetDirty(light.transform);
@@ -360,7 +380,7 @@ namespace VibeGame1.EditorTools
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
-            log.Add($"Scene '{scene.name}': fog 45-240 #0C0912, Trilight ambient sky#3E4A6Bx1.35/eq#7A5540x1.35/gnd#191424x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low ember sun 1.05 {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
+            log.Add($"Scene '{scene.name}': fog 45-240 #1A0708 (blood), Trilight ambient sky#6B4045x1.35/eq#82503Ax1.35/gnd#1F1010x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low blood-ember sun 1.05 #C9542E {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
         }
 
         // ---------------------------------------------------------------- utils

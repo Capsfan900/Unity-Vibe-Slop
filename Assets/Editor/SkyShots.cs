@@ -69,17 +69,12 @@ namespace VibeGame1.EditorTools
             // the PREVIOUS build while looking perfectly plausible.
             EditorSceneManager.OpenScene("Assets/Scenes/Level_01.unity", OpenSceneMode.Single);
 
-            var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>("Assets/Data/Levels/Level_01.asset");
-            if (def != null)
-            {
-                LevelDefinitionBuilder.Build(def);
-                sb.AppendLine("built level from " + def.name);
-            }
-            else
-            {
-                LevelGreyboxBuilder.Build();
-                sb.AppendLine("no LevelDefinition; built greybox");
-            }
+            // The canonical step-6 build. It defers to LevelDefinitionBuilder when the definition
+            // asset exists, so the eclipse's PITCH and DIAMETER in these frames come from
+            // LevelDefinition.sky on Assets/Data/Levels/Level_01_Level.asset - the palette comes
+            // from Starfield. Read the builder's own success line in the log, not this one.
+            LevelGreyboxBuilder.Build();
+            sb.AppendLine("ran step 6 (LevelGreyboxBuilder.Build - definition asset if present)");
 
             // Environment: ProjectSetup owns fog/ambient/key light, and it writes them into the OPEN
             // scene. Running it here is what makes these frames show the shipped lighting rather than
@@ -205,6 +200,13 @@ namespace VibeGame1.EditorTools
             if (vis != null && data != null)
             {
                 inst.transform.localScale = Vector3.one * Mathf.Max(0.01f, data.scale);
+                // Awake never runs in edit mode, and Setup now depends on what Awake builds (the
+                // EmissiveFlash handle, the property blocks). Awake is protected virtual and
+                // self-contained, so invoking it by reflection is exactly the play-mode order.
+                var awake = vis.GetType().GetMethod("Awake",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Public);
+                if (awake != null) awake.Invoke(vis, null);
                 vis.Setup(data);
                 sb.AppendLine("grunt bodyColor " + ColorUtility.ToHtmlStringRGB(data.bodyColor) +
                               "  scale " + data.scale.ToString("0.00"));

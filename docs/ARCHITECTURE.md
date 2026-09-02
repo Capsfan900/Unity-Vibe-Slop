@@ -673,6 +673,8 @@ All balance lives in ScriptableObjects under `Assets/Data/`. Edit in the Inspect
 ## Presentation
 
 ### Art direction — dark fantasy
+
+Blood-red sky under **the Eclipse**: an enormous dead sun (38° across, 22° up, over the boss arena) — near-black disc, white-hot rim, the sky around it on fire — over a world drowned in red. Red fog, blood-tinted Trilight ambient at the *same luminance* as the old cool set, a dying-ember key light, crimson / ember / ghost-teal / brass trim accents, flickering torches (`FlickerLight`), film grain and heavy vignette. The sky is `Starfield` geometry, never a skybox — **two submeshes**: an LDR field that can never bloom, and the corona rim alone on an HDR tint. Its shipped geometry is `LevelDefinition.sky` for the shipped level and `Starfield.DefaultEclipse*` for the legacy greybox — keep them equal. Ambient table: sky `#6B4045 × 1.35`, equator `#82503A × 1.35`, ground `#1F1010 × 1.35`, key `#C9542E` @ 1.05, fog `#1A0708`.
 Void-black violet background and fog, cold moonlight, blood / ember / ghost-teal accents, flickering
 torches (`FlickerLight`), film grain and heavy vignette. Four separable trim accents: ghost teal, brass
 gold, crimson, ember orange - one per level tile.

@@ -235,8 +235,14 @@ namespace VibeGame1
         public int seed = 20260830;
         public bool includeEclipse = true;
         public float eclipseYawDeg = 0f;
-        public float eclipsePitchDeg = 13f;
-        public float eclipseDiameterDeg = 19f;
+        // THE BERSERK ECLIPSE. 22 deg up puts the bottom limb 3 deg above the horizon so the black
+        // centre stays above eye level -- an enemy at combat range is read against the corona glow,
+        // never against the black. 38 deg of diameter fills over half the vertical frame at FOV 70.
+        // These default values are for a NEW definition; the shipped level carries its own copy in
+        // Level_01_Level.asset, and the two must be kept equal or the pipeline and the legacy greybox
+        // draw different skies. Starfield.DefaultEclipse* is the third copy. See ENGINEERING-LOG.md.
+        public float eclipsePitchDeg = 22f;
+        public float eclipseDiameterDeg = 38f;
     }
 
     /// <summary>The fall-out-of-the-world volume.</summary>

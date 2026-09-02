@@ -864,8 +864,8 @@ MonoBehaviour:
     seed: 20260830
     includeEclipse: 1
     eclipseYawDeg: 0
-    eclipsePitchDeg: 13
-    eclipseDiameterDeg: 19
+    eclipsePitchDeg: 22
+    eclipseDiameterDeg: 38
   killZone:
     name: KillZone
     center: {x: 0, y: -30, z: 165}
