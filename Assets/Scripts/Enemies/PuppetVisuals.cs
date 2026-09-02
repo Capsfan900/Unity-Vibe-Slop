@@ -59,6 +59,13 @@ namespace VibeGame1
         public string clipRun = "Run";
         public string clipAttack = "AttackSwing";
         public string clipHeavy = "AttackOverhead";
+        [Tooltip("Played for an attack whose asset name ends in '_Stab'. The forge ships this clip on " +
+                 "every model and NOTHING used to play it — see ClipFor.")]
+        public string clipStab = "AttackStab";
+        [Tooltip("Played for an attack whose asset name ends in '_Kick'. Checked BEFORE the unblockable " +
+                 "branch, because a kick is typically the unblockable and would otherwise be swallowed " +
+                 "by the heavy clip.")]
+        public string clipKick = "AttackKick";
         [Tooltip("The clip played for a SPIN PASS. Chosen by MEASURING every clip's arm span rather " +
                  "than by name: the whirl only reads as a whirl if the arms stay out through it, and " +
                  "AttackSwing tucks them to a 0.76 m span while Roar holds 2.0 m for its whole length. " +
@@ -82,6 +89,13 @@ namespace VibeGame1
                  "which part of the hold is on screen.")]
         [Range(0.05f, 0.95f)] public float spinHitNormalized = 0.4f;
         public float spinClipLength = 1.833f;
+        [Tooltip("Contact anchor and authored length for the stab and kick clips, baked from the " +
+                 "manifest at build time exactly like the pair above. Without their own lengths they " +
+                 "would be scaled by the SWING's contact frame and land their blow at the wrong moment.")]
+        [Range(0.05f, 0.95f)] public float stabHitNormalized = 0.55f;
+        public float stabClipLength = 1f;
+        [Range(0.05f, 0.95f)] public float kickHitNormalized = 0.55f;
+        public float kickClipLength = 1f;
         [Tooltip("A clip may be sped up or slowed down to fit the data, but only this far. Beyond the " +
                  "clamp the contact frame no longer lines up with the blow, which is an ART bug — so it " +
                  "is logged rather than hidden.")]
@@ -373,6 +387,58 @@ namespace VibeGame1
         // ---------------------------------------------------------------- clip playback
 
         /// <summary>
+        /// Which clip an attack plays, and where that clip's own contact frame sits.
+        ///
+        /// <para><b>This used to have exactly two attack slots, and it silently threw away half the
+        /// animation the forge shipped.</b> The rule was <c>unblockable || windup >= 0.9 ? heavy :
+        /// swing</c>, so on THE EMBER REVENANT the slash and the thrust both played <c>AttackSwing</c>
+        /// and the overhead and the kick both played <c>AttackOverhead</c> — while
+        /// <c>AttackStab</c> and <c>AttackKick</c> sat in the FBX, imported, split, listed in the
+        /// animator, and unreachable. Nothing warned: every clip existed, every state was valid, and the
+        /// wrong one simply played. It was found by measuring silhouettes, not by reading this code.</para>
+        ///
+        /// <para><b>Order matters, and the kick is why.</b> A kick is typically the moveset's
+        /// unblockable, so an <c>unblockable</c> test placed first swallows it into the heavy clip —
+        /// which is exactly what happened. Name matches are therefore resolved BEFORE the
+        /// heuristics.</para>
+        ///
+        /// <para>Matching on the asset-name suffix follows the <see cref="spinAttackPrefix"/> precedent
+        /// rather than adding a clip field to <see cref="EnemyAttackData"/>: the forge exports the same
+        /// four canonical attack clips for every model, so the mapping is a property of the PIPELINE and
+        /// belongs with the other clip bindings, not on 25+ content assets.</para>
+        /// </summary>
+        void ClipFor(EnemyAttackData atk, out string clip, out float contact)
+        {
+            if (IsSpinPass(atk))
+            {
+                clip = clipSpin;
+                contact = spinClipLength * Mathf.Clamp01(spinHitNormalized);
+                return;
+            }
+            string n = atk.name != null ? atk.name : "";
+            if (!string.IsNullOrEmpty(clipStab) && n.EndsWith("_Stab"))
+            {
+                clip = clipStab;
+                contact = stabClipLength * Mathf.Clamp01(stabHitNormalized);
+                return;
+            }
+            if (!string.IsNullOrEmpty(clipKick) && n.EndsWith("_Kick"))
+            {
+                clip = clipKick;
+                contact = kickClipLength * Mathf.Clamp01(kickHitNormalized);
+                return;
+            }
+            if (atk.unblockable || atk.windup >= 0.9f)
+            {
+                clip = clipHeavy;
+                contact = attackClipLength * Mathf.Clamp01(attackHitNormalized);
+                return;
+            }
+            clip = clipAttack;
+            contact = attackClipLength * Mathf.Clamp01(attackHitNormalized);
+        }
+
+        /// <summary>
         /// Play the attack clip so that its own contact frame lands on the data's impact. The clip is
         /// stretched or squeezed to fit; the data is never touched.
         /// </summary>
@@ -380,13 +446,8 @@ namespace VibeGame1
         {
             if (animator == null || animator.runtimeAnimatorController == null) return;
 
-            bool spin = IsSpinPass(atk);
-            string clip = spin ? clipSpin
-                        : (atk.unblockable || atk.windup >= 0.9f) ? clipHeavy
-                        : clipAttack;
-            float contact = spin
-                ? spinClipLength * Mathf.Clamp01(spinHitNormalized)
-                : attackClipLength * Mathf.Clamp01(attackHitNormalized);
+            string clip; float contact;
+            ClipFor(atk, out clip, out contact);
             float speed = contact / Mathf.Max(0.02f, secondsToImpact);
 
             if (speed < minClipSpeed || speed > maxClipSpeed)

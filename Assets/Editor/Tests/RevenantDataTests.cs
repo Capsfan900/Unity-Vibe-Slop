@@ -139,6 +139,38 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TheStabAndTheKickPlayTheirOwnClips()
+        {
+            // The forge ships four attack clips and PuppetVisuals used to have TWO slots, so
+            // AttackStab and AttackKick were imported, split, listed in the animator, and unreachable:
+            // the slash and the stab both played AttackSwing, the overhead and the kick both played
+            // AttackOverhead. Nothing warned, because every clip existed and a valid one played.
+            //
+            // The kick is the subtle half. It is the moveset's unblockable, so any selection that tests
+            // `unblockable` before the name swallows it into the heavy clip -- which is precisely the
+            // bug. This test is here so a future simplification of ClipFor cannot quietly restore it.
+            var pv = Prefab().GetComponentInChildren<PuppetVisuals>(true);
+
+            Assert.IsFalse(string.IsNullOrEmpty(pv.clipStab), "no stab clip bound.");
+            Assert.IsFalse(string.IsNullOrEmpty(pv.clipKick), "no kick clip bound.");
+            Assert.AreNotEqual(pv.clipAttack, pv.clipStab,
+                "the stab plays the same clip as the slash, so the thrust the 40 deg cone describes is " +
+                "not the animation the player sees.");
+            Assert.AreNotEqual(pv.clipHeavy, pv.clipKick,
+                "the kick plays the heavy clip. It is the unblockable, so a selection that checks " +
+                "'unblockable' before the name will always swallow it.");
+
+            // And their timings must be their own, or the clip is stretched by another clip's anchor.
+            Assert.Greater(pv.stabClipLength, 0.05f, "stab clip length was never baked.");
+            Assert.Greater(pv.kickClipLength, 0.05f, "kick clip length was never baked.");
+            // NUnit's AreNotEqual has no tolerance overload the way AreEqual does, so this is written
+            // as an explicit distance rather than as a near-inequality that would not compile.
+            Assert.Greater(Mathf.Abs(pv.attackClipLength - pv.stabClipLength), 0.001f,
+                "the stab is carrying the swing's length (" + pv.attackClipLength +
+                "); its contact frame will land at the wrong moment.");
+        }
+
+        [Test]
         public void TheBodyIsDarkSoTheFireHasSomethingToReadAgainst()
         {
             var d = Data();
@@ -182,7 +214,15 @@ namespace VibeGame1.Tests
             foreach (var n in new[] { "Revenant_Slash", "Revenant_Stab", "Revenant_Overhead", "Revenant_Kick" })
             {
                 var a = Atk(n);
-                float contact = pv.attackClipLength * pv.attackHitNormalized;
+                // Each attack's OWN clip, resolved the way PuppetVisuals.ClipFor does. This used to use
+                // the swing's length and anchor for all four, which was true when the stab and the kick
+                // were unreachable and became a lie the moment they started playing: it would have
+                // reported a clip fitting while a DIFFERENT clip was actually being stretched.
+                float length = pv.attackClipLength, anchor = pv.attackHitNormalized;
+                if (n.EndsWith("_Stab")) { length = pv.stabClipLength; anchor = pv.stabHitNormalized; }
+                else if (n.EndsWith("_Kick")) { length = pv.kickClipLength; anchor = pv.kickHitNormalized; }
+
+                float contact = length * anchor;
                 float speed = contact / (a.windup + a.impactDelay);
                 Assert.That(speed, Is.InRange(pv.minClipSpeed, pv.maxClipSpeed),
                     n + " would need the clip played at x" + speed.ToString("F2") +

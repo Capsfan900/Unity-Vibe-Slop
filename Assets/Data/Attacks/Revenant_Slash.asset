@@ -25,9 +25,9 @@ MonoBehaviour:
   parryPostureMultiplier: 1.3
   unblockable: 0
   windupPose:
-    authored: 0
-    armWindup: {x: 0, y: 0, z: 0}
-    armStrike: {x: 0, y: 0, z: 0}
-    bodyOffset: {x: 0, y: 0, z: 0}
-    bodyEuler: {x: 0, y: 0, z: 0}
+    authored: 1
+    armWindup: {x: -18, y: -84, z: -52}
+    armStrike: {x: 24, y: 74, z: 30}
+    bodyOffset: {x: 0.1, y: -0.1, z: -0.18}
+    bodyEuler: {x: 0, y: 38, z: 0}
     weaponLag: 0.45

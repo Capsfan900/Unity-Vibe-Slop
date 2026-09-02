@@ -840,7 +840,14 @@ EnemyController.BeginWindup(atk, gap)
         → base.Telegraph(...)                  the SHARED colour sink + alert marker
         → PlayAttackClip(atk, seconds + impactDelay)
              Animator.speed = clipContactTime / secondsToImpact      ← clip bends to data
-             CrossFadeInFixedTime(spin ? clipSpin : clipAttack/clipHeavy)
+             ClipFor(atk) picks the clip AND its own contact anchor:
+                 spin prefix        → clipSpin
+                 name ends "_Stab"  → clipStab      NAME BEFORE HEURISTIC. A kick is
+                 name ends "_Kick"  → clipKick      the unblockable, so an unblockable
+                 unblockable / >=0.9→ clipHeavy     test placed first swallows it --
+                 else               → clipAttack    which is what used to happen.
+             Each clip carries its OWN baked length + anchor, or it would be stretched
+             onto a different clip's contact frame and land its blow at the wrong moment.
         → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
              BeginPass  re-anchors WITHOUT changing speed. The rate is constant; the ARC is
                         what gets chosen -- the whole number of revolutions whose implied
@@ -893,6 +900,11 @@ EmberAura.Update()                       (Legendary_Revenant; bolt onto any enem
 - Unscaled time throughout, so hitstop does not freeze the fire. A frozen flame reads as a dropped frame.
 
 **Invariants specific to this path**
+- **On an IMPORTED body the wind-up silhouette is carried entirely by `bodyOffset` / `bodyEuler`.**
+  `MiniBossFactory` gives forge models empty arm pivots and a 3 cm cube for `EnemyVisuals.weapon`, so the
+  `armWindup` half of a `WindupPose` drives nothing the player can see. Unauthored, every attack on such a
+  body renders the SAME silhouette — measured at IoU 1.00 across the Revenant's four. See
+  ENGINEERING-LOG.md.
 - The whirl writes `SpinRoot.localRotation` and NOTHING else. It never touches a collider, a range, a
   cone or a time — the impact test is exactly the one every other enemy uses.
 - **The spin speed NEVER changes.** Not between passes, not into an impact, not during a strike. Any

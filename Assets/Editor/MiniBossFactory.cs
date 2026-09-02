@@ -482,6 +482,13 @@ namespace VibeGame1.EditorTools
             pv.attackHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, spec.attackClip, 0.55f);
             pv.spinClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipSpin, 1f);
             pv.spinHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, pv.clipSpin, 0.4f);
+            // The stab and the kick get their OWN contact frames. Scaling them by the swing's anchor
+            // would land their blow at the wrong moment, which is the one thing the clip layer is not
+            // allowed to do (timing is data-driven; the clip bends to it).
+            pv.stabClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipStab, 1f);
+            pv.stabHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, pv.clipStab, 0.55f);
+            pv.kickClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipKick, 1f);
+            pv.kickHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, pv.clipKick, 0.55f);
 
             // Validate the clips the component names actually exist. A missing clip is SILENT at
             // runtime — CrossFade to a state that is not there simply does nothing and the puppet
@@ -491,8 +498,8 @@ namespace VibeGame1.EditorTools
             var names = new System.Collections.Generic.HashSet<string>();
             for (int i = 0; i < have.Count; i++) names.Add(have[i].name);
             foreach (var wanted in new[] { pv.clipIdle, pv.clipWalk, pv.clipRun, pv.clipAttack,
-                                           pv.clipHeavy, pv.clipSpin, pv.clipHit, pv.clipStagger,
-                                           pv.clipDeath, pv.clipRoar })
+                                           pv.clipHeavy, pv.clipSpin, pv.clipStab, pv.clipKick,
+                                           pv.clipHit, pv.clipStagger, pv.clipDeath, pv.clipRoar })
             {
                 if (!names.Contains(wanted))
                     Debug.LogError("[MiniBossFactory] " + name + " names clip '" + wanted + "' but " + fbx +

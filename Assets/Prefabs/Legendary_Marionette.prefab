@@ -1471,6 +1471,8 @@ MonoBehaviour:
   clipRun: Run
   clipAttack: AttackSwing
   clipHeavy: AttackOverhead
+  clipStab: AttackStab
+  clipKick: AttackKick
   clipSpin: Roar
   clipHit: Hit
   clipStagger: Stagger
@@ -1480,6 +1482,10 @@ MonoBehaviour:
   attackClipLength: 1.1666675
   spinHitNormalized: 0.4
   spinClipLength: 1.833334
+  stabHitNormalized: 0.55
+  stabClipLength: 0.91666603
+  kickHitNormalized: 0.55
+  kickClipLength: 1.083333
   minClipSpeed: 0.4
   maxClipSpeed: 3.5
   clipBlend: 0.07

@@ -2130,6 +2130,87 @@ claimed here — `PerfProbe` needs play mode and this was measured statically.
 
 ---
 
+## On an imported body the wind-up pose has only one visible channel
+
+**Symptom.** THE EMBER REVENANT shipped with four deliberately different attacks — a 95° cut, a 40°
+thrust, the game's biggest 0.95 s punish, and an unblockable kick — and no authored `WindupPose`, so all
+four rode the cone-derived fallback. Photographed from the player's eye at 3.40 m, the four wind-up peaks
+measured **IoU 1.00 against each other**: not similar, pixel-identical. Four attacks, one picture.
+
+**Root cause, and it is not the fallback's fault.** The fallback varies only `armWindup` and holds one
+generic body channel for every attack. On the primitives that is fine — the arm carries a blade. On an
+IMPORTED forge model it carries nothing: `MiniBossFactory.BuildModelBody` deliberately builds EMPTY arm
+pivots (the auto-rig's bones sit inside the silhouette, so driving them at a ±136° telegraph tears the
+mesh) and `EnemyVisuals.weapon` is a 3 cm spark marker, not a blade. **So the fallback's only varying
+channel is invisible and its only visible channel is constant.**
+
+**Fix.** Author all four poses into `bodyOffset` / `bodyEuler`, which move the whole skinned mesh through
+`LungeRoot`, and give each attack one channel of its own — measured, never derived:
+
+| | measured at 3.40 m, at the frozen cue peak |
+|---|---|
+| `Revenant_Slash` | width **0.58** body-heights against the resting 0.90, level, area 0.74 — the only pose *narrower* than the body stands. A wide cut is wound from a coil. |
+| `Revenant_Stab` | height **1.19**, area **1.10**, crown **0.00** — the biggest and nearest shape, growing without rising. |
+| `Revenant_Overhead` | centre **+0.19**, crown **+0.16** — the only wind-up in the moveset that goes UP. |
+| `Revenant_Kick` | axis **27°** off vertical — the only tilted body in the game — and the lowest (−0.21 / −0.23). |
+
+Worst pair now IoU 0.43; the unblockable's worst is 0.32. Two smaller things paid for on the way: the
+overhead first measured *smaller* than the slash it towers over (pitching a body back foreshortens it
+exactly as it foreshortens a blade — `Heavy_Overhead`'s failure in a new costume), and a pure roll on the
+kick read as toppling rather than loading a leg until 16° of yaw put a hip behind the lean.
+
+**Invariant.** **Before authoring a pose for an imported body, find out which channel is visible on it.**
+`armWindup` drives nothing the player sees on any forge model. And measure the WHOLE BODY, not the blade
+— `FeatureTests.MeasureWindup` measures `EnemyVisuals.weapon`, which on these bodies is a 3 cm cube.
+`Assets/Editor/PoseSilhouette.cs` rasterises the real geometry through the player's real camera with no
+GPU and no play mode, so the same measurement backs both the capture tool and the EditMode regression —
+which fails **6 of its 9 cases** the moment the poses are unauthored.
+
+**Three capture traps, all found the hard way.** `EditorSceneManager.NewScene` runs an unused-asset sweep
+that destroys `ScriptableObject`s nothing in a scene references — a moveset's attacks held only by a local
+`List` die under it, so **open the scene first**. `EnemyVisuals.Setup` **throws** in edit mode (it
+dereferences the `EmissiveFlash` and property blocks cached in `Awake`), so paint the property block by
+hand. And **film from +Z**: the forge models face +Z and a camera on −Z photographs the BACK, silently
+inverting every forward/back reading — a thrust that drives at you measures as a retreat.
+
+---
+
+## Two of the four attack animations were unreachable, and nothing warned
+
+**Symptom.** Found while measuring the poses above, not by reading the code. `EmberRevenant.fbx` ships
+`AttackSwing`, `AttackOverhead`, `AttackStab` and `AttackKick`; all four import, split, and appear as
+states in the generated animator. **Two of them never played.**
+
+**Root cause.** `PuppetVisuals.PlayAttackClip` had exactly two attack slots:
+
+```csharp
+string clip = spin ? clipSpin : (atk.unblockable || atk.windup >= 0.9f) ? clipHeavy : clipAttack;
+```
+
+So the slash and the thrust both played `AttackSwing`, and the overhead and the kick both played
+`AttackOverhead` — the kick because it is the moveset's *unblockable*, which the first branch catches. The
+failure is completely silent: every clip exists, every state is valid, and a perfectly reasonable clip
+plays. Nothing is null and nothing logs.
+
+**It also made a comment in `DataFactory` false.** `Revenant_Stab`'s cone was justified in writing by a
+real measurement — `AttackStab` is the only clip in the set whose hands CLOSE (0.81 / 0.19 / 0.24 m of
+separation) — while that clip could not run. **A measured premise does not make a claim true if the thing
+measured is not the thing running.** The comment is annotated rather than deleted, as a marker.
+
+**Fix.** `PuppetVisuals.ClipFor` resolves the stab and the kick **by asset-name suffix, before the
+unblockable heuristic**, and each carries its own baked contact anchor and length (stab 0.92 s, kick
+1.08 s, against the swing's 1.17 s) so the clip is stretched onto its own contact frame rather than
+another clip's. Matching on the name follows the `spinAttackPrefix` precedent instead of adding a field to
+`EnemyAttackData`: the forge exports the same four canonical attack clips for every model, so the mapping
+is a property of the PIPELINE and belongs with the other clip bindings, not on 25+ content assets.
+
+**Invariant.** **Order the clip selection by name before heuristics.** An unblockable-first test will
+always swallow the kick, and `RevenantDataTests.TheStabAndTheKickPlayTheirOwnClips` exists so a future
+simplification cannot quietly restore it. More generally: when a lookup has fewer slots than the content
+has cases, the overflow does not error — it aliases onto a neighbour and looks fine.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

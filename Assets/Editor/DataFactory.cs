@@ -826,6 +826,28 @@ namespace VibeGame1.EditorTools
             // this is a READ: slow, enormous, committed swings with real openings between them, so it
             // is the tutorial for "watch the body" rather than "hold the beat". Everything is well
             // clear of the wind-up floor because nothing here is trying to be fast.
+            //
+            // ===== THE WIND-UP SILHOUETTES ========================================================
+            // MEASURED, at 3.40 m (preferredRange), from the player's eye (y 1.60, 95 deg FOV), on the
+            // frozen CUE PEAK -- VibeGame1/Photograph Wind-up Silhouettes. Numbers below are on-screen
+            // measurements, never the Eulers on the line above them: an authored angle is not an
+            // on-screen angle, and this project has already shipped ten poses whose comments were wrong.
+            //
+            // TWO THINGS ARE DIFFERENT ON THIS BODY, and they decide the whole shape of these poses.
+            //   1. THE ARM CHANNEL IS INVISIBLE HERE. An imported forge model gets EMPTY arm pivots
+            //      (MiniBossFactory.BuildModelBody -- the auto-rig's bones sit inside the silhouette,
+            //      so driving them at a telegraph pose tears the mesh) and its EnemyVisuals.weapon is a
+            //      3 cm spark marker, not a blade. armWindup/armStrike below still swing the cue-spark
+            //      origin and are kept honest for the day this body gets a real prop, but NOTHING the
+            //      player sees comes from them. The silhouette is carried entirely by bodyOffset and
+            //      bodyEuler, which move the whole skinned mesh through LungeRoot.
+            //   2. THE CLIP CANNOT TELL THESE FOUR APART EITHER. PuppetVisuals has two attack clip
+            //      slots, so slash and stab BOTH play AttackSwing and overhead and kick BOTH play
+            //      AttackOverhead (the kick because it is unblockable, the overhead because its wind-up
+            //      is >= 0.9). The FBX ships AttackStab and AttackKick and nothing plays them.
+            // Before these poses, all four attacks were measured at IoU 1.00 against each other --
+            // pixel-identical on screen, because the only channel the fallback moves is the body and it
+            // moves it the same way for every attack. The four wind-ups were literally one shape.
             var revSlash = Attack("Revenant_Slash", a =>
             {
                 // The bread-and-butter cut. 0.62 s is generous on purpose: this enemy exists to be
@@ -834,6 +856,13 @@ namespace VibeGame1.EditorTools
                 a.windup = 0.62f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.55f;
                 a.range = 3.4f; a.coneDeg = 95f; a.damage = 20f; a.lungeDistance = 0.9f;
                 a.comboGap = 0.22f; a.parryPostureMultiplier = 1.3f;
+                // SILHOUETTE, MEASURED: width 0.58 body-heights against the resting 0.90, level
+                // (axis -1 deg), covering 0.74 of the resting area, centre 0.06 bh to the player's left.
+                // THE NARROW ONE -- the body turns 38 deg and COILS, which is what a 95 deg horizontal
+                // cut is wound from. It is the only wind-up that makes this enemy thinner than it
+                // stands, and that shrink is the read: the wider the cut, the tighter the coil.
+                Pose(a, new Vector3(-18f, -84f, -52f), new Vector3(24f, 74f, 30f),
+                     new Vector3(0.10f, -0.10f, -0.18f), new Vector3(0f, 38f, 0f), 0.45f);
             });
             var revStab = Attack("Revenant_Stab", a =>
             {
@@ -841,9 +870,25 @@ namespace VibeGame1.EditorTools
                 // not assumed: AttackStab samples 0.81/0.19/0.24 m of hand separation, the only clip in
                 // the set that CLOSES. Narrow cone to match what the animation actually does, so
                 // stepping aside is a real answer to this one specifically.
+                //
+                // NOTE: when this comment was first written it was justifying a clip that NEVER PLAYED.
+                // PuppetVisuals had two attack slots (swing / heavy) and AttackStab was unreachable, so
+                // the measurement was real and the conclusion drawn from it was fiction. Fixed in
+                // PuppetVisuals.ClipFor, which now resolves the stab and the kick by name BEFORE the
+                // unblockable heuristic. Left here as a marker: a measured premise does not make a
+                // claim true if the thing measured is not the thing running.
                 a.windup = 0.55f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.5f;
                 a.range = 3.9f; a.coneDeg = 40f; a.damage = 24f; a.lungeDistance = 1.5f;
                 a.comboGap = 0.2f; a.parryPostureMultiplier = 1.45f;
+                // SILHOUETTE, MEASURED: height 1.19 bh and area 1.10 -- the BIGGEST and NEAREST shape
+                // of the four, because the body drives 0.42 m at the camera while the top of the head
+                // stays exactly where it was (dTop 0.00). It grows without rising: that is what
+                // "it is coming down the middle" looks like, and it is the opposite read to the
+                // overhead, which rises without growing.
+                // Bladed the other way from the slash (-48 deg against +38), so the two attacks that
+                // open a combo together lean off opposite shoulders.
+                Pose(a, new Vector3(-64f, -14f, 0f), new Vector3(22f, 10f, 0f),
+                     new Vector3(-0.06f, -0.08f, 0.42f), new Vector3(2f, -48f, 0f), 0.3f);
             });
             var revOverhead = Attack("Revenant_Overhead", a =>
             {
@@ -853,6 +898,15 @@ namespace VibeGame1.EditorTools
                 a.windup = 0.95f; a.impactDelay = 0.07f; a.strikeDuration = 0.22f; a.recovery = 1.4f;
                 a.range = 3.6f; a.coneDeg = 70f; a.damage = 38f; a.lungeDistance = 1.3f;
                 a.comboGap = 0.3f; a.parryPostureMultiplier = 1.8f;
+                // SILHOUETTE, MEASURED: centre 0.19 bh UP and crown 0.16 bh up -- the ONLY wind-up in
+                // the moveset that goes up at all; every other one drops. Squared to the player (no
+                // yaw) and reared 14 deg, area 0.88.
+                // The rear used to be 22 deg and 0.30 m of retreat, and it MEASURED 0.74 area, 0.90
+                // height -- the biggest-damage attack drawing the smallest mark, which is exactly the
+                // failure logged against Heavy_Overhead. Pitching back foreshortens a body the same way
+                // it foreshortens a blade. Less lean and more lift buys the height without the shrink.
+                Pose(a, new Vector3(-142f, 6f, -30f), new Vector3(66f, 0f, 18f),
+                     new Vector3(0f, 0.40f, 0.06f), new Vector3(-14f, 0f, 0f), 0.55f);
             });
             var revKick = Attack("Revenant_Kick", a =>
             {
@@ -862,6 +916,20 @@ namespace VibeGame1.EditorTools
                 a.windup = 0.7f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.9f;
                 a.range = 3.2f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 1.1f;
                 a.comboGap = 0.28f; a.unblockable = true;
+                // SILHOUETTE, MEASURED: axis 27 deg off vertical -- the ONLY tilted body in the game;
+                // no other pose in any moveset rolls at all. Also the LOWEST (centre 0.21 bh down, crown
+                // 0.23 bh down) and, after the roll spreads it, 0.94 bh wide. Its worst IoU against a
+                // sibling is 0.32; against the overhead it is 0.10, which is as far apart as two poses
+                // of one body get.
+                // A canted, sunken, twisted body is what a long-legged shove is loaded from, and it is
+                // the one shape here that cannot be mistaken for a sword coming.
+                // The 16 deg of yaw is not decoration. At a pure 22 deg roll and no turn the frame read
+                // as a body TOPPLING sideways rather than one loading a leg; the turn puts a hip behind
+                // the lean and costs only 2 deg of measured tilt.
+                // This ADDS to the pink M_AlertTell marker and the red cue tint; it does not replace
+                // them. The answer to this attack is to MOVE, and it gets three separate reads.
+                Pose(a, new Vector3(-40f, 34f, 18f), new Vector3(46f, -30f, -22f),
+                     new Vector3(0.04f, -0.28f, 0.06f), new Vector3(10f, -16f, 18f), 0.35f);
             });
 
             var revenant = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Revenant.asset");
