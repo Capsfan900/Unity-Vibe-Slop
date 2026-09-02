@@ -307,6 +307,34 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
+  - name: T2_Wall_East
+    center: {x: 11.1, y: 5.5, z: 123.5}
+    size: {x: 1.2, y: 9, z: 21}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T2_Wall_Landing_East
+    center: {x: 6.8, y: 7.5, z: 137.5}
+    size: {x: 5.6, y: 1, z: 8}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T2_Wall_West
+    center: {x: -11.2, y: 10.5, z: 115}
+    size: {x: 1.2, y: 9, z: 22}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T2_Wall_Landing_West
+    center: {x: -7.05, y: 12.0, z: 101.75}
+    size: {x: 5.1, y: 1, z: 9.5}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
   - name: Wall_T2_W
     center: {x: -14.25, y: 22, z: 170}
     size: {x: 0.5, y: 4, z: 28}

@@ -1164,7 +1164,24 @@ namespace VibeGame1.EditorTools
                                 running = false; doneRun = true; o.ended = why;
                                 o.exitFeet = feet; o.exitVel = v; o.runDuration = runT;
                             }
-                            continue;   // a frame on the wall never collides: the wall is holding us
+                            // The wall itself never collides: it is holding us. Everything else still does.
+                            // Without this a pad or ledge standing across the run line is invisible until
+                            // the exit frame, and a line reads "arrives" through a box the motor would
+                            // have stopped dead against (found sizing T2_Wall_Landing_West).
+                            {
+                                float ry0 = feet.y + r, ry1 = feet.y + h - r;
+                                for (int i = 0; i < boxes.Count; i++)
+                                {
+                                    if (i == ignoreIdx || i == wallIdx) continue;
+                                    float d2 = SegmentBoxDistance(feet.x, feet.z, ry0, ry1, boxes[i]) - r;
+                                    if (d2 < o.minClearance) o.minClearance = d2;
+                                    if (d2 >= 0f) continue;
+                                    o.blocked = true; o.blockedBy = i; o.totalTime = t;
+                                    o.exitFeet = feet; o.exitVel = v; o.runDuration = runT;
+                                    return o;
+                                }
+                            }
+                            continue;
                         }
                     }
                 }

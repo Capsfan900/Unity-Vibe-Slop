@@ -21,6 +21,19 @@ namespace VibeGame1.EditorTools
     /// </summary>
     public static class LevelWallRunProbe
     {
+        /// <summary>Which span's line table <c>VIBE_WALLRUN_LINE</c> indexes: 1 (default) or 2, from the
+        /// environment variable <c>VIBE_WALLRUN_SPAN</c>.</summary>
+        public static int Span
+        {
+            get
+            {
+                int s = 1;
+                string e = Environment.GetEnvironmentVariable("VIBE_WALLRUN_SPAN");
+                if (!string.IsNullOrEmpty(e)) int.TryParse(e, out s);
+                return s;
+            }
+        }
+
         public static void Run()
         {
             int idx = 0; float speed = -1f;
@@ -47,7 +60,8 @@ namespace VibeGame1.EditorTools
 
             var all = A.BoxesFrom(def);
             float floorY = def.killZone.center.y;
-            var line = LevelSpan1Report.WallRunLines[Mathf.Clamp(lineIndex, 0, LevelSpan1Report.WallRunLines.Length - 1)];
+            var lines = Span == 2 ? LevelSpan2Report.WallRunLines : LevelSpan1Report.WallRunLines;
+            var line = lines[Mathf.Clamp(lineIndex, 0, lines.Length - 1)];
             sb.AppendLine("PROBE " + line.from + " -> " + line.wall + " -> " + line.to + " at max entry speed " + maxSpeed.ToString("0.0"));
 
             int ia0 = A.IndexOf(all, line.from), iw0 = A.IndexOf(all, line.wall), ib0 = A.IndexOf(all, line.to);
