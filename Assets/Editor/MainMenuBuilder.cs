@@ -119,6 +119,8 @@ namespace VibeGame1.EditorTools
             menu.registry = registry;
             menu.sandboxSceneName = SandboxSceneName;
 
+            var settings = root.AddComponent<SettingsMenu>();
+
             Transform t = root.transform;
 
             // ---- backdrop -----------------------------------------------------------------------
@@ -143,13 +145,20 @@ namespace VibeGame1.EditorTools
 
             var levelDefs = registry != null ? registry.Ordered() : new LevelDefinition[0];
 
-            var title = BuildTitlePanel(menu, t);
+            var title = BuildTitlePanel(menu, settings, t);
             var level = BuildLevelPanel(menu, t, levelDefs);
 
             menu.titlePanel = title;
             menu.levelPanel = level;
             title.SetActive(true);
             level.SetActive(false);
+
+            // The settings panel — the SAME layout the HUD's pause path gets, from the one shared
+            // emitter (SettingsPanelKit). Built after the other panels so it draws over them. The
+            // title panel is hidden while it is open; there is no PauseMenu here to suspend, and no
+            // TimeScaleController either — SettingsMenu skips both when they are absent.
+            SettingsPanelKit.BuildPanel(settings, t);
+            settings.hideWhileOpen = title;
 
             // ---- EventSystem (new Input System) -------------------------------------------------
             var es = new GameObject("EventSystem");
@@ -162,7 +171,7 @@ namespace VibeGame1.EditorTools
 
         // ---------------- title panel ----------------
 
-        static GameObject BuildTitlePanel(MainMenuController menu, Transform t)
+        static GameObject BuildTitlePanel(MainMenuController menu, SettingsMenu settings, Transform t)
         {
             var panel = new GameObject("TitlePanel", typeof(RectTransform));
             panel.transform.SetParent(t, false);
@@ -189,10 +198,11 @@ namespace VibeGame1.EditorTools
 
             menu.playButton = MenuButton("PlayButton", p, "PLAY", Ember, new Vector2(0f, 40f));
             menu.levelSelectButton = MenuButton("LevelSelectButton", p, "LEVEL SELECT", Cyan, new Vector2(0f, -40f));
-            menu.quitButton = MenuButton("QuitButton", p, "QUIT", Blood, new Vector2(0f, -120f));
+            settings.openButton = MenuButton("SettingsButton", p, "SETTINGS", Gold, new Vector2(0f, -120f));
+            menu.quitButton = MenuButton("QuitButton", p, "QUIT", Blood, new Vector2(0f, -200f));
 
             menu.playSubtitle = Txt("PlaySubtitle", p, "", 16f, new Color(1f, 1f, 1f, 0.45f), TextAlignmentOptions.Center);
-            Rect(menu.playSubtitle.gameObject, Center, Center, Center, new Vector2(0f, -180f), new Vector2(900f, 24f));
+            Rect(menu.playSubtitle.gameObject, Center, Center, Center, new Vector2(0f, -260f), new Vector2(900f, 24f));
 
             var footer = Txt("Footer", p, "ESC pauses in a level  ·  F1 opens the developer menu", 15f,
                              new Color(1f, 1f, 1f, 0.28f), TextAlignmentOptions.Center);

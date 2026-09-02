@@ -2253,6 +2253,39 @@ and 240 fps and asserts the picture at any given speed is identical across all t
 
 ---
 
+## Settings menu: one panel, two entry points, an applier instead of a menu that reaches into gameplay
+
+**Shape.** `SettingsData` (POCO, clamps, labels) → `SettingsStore` (PlayerPrefs, `Changed` event) →
+`SettingsApplier` (self-bootstrapping `DontDestroyOnLoad`, pushes onto `PlayerLook`, `CameraFX`,
+`QualitySettings`, `Screen`, the URP volume) ← `SettingsMenu` (edits `SettingsStore.Current`, saves on every
+notch). `SettingsPanelKit` in `HudBuilder.cs` is the ONE emitter of the panel, used by both `HudBuilder`
+(pause path) and `MainMenuBuilder` (title path); a test asserts the two prefabs match row for row.
+Sensitivity is written onto `PlayerLook`'s public fields from the applier — `PlayerLook.cs` is never edited
+by settings code, and that is the intended architecture, not a workaround.
+
+**Gotchas, each now an invariant:**
+- `PausePressed` is `WasPressedThisFrame` — true for the WHOLE frame. Re-enabling `PauseMenu` inside
+  `SettingsMenu.Close()` let one ESC close settings AND toggle pause, depending on script order. The
+  re-enable is deferred one frame in `SettingsMenu.Update`.
+- `CameraFX.Start` captures `cam.fieldOfView` into `baseFov`, so an FOV applied on `sceneLoaded` is
+  overwritten a frame later. The applier applies on load AND once more via `Invoke(…, 0f)`.
+- `QualitySettings.SetQualityLevel` loads that level's own vSync; set `vSyncCount` AFTER it.
+- `Application.targetFrameRate` is ignored while vsync is on. The row greys out and says so rather than
+  offering a dead control.
+- Bloom goes through `Volume.profile` (runtime clone), never `sharedProfile` — writing the shared profile
+  from play mode dirties the asset on disk. Authored intensity is cached once per profile instance and the
+  setting is authored × scale, so re-applying never compounds and a re-authored profile moves the
+  player's 100 % with it.
+- `Screen.SetResolution` is a no-op in the editor (the Game view owns it). Skipped there, logged once,
+  the row says "applies in a build".
+- `Mathf.Clamp` passes NaN/∞ through. A NaN sensitivity in prefs blanks the view; `Clamp()` sanitises.
+- Tests swap `SettingsStore.KeyPrefix` to `vg1.test.settings.` so the suite can never overwrite the
+  developer's own sensitivity.
+- A UGUI `Slider` drives its fill by anchors, not `fillAmount` — that is why the sliders are stock
+  Sliders, and the prefab test asserts the fill Image is not `Type.Filled` (rule 5).
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

@@ -205,6 +205,18 @@ real read is closer. **A wind-up pose is judged from these photographs, never fr
 
 `RunGuardEntry(dir)` films the three entry paths into the held guard.
 
+### Settings menu
+
+Reached from the title screen (SETTINGS) and from the pause menu (ESC → SETTINGS). Ten rows: mouse /
+gamepad sensitivity, FOV, resolution, display mode, vsync, frame cap, quality, bloom, film grain. Persists
+to PlayerPrefs under `vg1.settings.*`, applied on load in every scene by `SettingsApplier` (no component
+to place — it bootstraps itself). Resolution / display mode take effect in builds only. Both prefabs are
+emitted by `SettingsPanelKit` (in `HudBuilder.cs`); rebuild with `5. Build HUD` and `9. Build Main Menu`.
+Tests: `Assets/Editor/Tests/SettingsDataTests.cs` (logic, 24) and `SettingsPrefabTests.cs` (every binding
+on both prefabs, 6). Adding a setting: a `SettingsData` field + key, a `SettingsMenu.RowKind` + entry in
+`AllKinds` + cases in `ValueLabel`/`Step`/`LabelFor`, an applier branch, and the kit emits the row
+automatically.
+
 ### Measuring an imported forge model — `ForgeModelProbe`
 
 `Assets/Editor/ForgeModelProbe.cs`, menu **VibeGame1 → Probe Forge Models**, and headless via

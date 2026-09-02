@@ -81,7 +81,8 @@ namespace VibeGame1
         [Tooltip("In-game only. Disabled while this panel is open so its ESC handler cannot fire under us.")]
         public PauseMenu pauseMenu;
 
-        [Tooltip("Front end only. Hidden while this panel is open and restored on close.")]
+        [Tooltip("Hidden while this panel is open and restored on close: the title panel in the front " +
+                 "end, the pause panel in game (so settings replaces it rather than stacking on it).")]
         public GameObject hideWhileOpen;
 
         public bool IsOpen { get; private set; }
@@ -92,6 +93,7 @@ namespace VibeGame1
         int timeHandle = -1;
         bool tookGameState;
         bool suppressedPause;
+        bool reenablePauseQueued;
         bool wasHidden;
         bool building;
 
@@ -116,6 +118,16 @@ namespace VibeGame1
 
         void Update()
         {
+            // Deferred one frame: PausePressed is WasPressedThisFrame, true for the WHOLE frame, so
+            // re-enabling PauseMenu inside Close() would let the very ESC that closed this panel also
+            // reach PauseMenu.Update in the same frame — whether it does depends on script execution
+            // order, which is not a thing to depend on. One frame later the press is gone.
+            if (reenablePauseQueued)
+            {
+                reenablePauseQueued = false;
+                if (pauseMenu != null) pauseMenu.enabled = true;
+            }
+
             if (!IsOpen) return;
             if (InputReader.I != null && InputReader.I.PausePressed) Close();
         }
@@ -142,7 +154,13 @@ namespace VibeGame1
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            if (pauseMenu != null && pauseMenu.enabled) { pauseMenu.enabled = false; suppressedPause = true; }
+            // A queued re-enable (closed and reopened within one frame) counts as "was enabled".
+            if (pauseMenu != null && (pauseMenu.enabled || reenablePauseQueued))
+            {
+                pauseMenu.enabled = false;
+                reenablePauseQueued = false;
+                suppressedPause = true;
+            }
             if (hideWhileOpen != null && hideWhileOpen.activeSelf) { hideWhileOpen.SetActive(false); wasHidden = true; }
 
             if (panel != null) panel.SetActive(true);
@@ -163,7 +181,7 @@ namespace VibeGame1
             if (tookGameState && GameManager.I != null) GameManager.I.SetState(GameState.Playing);
             tookGameState = false;
 
-            if (suppressedPause && pauseMenu != null) pauseMenu.enabled = true;
+            if (suppressedPause && pauseMenu != null) reenablePauseQueued = true;   // see Update
             suppressedPause = false;
 
             if (wasHidden && hideWhileOpen != null) hideWhileOpen.SetActive(true);

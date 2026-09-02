@@ -76,6 +76,7 @@ namespace VibeGame1.EditorTools
             var bossBar = root.AddComponent<BossBarView>();
             var testMenu = root.AddComponent<TestMenu>();
             var wandMenu = root.AddComponent<WandSelectMenu>();
+            var settings = root.AddComponent<SettingsMenu>();
 
             Transform t = root.transform;
 
@@ -222,7 +223,8 @@ namespace VibeGame1.EditorTools
             pause.resumeButton = Btn("ResumeButton", pausePanel.transform, "RESUME", new Vector2(0f, 40f), new Vector2(320f, 56f));
             pause.restartButton = Btn("RestartButton", pausePanel.transform, "RESTART FROM CHECKPOINT", new Vector2(0f, -30f), new Vector2(320f, 56f));
             pause.mainMenuButton = Btn("MainMenuButton", pausePanel.transform, "MAIN MENU", new Vector2(0f, -100f), new Vector2(320f, 56f));
-            pause.quitButton = Btn("QuitButton", pausePanel.transform, "QUIT", new Vector2(0f, -170f), new Vector2(320f, 56f));
+            var settingsBtn = Btn("SettingsButton", pausePanel.transform, "SETTINGS", new Vector2(0f, -170f), new Vector2(320f, 56f));
+            pause.quitButton = Btn("QuitButton", pausePanel.transform, "QUIT", new Vector2(0f, -240f), new Vector2(320f, 56f));
             pausePanel.gameObject.SetActive(false);
 
             // ---------------- Level-up menu ----------------
@@ -272,6 +274,15 @@ namespace VibeGame1.EditorTools
 
             // ---------------- Test menu (developer overlay, F1) ----------------
             BuildTestMenu(testMenu, t);
+
+            // ---------------- Settings (the shared panel; opened from the pause menu) ----------------
+            // Built LAST so it draws over every other overlay. The pause panel itself is hidden while
+            // settings is open (hideWhileOpen), and the PauseMenu component is suspended by SettingsMenu
+            // so its ESC handler cannot fire underneath.
+            SettingsPanelKit.BuildPanel(settings, t);
+            settings.openButton = settingsBtn;
+            settings.pauseMenu = pause;
+            settings.hideWhileOpen = pausePanel.gameObject;
 
             // ---------------- EventSystem (new Input System) ----------------
             var es = new GameObject("EventSystem");
@@ -616,6 +627,297 @@ namespace VibeGame1.EditorTools
             txt.fontStyle = FontStyles.Bold;
             Stretch(txt.gameObject);
             return btn;
+        }
+    }
+
+    /// <summary>
+    /// Emits THE settings panel — the one layout that goes into BOTH the HUD prefab (opened from the
+    /// pause menu) and the MainMenu prefab (opened from the title screen).
+    ///
+    /// <para>Shared on purpose, unlike the layout helpers above, which HudBuilder and MainMenuBuilder
+    /// deliberately duplicate. <see cref="SettingsMenu"/>'s contract is that the front-end screen and
+    /// the in-game screen are THE SAME screen; two hand-kept copies of this method is exactly how they
+    /// would stop being the same screen.</para>
+    ///
+    /// <para>The caller owns the entry point: this fills <see cref="SettingsMenu.panel"/>,
+    /// <see cref="SettingsMenu.rows"/>, <see cref="SettingsMenu.backButton"/> and
+    /// <see cref="SettingsMenu.resetButton"/>, and leaves <c>openButton</c> / <c>pauseMenu</c> /
+    /// <c>hideWhileOpen</c> for the builder that knows which scene it is in.</para>
+    ///
+    /// <para>Hard rule 5: the sliders are stock UGUI <see cref="Slider"/>s, which drive their fill
+    /// image's RectTransform ANCHORS — never <c>Image.fillAmount</c> (a null-sprite Image silently
+    /// ignores it). The value TEXT is the authoritative readout on every row regardless.</para>
+    /// </summary>
+    internal static class SettingsPanelKit
+    {
+        // The HUD/menu palette. Kept here as literals for the same reason the two builders keep their
+        // own copies: this file must not silently move when either of theirs is tuned.
+        static readonly Color Cyan = HexC("#7FBFB5");
+        static readonly Color Ember = HexC("#D9891A");
+        static readonly Color Dark = HexC("#06040A");
+        static readonly Color ButtonBg = HexC("#1A1220");
+        static readonly Color Bone = HexC("#E8E2D6");
+
+        static readonly Vector2 Mid = new Vector2(0.5f, 0.5f);
+        static readonly Vector2 Left = new Vector2(0f, 0.5f);
+        static readonly Vector2 Right = new Vector2(1f, 0.5f);
+
+        const float RowWidth = 1160f;
+        const float RowHeight = 50f;
+        const float RowStride = 56f;
+
+        /// <summary>Section header shown above the given row index. Data, so the loop stays one loop.</summary>
+        static string SectionBefore(int rowIndex)
+        {
+            switch (rowIndex)
+            {
+                case 0: return "CONTROL";
+                case 3: return "DISPLAY";
+                case 8: return "IMAGE";
+                default: return null;
+            }
+        }
+
+        public static GameObject BuildPanel(SettingsMenu menu, Transform canvasRoot)
+        {
+            var panel = ImgK("SettingsPanel", canvasRoot, new Color(Dark.r, Dark.g, Dark.b, 0.94f));
+            panel.raycastTarget = true;   // swallows clicks; nothing under the panel is reachable
+            StretchK(panel.gameObject);
+            Transform p = panel.transform;
+
+            var title = TxtK("Title", p, "SETTINGS", 56f, Cyan, TextAlignmentOptions.Center);
+            title.fontStyle = FontStyles.Bold;
+            title.characterSpacing = 10f;
+            RectK(title.gameObject, Mid, Mid, Mid, new Vector2(0f, 430f), new Vector2(900f, 70f));
+
+            var rule = ImgK("TitleRule", p, new Color(Cyan.r, Cyan.g, Cyan.b, 0.6f));
+            rule.raycastTarget = false;
+            RectK(rule.gameObject, Mid, Mid, Mid, new Vector2(0f, 392f), new Vector2(760f, 2f));
+
+            var kinds = SettingsMenu.AllKinds;
+            var rows = new SettingsMenu.Row[kinds.Length];
+            float cursor = 348f;
+
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                string section = SectionBefore(i);
+                if (section != null)
+                {
+                    cursor -= 8f;
+                    var h = TxtK(section + "Header", p, section, 17f,
+                                 new Color(Ember.r, Ember.g, Ember.b, 0.85f), TextAlignmentOptions.Left);
+                    h.fontStyle = FontStyles.Bold;
+                    h.characterSpacing = 8f;
+                    RectK(h.gameObject, Mid, Mid, Left, new Vector2(-RowWidth * 0.5f, cursor), new Vector2(400f, 22f));
+                    cursor -= 40f;
+                }
+
+                rows[i] = BuildRow(kinds[i], p, cursor);
+                cursor -= RowStride;
+            }
+
+            var back = BtnK("BackButton", p, "BACK", new Vector2(-180f, -456f), new Vector2(300f, 56f));
+            var reset = BtnK("ResetButton", p, "RESET DEFAULTS", new Vector2(180f, -456f), new Vector2(300f, 56f));
+
+            menu.panel = panel.gameObject;
+            menu.rows = rows;
+            menu.backButton = back;
+            menu.resetButton = reset;
+
+            panel.gameObject.SetActive(false);
+            return panel.gameObject;
+        }
+
+        static SettingsMenu.Row BuildRow(SettingsMenu.RowKind kind, Transform parent, float y)
+        {
+            var strip = ImgK("Row_" + kind, parent, new Color(1f, 1f, 1f, 0.03f));
+            strip.raycastTarget = false;
+            RectK(strip.gameObject, Mid, Mid, Mid, new Vector2(0f, y), new Vector2(RowWidth, RowHeight));
+            Transform s = strip.transform;
+
+            var label = TxtK("Label", s, SettingsMenu.LabelFor(kind), 20f, Bone, TextAlignmentOptions.Left);
+            label.characterSpacing = 3f;
+            RectK(label.gameObject, Left, Left, Left, new Vector2(24f, 0f), new Vector2(400f, 30f));
+
+            Slider slider = null;
+            if (SettingsMenu.IsContinuous(kind))
+                slider = BuildSlider("Slider", s, new Vector2(440f, 0f), new Vector2(280f, 28f));
+
+            var dec = SmallBtn("Decrease", s, "<", new Vector2(-300f, 0f));
+            var inc = SmallBtn("Increase", s, ">", new Vector2(-44f, 0f));
+
+            // The value TEXT is authoritative (a slider can silently fail to draw; a string cannot).
+            var value = TxtK("Value", s, "—", 19f, Color.white, TextAlignmentOptions.Center);
+            value.fontStyle = FontStyles.Bold;
+            RectK(value.gameObject, Right, Right, Mid, new Vector2(-172f, 7f), new Vector2(200f, 26f));
+
+            var note = TxtK("Note", s, "", 11f, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Center);
+            RectK(note.gameObject, Right, Right, Mid, new Vector2(-172f, -14f), new Vector2(220f, 16f));
+
+            return new SettingsMenu.Row
+            {
+                kind = kind,
+                root = strip.gameObject,
+                label = label,
+                value = value,
+                decrease = dec,
+                increase = inc,
+                slider = slider,
+                note = note,
+            };
+        }
+
+        /// <summary>
+        /// A stock UGUI slider, hand-assembled (there is no template to instantiate in a code-built
+        /// UI). Fill and handle are ANCHOR-driven by the Slider component itself.
+        /// </summary>
+        static Slider BuildSlider(string name, Transform parent, Vector2 pos, Vector2 size)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            RectK(go, Left, Left, Left, pos, size);
+            var slider = go.AddComponent<Slider>();
+
+            var bg = ImgK("Background", go.transform, new Color(1f, 1f, 1f, 0.08f));
+            var bgRt = bg.rectTransform;
+            bgRt.anchorMin = new Vector2(0f, 0.5f);
+            bgRt.anchorMax = new Vector2(1f, 0.5f);
+            bgRt.pivot = Mid;
+            bgRt.anchoredPosition = Vector2.zero;
+            bgRt.sizeDelta = new Vector2(0f, 6f);
+
+            var fillArea = new GameObject("Fill Area", typeof(RectTransform));
+            fillArea.transform.SetParent(go.transform, false);
+            var faRt = fillArea.GetComponent<RectTransform>();
+            faRt.anchorMin = new Vector2(0f, 0.5f);
+            faRt.anchorMax = new Vector2(1f, 0.5f);
+            faRt.pivot = Mid;
+            faRt.anchoredPosition = new Vector2(-7f, 0f);
+            faRt.sizeDelta = new Vector2(-14f, 6f);
+
+            var fill = ImgK("Fill", fillArea.transform, new Color(Ember.r, Ember.g, Ember.b, 0.9f));
+            fill.raycastTarget = false;
+            var fillRt = fill.rectTransform;
+            fillRt.sizeDelta = new Vector2(10f, 0f);
+
+            var handleArea = new GameObject("Handle Slide Area", typeof(RectTransform));
+            handleArea.transform.SetParent(go.transform, false);
+            var haRt = handleArea.GetComponent<RectTransform>();
+            haRt.anchorMin = Vector2.zero;
+            haRt.anchorMax = Vector2.one;
+            haRt.pivot = Mid;
+            haRt.anchoredPosition = Vector2.zero;
+            haRt.sizeDelta = new Vector2(-14f, 0f);
+
+            var handle = ImgK("Handle", handleArea.transform, Bone);
+            var hRt = handle.rectTransform;
+            hRt.sizeDelta = new Vector2(14f, 22f);
+
+            slider.fillRect = fillRt;
+            slider.handleRect = hRt;
+            slider.targetGraphic = handle;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            var colors = slider.colors;
+            colors.highlightedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 1f);
+            colors.pressedColor = new Color(Ember.r, Ember.g, Ember.b, 1f);
+            colors.selectedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 1f);
+            colors.disabledColor = new Color(0.4f, 0.4f, 0.4f, 0.4f);
+            slider.colors = colors;
+
+            return slider;
+        }
+
+        static Button SmallBtn(string name, Transform parent, string label, Vector2 posFromRight)
+        {
+            var img = ImgK(name, parent, ButtonBg);
+            RectK(img.gameObject, Right, Right, Mid, posFromRight, new Vector2(44f, 40f));
+            var btn = img.gameObject.AddComponent<Button>();
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.6f);
+            colors.pressedColor = Cyan;
+            colors.selectedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.6f);
+            colors.disabledColor = new Color(0.4f, 0.4f, 0.4f, 0.35f);
+            btn.colors = colors;
+
+            var txt = TxtK("Label", img.transform, label, 22f, Color.white, TextAlignmentOptions.Center);
+            txt.fontStyle = FontStyles.Bold;
+            StretchK(txt.gameObject);
+            return btn;
+        }
+
+        static Button BtnK(string name, Transform parent, string label, Vector2 pos, Vector2 size)
+        {
+            var img = ImgK(name, parent, ButtonBg);
+            RectK(img.gameObject, Mid, Mid, Mid, pos, size);
+            var btn = img.gameObject.AddComponent<Button>();
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.6f);
+            colors.pressedColor = Cyan;
+            colors.selectedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.6f);
+            colors.disabledColor = new Color(0.4f, 0.4f, 0.4f, 0.4f);
+            btn.colors = colors;
+
+            var txt = TxtK("Label", img.transform, label, 22f, Color.white, TextAlignmentOptions.Center);
+            txt.fontStyle = FontStyles.Bold;
+            StretchK(txt.gameObject);
+            return btn;
+        }
+
+        // ---- tiny layout idiom, kit-local -------------------------------------------------------
+
+        static Color HexC(string hex)
+        {
+            return ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
+        }
+
+        static RectTransform RectK(GameObject go, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPos, Vector2 size)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            if (rt == null) rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.pivot = pivot;
+            rt.anchoredPosition = anchoredPos;
+            rt.sizeDelta = size;
+            return rt;
+        }
+
+        static RectTransform StretchK(GameObject go)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            if (rt == null) rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.pivot = Mid;
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+            return rt;
+        }
+
+        static Image ImgK(string name, Transform parent, Color c)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            img.color = c;
+            return img;
+        }
+
+        static TextMeshProUGUI TxtK(string name, Transform parent, string text, float size, Color c, TextAlignmentOptions align)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            if (TMP_Settings.defaultFontAsset != null) tmp.font = TMP_Settings.defaultFontAsset;
+            tmp.text = text;
+            tmp.fontSize = size;
+            tmp.color = c;
+            tmp.alignment = align;
+            tmp.raycastTarget = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+            return tmp;
         }
     }
 }

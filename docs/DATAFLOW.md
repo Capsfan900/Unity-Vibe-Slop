@@ -936,6 +936,34 @@ EmberAura.Update()                       (Legendary_Revenant; bolt onto any enem
 - Leaving `Recover` honours `aggroLocked`, or a parried boss wakes before its arena trigger.
 - Every attack's `range` must cover `preferredRange + commitTolerance`, or committed attacks whiff.
 
+## Settings
+
+```
+SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on every notch
+   → SettingsStore                   PlayerPrefs under vg1.settings.*; raises Changed
+   → SettingsApplier                 DontDestroyOnLoad singleton, self-bootstrapped via
+        │                             RuntimeInitializeOnLoadMethod -- nothing to place
+        ├→ PlayerLook.mouseSensitivity / stickSensitivity   (public fields; PlayerLook is
+        │                                                     never edited by settings code)
+        ├→ CameraFX.baseFov + cam.fieldOfView               (CameraFX rewrites FOV every frame,
+        │                                                     so both, and once more a frame after
+        │                                                     sceneLoaded because CameraFX.Start
+        │                                                     captures baseFov)
+        ├→ QualitySettings.SetQualityLevel, THEN vSyncCount, THEN targetFrameRate
+        ├→ Screen.SetResolution                             (builds only; no-op in the editor)
+        └→ Volume.profile (runtime CLONE, never sharedProfile): Bloom.intensity =
+                                                              authored x scale; FilmGrain on/off
+   applied on Awake, on every sceneLoaded (+1 frame), and on every Changed.
+```
+
+**Invariants**
+- Sensitivity is applied OUTWARD onto `PlayerLook`'s public fields. Settings code never edits
+  `PlayerLook.cs`; that is the architecture, not a workaround for file ownership.
+- Opening from the pause menu takes its own `TimeScaleController.Request(0f)` handle (rule 1) and
+  re-enables `PauseMenu` one frame late, because `PausePressed` is true for the whole frame.
+- Bloom writes the runtime clone. Writing `sharedProfile` from play mode dirties the asset on disk.
+- Sliders are stock UGUI `Slider`s driven by anchors — never `Image.fillAmount` (rule 5).
+
 ## Boss
 
 ```
