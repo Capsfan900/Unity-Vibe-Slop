@@ -57,7 +57,7 @@ MonoBehaviour:
     isStatic: 1
   - name: T1_Stone_4
     center: {x: 0, y: 1, z: 38}
-    size: {x: 5, y: 1, z: 5}
+    size: {x: 5, y: 1, z: 6}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
@@ -91,7 +91,7 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Obelisk_E
-    center: {x: 4.5, y: 3.5, z: 58}
+    center: {x: 8, y: 3.5, z: 66.5}
     size: {x: 1.2, y: 7, z: 1.2}
     materialKey: Stone
     trim: 0
@@ -114,6 +114,27 @@ MonoBehaviour:
   - name: T1_Arena
     center: {x: 0, y: 3.5, z: 87}
     size: {x: 26, y: 1, z: 26}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T1_Wall_Start
+    center: {x: 7.1, y: 2.5, z: 22.5}
+    size: {x: 1.2, y: 7, z: 20}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T1_Wall_Causeway
+    center: {x: 3.9, y: 2.5, z: 50}
+    size: {x: 1.0, y: 7, z: 16}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T1_Wall_Landing
+    center: {x: 4.6, y: 2.0, z: 64.5}
+    size: {x: 4, y: 1, z: 10}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
@@ -707,7 +728,7 @@ MonoBehaviour:
   - name: Torch_Start_SE
     basePosition: {x: 7, y: 0, z: -7}
   - name: Torch_Start_NE
-    basePosition: {x: 7, y: 0, z: 7}
+    basePosition: {x: 7.6, y: 0, z: 7.6}
   - name: Torch_T1_A
     basePosition: {x: 2.2, y: 0, z: 14}
   - name: Torch_T1_Fast

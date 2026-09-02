@@ -524,6 +524,29 @@ namespace VibeGame1.EditorTools
             return pts;
         }
 
+        /// <summary>
+        /// An n×n grid of standing positions on the part of a box's top face that lies inside an x/z
+        /// region. The region is clipped to the box, so asking for more deck than exists is harmless.
+        /// </summary>
+        static List<Vector3> GridInRegion(Box a, Vector3 lo, Vector3 hi, float inset, int n)
+        {
+            float x0 = Mathf.Max(a.min.x + inset, lo.x), x1 = Mathf.Min(a.max.x - inset, hi.x);
+            float z0 = Mathf.Max(a.min.z + inset, lo.z), z1 = Mathf.Min(a.max.z - inset, hi.z);
+            if (x1 < x0) { x0 = x1 = Mathf.Clamp((lo.x + hi.x) * 0.5f, a.min.x + inset, a.max.x - inset); }
+            if (z1 < z0) { z0 = z1 = Mathf.Clamp((lo.z + hi.z) * 0.5f, a.min.z + inset, a.max.z - inset); }
+            var pts = new List<Vector3>();
+            for (int i = 0; i < n; i++)
+            {
+                float fx = n == 1 ? 0.5f : i / (float)(n - 1);
+                for (int j = 0; j < n; j++)
+                {
+                    float fz = n == 1 ? 0.5f : j / (float)(n - 1);
+                    pts.Add(new Vector3(Mathf.Lerp(x0, x1, fx), a.max.y, Mathf.Lerp(z0, z1, fz)));
+                }
+            }
+            return pts;
+        }
+
         /// <summary>An n×n grid of standing positions on a box's top face, inset so the capsule fits.</summary>
         static List<Vector3> GridOnTop(Box b, float inset, int n)
         {
@@ -1163,6 +1186,12 @@ namespace VibeGame1.EditorTools
                         if (WallRunMath.CanEnter(v, n, lookFlat, pr, out rd, out why))
                         {
                             v = WallRunMath.Enter(v, rd, pr);
+                            // Press the capsule to the face, as the motor does every frame of a run
+                            // (cc.Move(disp - n * 2.5 * used) against the collider). The entry test accepts
+                            // any gap inside wallCheckDistance, negative included, and a run that starts a
+                            // few centimetres INSIDE the face has its first ballistic frame after the exit
+                            // collide with the wall it just left - a false "blocked" the motor cannot produce.
+                            feet += n * (p.skinWidth - gap);
                             running = true;
                             runT = 0f;
                             runDir = rd;
@@ -1273,6 +1302,21 @@ namespace VibeGame1.EditorTools
         public static WallRunVerdict AnalyzeWallRunGap(IList<Box> boxes, string fromName, string wallName,
                                                        string toName, MoveProfile p, float maxSpeed, float floorY)
         {
+            return AnalyzeWallRunGap(boxes, fromName, wallName, toName, p, maxSpeed, floorY, Vector3.zero, Vector3.zero);
+        }
+
+        /// <summary>
+        /// As above, with the take-off region named explicitly. <see cref="LaunchBand"/> samples the part
+        /// of the source that FACES the target, which is right for a hop and wrong for a wall that runs
+        /// alongside a long deck: from the end of the deck nearest the landing the only way to mount the
+        /// wall is to run it BACKWARDS, and the verdict comes back "never arrives, obstructed by something
+        /// forty metres behind you". Pass the x/z box a player actually leaves from (world units; y is
+        /// ignored) and the search samples that instead. Zero-size region = default behaviour.
+        /// </summary>
+        public static WallRunVerdict AnalyzeWallRunGap(IList<Box> boxes, string fromName, string wallName,
+                                                       string toName, MoveProfile p, float maxSpeed, float floorY,
+                                                       Vector3 launchLo, Vector3 launchHi)
+        {
             var v = new WallRunVerdict();
             v.from = fromName; v.wall = wallName; v.to = toName;
             v.chiefObstruction = "";
@@ -1291,7 +1335,8 @@ namespace VibeGame1.EditorTools
             int ia = IndexOf(boxes, fromName), iw = IndexOf(boxes, wallName), ib = IndexOf(boxes, toName);
 
             float inset = p.SweptRadius + 0.05f;
-            var launch = LaunchBand(a, b, inset, 5);
+            bool hasRegion = launchHi.x > launchLo.x && launchHi.z > launchLo.z;
+            var launch = hasRegion ? GridInRegion(a, launchLo, launchHi, inset, 5) : LaunchBand(a, b, inset, 5);
             var aim = GridOnTop(b, inset, 3);
             var wallAim = GridOnTop(w, inset, 3);
             for (int i = 0; i < wallAim.Count; i++) aim.Add(wallAim[i]);
