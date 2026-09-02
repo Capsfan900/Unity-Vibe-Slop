@@ -15,7 +15,7 @@ MonoBehaviour:
   displayName: Oathbreaker (TEST)
   neon: {r: 0.7764706, g: 0.6509804, b: 1, a: 1}
   viewmodelPrefab: {fileID: 8455776851365528002, guid: 319a41557d845b14bbbecf5501aba3f1, type: 3}
-  viewmodelScale: 0.53
+  viewmodelScale: 0.46
   baseDamage: 60
   postureDamage: 40
   executeDamage: 1000
@@ -27,11 +27,11 @@ MonoBehaviour:
   - 1
   - 1
   - 1.6
-  attackDuration: 0.3
-  hitDelay: 0.08
+  attackDuration: 0.32
+  hitDelay: 0.09
   comboWindow: 0.4
-  hitOffset: 1.8
-  hitRadius: 1.4
+  hitOffset: 1.9
+  hitRadius: 1.45
   hitStopSeconds: 0.06
   parryWindowMultiplier: 1.6
   parryPostureDamage: 60
@@ -50,20 +50,20 @@ MonoBehaviour:
   superShake: 0.7
   superKnockback: 4
   idle:
-    pos: {x: 0.45, y: -0.35, z: 0.7}
-    euler: {x: 0, y: -10, z: 0}
+    pos: {x: 0.46, y: -0.36, z: 0.64}
+    euler: {x: 4, y: -12, z: 26}
   windup:
-    pos: {x: 0.6, y: -0.2, z: 0.5}
-    euler: {x: -20, y: -60, z: 30}
+    pos: {x: 0.58, y: -0.14, z: 0.46}
+    euler: {x: -26, y: -52, z: 26}
   swingEnd:
-    pos: {x: -0.3, y: -0.45, z: 0.8}
-    euler: {x: 20, y: 40, z: -40}
+    pos: {x: -0.24, y: -0.44, z: 0.8}
+    euler: {x: 18, y: 40, z: -42}
   parry:
     pos: {x: 0.05, y: -0.15, z: 0.6}
     euler: {x: 0, y: 90, z: 80}
   guard:
-    pos: {x: 0.33, y: -0.14, z: 0.6}
-    euler: {x: -12, y: 42, z: 58}
+    pos: {x: 0.34, y: -0.08, z: 0.62}
+    euler: {x: -14, y: 46, z: 52}
   drink:
     pos: {x: 0.7, y: -0.6, z: 0.5}
     euler: {x: 30, y: -40, z: 0}

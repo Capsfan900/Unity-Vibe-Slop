@@ -313,14 +313,18 @@ Add one by copying an existing block in `Assets/Editor/DataFactory.cs` and re-ru
 **3. Create Data**; view models come from `PrefabFactory`. This is the one content area that is still
 code-shaped — see below.
 
-**Every weapon is a short blade, and the shape is the spec sheet.** The whole set is dagger-scale
-(0.27-0.32 m of model above the fist), so a new weapon must NOT be made to feel heavy by being long.
-Two things are load-bearing when you add one:
+**Weapons are four LENGTHS, and the framing rules are enforced by measurement, not by shortness.**
+Extent above the fist spans 0.32 m (Rosethorn, the reference the player likes — never touch it) to
+0.71 m (Sunbreaker). What keeps the frame readable is POSE: `WeaponSilhouetteTests` asserts that every
+held pose stays off the crosshair disc, covers ≤5% of the frame, and keeps the tip in frame. Author a new
+weapon at whatever length its identity needs, then make those tests pass. Three things are load-bearing
+when you add one:
 
 | Requirement | Why |
 |---|---|
 | The prefab must have a part named `Grip*` | `WeaponViewmodel.CloseHandOn` slides the HAND onto it. No `Grip*` and the fist closes on empty air — `VM_Hammer` shipped like that once. |
-| `viewmodelScale` must be written in `DataFactory` (rule 9) | It defaults to 0.5 on the class and a code default never reaches an asset that already exists. Pick it so the model lands in the 0.27-0.32 m band. |
+| `viewmodelScale` must be written in `DataFactory` (rule 9) | A code default never reaches an asset that already exists. `WeaponSilhouette.ExtentAboveFist` reads the result; keep the ladder monotonic. |
+| Every pose must be MEASURED, never eyeballed | Two guards that read fine in the mind's eye measured 16.1% and 6.3% crosshair coverage on screen. Sweep candidates with `WeaponGuardSweep`, photograph with **VibeGame1/Photograph Weapons**, and only then hard-code the pose. |
 
 Give it a silhouette no existing weapon owns — the four in use are a wide **cross**, a **top-heavy**
 mass head, a bare **needle** and a **wavy serrated** blade — and a hue no existing weapon owns. Two

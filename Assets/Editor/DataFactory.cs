@@ -1074,9 +1074,13 @@ namespace VibeGame1.EditorTools
             hammer.swingEnd = new Pose(new Vector3(-0.24f, -0.74f, 0.88f), new Vector3(58f, 32f, -34f));
             hammer.parry = new Pose(new Vector3(0.08f, -0.24f, 0.66f), new Vector3(0f, 86f, 76f));
             // The hammer guards with its MASS, not its edge: the haft is braced across the body and the
-            // head kept low and wide. It is the one weapon whose volume would occlude the enemy if it
-            // came up to blade height, so it is rolled flatter and pushed the furthest out of the four.
-            hammer.guard = new Pose(new Vector3(0.42f, -0.30f, 0.80f), new Vector3(-4f, 30f, 40f));
+            // head kept out of the way. SWEPT, not felt: the first two authored braces read fine in the
+            // mind's eye and put the HEAD ON THE CROSSHAIR on screen (16.1% then 14.3% of the disc —
+            // WeaponSilhouette caught both), because where a maul's mass lands on the canted line cannot
+            // be eyeballed. This pose comes out of WeaponGuardSweep: 648 candidates, 50 clean, this one
+            // chosen for keeping the brace lowest (most mass-like) of the survivors. Measures crosshair
+            // 0.0%, tip (+0.10,+0.16) above the disc, cover 1.0%.
+            hammer.guard = new Pose(new Vector3(0.44f, -0.16f, 0.80f), new Vector3(-10f, 46f, 42f));
             hammer.executeWindup = new Pose(new Vector3(0.54f, 0.52f, 0.40f), new Vector3(-96f, -22f, 8f));
             EditorUtility.SetDirty(hammer);
 
@@ -1139,7 +1143,13 @@ namespace VibeGame1.EditorTools
             dev.idle = new Pose(new Vector3(0.46f, -0.36f, 0.64f), new Vector3(4f, -12f, 26f));
             dev.windup = new Pose(new Vector3(0.58f, -0.14f, 0.46f), new Vector3(-26f, -52f, 26f));
             dev.swingEnd = new Pose(new Vector3(-0.24f, -0.44f, 0.80f), new Vector3(18f, 40f, -42f));
-            dev.guard = new Pose(new Vector3(0.32f, -0.14f, 0.66f), new Vector3(-12f, 44f, 54f));
+            // SWEPT, and the sweep overturned the intuition: rolling the kris flatter "like the dagger"
+            // (62-72°) lays its wavy blade ACROSS the crosshair disc (6-14% covered in every such
+            // candidate), because a 0.50 m blade at high roll crosses centre height where the 0.32 m
+            // needle has already ended. The kris belongs to the sword regime — modest roll, point
+            // carried up. From WeaponGuardSweep (432 candidates, 144 clean): crosshair 0.0%, tip
+            // (+0.04,+0.19) above the disc, cover 0.7%.
+            dev.guard = new Pose(new Vector3(0.34f, -0.08f, 0.62f), new Vector3(-14f, 46f, 52f));
             EditorUtility.SetDirty(dev);
 
             // ---------------- Items (Neon White style single-use pickups) ----------------

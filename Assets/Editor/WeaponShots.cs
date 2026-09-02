@@ -56,6 +56,19 @@ namespace VibeGame1.EditorTools
             Batch();
         }
 
+        /// <summary>
+        /// Pose-iteration loop: rewrite the DATA only, then photograph. A pose lives in the weapon
+        /// asset, so tuning one does not need the prefabs rebuilt — this cuts a whole prefab pass out
+        /// of every iteration. Use <see cref="RebuildAndShoot"/> whenever geometry changed.
+        /// </summary>
+        public static void DataAndShoot()
+        {
+            DataFactory.CreateAll();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Batch();
+        }
+
         public static string Shoot(string dir)
         {
             var sb = new StringBuilder();

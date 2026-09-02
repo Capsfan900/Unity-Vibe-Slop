@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Cerulean Edge
   neon: {r: 0.56078434, g: 0.70980394, b: 0.8509804, a: 1}
   viewmodelPrefab: {fileID: 5872092951120182316, guid: 8f65a56eb9228a9409d6884c6f1bae17, type: 3}
-  viewmodelScale: 0.52
-  baseDamage: 22
-  postureDamage: 12
+  viewmodelScale: 0.46
+  baseDamage: 26
+  postureDamage: 16
   executeDamage: 300
   strScale: 0.5
   dexScale: 0.5
@@ -25,14 +25,14 @@ MonoBehaviour:
   comboLength: 3
   comboMultipliers:
   - 1
-  - 1
-  - 1.5
-  attackDuration: 0.38
-  hitDelay: 0.12
-  comboWindow: 0.35
-  hitOffset: 1.6
-  hitRadius: 1.1
-  hitStopSeconds: 0.05
+  - 1.15
+  - 1.6
+  attackDuration: 0.44
+  hitDelay: 0.15
+  comboWindow: 0.36
+  hitOffset: 2.1
+  hitRadius: 1.15
+  hitStopSeconds: 0.06
   parryWindowMultiplier: 1
   parryPostureDamage: 25
   pyreBonus: 0
@@ -50,26 +50,26 @@ MonoBehaviour:
   superShake: 0.45
   superKnockback: 2.5
   idle:
-    pos: {x: 0.45, y: -0.35, z: 0.7}
-    euler: {x: 0, y: -10, z: 0}
+    pos: {x: 0.5, y: -0.42, z: 0.66}
+    euler: {x: 8, y: -14, z: 34}
   windup:
-    pos: {x: 0.6, y: -0.2, z: 0.5}
-    euler: {x: -20, y: -60, z: 30}
+    pos: {x: 0.62, y: -0.06, z: 0.44}
+    euler: {x: -34, y: -56, z: 26}
   swingEnd:
-    pos: {x: -0.3, y: -0.45, z: 0.8}
-    euler: {x: 20, y: 40, z: -40}
+    pos: {x: -0.3, y: -0.5, z: 0.8}
+    euler: {x: 26, y: 44, z: -46}
   parry:
-    pos: {x: 0.05, y: -0.15, z: 0.6}
-    euler: {x: 0, y: 90, z: 80}
+    pos: {x: 0.1, y: -0.16, z: 0.62}
+    euler: {x: 0, y: 82, z: 74}
   guard:
-    pos: {x: 0.33, y: -0.14, z: 0.6}
-    euler: {x: -12, y: 42, z: 58}
+    pos: {x: 0.36, y: -0.16, z: 0.72}
+    euler: {x: -10, y: 38, z: 46}
   drink:
     pos: {x: 0.7, y: -0.6, z: 0.5}
     euler: {x: 30, y: -40, z: 0}
   executeWindup:
-    pos: {x: 0.5, y: 0.3, z: 0.5}
-    euler: {x: -70, y: -30, z: 20}
+    pos: {x: 0.52, y: 0.34, z: 0.46}
+    euler: {x: -74, y: -28, z: 18}
   executeEnd:
     pos: {x: 0.1, y: -0.6, z: 0.9}
     euler: {x: 60, y: 0, z: 0}

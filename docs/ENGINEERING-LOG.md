@@ -2286,6 +2286,35 @@ by settings code, and that is the intended architecture, not a workaround.
 
 ---
 
+## A guard pose cannot be eyeballed — the maul's head sat on the crosshair twice
+
+Restoring the weapon archetypes ("more than just daggers") kept the three properties the dagger pass
+actually earned — held poses never cross the crosshair, never cover more than a corner of the frame, tip
+stays in frame — and enforced them by rasterising the real prefab through the player's own camera
+(`WeaponSilhouette`, asserted in `WeaponSilhouetteTests`). **Length was never what broke the frame; POSE
+was**, so length is free again: 0.32 m needle → 0.62 m sword → 0.71 m maul, with the dagger untouched as
+the control (zero diff after a full regeneration).
+
+Two authored guards that read fine in the mind's eye measured **16.1% and 6.3% crosshair-disc coverage**
+on screen, and a hand-tuned "fix" made one of them WORSE — where a weapon's mass lands on a canted line
+depends on grip height, extent and lens distance in ways intuition does not track. The invariant: **a held
+pose ships only with a measurement, and iterating one pose per Unity launch is the wrong loop** —
+`WeaponGuardSweep` mutates the loaded asset in memory and measures hundreds of candidates in one batch.
+The sweep also overturned the intuitive fix: the 0.50 m kris must NOT copy the 0.32 m dagger's flat roll
+(that lays its blade across the disc); it belongs to the sword's regime.
+
+Two edit-mode traps fixed on the way: `WeaponViewmodel.SetWeapon` called `Destroy()`, which in edit mode
+logs an error and leaves the old model parented — every capture after the first photographed two weapons
+stacked (now `DestroyImmediate` outside play mode). And `Sword.parryPostureDamage` stays 25;
+`WeaponSilhouetteTests.SixDeflectEconomy_TheSwordStaysAt25` now guards the Marionette arithmetic from
+inside weapon-land, so the next weapon pass trips over the constraint where it will be looking.
+
+**And rule 9, again, in its purest form.** The previous agent's `DataFactory` / `PrefabFactory` work was
+complete on disk and had **never reached an asset**: `Sword.asset` still carried the dagger-era 0.38 s
+swing and 1.6 m reach. Code that describes a weapon is not a weapon until `Create Data` has run.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |

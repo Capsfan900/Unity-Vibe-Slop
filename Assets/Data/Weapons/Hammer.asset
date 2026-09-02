@@ -16,8 +16,8 @@ MonoBehaviour:
   neon: {r: 0.8784314, g: 0.4, b: 0.101960786, a: 1}
   viewmodelPrefab: {fileID: 5162901324134690919, guid: 310351ac8eee4dc4fb35e0fcb9dcc049, type: 3}
   viewmodelScale: 0.5
-  baseDamage: 40
-  postureDamage: 30
+  baseDamage: 46
+  postureDamage: 34
   executeDamage: 400
   strScale: 1
   dexScale: 0
@@ -25,14 +25,14 @@ MonoBehaviour:
   comboLength: 2
   comboMultipliers:
   - 1
-  - 1.6
-  attackDuration: 0.7
-  hitDelay: 0.3
-  comboWindow: 0.5
-  hitOffset: 1.8
-  hitRadius: 1.4
-  hitStopSeconds: 0.09
-  parryWindowMultiplier: 0.8
+  - 1.7
+  attackDuration: 0.86
+  hitDelay: 0.4
+  comboWindow: 0.55
+  hitOffset: 2.5
+  hitRadius: 1.7
+  hitStopSeconds: 0.11
+  parryWindowMultiplier: 0.75
   parryPostureDamage: 40
   pyreBonus: 5
   superName: Sunbreak
@@ -49,26 +49,26 @@ MonoBehaviour:
   superShake: 0.9
   superKnockback: 6
   idle:
-    pos: {x: 0.5, y: -0.4, z: 0.75}
-    euler: {x: 0, y: -15, z: 0}
+    pos: {x: 0.52, y: -0.55, z: 0.72}
+    euler: {x: 8, y: -18, z: 30}
   windup:
-    pos: {x: 0.65, y: 0.1, z: 0.4}
-    euler: {x: -60, y: -40, z: 20}
+    pos: {x: 0.58, y: 0.08, z: 0.36}
+    euler: {x: -70, y: -42, z: 18}
   swingEnd:
-    pos: {x: -0.2, y: -0.6, z: 0.9}
-    euler: {x: 45, y: 30, z: -30}
+    pos: {x: -0.24, y: -0.74, z: 0.88}
+    euler: {x: 58, y: 32, z: -34}
   parry:
-    pos: {x: 0.05, y: -0.2, z: 0.6}
-    euler: {x: 0, y: 90, z: 80}
+    pos: {x: 0.08, y: -0.24, z: 0.66}
+    euler: {x: 0, y: 86, z: 76}
   guard:
-    pos: {x: 0.38, y: -0.22, z: 0.62}
-    euler: {x: -6, y: 34, z: 48}
+    pos: {x: 0.44, y: -0.16, z: 0.8}
+    euler: {x: -10, y: 46, z: 42}
   drink:
     pos: {x: 0.7, y: -0.6, z: 0.5}
     euler: {x: 30, y: -40, z: 0}
   executeWindup:
-    pos: {x: 0.5, y: 0.5, z: 0.4}
-    euler: {x: -90, y: -20, z: 10}
+    pos: {x: 0.54, y: 0.52, z: 0.4}
+    euler: {x: -96, y: -22, z: 8}
   executeEnd:
     pos: {x: 0.1, y: -0.6, z: 0.9}
     euler: {x: 60, y: 0, z: 0}

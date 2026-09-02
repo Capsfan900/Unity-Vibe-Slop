@@ -122,7 +122,13 @@ namespace VibeGame1
             if (trail != null) trail.Clear();
             holding = false;
             ClearOverride();   // a swap mid-riposte must not leave the wand model parented alongside
-            if (instance != null) Destroy(instance);
+            // DestroyImmediate outside play mode: the silhouette/capture tools re-equip weapons on a
+            // staged rig in edit mode, where Destroy() only logs an error and leaves the old model
+            // parented — every measurement after the first would rasterise two weapons at once.
+            if (instance != null)
+            {
+                if (Application.isPlaying) Destroy(instance); else DestroyImmediate(instance);
+            }
             if (w != null && w.viewmodelPrefab != null)
             {
                 instance = Instantiate(w.viewmodelPrefab, grip != null ? grip : model);
@@ -167,7 +173,7 @@ namespace VibeGame1
         }
 
         /// <summary>First descendant named Grip* — the hilt/haft the fingers close around.</summary>
-        internal static Transform FindGrip(Transform root)
+        public static Transform FindGrip(Transform root)
         {
             foreach (var t in root.GetComponentsInChildren<Transform>(true))
                 if (t != root && t.name.StartsWith("Grip")) return t;
@@ -552,7 +558,10 @@ namespace VibeGame1
         /// <summary>Destroy the override model and restore the melee weapon. Safe to call twice.</summary>
         public void ClearOverride()
         {
-            if (overrideInstance != null) Destroy(overrideInstance);
+            if (overrideInstance != null)
+            {
+                if (Application.isPlaying) Destroy(overrideInstance); else DestroyImmediate(overrideInstance);
+            }
             overrideInstance = null;
             if (instance != null) { instance.SetActive(true); CloseHandOn(instance); }
         }
