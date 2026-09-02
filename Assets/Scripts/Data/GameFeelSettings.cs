@@ -40,6 +40,67 @@ namespace VibeGame1
         public float dashFovKick = 8f;
         public float ultFovKick = 15f;
 
+        [Header("Dash — punctuation, FORCE not light")]
+        // A dash was never silent: dashFovKick has shipped at 8 on the asset for as long as the asset
+        // has existed. It was NON-SPECIFIC. A symmetric FOV widen says the lens changed; it does not say
+        // which way you went or how far, and 0.16 s is far too short for the world to sell that on its
+        // own. Everything below adds DIRECTION. Nothing below adds brightness — see dashStreakBrightness.
+        [Tooltip("Degrees the view lifts on a FORWARD dash, scaled by the forward component. Zero for a " +
+                 "pure strafe, honestly: a sideways dash has no pitch in it.")]
+        public float dashKickPitch = 0.9f;
+        [Tooltip("Degrees of roll, banking INTO the dash, scaled by its lateral component. Roll is free " +
+                 "readability — it never moves the aim vector — which is why it carries most of a " +
+                 "lateral dash. There is deliberately NO yaw: a dash is often the approach to a swing.")]
+        public float dashKickRoll = 1.4f;
+        [Tooltip("Metres the lens is left BEHIND the body at the peak of the kick, opposite the travel. " +
+                 "This is the acceleration read: a camera that teleports with the body reports no " +
+                 "acceleration at all, which is why a dash felt like a position edit.")]
+        public float dashKickOffset = 0.06f;
+        [Tooltip("Kick lifetime, unscaled seconds. Shorter than the deflect's 0.16 and shorter than the " +
+                 "0.16 s dash itself, so the camera is dead still again before you land.")]
+        public float dashKickTime = 0.14f;
+        [Tooltip("Chromatic aberration pulse on a dash. Air distortion, and the only post-FX a dash gets.")]
+        public float dashChromatic = 0.35f;
+        [Tooltip("Speed lines. Camera space, never world space — a world-space streak hangs in the world " +
+                 "the moment you turn the mouse, and a dash is often a turn (same conclusion WeaponTrail " +
+                 "reached).")]
+        [Range(0, 24)] public int dashStreakCount = 12;
+        public float dashStreakSeconds = 0.22f;
+        [Range(0f, 1f)] public float dashStreakAlpha = 0.85f;
+        [Tooltip("Peak HDR channel of the streaks. DELIBERATELY UNDER the scene's 1.05 bloom threshold, " +
+                 "so a dash contributes exactly zero bloom and can never compete with " +
+                 "EnemyVisuals.CueFlash — light in this game means 'you deflected'.")]
+        public float dashStreakBrightness = 0.90f;
+
+        [Header("Slide — sustained, and the middle is the whole problem")]
+        // A slide lasts up to 0.90 s and every cue it had except the eye drop was an IMPULSE: the entry
+        // FOV kick had decayed to nothing inside ~0.4 s, and there was no ground contact in the package
+        // at all. So these are HELD values that track actual speed (see SlideImpulse), not one-shots.
+        [Tooltip("Peak SUSTAINED FOV widening, held for the whole slide and scaled by the speed still " +
+                 "being carried. Reaches exactly zero at the motor's slideEndSpeed, so standing up " +
+                 "never snaps the lens. Stacks on top of the entry kick.")]
+        public float slideFovHold = 8f;
+        [Tooltip("FOV punch when you stand up. NEGATIVE: the world closing back in as the speed goes.")]
+        public float slideEndFovPunch = -2.5f;
+        [Tooltip("Maximum camera roll while steering a slide, degrees, banking into the steer and scaled " +
+                 "by remaining speed. Roll never moves the aim vector, so a held bank costs nothing at " +
+                 "the next parry — which is exactly why it, and not pitch or yaw, is the sustained channel.")]
+        public float slideRollDegrees = 3.5f;
+        [Tooltip("Degrees the nose dips on the commit. Frontal and symmetric: a slide entry has no " +
+                 "lateral force and inventing one would read as a stumble.")]
+        public float slideKickPitch = 1.2f;
+        public float slideKickTime = 0.13f;
+        [Tooltip("Grit particles per second at full slide speed. Shed into a SCENE-LEVEL root so they " +
+                 "are left behind rather than towed — that is most of what makes it read as a floor.")]
+        public float slideDustRate = 34f;
+        [Tooltip("Spark bursts per second, and only above 35% speed. Routed through SlashFx, which " +
+                 "normalises to a peak channel of exactly 1.0 — still under the 1.05 bloom threshold.")]
+        public float slideSparkRate = 5f;
+        [Tooltip("Peak gain of the sustained scrape loop. A synthesised noise loop on its own AudioSource, " +
+                 "not an Sfx entry: AudioManager is a one-shot pool with no looping API, and retriggering " +
+                 "a one-shot 20x/second would eat most of the 12-voice pool and starve the fight.")]
+        [Range(0f, 0.6f)] public float slideScrapeVolume = 0.22f;
+
         [Header("Deflect impact — FORCE, never light")]
         // The deflect was already legible; what it lacked was weight. Every value below is motion,
         // time or air. Nothing here brightens the frame, because EnemyVisuals.CueFlash owns the

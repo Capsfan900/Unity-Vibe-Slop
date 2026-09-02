@@ -115,6 +115,16 @@ namespace VibeGame1.EditorTools
             public float wallJumpUpSpeed, wallJumpPushSpeed, wallCheckDistance, sameWallCosineLimit;
             public int maxWallJumps;
 
+            /// <summary>
+            /// The wall-run tuning, in the SAME struct the motor hands to <c>WallRunMath</c>. Not a
+            /// re-declaration of those numbers: the analyser fills this from the shipped prefab and then
+            /// calls the shipped code with it, so there is exactly one implementation of a wall run in
+            /// this project and the analyser cannot drift away from the game.
+            /// </summary>
+            public WallRunMath.Params WallRun;
+            public int maxWallRuns;
+            public float wallRunCooldown;
+
             public float capsuleRadius, standHeight, skinWidth;
 
             /// <summary>Vertical speed a jump leaves the ground at: sqrt(2 g h).</summary>
@@ -164,6 +174,11 @@ namespace VibeGame1.EditorTools
             profile.wallCheckDistance = m.wallCheckDistance;
             profile.sameWallCosineLimit = m.sameWallCosineLimit;
             profile.maxWallJumps = m.maxWallJumps;
+            // Straight off the component, via the motor's own accessor. If a wall-run number is retuned
+            // on the prefab, every route this analyser has ever blessed is re-judged against the new one.
+            profile.WallRun = m.WallRunSettings;
+            profile.maxWallRuns = m.maxWallRuns;
+            profile.wallRunCooldown = m.wallRunCooldown;
             profile.capsuleRadius = cc.radius;
             profile.standHeight = cc.height;
             profile.skinWidth = cc.skinWidth;
@@ -911,6 +926,456 @@ namespace VibeGame1.EditorTools
             return v;
         }
 
+
+        // ============================================================ wall running
+        //
+        // THE WHOLE POINT OF THIS SECTION. A level designer wants to ask three questions and get numbers
+        // rather than a playtest:
+        //
+        //   1. "How long should this wall BE?"            -> MeasureWallRun  (pure kinematics, no geometry)
+        //   2. "Can I run THIS wall from here, and where does it put me?"
+        //                                                 -> FlyWallRun      (one simulated attempt)
+        //   3. "Is this gap crossable by wall running?"   -> AnalyzeWallRunGap (a search over how a
+        //                                                    player might actually play it)
+        //
+        // All three call VibeGame1.WallRunMath, the same code the motor runs, with a Params struct built
+        // from the SHIPPED Player.prefab. There is no second copy of the arithmetic anywhere.
+
+        /// <summary>What a wall run is worth, with no geometry involved at all: how long it lasts, how far
+        /// it carries, and what it does to your height. This is the number to author a wall's LENGTH
+        /// against.</summary>
+        public struct WallRunEnvelope
+        {
+            public float duration;       // s actually spent on the wall
+            public float distance;       // m along the face
+            public float rise;           // m gained at the high point, relative to entry
+            public float netHeight;      // m relative to entry at the moment the run ends (usually negative)
+            public float timeToPeak;
+            public float exitSpeed;      // tangential speed at the end of the run
+            public WallRunEnd ended;
+
+            public string Summary()
+            {
+                return string.Format(
+                    "wall run: {0:0.00} s, {1:0.0} m along the face, +{2:0.00} m at t={3:0.00} s, " +
+                    "{4:0.00} m net, leaves the wall at {5:0.0} m/s ({6})",
+                    duration, distance, rise, timeToPeak, netHeight, exitSpeed, ended);
+            }
+        }
+
+        /// <summary>
+        /// Integrate one wall run in free space at <paramref name="entrySpeed"/>. No boxes, no collisions:
+        /// this answers "how much wall does the mechanic need", which is the first thing anyone laying out
+        /// a corridor has to know.
+        /// </summary>
+        public static WallRunEnvelope MeasureWallRun(MoveProfile p, float entrySpeed, bool holdForward,
+                                                     float entryVerticalSpeed = 0f)
+        {
+            var pr = p.WallRun;
+            var e = new WallRunEnvelope();
+
+            Vector3 runDir = Vector3.forward;
+            Vector3 v = WallRunMath.Enter(new Vector3(0f, entryVerticalSpeed, entrySpeed), runDir, pr);
+            Vector3 pos = Vector3.zero;
+            float t = 0f;
+            float peak = 0f;
+
+            while (true)
+            {
+                Vector3 disp; float used;
+                v = WallRunMath.Advance(v, runDir, t, holdForward, pr, Dt, out disp, out used);
+                if (used <= 0f) { e.ended = WallRunEnd.Expired; break; }
+                pos += disp;
+                t += used;
+                if (pos.y > peak) { peak = pos.y; e.timeToPeak = t; }
+
+                WallRunEnd why;
+                if (WallRunMath.ShouldEnd(t, Mathf.Abs(v.z), pr, out why)) { e.ended = why; break; }
+            }
+
+            e.duration = t;
+            e.distance = pos.z;
+            e.rise = peak;
+            e.netHeight = pos.y;
+            e.exitSpeed = Mathf.Abs(v.z);
+            return e;
+        }
+
+        /// <summary>
+        /// The face of <paramref name="b"/> a capsule standing at <paramref name="feet"/> is beside, and
+        /// how far its surface is from the capsule's. Mirrors the motor's own notion of a wall: the box
+        /// must overlap the capsule VERTICALLY (a floor is not a wall), the far axis must overlap
+        /// laterally, and the near face's gap must be inside <c>wallCheckDistance</c>.
+        /// </summary>
+        public static bool BoxFace(Box b, Vector3 feet, MoveProfile p, out Vector3 normal, out float gap)
+        {
+            normal = Vector3.zero;
+            gap = float.MaxValue;
+
+            float r = p.capsuleRadius;
+            float y0 = feet.y + r, y1 = feet.y + p.standHeight - r;
+            if (b.max.y <= y0 || b.min.y >= y1) return false;
+
+            float dx0 = b.min.x - feet.x, dx1 = feet.x - b.max.x;
+            float dz0 = b.min.z - feet.z, dz1 = feet.z - b.max.z;
+
+            float dist;
+            if (dx0 > 0f) { dist = dx0; normal = new Vector3(-1f, 0f, 0f); }
+            else if (dx1 > 0f) { dist = dx1; normal = new Vector3(1f, 0f, 0f); }
+            else if (dz0 > 0f) { dist = dz0; normal = new Vector3(0f, 0f, -1f); }
+            else if (dz1 > 0f) { dist = dz1; normal = new Vector3(0f, 0f, 1f); }
+            else return false;   // inside its footprint
+
+            if (normal.x != 0f && (feet.z < b.min.z - r || feet.z > b.max.z + r)) return false;
+            if (normal.z != 0f && (feet.x < b.min.x - r || feet.x > b.max.x + r)) return false;
+
+            gap = dist - r;
+            return gap <= p.wallCheckDistance;
+        }
+
+        /// <summary>One simulated attempt to leave a platform, run a named wall and land somewhere.</summary>
+        public struct WallRunRoute
+        {
+            public bool entered;
+            /// <summary>Why entry was refused on the LAST frame the capsule was beside the wall. The
+            /// single most useful diagnostic when a designed run does not happen.</summary>
+            public WallRunReject reject;
+
+            public Vector3 entryFeet, entryVel;
+            public float timeToEntry;
+
+            public float runDuration, runDistance, runNetHeight, runPeakY;
+            public WallRunEnd ended;
+            public Vector3 exitFeet, exitVel;
+
+            public bool landed;
+            public int landedOn;
+            public Vector3 landingFeet;
+            public bool blocked;
+            public int blockedBy;
+            /// <summary>Smallest signed clearance to geometry that is neither the launch pad nor the run
+            /// wall. Negative means something was clipped.</summary>
+            public float minClearance;
+            public float totalTime;
+        }
+
+        /// <summary>
+        /// Fly, run, leave, land — one attempt, the way the motor would play it.
+        ///
+        /// <para>Ballistic until the capsule is beside <paramref name="wallIdx"/> and
+        /// <see cref="WallRunMath.CanEnter"/> agrees; then on the wall under the run's own gravity ramp;
+        /// then, at <paramref name="leaveAt"/> seconds in, <see cref="WallRunMath.Exit"/> and ballistic
+        /// again until something is landed on. <c>float.MaxValue</c> for <paramref name="leaveAt"/> rides
+        /// the run to its natural end and simply falls off, which is the conservative reading.</para>
+        ///
+        /// <para><b>The look term is modelled as "the player is looking where they are going."</b> That is
+        /// what a player doing this is doing, and it is the only honest single assumption available — the
+        /// analyser has no camera. A route that needs you to look somewhere else will not be found here,
+        /// which is the safe direction to be wrong in.</para>
+        /// </summary>
+        public static WallRunRoute FlyWallRun(IList<Box> boxes, MoveProfile p, Vector3 startFeet,
+                                              Vector3 startVel, int wallIdx, int ignoreIdx,
+                                              float leaveAt, float floorY, float maxTime = 5f)
+        {
+            var pr = p.WallRun;
+            var o = new WallRunRoute();
+            o.landedOn = -1; o.blockedBy = -1;
+            o.minClearance = float.MaxValue;
+            o.reject = WallRunReject.None;
+
+            float r = p.SweptRadius, h = p.standHeight;
+            Vector3 feet = startFeet, v = startVel;
+            Vector3 runDir = Vector3.zero, wallNormal = Vector3.zero;
+            bool running = false, doneRun = false;
+            float t = 0f, runT = 0f;
+
+            while (t < maxTime)
+            {
+                if (running)
+                {
+                    // Still beside the face? The motor asks this with a spherecast every frame.
+                    Vector3 n; float gap;
+                    if (!BoxFace(boxes[wallIdx], feet, p, out n, out gap) || Vector3.Dot(n, wallNormal) < 0.5f)
+                    {
+                        running = false; doneRun = true; o.ended = WallRunEnd.LostWall;
+                        o.exitFeet = feet; o.exitVel = v;
+                        o.runDuration = runT;
+                    }
+                }
+
+                if (running && leaveAt <= runT)
+                {
+                    v = WallRunMath.Exit(v, wallNormal, runDir, pr, p.dashSpeed);
+                    running = false; doneRun = true; o.ended = WallRunEnd.Jumped;
+                    o.exitFeet = feet; o.exitVel = v;
+                    o.runDuration = runT;
+                }
+
+                if (running)
+                {
+                    if (!WallRunMath.RunDirection(v, wallNormal, out runDir))
+                    {
+                        running = false; doneRun = true; o.ended = WallRunEnd.LostWall;
+                        o.exitFeet = feet; o.exitVel = v; o.runDuration = runT;
+                    }
+                    else
+                    {
+                        Vector3 d; float used;
+                        v = WallRunMath.Advance(v, runDir, runT, true, pr, Dt, out d, out used);
+                        if (used <= 0f)
+                        {
+                            running = false; doneRun = true; o.ended = WallRunEnd.Expired;
+                            o.exitFeet = feet; o.exitVel = v; o.runDuration = runT;
+                        }
+                        else
+                        {
+                            feet += d;
+                            runT += used; t += used;
+                            o.runDistance += new Vector2(d.x, d.z).magnitude;
+                            if (feet.y > o.runPeakY) o.runPeakY = feet.y;
+
+                            WallRunEnd why;
+                            float along = Mathf.Abs(v.x * runDir.x + v.z * runDir.z);
+                            if (WallRunMath.ShouldEnd(runT, along, pr, out why))
+                            {
+                                running = false; doneRun = true; o.ended = why;
+                                o.exitFeet = feet; o.exitVel = v; o.runDuration = runT;
+                            }
+                            continue;   // a frame on the wall never collides: the wall is holding us
+                        }
+                    }
+                }
+
+                // ---- ballistic ----------------------------------------------------------------------
+                v.y += p.gravity * Dt;      // jump held, exactly as a player pressing for the wall would
+                Vector3 prev = feet;
+                feet += v * Dt;
+                t += Dt;
+
+                // Entry test, before collision: this is the frame the motor's TryWallRun would fire on.
+                if (!running && !doneRun && wallIdx >= 0)
+                {
+                    Vector3 n; float gap;
+                    if (BoxFace(boxes[wallIdx], feet, p, out n, out gap))
+                    {
+                        Vector3 rd; WallRunReject why;
+                        Vector3 lookFlat = new Vector3(v.x, 0f, v.z);
+                        if (WallRunMath.CanEnter(v, n, lookFlat, pr, out rd, out why))
+                        {
+                            v = WallRunMath.Enter(v, rd, pr);
+                            running = true;
+                            runT = 0f;
+                            runDir = rd;
+                            wallNormal = n;
+                            o.entered = true;
+                            o.entryFeet = feet;
+                            o.entryVel = v;
+                            o.timeToEntry = t;
+                            o.runPeakY = feet.y;
+                            o.reject = WallRunReject.None;
+                            continue;
+                        }
+                        o.reject = why;
+                    }
+                }
+
+                float y0 = feet.y + r, y1 = feet.y + h - r;
+                for (int i = 0; i < boxes.Count; i++)
+                {
+                    if (i == ignoreIdx) continue;
+                    var b = boxes[i];
+                    float d2 = SegmentBoxDistance(feet.x, feet.z, y0, y1, b) - r;
+                    if (i != wallIdx && d2 < o.minClearance) o.minClearance = d2;
+                    if (d2 >= 0f) continue;
+
+                    bool fromAbove = v.y <= 0f && prev.y >= b.max.y - 0.03f;
+                    if (fromAbove)
+                    {
+                        o.landed = true; o.landedOn = i;
+                        o.landingFeet = new Vector3(feet.x, b.max.y, feet.z);
+                        o.totalTime = t;
+                        return o;
+                    }
+                    o.blocked = true; o.blockedBy = i; o.totalTime = t;
+                    return o;
+                }
+
+                if (feet.y < floorY) break;
+            }
+
+            o.totalTime = t;
+            return o;
+        }
+
+        /// <summary>Whether a wall-run traversal exists between two platforms, and the best one found.</summary>
+        public struct WallRunVerdict
+        {
+            public string from, wall, to;
+            public bool wallFound;
+            public bool anyEntry;      // could the wall be MOUNTED at all from here?
+            public bool exists;        // ...and does a mounted run then reach the target?
+            public float gap;          // edge-to-edge distance from -> to
+            public int entries, routes, cleanRoutes;
+
+            public Vector3 bestLaunchFeet, bestLaunchVel;
+            public float bestLeaveAt;
+            public WallRunRoute best;
+            /// <summary>The commonest reason entry was refused, when none succeeded.</summary>
+            public WallRunReject chiefReject;
+            public string chiefObstruction;
+
+            public string Summary()
+            {
+                if (!wallFound) return from + " -> " + to + " via " + wall + ": that wall is not in the level";
+                if (!anyEntry)
+                    return string.Format("{0} -> {1} via {2}: NEVER MOUNTS THE WALL (gap {3:0.00} m, " +
+                                         "{4} launches tried; commonest refusal: {5})",
+                                         from, to, wall, gap, routes, chiefReject);
+                if (!exists)
+                    return string.Format("{0} -> {1} via {2}: mounts the wall ({3} entries) but NEVER ARRIVES " +
+                                         "(gap {4:0.00} m; best run {5:0.00} s / {6:0.0} m; obstruction: {7})",
+                                         from, to, wall, entries, gap, best.runDuration, best.runDistance,
+                                         string.IsNullOrEmpty(chiefObstruction) ? "none, it just falls short" : chiefObstruction);
+                return string.Format("{0} -> {1} via {2}: ok   gap {3:0.00} m   {4}/{5} clean routes from " +
+                                     "{6} entries   run {7:0.00} s / {8:0.0} m / {9:+0.00;-0.00} m net   " +
+                                     "leave at {10:0.00} s   clearance {11:0.00} m",
+                                     from, to, wall, gap, cleanRoutes, routes, entries,
+                                     best.runDuration, best.runDistance, best.exitFeet.y - best.entryFeet.y,
+                                     bestLeaveAt >= 1e8f ? best.runDuration : bestLeaveAt,
+                                     best.minClearance >= 1e8f ? 99f : best.minClearance);
+            }
+        }
+
+        /// <summary>When the player presses jump to leave the wall. MaxValue = ride it out and fall off.</summary>
+        static readonly float[] LeaveDelays = { 0.20f, 0.45f, 0.70f, 0.95f, 1.20f, 1.45f, float.MaxValue };
+
+        /// <summary>
+        /// <b>The level-designer entry point.</b> Can a player leave <paramref name="fromName"/>, mount
+        /// <paramref name="wallName"/>, run it, and arrive on <paramref name="toName"/>?
+        ///
+        /// <para>Searches the same three things a player varies — where they take off, which way they aim,
+        /// how fast they are going — and then, for every entry that actually mounts the wall, WHEN they
+        /// jump off it. Reports the best route, and when there is none, says whether the failure was
+        /// mounting the wall or arriving after it, which are completely different level-design problems.</para>
+        ///
+        /// <para><paramref name="maxSpeed"/> is the top speed the moveset can leave the ground at:
+        /// <c>p.groundSpeed</c> for the base kit, <c>p.SlideJumpSpeed</c> for a slide-jump entry.</para>
+        /// </summary>
+        public static WallRunVerdict AnalyzeWallRunGap(IList<Box> boxes, string fromName, string wallName,
+                                                       string toName, MoveProfile p, float maxSpeed, float floorY)
+        {
+            var v = new WallRunVerdict();
+            v.from = fromName; v.wall = wallName; v.to = toName;
+            v.chiefObstruction = "";
+            v.best.minClearance = float.MinValue;
+
+            int ia0 = IndexOf(boxes, fromName), iw0 = IndexOf(boxes, wallName), ib0 = IndexOf(boxes, toName);
+            if (ia0 < 0 || ib0 < 0 || iw0 < 0) return v;
+            v.wallFound = true;
+
+            Box a = boxes[ia0], b = boxes[ib0], w = boxes[iw0];
+            GapAndRise(a, b, out v.gap, out float _rise);
+
+            Vector3 lo = Vector3.Min(Vector3.Min(a.min, b.min), w.min) - new Vector3(14f, 10f, 14f);
+            Vector3 hi = Vector3.Max(Vector3.Max(a.max, b.max), w.max) + new Vector3(14f, 24f, 14f);
+            boxes = Near(boxes, lo, hi);
+            int ia = IndexOf(boxes, fromName), iw = IndexOf(boxes, wallName), ib = IndexOf(boxes, toName);
+
+            float inset = p.SweptRadius + 0.05f;
+            var launch = LaunchBand(a, b, inset, 5);
+            var aim = GridOnTop(b, inset, 3);
+            var wallAim = GridOnTop(w, inset, 3);
+            for (int i = 0; i < wallAim.Count; i++) aim.Add(wallAim[i]);
+            var speeds = SpeedLadder(maxSpeed);
+
+            var rejects = new Dictionary<WallRunReject, int>();
+            var blocks = new Dictionary<string, int>();
+            var seenEntry = new HashSet<long>();
+            var entryStates = new List<KeyValuePair<Vector3, Vector3>>();   // launch feet, launch velocity
+
+            // --- pass 1: which take-offs actually MOUNT the wall? ------------------------------------
+            for (int li = 0; li < launch.Count; li++)
+            {
+                Vector3 lf = launch[li];
+                if (!StandFree(lf, p, boxes, ia)) continue;
+
+                for (int ai = 0; ai < aim.Count; ai++)
+                {
+                    Vector3 dir = aim[ai] - lf;
+                    dir.y = 0f;
+                    if (dir.sqrMagnitude < 0.25f) continue;
+                    dir.Normalize();
+
+                    for (int si = 0; si < speeds.Length; si++)
+                    {
+                        v.routes++;
+                        Vector3 vel = dir * speeds[si] + Vector3.up * p.JumpTakeoffSpeed;
+                        var probe = FlyWallRun(boxes, p, lf, vel, iw, ia, float.MaxValue, floorY);
+                        if (!probe.entered)
+                        {
+                            int c; rejects.TryGetValue(probe.reject, out c); rejects[probe.reject] = c + 1;
+                            continue;
+                        }
+                        // Dedupe by where the run STARTS, to a quarter metre and half a metre per second:
+                        // a hundred take-offs that mount the same wall at the same place are one route.
+                        long key = Quantise(probe.entryFeet, 4f) * 397L ^ Quantise(probe.entryVel, 2f);
+                        if (!seenEntry.Add(key)) continue;
+                        v.entries++;
+                        entryStates.Add(new KeyValuePair<Vector3, Vector3>(lf, vel));
+                    }
+                }
+            }
+            v.anyEntry = v.entries > 0;
+
+            // --- pass 2: for each distinct mount, when do you leave, and where does it put you? -------
+            for (int e = 0; e < entryStates.Count; e++)
+            {
+                for (int di = 0; di < LeaveDelays.Length; di++)
+                {
+                    var route = FlyWallRun(boxes, p, entryStates[e].Key, entryStates[e].Value,
+                                           iw, ia, LeaveDelays[di], floorY);
+                    if (!route.entered) continue;
+                    if (route.blocked && route.blockedBy != ib && route.blockedBy != iw)
+                    {
+                        string bn = boxes[route.blockedBy].name;
+                        int c; blocks.TryGetValue(bn, out c); blocks[bn] = c + 1;
+                        continue;
+                    }
+                    if (!route.landed || route.landedOn != ib)
+                    {
+                        if (!v.exists && route.runDuration > v.best.runDuration) { v.best = route; }
+                        continue;
+                    }
+
+                    v.cleanRoutes++;
+                    float clr = route.minClearance >= 1e8f ? 99f : route.minClearance;
+                    float bestClr = v.exists ? (v.best.minClearance >= 1e8f ? 99f : v.best.minClearance) : float.MinValue;
+                    if (!v.exists || clr > bestClr)
+                    {
+                        v.best = route;
+                        v.bestLaunchFeet = entryStates[e].Key;
+                        v.bestLaunchVel = entryStates[e].Value;
+                        v.bestLeaveAt = LeaveDelays[di];
+                    }
+                    v.exists = true;
+                }
+            }
+
+            int most = 0;
+            foreach (var kv in rejects) if (kv.Value > most) { most = kv.Value; v.chiefReject = kv.Key; }
+            most = 0;
+            foreach (var kv in blocks) if (kv.Value > most) { most = kv.Value; v.chiefObstruction = kv.Key; }
+            return v;
+        }
+
+        static long Quantise(Vector3 p, float perMetre)
+        {
+            long x = (long)Mathf.Round(p.x * perMetre);
+            long y = (long)Mathf.Round(p.y * perMetre);
+            long z = (long)Mathf.Round(p.z * perMetre);
+            return ((x & 0xFFFFF) << 40) | ((y & 0xFFFFF) << 20) | (z & 0xFFFFF);
+        }
+
         // ============================================================ report helper
 
         public static string Describe(MoveProfile p)
@@ -923,6 +1388,15 @@ namespace VibeGame1.EditorTools
             sb.AppendLine("  slide-jump speed   " + p.SlideJumpSpeed.ToString("0.0") + " m/s");
             sb.AppendLine("  wall push          up " + p.wallJumpUpSpeed.ToString("0.0") + " / out " + p.wallJumpPushSpeed.ToString("0.0") + " m/s, max " + p.maxWallJumps);
             sb.AppendLine("  wall check         " + p.wallCheckDistance.ToString("0.00") + " m past the capsule");
+            var env = MeasureWallRun(p, p.groundSpeed, true);
+            sb.AppendLine("  wall run           " + p.WallRun.maxDuration.ToString("0.00") + " s max, entry >= " +
+                          p.WallRun.minEntrySpeed.ToString("0.0") + " m/s along the face, gravity x" +
+                          p.WallRun.gravityStartScale.ToString("0.00") + " -> x" + p.WallRun.gravityEndScale.ToString("0.00") +
+                          ", max " + p.maxWallRuns + " per airtime");
+            sb.AppendLine("  a full run         " + env.Summary());
+            sb.AppendLine("  run exit           up " + p.WallRun.exitUpSpeed.ToString("0.0") + " / out " +
+                          p.WallRun.exitPushSpeed.ToString("0.0") + " / forward +" +
+                          p.WallRun.exitTangentBoost.ToString("0.0") + " m/s");
             sb.AppendLine("  capsule            r " + p.capsuleRadius.ToString("0.00") + "  h " + p.standHeight.ToString("0.00") + "  skin " + p.skinWidth.ToString("0.00") + "  (slide h " + p.slideHeight.ToString("0.00") + ")");
             return sb.ToString();
         }

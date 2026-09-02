@@ -1,0 +1,176 @@
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+namespace VibeGame1.EditorTools
+{
+    /// <summary>
+    /// Photographs every shipped weapon in every held pose FROM THE PLAYER'S EYE, through the player
+    /// prefab's own camera, and prints the <see cref="WeaponSilhouette"/> numbers beside each frame.
+    ///
+    /// <para>A weapon is judged from the eye, never from a turntable — a silhouette that only reads in
+    /// a product shot is not one the player ever sees. The crosshair is drawn INTO the frame (a thin
+    /// cross plus the disc the framing rule is measured against), because "does the blade sit on the
+    /// enemy" is the whole question a held guard has to answer and it is invisible without the mark.</para>
+    ///
+    /// <para>Edit mode, so nothing animates: <see cref="EnergyGlow"/>'s flow band and its orbiting motes
+    /// are frozen at their authored positions, and the tint is applied by hand here because
+    /// <c>Awake</c> never runs. Geometry, scale, pose and framing are real; the moving light is not.</para>
+    /// </summary>
+    public static class WeaponShots
+    {
+        const int W = 960, H = 540;
+        static readonly string[] Poses = { "idle", "windup", "strike", "guard" };
+
+        [MenuItem("VibeGame1/Photograph Weapons")]
+        public static void Menu()
+        {
+            Debug.Log(Shoot(Path.Combine(Directory.GetCurrentDirectory(), "WeaponShots")));
+        }
+
+        /// <summary>Batch entry: <c>-executeMethod VibeGame1.EditorTools.WeaponShots.Batch</c>.</summary>
+        public static void Batch()
+        {
+            string dir = Path.Combine(Directory.GetCurrentDirectory(), "WeaponShots");
+            string report = Shoot(dir);
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "report.txt"), report);
+            Debug.Log(report);
+            EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// Regenerate the weapon data and the viewmodel prefabs, THEN photograph them, in one headless
+        /// launch: <c>-executeMethod VibeGame1.EditorTools.WeaponShots.RebuildAndShoot</c>.
+        /// Hard rule 9 in workflow form — a change to a field in <c>DataFactory</c> reaches nothing until
+        /// <c>CreateAll</c> has rewritten the asset, and photographing before that photographs the old
+        /// weapon while the log happily reports the new number.
+        /// </summary>
+        public static void RebuildAndShoot()
+        {
+            DataFactory.CreateAll();
+            PrefabFactory.BuildAll();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Batch();
+        }
+
+        public static string Shoot(string dir)
+        {
+            var sb = new StringBuilder();
+            Directory.CreateDirectory(dir);
+
+            UnityEditor.SceneManagement.EditorSceneManager.NewScene(
+                UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,
+                UnityEditor.SceneManagement.NewSceneMode.Single);
+
+            WeaponViewmodel vm; Camera cam;
+            GameObject player = WeaponSilhouette.StagePlayer(out vm, out cam);
+            if (player == null || vm == null || cam == null)
+                return "FAIL: Player.prefab did not stage (player=" + (player != null) +
+                       " vm=" + (vm != null) + " cam=" + (cam != null) + ")";
+
+            var lightGo = new GameObject("Sun");
+            var sun = lightGo.AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.6f;
+            lightGo.transform.rotation = Quaternion.Euler(28f, 205f, 0f);
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.24f, 0.25f, 0.30f);
+
+            var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
+            var shot = new Texture2D(W, H, TextureFormat.RGB24, false);
+            var prevTarget = cam.targetTexture;
+            cam.targetTexture = rt;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.05f, 0.05f, 0.07f);
+
+            try
+            {
+                // WARM-UP, DISCARDED. Unity's first Render() in batch mode returns before the pipeline
+                // has set itself up and produces a flat, wrongly-lit frame. This project has already
+                // read one of those as a broken material.
+                cam.Render();
+
+                foreach (var n in WeaponSilhouette.All)
+                {
+                    var w = WeaponSilhouette.Weapon(n);
+                    if (w == null) { sb.AppendLine("MISSING " + n); continue; }
+                    sb.AppendLine("=== " + n + "  (" + w.displayName + ")");
+                    sb.AppendLine(string.Format(
+                        "    scale {0:0.00}  reach {1:0.00}m +/- {2:0.00}  swing {3:0.00}s (hit at {4:0.00})  " +
+                        "combo {5}  parryPosture {6:0}",
+                        w.viewmodelScale, w.hitOffset, w.hitRadius, w.attackDuration, w.hitDelay,
+                        w.comboLength, w.parryPostureDamage));
+
+                    foreach (var pose in Poses)
+                    {
+                        var s = WeaponSilhouette.Measure(vm, cam, w, pose);
+                        sb.AppendLine("    " + s);
+                        // Measure() has already equipped and posed the rig, so what is rendered here is
+                        // exactly what was measured — no second, differently-staged frame to disagree.
+                        Tint(vm, w);
+                        cam.Render();
+                        var prev = RenderTexture.active;
+                        RenderTexture.active = rt;
+                        shot.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+                        shot.Apply();
+                        RenderTexture.active = prev;
+                        DrawCrosshair(shot);
+                        File.WriteAllBytes(Path.Combine(dir, n + "_" + pose + ".png"), shot.EncodeToPNG());
+                    }
+                }
+                sb.AppendLine("wrote frames to " + dir);
+            }
+            finally
+            {
+                cam.targetTexture = prevTarget;
+                RenderTexture.active = null;
+                if (player != null) Object.DestroyImmediate(player);
+                Object.DestroyImmediate(lightGo);
+                rt.Release();
+                Object.DestroyImmediate(rt);
+                Object.DestroyImmediate(shot);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// ONE WRITER PER MATERIAL CHANNEL: emission belongs to <see cref="EnergyGlow"/>, so the hue is
+        /// handed to it rather than pushed through a property block it would overwrite. Its Awake never
+        /// runs in edit mode, which is why this has to be called at all.
+        /// </summary>
+        static void Tint(WeaponViewmodel vm, WeaponData w)
+        {
+            var m = vm.CurrentModel;
+            if (m == null) return;
+            var glow = m.GetComponent<EnergyGlow>();
+            if (glow == null) return;
+            glow.Collect();
+            glow.SetTint(w.neon);
+        }
+
+        /// <summary>The crosshair and the disc the framing rule is measured against, burned into the
+        /// frame so the judgement can be made by looking rather than by imagining where centre is.</summary>
+        static void DrawCrosshair(Texture2D t)
+        {
+            int cx = W / 2, cy = H / 2;
+            var mark = new Color(1f, 0.25f, 0.25f);
+            for (int i = -10; i <= 10; i++)
+            {
+                t.SetPixel(cx + i, cy, mark);
+                t.SetPixel(cx, cy + i, mark);
+            }
+            float r = WeaponSilhouette.CrosshairRadius * (H * 0.5f);
+            for (int a = 0; a < 240; a++)
+            {
+                float th = a / 240f * Mathf.PI * 2f;
+                int x = cx + Mathf.RoundToInt(Mathf.Cos(th) * r);
+                int y = cy + Mathf.RoundToInt(Mathf.Sin(th) * r);
+                if (x >= 0 && x < W && y >= 0 && y < H) t.SetPixel(x, y, mark);
+            }
+            t.Apply();
+        }
+    }
+}

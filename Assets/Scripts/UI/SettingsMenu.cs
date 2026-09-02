@@ -1,0 +1,437 @@
+using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace VibeGame1
+{
+    /// <summary>
+    /// The settings screen. One class serves BOTH the front end and the in-game pause path — the same
+    /// prefab-built panel with the same rows, so a sensitivity changed in the menu and one changed
+    /// mid-run cannot drift apart.
+    ///
+    /// <para><b>Rows are data.</b> Every row is a <see cref="Row"/> with a <see cref="RowKind"/>; the
+    /// builder emits the widgets and this class binds behaviour by kind. Adding a setting is a new enum
+    /// member plus a case in three switches, not a new panel.</para>
+    ///
+    /// <para><b>Nothing here reads input devices</b> (hard rule 2). Closing with ESC in a level goes
+    /// through <c>InputReader.PausePressed</c>. The front-end scene has no InputReader, so there the
+    /// BACK button is the only way out — which is fine, it is a mouse-driven screen.</para>
+    ///
+    /// <para><b>Nothing here writes Time.timeScale</b> (hard rule 1). Opening in a level takes a
+    /// <c>TimeScaleController</c> handle and releases it on close. Every animation and readout uses
+    /// unscaled time by construction (there is no animation; the panel is static).</para>
+    ///
+    /// <para><b>The pause menu is not edited to reach this.</b> <c>HudBuilder</c> parents a SETTINGS
+    /// button under the pause panel and hands it to <see cref="openButton"/>; this class wires the
+    /// listener. While open it disables the <see cref="PauseMenu"/> component so its own ESC handler
+    /// cannot fire underneath us, and re-enables it on close.</para>
+    /// </summary>
+    public class SettingsMenu : MonoBehaviour
+    {
+        public enum RowKind
+        {
+            MouseSensitivity = 0,
+            StickSensitivity = 1,
+            FieldOfView = 2,
+            Resolution = 3,
+            DisplayMode = 4,
+            VSync = 5,
+            FrameCap = 6,
+            Quality = 7,
+            Bloom = 8,
+            FilmGrain = 9,
+        }
+
+        /// <summary>Every kind the builder must emit, in screen order. The EditMode test asserts on this.</summary>
+        public static readonly RowKind[] AllKinds =
+        {
+            RowKind.MouseSensitivity, RowKind.StickSensitivity, RowKind.FieldOfView,
+            RowKind.Resolution, RowKind.DisplayMode, RowKind.VSync, RowKind.FrameCap,
+            RowKind.Quality, RowKind.Bloom, RowKind.FilmGrain,
+        };
+
+        [Serializable]
+        public class Row
+        {
+            public RowKind kind;
+            public GameObject root;
+            public TMP_Text label;
+            /// <summary>The authoritative readout. Always text — never a bar that could silently not draw.</summary>
+            public TMP_Text value;
+            public Button decrease;
+            public Button increase;
+            /// <summary>Continuous rows only; null on cyclers. Drives RectTransform anchors, never fillAmount.</summary>
+            public Slider slider;
+            public TMP_Text note;
+        }
+
+        public static SettingsMenu I { get; private set; }
+
+        [Header("Panel")]
+        public GameObject panel;
+        public Row[] rows;
+        public Button backButton;
+        public Button resetButton;
+
+        [Header("Entry points")]
+        [Tooltip("Button that opens this screen. Built into the title panel (front end) or the pause panel (in game).")]
+        public Button openButton;
+
+        [Tooltip("In-game only. Disabled while this panel is open so its ESC handler cannot fire under us.")]
+        public PauseMenu pauseMenu;
+
+        [Tooltip("Front end only. Hidden while this panel is open and restored on close.")]
+        public GameObject hideWhileOpen;
+
+        public bool IsOpen { get; private set; }
+
+        /// <summary>Test hook: the live time handle, -1 when nothing is held.</summary>
+        public int TimeHandle { get { return timeHandle; } }
+
+        int timeHandle = -1;
+        bool tookGameState;
+        bool suppressedPause;
+        bool wasHidden;
+        bool building;
+
+        Vector2Int[] resolutions = new Vector2Int[0];
+
+        void Awake()
+        {
+            I = this;
+            resolutions = SettingsApplier.DistinctResolutions(Screen.resolutions);
+        }
+
+        void OnDestroy() { if (I == this) I = null; }
+
+        void Start()
+        {
+            if (panel != null) panel.SetActive(false);
+            if (openButton != null) openButton.onClick.AddListener(Open);
+            if (backButton != null) backButton.onClick.AddListener(Close);
+            if (resetButton != null) resetButton.onClick.AddListener(ResetToDefaults);
+            BindRows();
+        }
+
+        void Update()
+        {
+            if (!IsOpen) return;
+            if (InputReader.I != null && InputReader.I.PausePressed) Close();
+        }
+
+        // ---- open / close -------------------------------------------------------------------------
+
+        public void Open()
+        {
+            if (IsOpen) return;
+            IsOpen = true;
+
+            // Pause, through the one owner of Time.timeScale. In the front end there is none, and
+            // there is nothing running to pause either.
+            if (TimeScaleController.I != null && timeHandle < 0)
+                timeHandle = TimeScaleController.I.Request(0f);
+
+            if (GameManager.I != null && GameManager.I.State == GameState.Playing)
+            {
+                GameManager.I.SetState(GameState.Paused);
+                tookGameState = true;
+            }
+
+            // The cursor: a level locks it, and the front end may have been left in any state.
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            if (pauseMenu != null && pauseMenu.enabled) { pauseMenu.enabled = false; suppressedPause = true; }
+            if (hideWhileOpen != null && hideWhileOpen.activeSelf) { hideWhileOpen.SetActive(false); wasHidden = true; }
+
+            if (panel != null) panel.SetActive(true);
+            Refresh();
+            AudioManager.Play(Sfx.Click);
+        }
+
+        public void Close()
+        {
+            if (!IsOpen) return;
+            IsOpen = false;
+
+            if (panel != null) panel.SetActive(false);
+
+            if (timeHandle >= 0 && TimeScaleController.I != null) TimeScaleController.I.Release(timeHandle);
+            timeHandle = -1;
+
+            if (tookGameState && GameManager.I != null) GameManager.I.SetState(GameState.Playing);
+            tookGameState = false;
+
+            if (suppressedPause && pauseMenu != null) pauseMenu.enabled = true;
+            suppressedPause = false;
+
+            if (wasHidden && hideWhileOpen != null) hideWhileOpen.SetActive(true);
+            wasHidden = false;
+
+            AudioManager.Play(Sfx.Click, 1f, 0.8f);
+        }
+
+        public void ResetToDefaults()
+        {
+            SettingsStore.ResetToDefaults();
+            Refresh();
+            AudioManager.Play(Sfx.Click, 1f, 1.2f);
+        }
+
+        // ---- binding ------------------------------------------------------------------------------
+
+        void BindRows()
+        {
+            if (rows == null) return;
+            for (int i = 0; i < rows.Length; i++)
+            {
+                var row = rows[i];
+                if (row == null) continue;
+                var kind = row.kind;   // captured per row, not per loop variable
+
+                if (row.decrease != null) row.decrease.onClick.AddListener(delegate { Step(kind, -1); });
+                if (row.increase != null) row.increase.onClick.AddListener(delegate { Step(kind, +1); });
+                if (row.slider != null) row.slider.onValueChanged.AddListener(delegate (float v) { SetContinuous(kind, v); });
+            }
+            Refresh();
+        }
+
+        /// <summary>Repaint every row from the live settings. Cheap; called on open and after any change.</summary>
+        public void Refresh()
+        {
+            var d = SettingsStore.Current;
+            building = true;
+            try
+            {
+                if (rows == null) return;
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    var row = rows[i];
+                    if (row == null) continue;
+
+                    if (row.value != null) row.value.text = ValueLabel(row.kind, d);
+
+                    if (row.slider != null)
+                    {
+                        float lo, hi;
+                        ContinuousRange(row.kind, out lo, out hi);
+                        row.slider.minValue = lo;
+                        row.slider.maxValue = hi;
+                        row.slider.SetValueWithoutNotify(Continuous(row.kind, d));
+                    }
+
+                    bool usable = RowIsUsable(row.kind);
+                    if (row.decrease != null) row.decrease.interactable = usable;
+                    if (row.increase != null) row.increase.interactable = usable;
+                    if (row.slider != null) row.slider.interactable = usable;
+                    if (row.note != null) row.note.text = NoteFor(row.kind, d);
+                }
+            }
+            finally { building = false; }
+        }
+
+        /// <summary>A frame-rate cap does nothing while vsync is on; say so rather than offer a dead control.</summary>
+        bool RowIsUsable(RowKind kind)
+        {
+            if (kind == RowKind.FrameCap) return SettingsStore.Current.vSync <= 0;
+            if (kind == RowKind.Resolution) return resolutions.Length > 0;
+            return true;
+        }
+
+        string NoteFor(RowKind kind, SettingsData d)
+        {
+            if (kind == RowKind.FrameCap && d.vSync > 0) return "vsync is on";
+            if (kind == RowKind.Resolution && resolutions.Length == 0) return "no display list";
+#if UNITY_EDITOR
+            if (kind == RowKind.Resolution || kind == RowKind.DisplayMode) return "applies in a build";
+#endif
+            return "";
+        }
+
+        // ---- the settings themselves ---------------------------------------------------------------
+
+        public static void ContinuousRange(RowKind kind, out float lo, out float hi)
+        {
+            switch (kind)
+            {
+                case RowKind.MouseSensitivity: lo = SettingsData.MouseSensMin; hi = SettingsData.MouseSensMax; return;
+                case RowKind.StickSensitivity: lo = SettingsData.StickSensMin; hi = SettingsData.StickSensMax; return;
+                case RowKind.FieldOfView: lo = SettingsData.FovMin; hi = SettingsData.FovMax; return;
+                case RowKind.Bloom: lo = SettingsData.BloomMin; hi = SettingsData.BloomMax; return;
+                default: lo = 0f; hi = 1f; return;
+            }
+        }
+
+        /// <summary>Step size for one press of &lt; or &gt; on a continuous row.</summary>
+        public static float StepSize(RowKind kind)
+        {
+            switch (kind)
+            {
+                case RowKind.MouseSensitivity: return 0.005f;
+                case RowKind.StickSensitivity: return 10f;
+                case RowKind.FieldOfView: return 1f;
+                case RowKind.Bloom: return 0.05f;
+                default: return 0f;
+            }
+        }
+
+        public static bool IsContinuous(RowKind kind)
+        {
+            return kind == RowKind.MouseSensitivity || kind == RowKind.StickSensitivity
+                || kind == RowKind.FieldOfView || kind == RowKind.Bloom;
+        }
+
+        static float Continuous(RowKind kind, SettingsData d)
+        {
+            switch (kind)
+            {
+                case RowKind.MouseSensitivity: return d.mouseSensitivity;
+                case RowKind.StickSensitivity: return d.stickSensitivity;
+                case RowKind.FieldOfView: return d.fieldOfView;
+                case RowKind.Bloom: return d.bloomScale;
+                default: return 0f;
+            }
+        }
+
+        /// <summary>
+        /// Write one continuous value into a settings object. Static and pure-ish (it only touches the
+        /// object handed in), so an EditMode test can drive every row without a scene.
+        /// </summary>
+        public static void SetContinuous(SettingsData d, RowKind kind, float v)
+        {
+            if (d == null) return;
+            switch (kind)
+            {
+                case RowKind.MouseSensitivity: d.mouseSensitivity = v; break;
+                case RowKind.StickSensitivity: d.stickSensitivity = v; break;
+                case RowKind.FieldOfView: d.fieldOfView = v; break;
+                case RowKind.Bloom: d.bloomScale = v; break;
+            }
+            d.Clamp();
+        }
+
+        void SetContinuous(RowKind kind, float v)
+        {
+            if (building) return;
+            var d = SettingsStore.Current;
+            SetContinuous(d, kind, v);
+            Commit();
+        }
+
+        /// <summary>
+        /// Move one row by one notch. Static so it is unit-testable end to end: hand it a settings
+        /// object and a direction and assert what came out — no UI, no scene, no play mode. Every
+        /// discrete row wraps through <see cref="SettingsData.Cycle"/>.
+        /// </summary>
+        public static void Step(SettingsData d, RowKind kind, int delta, Vector2Int[] resolutionOptions, int qualityCount)
+        {
+            if (d == null || delta == 0) return;
+
+            if (IsContinuous(kind))
+            {
+                SetContinuous(d, kind, Continuous(kind, d) + StepSize(kind) * delta);
+                return;
+            }
+
+            switch (kind)
+            {
+                case RowKind.Resolution:
+                    {
+                        if (resolutionOptions == null || resolutionOptions.Length == 0) return;
+                        int i = SettingsApplier.NearestResolutionIndex(d.screenWidth, d.screenHeight, resolutionOptions);
+                        i = SettingsData.Cycle(i < 0 ? 0 : i, resolutionOptions.Length, delta);
+                        d.screenWidth = resolutionOptions[i].x;
+                        d.screenHeight = resolutionOptions[i].y;
+                        break;
+                    }
+                case RowKind.DisplayMode:
+                    d.displayMode = (DisplayMode)SettingsData.Cycle((int)d.displayMode, 3, delta);
+                    break;
+                case RowKind.VSync:
+                    d.vSync = SettingsData.Cycle(Mathf.Clamp(d.vSync, 0, 2), 3, delta);
+                    break;
+                case RowKind.FrameCap:
+                    {
+                        int i = SettingsData.IndexOf(SettingsData.FrameCaps, d.frameRateCap);
+                        i = SettingsData.Cycle(i < 0 ? 0 : i, SettingsData.FrameCaps.Length, delta);
+                        d.frameRateCap = SettingsData.FrameCaps[i];
+                        break;
+                    }
+                case RowKind.Quality:
+                    {
+                        if (qualityCount <= 0) return;
+                        int cur = d.qualityLevel < 0 ? QualitySettings.GetQualityLevel() : d.qualityLevel;
+                        d.qualityLevel = SettingsData.Cycle(Mathf.Clamp(cur, 0, qualityCount - 1), qualityCount, delta);
+                        break;
+                    }
+                case RowKind.FilmGrain:
+                    d.filmGrain = !d.filmGrain;
+                    break;
+            }
+
+            d.Clamp();
+        }
+
+        void Step(RowKind kind, int delta)
+        {
+            var names = QualitySettings.names;
+            Step(SettingsStore.Current, kind, delta, resolutions, names != null ? names.Length : 0);
+            Commit();
+        }
+
+        /// <summary>Persist and push. Saving on every notch is deliberate: a crash never loses a setting.</summary>
+        void Commit()
+        {
+            SettingsStore.Save();     // fires SettingsStore.Changed -> SettingsApplier.ApplyAll
+            Refresh();
+        }
+
+        // ---- labels ---------------------------------------------------------------------------------
+
+        public static string LabelFor(RowKind kind)
+        {
+            switch (kind)
+            {
+                case RowKind.MouseSensitivity: return "MOUSE SENSITIVITY";
+                case RowKind.StickSensitivity: return "GAMEPAD SENSITIVITY";
+                case RowKind.FieldOfView: return "FIELD OF VIEW";
+                case RowKind.Resolution: return "RESOLUTION";
+                case RowKind.DisplayMode: return "DISPLAY MODE";
+                case RowKind.VSync: return "VSYNC";
+                case RowKind.FrameCap: return "FRAME RATE CAP";
+                case RowKind.Quality: return "QUALITY";
+                case RowKind.Bloom: return "BLOOM";
+                default: return "FILM GRAIN";
+            }
+        }
+
+        /// <summary>Static and total: every kind returns a non-empty string for any settings object.</summary>
+        public static string ValueLabel(RowKind kind, SettingsData d)
+        {
+            if (d == null) return "—";
+            switch (kind)
+            {
+                case RowKind.MouseSensitivity: return d.mouseSensitivity.ToString("0.000");
+                case RowKind.StickSensitivity: return Mathf.RoundToInt(d.stickSensitivity) + " °/s";
+                case RowKind.FieldOfView: return Mathf.RoundToInt(d.fieldOfView).ToString();
+                case RowKind.Resolution: return SettingsData.ResolutionLabel(d.screenWidth, d.screenHeight);
+                case RowKind.DisplayMode: return SettingsData.DisplayModeLabel(d.displayMode);
+                case RowKind.VSync: return SettingsData.VSyncLabel(d.vSync);
+                case RowKind.FrameCap: return SettingsData.FrameCapLabel(d.frameRateCap);
+                case RowKind.Quality: return QualityLabel(d.qualityLevel);
+                case RowKind.Bloom: return SettingsData.PercentLabel(d.bloomScale);
+                default: return SettingsData.OnOffLabel(d.filmGrain);
+            }
+        }
+
+        static string QualityLabel(int level)
+        {
+            var names = QualitySettings.names;
+            if (names == null || names.Length == 0) return level < 0 ? "DEFAULT" : level.ToString();
+            int i = level < 0 ? QualitySettings.GetQualityLevel() : level;
+            i = Mathf.Clamp(i, 0, names.Length - 1);
+            return names[i].ToUpperInvariant();
+        }
+    }
+}

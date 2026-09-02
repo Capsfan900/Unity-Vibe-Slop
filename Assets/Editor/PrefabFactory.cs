@@ -170,69 +170,88 @@ namespace VibeGame1.EditorTools
         }
 
         /// <summary>
-        /// THE BLADE FAMILY. Every weapon is dagger-SCALE — the player's read is that a short blade is
-        /// the only thing that shows the swing and the hand at 95 degrees FOV, and a long blade is a
-        /// pole across the frame. So length stopped being the differentiator and MASS and EDGE took
-        /// over. On-screen extent above the fist sits in a deliberately tight band (0.27-0.32 m) and
-        /// each weapon still has to answer "what does this do" in one glance:
+        /// THE WEAPON FAMILY. Four LENGTHS again, not four daggers.
         ///
-        ///   Cerulean Edge — CROSS. Wide knobbed quillons, parallel-sided blade, disc pommel. Symmetric
-        ///                   and featureless on purpose: the generalist looks like the default sword.
-        ///   Sunbreaker    — TOP-HEAVY. A blocky mass head four times the width of any blade, riding a
-        ///                   short thick haft, with a stubby spike over it. All the volume is above the
-        ///                   hand, which is the only honest way to say "slow, heavy, posture" once the
-        ///                   weapon can no longer say it by being long.
-        ///   Rosethorn     — NEEDLE. Thinnest cross-section in the set, hard taper, barely a guard. The
-        ///                   reference silhouette: this is the one the player says reads best, so it is
-        ///                   changed least.
-        ///   Oathbreaker   — WAVE. The only non-straight blade, serrated with dark barbs down one edge,
-        ///                   twin rings at two radii, pale violet instead of the set's greens. The cheat
-        ///                   weapon should look ceremonial and wrong.
+        /// <para><b>What the dagger pass got right, and what is kept.</b> Everything was shrunk to one
+        /// 0.27-0.32 m band because a long blade at 95° FOV becomes a pole across the frame. But length
+        /// was never the thing that broke the frame — POSE was. A long weapon held vertically at 0.6 m
+        /// from the lens fills the screen; the same weapon held further out and CANTED lies diagonally
+        /// across the lower-right corner and covers less of the frame than the old sword did. So the
+        /// three properties the dagger set actually earned are now enforced directly, by measurement, in
+        /// <see cref="WeaponSilhouette"/> and <c>WeaponSilhouetteTests</c>:
+        ///   1. nothing crosses the CROSSHAIR in a held pose (idle or guard) — you can always read the
+        ///      enemy you are about to parry;
+        ///   2. nothing covers more than a small fraction of the FRAME;
+        ///   3. the TIP stays inside the frame, so the contact point of the swing is legible.
+        /// With those three nailed down, length is free again — which is the whole point.</para>
         ///
-        /// Reach is NOT encoded here — hitOffset/hitRadius are camera-space and always were (a 0.3 m
-        /// viewmodel never reached 1.6 m). Shrinking the geometry does not shorten any attack.
+        /// <para>Extent above the fist now spans <b>0.32 m to 0.72 m</b>, a 2.3x spread where the dagger
+        /// pass had 1.2x:
+        ///   Cerulean Edge — SWORD. A real cruciform arming sword: 8-slice tapered blade, wide knobbed
+        ///                   quillons, hand-and-a-half grip, disc pommel. 0.62 m. The generalist, and it
+        ///                   finally looks like the thing every other weapon is measured against.
+        ///   Sunbreaker    — MAUL. A long haft the fist grips LOW, carrying a blocky mass head, cheeks
+        ///                   and a spike three quarters of a metre above the hand. 0.72 m, and the mass
+        ///                   is at the far end where the commitment can be seen.
+        ///   Rosethorn     — NEEDLE. UNCHANGED, to the millimetre. Thinnest section in the set, hard
+        ///                   taper, barely a guard, 0.32 m. It is the reference the player already
+        ///                   likes; it is the one weapon this pass does not touch.
+        ///   Oathbreaker   — KRIS. The only non-straight blade, serrated with dark barbs down one edge,
+        ///                   twin rings at two radii, pale violet rather than the set's greens. 0.50 m,
+        ///                   deliberately between the sword and the dagger. The cheat weapon should look
+        ///                   ceremonial and wrong.</para>
+        ///
+        /// <para>Reach is still NOT encoded here — hitOffset/hitRadius are camera-space and always were
+        /// (a 0.6 m viewmodel does not reach 2.1 m). The geometry sells the reach; the data IS the
+        /// reach, and the two are tuned to agree in direction, never in metres.</para>
         /// </summary>
         static void BuildWeaponViewmodels()
         {
             Material core = Mat("M_WeaponCore") != null ? Mat("M_WeaponCore") : Mat("M_Ground");
             Material energy = Mat("M_Energy") != null ? Mat("M_Energy") : Mat("M_Item");
 
-            // Cerulean Edge — short cruciform dirk. The wide knobbed cross-guard is the whole read.
+            // Cerulean Edge — a full cruciform arming sword again. Long tapered blade, wide knobbed
+            // quillons, a hand-and-a-half grip and a disc pommel: symmetric and unfussy on purpose,
+            // because the generalist should look like the default every other weapon deviates from.
             // Cool steel-blue, steady breath: the dependable one.
             {
                 var root = new GameObject("VM_Sword");
-                StackSegments(root.transform, energy, 5, 0.035f, 0.50f, 0.062f, 0.105f, 0.70f);
-                Prim(PrimitiveType.Cube, "Guard", root.transform, Vector3.zero, new Vector3(0.26f, 0.045f, 0.075f), core);
-                Prim(PrimitiveType.Cube, "QuillonL", root.transform, new Vector3(-0.135f, 0.012f, 0f), new Vector3(0.05f, 0.055f, 0.062f), core);
-                Prim(PrimitiveType.Cube, "QuillonR", root.transform, new Vector3(0.135f, 0.012f, 0f), new Vector3(0.05f, 0.055f, 0.062f), core);
-                Prim(PrimitiveType.Cube, "Grip", root.transform, new Vector3(0f, -0.115f, 0f), new Vector3(0.048f, 0.19f, 0.048f), core);
-                Prim(PrimitiveType.Cube, "Pommel", root.transform, new Vector3(0f, -0.235f, 0f), new Vector3(0.085f, 0.05f, 0.085f), core);
-                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.575f, 0f), new Vector3(0.042f, 0.085f, 0.065f), energy);
+                StackSegments(root.transform, energy, 8, 0.055f, 1.06f, 0.058f, 0.115f, 0.42f);
+                Prim(PrimitiveType.Cube, "Guard", root.transform, new Vector3(0f, 0.028f, 0f), new Vector3(0.36f, 0.05f, 0.085f), core);
+                Prim(PrimitiveType.Cube, "QuillonL", root.transform, new Vector3(-0.185f, 0.045f, 0f), new Vector3(0.06f, 0.078f, 0.072f), core);
+                Prim(PrimitiveType.Cube, "QuillonR", root.transform, new Vector3(0.185f, 0.045f, 0f), new Vector3(0.06f, 0.078f, 0.072f), core);
+                Prim(PrimitiveType.Cube, "Grip", root.transform, new Vector3(0f, -0.14f, 0f), new Vector3(0.05f, 0.24f, 0.05f), core);
+                Prim(PrimitiveType.Cube, "Pommel", root.transform, new Vector3(0f, -0.29f, 0f), new Vector3(0.10f, 0.06f, 0.10f), core);
+                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 1.155f, 0f), new Vector3(0.038f, 0.12f, 0.072f), energy);
                 // Ring hovering at the guard, counter-rotating slowly.
-                Prim(PrimitiveType.Cube, "FloatRing", root.transform, new Vector3(0.13f, 0.05f, 0f), new Vector3(0.05f, 0.012f, 0.05f), energy);
+                Prim(PrimitiveType.Cube, "FloatRing", root.transform, new Vector3(0.16f, 0.09f, 0f), new Vector3(0.055f, 0.013f, 0.055f), energy);
                 Energise(root, new Color(0.56f, 0.71f, 0.85f), 1.15f, 0.75f, 0.16f, 2.4f, 42f);
                 var prefab = Save(root, $"{WeaponDir}/VM_Sword.prefab");
                 AssignViewmodel("Assets/Data/Weapons/Sword.asset", prefab);
             }
-            // Sunbreaker — dagger-length but everything heavy sits ABOVE the fist: a short fat haft,
-            // a blocky mass head with cheeks, a stubby spike over it. Slow heavy pulse; the energy
-            // band climbs the haft and stops in the head, which is where the weight is.
+            // Sunbreaker — a two-handed MAUL. The fist grips low on a long haft and the whole mass
+            // (blocky head, cheeks, spike) rides three quarters of a metre above it, so the wind-up
+            // travels visibly further than any blade's and the commitment is legible before contact.
+            // Slow heavy pulse; the energy band climbs the haft and stops in the head, where the
+            // weight is.
             {
                 var root = new GameObject("VM_Hammer");
-                StackSegments(root.transform, energy, 3, 0.015f, 0.20f, 0.070f, 0.070f);
-                // A bound haft the fist can close on. Every other weapon already had a Grip* part;
-                // without one here the hand would have gripped empty air, because WeaponViewmodel
+                StackSegments(root.transform, energy, 7, -0.30f, 1.10f, 0.062f, 0.062f);
+                // A bound haft the fist can close on, LOW on the shaft — that is what makes the head
+                // read as far away rather than as a big blade. Every other weapon already had a Grip*
+                // part; without one here the hand would grip empty air, because WeaponViewmodel
                 // positions the hand on the prefab's Grip. It is also the THICKEST grip in the set —
                 // the fist visibly has to open wider for this one.
-                Prim(PrimitiveType.Cube, "Grip", root.transform, new Vector3(0f, -0.09f, 0f), new Vector3(0.098f, 0.20f, 0.098f), core);
-                Prim(PrimitiveType.Cube, "HeadCore", root.transform, new Vector3(0f, 0.31f, 0f), new Vector3(0.24f, 0.17f, 0.185f), core);
-                Prim(PrimitiveType.Cube, "HeadCheekL", root.transform, new Vector3(-0.145f, 0.31f, 0f), new Vector3(0.075f, 0.13f, 0.145f), core);
-                Prim(PrimitiveType.Cube, "HeadCheekR", root.transform, new Vector3(0.145f, 0.31f, 0f), new Vector3(0.075f, 0.13f, 0.145f), core);
-                Prim(PrimitiveType.Cube, "TipBand", root.transform, new Vector3(0f, 0.31f, 0f), new Vector3(0.26f, 0.042f, 0.20f), energy);
-                Prim(PrimitiveType.Cube, "Spike", root.transform, new Vector3(0f, 0.455f, 0f), new Vector3(0.055f, 0.15f, 0.065f), core);
-                Prim(PrimitiveType.Cube, "TipPoint", root.transform, new Vector3(0f, 0.565f, 0f), new Vector3(0.032f, 0.06f, 0.045f), energy);
-                Prim(PrimitiveType.Cube, "FloatShardA", root.transform, new Vector3(0.21f, 0.36f, 0f), new Vector3(0.05f, 0.05f, 0.05f), energy);
-                Prim(PrimitiveType.Cube, "FloatShardB", root.transform, new Vector3(-0.21f, 0.26f, 0f), new Vector3(0.04f, 0.04f, 0.04f), energy);
+                Prim(PrimitiveType.Cube, "Grip", root.transform, new Vector3(0f, -0.16f, 0f), new Vector3(0.098f, 0.30f, 0.098f), core);
+                Prim(PrimitiveType.Cube, "Butt", root.transform, new Vector3(0f, -0.345f, 0f), new Vector3(0.085f, 0.05f, 0.085f), core);
+                Prim(PrimitiveType.Cube, "HeadCore", root.transform, new Vector3(0f, 0.90f, 0f), new Vector3(0.28f, 0.24f, 0.22f), core);
+                Prim(PrimitiveType.Cube, "HeadCheekL", root.transform, new Vector3(-0.175f, 0.90f, 0f), new Vector3(0.085f, 0.18f, 0.175f), core);
+                Prim(PrimitiveType.Cube, "HeadCheekR", root.transform, new Vector3(0.175f, 0.90f, 0f), new Vector3(0.085f, 0.18f, 0.175f), core);
+                Prim(PrimitiveType.Cube, "TipBand", root.transform, new Vector3(0f, 0.90f, 0f), new Vector3(0.31f, 0.05f, 0.24f), energy);
+                Prim(PrimitiveType.Cube, "Spike", root.transform, new Vector3(0f, 1.09f, 0f), new Vector3(0.06f, 0.20f, 0.07f), core);
+                Prim(PrimitiveType.Cube, "TipPoint", root.transform, new Vector3(0f, 1.225f, 0f), new Vector3(0.035f, 0.07f, 0.05f), energy);
+                Prim(PrimitiveType.Cube, "FloatShardA", root.transform, new Vector3(0.25f, 0.98f, 0f), new Vector3(0.05f, 0.05f, 0.05f), energy);
+                Prim(PrimitiveType.Cube, "FloatShardB", root.transform, new Vector3(-0.25f, 0.82f, 0f), new Vector3(0.04f, 0.04f, 0.04f), energy);
                 Energise(root, new Color(0.88f, 0.40f, 0.10f), 0.7f, 0.42f, 0.24f, 2.0f, 34f);
                 var prefab = Save(root, $"{WeaponDir}/VM_Hammer.prefab");
                 AssignViewmodel("Assets/Data/Weapons/Hammer.asset", prefab);
@@ -256,16 +275,16 @@ namespace VibeGame1.EditorTools
             // confused with Rosethorn. It is the cheat weapon and should look ceremonial and wrong.
             {
                 var root = new GameObject("VM_DevBlade");
-                WaveSegments(root.transform, energy, 6, 0.03f, 0.48f, 0.062f, 0.10f, 0.55f, 0.024f);
-                for (int i = 0; i < 4; i++)
+                WaveSegments(root.transform, energy, 8, 0.04f, 0.82f, 0.062f, 0.10f, 0.50f, 0.030f);
+                for (int i = 0; i < 5; i++)
                     Prim(PrimitiveType.Cube, $"Barb{i}", root.transform,
-                         new Vector3(0.046f, 0.10f + 0.10f * i, 0f), new Vector3(0.055f, 0.028f, 0.055f), core);
-                Prim(PrimitiveType.Cube, "Guard", root.transform, Vector3.zero, new Vector3(0.20f, 0.042f, 0.07f), core);
-                Prim(PrimitiveType.Cube, "Grip", root.transform, new Vector3(0f, -0.11f, 0f), new Vector3(0.05f, 0.20f, 0.05f), core);
-                Prim(PrimitiveType.Cube, "Pommel", root.transform, new Vector3(0f, -0.235f, 0f), new Vector3(0.072f, 0.045f, 0.072f), core);
-                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.555f, 0f), new Vector3(0.034f, 0.09f, 0.058f), energy);
-                Prim(PrimitiveType.Cube, "FloatRingInner", root.transform, new Vector3(0.10f, 0.17f, 0f), new Vector3(0.045f, 0.012f, 0.045f), energy);
-                Prim(PrimitiveType.Cube, "FloatRingOuter", root.transform, new Vector3(0.18f, 0.40f, 0f), new Vector3(0.055f, 0.014f, 0.055f), energy);
+                         new Vector3(0.048f, 0.11f + 0.15f * i, 0f), new Vector3(0.058f, 0.030f, 0.058f), core);
+                Prim(PrimitiveType.Cube, "Guard", root.transform, Vector3.zero, new Vector3(0.24f, 0.044f, 0.07f), core);
+                Prim(PrimitiveType.Cube, "Grip", root.transform, new Vector3(0f, -0.13f, 0f), new Vector3(0.052f, 0.22f, 0.052f), core);
+                Prim(PrimitiveType.Cube, "Pommel", root.transform, new Vector3(0f, -0.27f, 0f), new Vector3(0.075f, 0.048f, 0.075f), core);
+                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.905f, 0f), new Vector3(0.034f, 0.10f, 0.058f), energy);
+                Prim(PrimitiveType.Cube, "FloatRingInner", root.transform, new Vector3(0.11f, 0.24f, 0f), new Vector3(0.045f, 0.012f, 0.045f), energy);
+                Prim(PrimitiveType.Cube, "FloatRingOuter", root.transform, new Vector3(0.19f, 0.62f, 0f), new Vector3(0.055f, 0.014f, 0.055f), energy);
                 Energise(root, new Color(0.78f, 0.62f, 1f), 1.8f, 1.25f, 0.13f, 3.0f, 70f);
                 var prefab = Save(root, $"{WeaponDir}/VM_DevBlade.prefab");
                 AssignViewmodel("Assets/Data/Weapons/DevBlade.asset", prefab);
@@ -563,8 +582,33 @@ namespace VibeGame1.EditorTools
             cc.slopeLimit = 45f;
             cc.skinWidth = 0.05f;
 
-            root.AddComponent<FirstPersonMotor>();
+            var motor = root.AddComponent<FirstPersonMotor>();
+            // A CODE DEFAULT IS NOT A SHIPPED VALUE (hard rule 9). Every wall-run number is written here
+            // so a rebuild is authoritative and editing the field initialisers in FirstPersonMotor can
+            // never silently diverge from the prefab LevelArcAnalyzer reads its constants off.
+            // WallRunTunablesTests asserts this list against the shipped asset.
+            motor.wallRunMinEntrySpeed = 7f;
+            motor.wallRunMaxEntryFallSpeed = 9f;
+            motor.wallRunMaxApproachCos = 0.55f;
+            motor.wallRunMinLookAlongCos = 0.30f;
+            motor.wallRunMaxDuration = 1.6f;
+            motor.wallRunGravityStartScale = 0.10f;
+            motor.wallRunGravityEndScale = 0.60f;
+            motor.wallRunEntryUpSpeed = 3f;
+            motor.wallRunSpeedDecay = 0.20f;
+            motor.wallRunMinSustainSpeed = 5f;
+            motor.wallRunAccel = 14f;
+            motor.wallRunStickSpeed = 2.5f;
+            motor.wallRunExitUpSpeed = 10f;
+            motor.wallRunExitPushSpeed = 7f;
+            motor.wallRunExitTangentBoost = 4f;
+            motor.maxWallRuns = 3;
+            motor.wallRunCooldown = 0.25f;
+            motor.wallRunCameraRoll = 13f;
+            motor.wallRunExitRollKick = 7f;
+
             var look = root.AddComponent<PlayerLook>();
+            look.rollBiasLerp = 9f;
             root.AddComponent<Health>();
             var stats = root.AddComponent<PlayerStats>();
             stats.data = Load<PlayerStatsData>("Assets/Data/PlayerStats.asset");

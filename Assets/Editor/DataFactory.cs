@@ -981,14 +981,33 @@ namespace VibeGame1.EditorTools
             EditorUtility.SetDirty(revenant);
 
             // ---------------- Weapons ----------------
+            //
+            // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette
+            // and one tempo because a long blade at 95° FOV filled the frame. Length was never what
+            // broke the frame — POSE was (see PrefabFactory.BuildWeaponViewmodels), so the framing rules
+            // are now enforced by measurement and the numbers are free to spread again. The ladder is
+            // deliberately a clean doubling on every axis, so the difference is felt and not just read:
+            //
+            //             extent above fist   reach (offset+radius)   swing      combo
+            //   Rosethorn      0.32 m              1.30 + 0.90         0.22 s      4
+            //   Cerulean Edge  0.62 m              2.10 + 1.15         0.44 s      3
+            //   Sunbreaker     0.72 m              2.50 + 1.70         0.86 s      2
+            //
+            // Every step is roughly x2 in swing time and +0.4-0.8 m of reach. A player who swaps
+            // weapons should notice inside one swing, without reading a stat.
             var sword = GetOrCreate<WeaponData>(WeaponsDir + "/Sword.asset");
             sword.displayName = "Cerulean Edge";
             sword.neon = Hex("#8FB5D9");
-            sword.baseDamage = 22f; sword.postureDamage = 12f; sword.executeDamage = 300f;
+            sword.baseDamage = 26f; sword.postureDamage = 16f; sword.executeDamage = 300f;
             sword.strScale = 0.5f; sword.dexScale = 0.5f; sword.arcScale = 0.2f;
-            sword.comboLength = 3; sword.comboMultipliers = new[] { 1f, 1f, 1.5f };
-            sword.attackDuration = 0.38f; sword.hitDelay = 0.12f; sword.comboWindow = 0.35f;
-            sword.hitOffset = 1.6f; sword.hitRadius = 1.1f; sword.hitStopSeconds = 0.05f;
+            sword.comboLength = 3; sword.comboMultipliers = new[] { 1f, 1.15f, 1.6f };
+            sword.attackDuration = 0.44f; sword.hitDelay = 0.15f; sword.comboWindow = 0.36f;
+            sword.hitOffset = 2.1f; sword.hitRadius = 1.15f; sword.hitStopSeconds = 0.06f;
+            // parryPostureDamage STAYS AT 25. It is load-bearing arithmetic, not a tuning knob: the Pale
+            // Marionette's 210 posture is exactly six clean deflects at 25 x 1.4, MarionetteDataTests
+            // asserts it against THIS weapon, and FeatureTests' Knight beat counts it at x1.3. Changing
+            // the sword's blade is a presentation change; changing this number would silently re-tune
+            // two boss fights.
             sword.parryWindowMultiplier = 1f; sword.parryPostureDamage = 25f; sword.pyreBonus = 0f;
             // SUPER "EMBERFALL ARC" — one enormous horizontal sweep. The sword is the generalist, so its
             // super is the plain, honest one: a single legible beat that hits everything in front of you.
@@ -997,21 +1016,39 @@ namespace VibeGame1.EditorTools
             sword.superRadius = 5.5f; sword.superArcDeg = 170f; sword.superHits = 1;
             sword.superWindup = 0.30f; sword.superActive = 0.14f; sword.superRecover = 0.30f;
             sword.superHitStop = 0.10f; sword.superShake = 0.45f; sword.superKnockback = 2.5f;
-            // VIEWMODEL SCALE (rule 9: written here or it never reaches the asset). The whole set is
-            // dagger-scale now; the sword is the longest of the four at 0.32 m above the fist.
-            sword.viewmodelScale = 0.52f;
+            // VIEWMODEL SCALE (rule 9: written here or it never reaches the asset). 1.355 m of prefab
+            // above the grip x 0.46 = 0.62 m above the fist — roughly twice the dagger.
+            sword.viewmodelScale = 0.46f;
             ResetPosesToDefaults(sword);
+            // A LONG BLADE IS FRAMED BY CANT, NOT BY SHRINKING IT. The class-default idle holds the
+            // weapon almost vertical; at 0.62 m that puts the point out of the top of the frame and a
+            // steel bar up the right-hand side. Rolled 34° and pushed away from the lens instead, the
+            // same blade lies diagonally across the lower-right corner: the tip stays in frame, the
+            // crosshair stays clear, and the sword still reads as a SWORD because the whole length of
+            // it is visible at once. Measured, not guessed — WeaponSilhouetteTests asserts all three.
+            sword.idle = new Pose(new Vector3(0.50f, -0.42f, 0.66f), new Vector3(8f, -14f, 34f));
+            sword.windup = new Pose(new Vector3(0.62f, -0.06f, 0.44f), new Vector3(-34f, -56f, 26f));
+            sword.swingEnd = new Pose(new Vector3(-0.30f, -0.50f, 0.80f), new Vector3(26f, 44f, -46f));
+            sword.parry = new Pose(new Vector3(0.10f, -0.16f, 0.62f), new Vector3(0f, 82f, 74f));
+            // The guard: a big diagonal across the lower right. More roll than the dagger's, because a
+            // longer blade needs a shallower angle to keep its point inside the frame, and pushed a
+            // further 0.12 m out so the quillons do not sit on the lens.
+            sword.guard = new Pose(new Vector3(0.36f, -0.16f, 0.72f), new Vector3(-10f, 38f, 46f));
+            sword.executeWindup = new Pose(new Vector3(0.52f, 0.34f, 0.46f), new Vector3(-74f, -28f, 18f));
             EditorUtility.SetDirty(sword);
 
             var hammer = GetOrCreate<WeaponData>(WeaponsDir + "/Hammer.asset");
             hammer.displayName = "Sunbreaker";
             hammer.neon = Hex("#E0661A");
-            hammer.baseDamage = 40f; hammer.postureDamage = 30f; hammer.executeDamage = 400f;
+            hammer.baseDamage = 46f; hammer.postureDamage = 34f; hammer.executeDamage = 400f;
             hammer.strScale = 1f; hammer.dexScale = 0f; hammer.arcScale = 0.2f;
-            hammer.comboLength = 2; hammer.comboMultipliers = new[] { 1f, 1.6f };
-            hammer.attackDuration = 0.7f; hammer.hitDelay = 0.3f; hammer.comboWindow = 0.5f;
-            hammer.hitOffset = 1.8f; hammer.hitRadius = 1.4f; hammer.hitStopSeconds = 0.09f;
-            hammer.parryWindowMultiplier = 0.8f; hammer.parryPostureDamage = 40f; hammer.pyreBonus = 5f;
+            hammer.comboLength = 2; hammer.comboMultipliers = new[] { 1f, 1.7f };
+            // COMMITTED. 0.86 s is nearly four dagger swings and the contact frame does not arrive until
+            // 0.40 s — you are holding the maul over your head for longer than a Marionette wind-up, and
+            // there is no taking it back. That is the trade the reach and the 1.7x finisher pay for.
+            hammer.attackDuration = 0.86f; hammer.hitDelay = 0.40f; hammer.comboWindow = 0.55f;
+            hammer.hitOffset = 2.5f; hammer.hitRadius = 1.7f; hammer.hitStopSeconds = 0.11f;
+            hammer.parryWindowMultiplier = 0.75f; hammer.parryPostureDamage = 40f; hammer.pyreBonus = 5f;
             // SUPER "SUNBREAK" — overhead into the ground, 360 degree shockwave. The longest wind-up in
             // the set and by far the biggest posture number: the hammer already trades speed for weight,
             // and its super doubles down rather than apologising for it. Nothing else knocks enemies back
@@ -1021,19 +1058,33 @@ namespace VibeGame1.EditorTools
             hammer.superRadius = 7.5f; hammer.superArcDeg = 360f; hammer.superHits = 1;
             hammer.superWindup = 0.52f; hammer.superActive = 0.12f; hammer.superRecover = 0.46f;
             hammer.superHitStop = 0.20f; hammer.superShake = 0.9f; hammer.superKnockback = 6f;
-            hammer.viewmodelScale = 0.50f;   // short haft, all the volume in the head
+            // 1.42 m of haft above the grip x 0.50 = 0.71 m above the fist: the longest weapon in the
+            // set, and the only one where the mass is at the FAR end rather than in the hand.
+            hammer.viewmodelScale = 0.50f;
             ResetPosesToDefaults(hammer);
-            hammer.idle = new Pose(new Vector3(0.5f, -0.4f, 0.75f), new Vector3(0f, -15f, 0f));
-            hammer.windup = new Pose(new Vector3(0.65f, 0.1f, 0.4f), new Vector3(-60f, -40f, 20f));
-            hammer.swingEnd = new Pose(new Vector3(-0.2f, -0.6f, 0.9f), new Vector3(45f, 30f, -30f));
-            hammer.parry = new Pose(new Vector3(0.05f, -0.2f, 0.6f), new Vector3(0f, 90f, 80f));
-            // The hammer guards with its MASS, not its edge: the head is carried lower and further
-            // out than any blade, and it is the one weapon whose volume would occlude the enemy if it
-            // came up to blade height. Rolled less, so the head sits beside the frame rather than in it.
-            hammer.guard = new Pose(new Vector3(0.38f, -0.22f, 0.62f), new Vector3(-6f, 34f, 48f));
-            hammer.executeWindup = new Pose(new Vector3(0.5f, 0.5f, 0.4f), new Vector3(-90f, -20f, 10f));
+            // Carried LOW and canted well out. A maul held anywhere near vertical parks a head the size
+            // of the enemy's own in the upper frame; slung down-right at 30° it hangs in the corner and
+            // the player looks over it. The head being 0.71 m from the fist is what does the work —
+            // it is far from the lens, so it is big without being close.
+            hammer.idle = new Pose(new Vector3(0.52f, -0.55f, 0.72f), new Vector3(8f, -18f, 30f));
+            // The biggest anticipation in the game: the head goes right up over the shoulder and behind
+            // the frame, so the 0.40 s before contact is spent looking at an empty screen with a shadow
+            // coming down through it.
+            hammer.windup = new Pose(new Vector3(0.58f, 0.08f, 0.36f), new Vector3(-70f, -42f, 18f));
+            hammer.swingEnd = new Pose(new Vector3(-0.24f, -0.74f, 0.88f), new Vector3(58f, 32f, -34f));
+            hammer.parry = new Pose(new Vector3(0.08f, -0.24f, 0.66f), new Vector3(0f, 86f, 76f));
+            // The hammer guards with its MASS, not its edge: the haft is braced across the body and the
+            // head kept low and wide. It is the one weapon whose volume would occlude the enemy if it
+            // came up to blade height, so it is rolled flatter and pushed the furthest out of the four.
+            hammer.guard = new Pose(new Vector3(0.42f, -0.30f, 0.80f), new Vector3(-4f, 30f, 40f));
+            hammer.executeWindup = new Pose(new Vector3(0.54f, 0.52f, 0.40f), new Vector3(-96f, -22f, 8f));
             EditorUtility.SetDirty(hammer);
 
+            // ROSETHORN IS THE CONTROL. Not one number in this block changed when the set got its
+            // lengths back, and that is on purpose: the dagger is what the player said reads and feels
+            // best, so it stays the fixed point the other three are measured against. If a future pass
+            // finds the sword or the maul unreadable, the fault is in that weapon's pose or geometry —
+            // it is never a reason to shrink this one to match, and it is never a reason to change it.
             var dagger = GetOrCreate<WeaponData>(WeaponsDir + "/Dagger.asset");
             dagger.displayName = "Rosethorn";
             dagger.neon = Hex("#5FD66A");
@@ -1071,8 +1122,8 @@ namespace VibeGame1.EditorTools
             dev.baseDamage = 60f; dev.postureDamage = 40f; dev.executeDamage = 1000f;
             dev.strScale = 0.5f; dev.dexScale = 0.5f; dev.arcScale = 0.5f;
             dev.comboLength = 3; dev.comboMultipliers = new[] { 1f, 1f, 1.6f };
-            dev.attackDuration = 0.3f; dev.hitDelay = 0.08f; dev.comboWindow = 0.4f;
-            dev.hitOffset = 1.8f; dev.hitRadius = 1.4f; dev.hitStopSeconds = 0.06f;
+            dev.attackDuration = 0.32f; dev.hitDelay = 0.09f; dev.comboWindow = 0.4f;
+            dev.hitOffset = 1.9f; dev.hitRadius = 1.45f; dev.hitStopSeconds = 0.06f;
             dev.parryWindowMultiplier = 1.6f; dev.parryPostureDamage = 60f; dev.pyreBonus = 25f;
             // SUPER "OATHBREAKER" — instant 360 nova at 12m. A test weapon exists to end an encounter so
             // the next thing can be tested, so its super has no wind-up and no falloff.
@@ -1081,8 +1132,14 @@ namespace VibeGame1.EditorTools
             dev.superRadius = 12f; dev.superArcDeg = 360f; dev.superHits = 1;
             dev.superWindup = 0.06f; dev.superActive = 0.10f; dev.superRecover = 0.24f;
             dev.superHitStop = 0.14f; dev.superShake = 0.7f; dev.superKnockback = 4f;
-            dev.viewmodelScale = 0.53f;
+            // 1.085 m above the grip x 0.46 = 0.50 m: deliberately BETWEEN the dagger and the sword, so
+            // the test blade never gets mistaken for either at a glance.
+            dev.viewmodelScale = 0.46f;
             ResetPosesToDefaults(dev);
+            dev.idle = new Pose(new Vector3(0.46f, -0.36f, 0.64f), new Vector3(4f, -12f, 26f));
+            dev.windup = new Pose(new Vector3(0.58f, -0.14f, 0.46f), new Vector3(-26f, -52f, 26f));
+            dev.swingEnd = new Pose(new Vector3(-0.24f, -0.44f, 0.80f), new Vector3(18f, 40f, -42f));
+            dev.guard = new Pose(new Vector3(0.32f, -0.14f, 0.66f), new Vector3(-12f, 44f, 54f));
             EditorUtility.SetDirty(dev);
 
             // ---------------- Items (Neon White style single-use pickups) ----------------
@@ -1193,6 +1250,29 @@ namespace VibeGame1.EditorTools
             feel.parryHitStopRelease = 0.07f;
             feel.parryHitStopReleaseScale = 0.45f;
             feel.parryLayeredAudio = true;
+            // Dash and slide feel (rule 9). The dash was never silent — dashFovKick has shipped at 8 on
+            // this asset all along — it was NON-SPECIFIC: a symmetric FOV widen cannot say which way you
+            // went. These add DIRECTION to the dash and a sustained middle to the slide, and like the
+            // deflect package above, not one of them brightens the frame. See DashImpulse / SlideImpulse.
+            feel.dashKickPitch = 0.9f;      // deg, view lifts on a forward surge; zero on a pure strafe
+            feel.dashKickRoll = 1.4f;       // deg, banks into a lateral dash; roll never moves the aim
+            feel.dashKickOffset = 0.06f;    // m, lens left behind by the body — the acceleration read
+            feel.dashKickTime = 0.14f;      // s, still again before the 0.16 s dash has finished
+            feel.dashChromatic = 0.35f;
+            feel.dashStreakCount = 12;      // camera space, never world space (WeaponTrail's lesson)
+            feel.dashStreakSeconds = 0.22f;
+            feel.dashStreakAlpha = 0.85f;
+            feel.dashStreakBrightness = 0.90f;  // UNDER the 1.05 bloom threshold: a dash adds zero bloom
+            // The slide is the harder half. Its middle had nothing in it because every cue it owned was
+            // an impulse on a move that lasts 0.90 s; all of these are HELD and track actual speed.
+            feel.slideFovHold = 8f;         // deg, sustained, reaching exactly 0 at the motor's end speed
+            feel.slideEndFovPunch = -2.5f;  // deg, the world closing back in as the speed goes
+            feel.slideRollDegrees = 3.5f;   // deg, banking into the steer
+            feel.slideKickPitch = 1.2f;     // deg, nose dips on the commit
+            feel.slideKickTime = 0.13f;
+            feel.slideDustRate = 34f;       // grit/s at full speed, shed into a scene-level root
+            feel.slideSparkRate = 5f;       // spark bursts/s above 35% speed, via SlashFx (peak 1.0)
+            feel.slideScrapeVolume = 0.22f; // synthesised loop on its own source, not an Sfx entry
             EditorUtility.SetDirty(feel);
 
             // ---- campaign registry ----

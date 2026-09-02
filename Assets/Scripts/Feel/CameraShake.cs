@@ -59,6 +59,27 @@ namespace VibeGame1
             });
         }
 
+        // ---- sustained roll ------------------------------------------------------------------------
+        float rollTarget, roll, rollVel;
+
+        /// <summary>
+        /// A THIRD channel, and unlike the other two it is HELD rather than fired: a bank that lasts as
+        /// long as whatever is causing it. Added for the slide, which is a sustained move and therefore
+        /// cannot be described by an impulse at all.
+        ///
+        /// <para>Roll is the cheapest readability in the project. It never moves the aim vector, so a
+        /// held bank costs nothing at the next parry or the next swing — which is exactly why it, and
+        /// not pitch or yaw, is the channel a sustained effect is allowed to use.</para>
+        ///
+        /// <para>Set every frame by its owner and set to 0 to release. Eased here (0.11 s) rather than
+        /// by the caller, and snapped to exactly zero once released and small, because ShakeRoot sits
+        /// between the look pivot and the lens: any residue is a crooked view for the rest of the run.</para>
+        /// </summary>
+        public void SetRoll(float degrees) { rollTarget = degrees; }
+
+        /// <summary>The held roll actually being rendered this frame, in degrees. For tests.</summary>
+        public float Roll { get { return roll; } }
+
         public void Small() { var f = GameManager.I ? GameManager.I.feel : null; Add(f ? f.shakeSmallAmp : 0.06f, f ? f.shakeSmallTime : 0.12f); }
         public void Medium() { var f = GameManager.I ? GameManager.I.feel : null; Add(f ? f.shakeMedAmp : 0.14f, f ? f.shakeMedTime : 0.2f); }
         public void Big() { var f = GameManager.I ? GameManager.I.feel : null; Add(f ? f.shakeBigAmp : 0.3f, f ? f.shakeBigTime : 0.35f); }
@@ -93,8 +114,13 @@ namespace VibeGame1
                 offset += kk.offset * e;
             }
 
+            // Held roll, summed last. It is the only channel here that is allowed to be non-zero for
+            // seconds at a time, so it eases in and out instead of stepping.
+            roll = Mathf.SmoothDamp(roll, rollTarget, ref rollVel, 0.11f, Mathf.Infinity, Time.unscaledDeltaTime);
+            if (rollTarget == 0f && Mathf.Abs(roll) < 0.005f) { roll = 0f; rollVel = 0f; }
+
             transform.localPosition = offset;
-            transform.localRotation = Quaternion.Euler(kickEuler.x, kickEuler.y, kickEuler.z + rot);
+            transform.localRotation = Quaternion.Euler(kickEuler.x, kickEuler.y, kickEuler.z + rot + roll);
         }
     }
 }
