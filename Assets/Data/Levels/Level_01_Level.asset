@@ -504,102 +504,172 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Boss_Approach
-    center: {x: 0, y: 27.5, z: 291}
+    center: {x: 0, y: 27.5, z: 377}
     size: {x: 6, y: 1, z: 16}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Boss_Approach_Rail_L
-    center: {x: -3.1, y: 28.6, z: 291}
+    center: {x: -3.1, y: 28.6, z: 377}
     size: {x: 0.2, y: 1.2, z: 16}
     materialKey: NeonPink
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Boss_Approach_Rail_R
-    center: {x: 3.1, y: 28.6, z: 291}
+    center: {x: 3.1, y: 28.6, z: 377}
     size: {x: 0.2, y: 1.2, z: 16}
     materialKey: NeonPink
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Boss_Arena
-    center: {x: 0, y: 27.5, z: 320}
+    center: {x: 0, y: 27.5, z: 406}
     size: {x: 38, y: 1, z: 38}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_W
-    center: {x: -19.25, y: 30, z: 320}
+    center: {x: -19.25, y: 30, z: 406}
     size: {x: 0.5, y: 4, z: 38}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_E
-    center: {x: 19.25, y: 30, z: 320}
+    center: {x: 19.25, y: 30, z: 406}
     size: {x: 0.5, y: 4, z: 38}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_S_L
-    center: {x: -11, y: 30, z: 300.75}
+    center: {x: -11, y: 30, z: 386.75}
     size: {x: 16, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_S_R
-    center: {x: 11, y: 30, z: 300.75}
+    center: {x: 11, y: 30, z: 386.75}
     size: {x: 16, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_N_L
-    center: {x: -11, y: 30, z: 339.25}
+    center: {x: -11, y: 30, z: 425.25}
     size: {x: 16, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_N_R
-    center: {x: 11, y: 30, z: 339.25}
+    center: {x: 11, y: 30, z: 425.25}
     size: {x: 16, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Pillar_Boss_307_-16
-    center: {x: -16, y: 31, z: 307}
+    center: {x: -16, y: 31, z: 393}
     size: {x: 1.5, y: 8, z: 1.5}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Pillar_Boss_307_16
-    center: {x: 16, y: 31, z: 307}
+    center: {x: 16, y: 31, z: 393}
     size: {x: 1.5, y: 8, z: 1.5}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Pillar_Boss_333_-16
-    center: {x: -16, y: 31, z: 333}
+    center: {x: -16, y: 31, z: 419}
     size: {x: 1.5, y: 8, z: 1.5}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Pillar_Boss_333_16
-    center: {x: 16, y: 31, z: 333}
+    center: {x: 16, y: 31, z: 419}
     size: {x: 1.5, y: 8, z: 1.5}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T4_Causeway
+    center: {x: 0, y: 27.5, z: 293.75}
+    size: {x: 6, y: 1, z: 21.5}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T4_Face_E1
+    center: {x: 4.5, y: 30.5, z: 311.25}
+    size: {x: 1.2, y: 8, z: 14.5}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonYellow
+    isStatic: 1
+  - name: T4_Pier_1
+    center: {x: 0, y: 27.5, z: 322}
+    size: {x: 6, y: 1, z: 6}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T4_Stone_1
+    center: {x: -6, y: 27.5, z: 311.5}
+    size: {x: 4, y: 1, z: 4}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T4_Face_W2
+    center: {x: -4.5, y: 30.5, z: 332.25}
+    size: {x: 1.2, y: 8, z: 15.5}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonYellow
+    isStatic: 1
+  - name: T4_Pier_2
+    center: {x: 0, y: 27.5, z: 343.5}
+    size: {x: 6, y: 1, z: 6}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T4_Stone_2
+    center: {x: 6, y: 27.5, z: 332.5}
+    size: {x: 4, y: 1, z: 5}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T4_Face_E3
+    center: {x: 4.5, y: 30.5, z: 354.25}
+    size: {x: 1.2, y: 8, z: 16.5}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonYellow
+    isStatic: 1
+  - name: T4_Stone_3
+    center: {x: -6, y: 27.5, z: 354.5}
+    size: {x: 4, y: 1, z: 6}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T4_Threshold
+    center: {x: 0, y: 27.5, z: 366}
+    size: {x: 6, y: 1, z: 6}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
     isStatic: 1
   spawns:
   - name: Spawn_T1_GruntA
@@ -649,7 +719,7 @@ MonoBehaviour:
     isBoss: 0
   - name: Spawn_Boss
     prefabKey: Boss
-    position: {x: 0, y: 28.1, z: 326}
+    position: {x: 0, y: 28.1, z: 412}
     yaw: 180
     isBoss: 1
   pickups:
@@ -685,7 +755,7 @@ MonoBehaviour:
     position: {x: 8, y: 29.2, z: 261}
   - name: Pickup_Boss_Lantern
     itemKey: SoulLantern
-    position: {x: -8, y: 29.2, z: 306}
+    position: {x: -8, y: 29.2, z: 392}
   checkpoints:
   - name: Checkpoint_1
     position: {x: 0, y: 0, z: 6}
@@ -697,7 +767,7 @@ MonoBehaviour:
     position: {x: 0, y: 20, z: 189}
     spawnOffset: {x: 0, y: 0.20000076, z: -2.5}
   - name: Checkpoint_4
-    position: {x: 0, y: 28, z: 291}
+    position: {x: 0, y: 28, z: 377}
     spawnOffset: {x: 0, y: 0.20000076, z: -3}
   torches:
   - name: Torch_Start_SW
@@ -773,21 +843,21 @@ MonoBehaviour:
   - name: Torch_T3_Arena_Gate_R
     basePosition: {x: 5, y: 28, z: 259}
   - name: Torch_Boss_304_-16
-    basePosition: {x: -16, y: 28, z: 304}
+    basePosition: {x: -16, y: 28, z: 390}
   - name: Torch_Boss_304_16
-    basePosition: {x: 16, y: 28, z: 304}
+    basePosition: {x: 16, y: 28, z: 390}
   - name: Torch_Boss_336_-16
-    basePosition: {x: -16, y: 28, z: 336}
+    basePosition: {x: -16, y: 28, z: 422}
   - name: Torch_Boss_336_16
-    basePosition: {x: 16, y: 28, z: 336}
+    basePosition: {x: 16, y: 28, z: 422}
   - name: Torch_Boss_W
-    basePosition: {x: -17.5, y: 28, z: 320}
+    basePosition: {x: -17.5, y: 28, z: 406}
   - name: Torch_Boss_E
-    basePosition: {x: 17.5, y: 28, z: 320}
+    basePosition: {x: 17.5, y: 28, z: 406}
   - name: Torch_Boss_Gate_L
-    basePosition: {x: -6, y: 28, z: 303}
+    basePosition: {x: -6, y: 28, z: 389}
   - name: Torch_Boss_Gate_R
-    basePosition: {x: 6, y: 28, z: 303}
+    basePosition: {x: 6, y: 28, z: 389}
   pedestals:
   - name: WandPedestal_Start
     groundPosition: {x: 0, y: 0, z: -2}
@@ -845,10 +915,10 @@ MonoBehaviour:
     gateName: Boss_Gate
     gateSize: {x: 6, y: 4, z: 0.5}
     gateMaterialKey: Gate
-    gateOpenPosition: {x: 0, y: 23.5, z: 301.25}
-    gateClosedPosition: {x: 0, y: 30, z: 301.25}
+    gateOpenPosition: {x: 0, y: 23.5, z: 387.25}
+    gateClosedPosition: {x: 0, y: 30, z: 387.25}
     triggerName: Boss_ArenaTrigger
-    triggerPosition: {x: 0, y: 30, z: 305}
+    triggerPosition: {x: 0, y: 30, z: 391}
     triggerSize: {x: 6, y: 4, z: 2}
     clearSpawnerName: 
     hasExitGate: 0
@@ -868,5 +938,5 @@ MonoBehaviour:
     eclipseDiameterDeg: 38
   killZone:
     name: KillZone
-    center: {x: 0, y: -30, z: 165}
-    size: {x: 200, y: 2, z: 420}
+    center: {x: 0, y: -30, z: 195}
+    size: {x: 200, y: 2, z: 480}
