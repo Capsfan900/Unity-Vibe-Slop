@@ -139,15 +139,22 @@ InputReader → FirstPersonMotor.Update()
     ground/air acceleration, coyote time, jump buffer, variable jump, dash
     SLIDE      capsule 1.8 → 1.0 m, speed +5 (cap 22), bleeds at 2/s to a floor of 8, ~4.0 m
     WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal
+    WALL RUN   no binding; entered by arriving — see "Movement — wall run" below
+    now += dt                                 ← the motor's OWN clock; every timer reads it
   → CharacterController.Move()
-  ⇢ OnJumped / OnLanded / OnDashed / OnSlideStarted / OnSlideEnded / OnWallJumped
+  ⇢ OnJumped / OnLanded / OnDashed / OnSlideStarted / OnSlideEnded / OnWallJumped / OnWallRunStarted / OnWallRunEnded
       → PlayerFeedback  → AudioManager (footstep/jump/land/dash/slide/wall jump)
                         → CameraFX (FOV kick), CameraShake, camera dip AND slide crouch on the pivot
+                        → DashFx / SlideFx — see "Movement — slide and dash feel" below
 ```
 
 **Invariants**
 - Player movement reads `TimeScaleController.PlayerDelta`, never `Time.deltaTime`. Hitstop and slow-mo must not
   brake the player. This holds for the slide's decay and the wall jump too.
+- **Every motor timer is measured against the motor-local `now`, never `Time.time`.** `now` advances by
+  `PlayerDelta`; `Time.time` is the world clock, which hitstop drives to ~0.02×. On the world clock a dash
+  that landed a hit kept travelling for the whole freeze and every window (dash, slide, coyote, jump
+  buffer, cooldowns) grew by the hitstop length. Hitstop now neither freezes nor extends any of them.
 - `Teleport(position, yaw)` must push yaw into `PlayerLook`, which owns rotation and rewrites it every frame.
 - `PlayerLook` owns yaw/pitch; the motor owns position. Never both.
 - **The movement path allocates nothing.** No LINQ, no closures, no per-frame arrays, no strings. The only
@@ -327,8 +334,14 @@ ViewmodelArm.LateUpdate  [DefaultExecutionOrder 200 — AFTER both viewmodels]
   model with `Destroy(instance)`, which Unity defers. Equipping and rendering in the *same* frame draws
   **both** weapons stacked on each other — this is a screenshot/tooling trap, not a prefab bug. Anything
   that equips and then captures must let a frame pass (`ViewmodelCapture.LoadoutTour` does).
-- **Every weapon is dagger-scale**: 0.27-0.32 m of model above the fist, differentiated by mass and edge
-  rather than by length. Silhouettes, per-weapon `viewmodelScale` and the reasoning:
+- **Four weapon lengths, one framing rule.** Extent above the fist (prefab height above `Grip*` ×
+  `viewmodelScale`, as `DataFactory` ships it): Rosethorn **0.32 m**, Oathbreaker **0.50 m**, Cerulean Edge
+  **0.62 m**, Sunbreaker **0.72 m** — a 2.3× spread where the dagger pass had 1.2×. Length is free because
+  it is no longer what keeps the frame readable: `WeaponSilhouette` rasterises the real prefab from the
+  player's eye and `WeaponSilhouetteTests` holds every shipped weapon in every held pose to (1) never
+  crossing the crosshair disc, (2) never covering more than a small fraction of the frame, (3) tip inside
+  the frame. Long blades are held further out and canted across the lower-right corner, not vertical.
+  Silhouettes and per-weapon `viewmodelScale`:
   [`ARCHITECTURE.md > The blade family`](ARCHITECTURE.md#the-blade-family--weapon-viewmodels).
 - **The arm solver runs at execution order 200.** At the default order it can solve before the pose is
   written and the arm trails the hand by a frame, which is precisely what makes a viewmodel look detached.
@@ -996,6 +1009,37 @@ InputReader (jump/dash only; wall running has NO binding -- entry is by arriving
 - `wallRunSpeedDecay` must sit inside `(ln(minEntry/minSustain), ln(top/minSustain)) / maxDuration`
   or one end condition is unreachable. Asserted.
 
+### Movement — slide and dash feel
+
+```
+FirstPersonMotor ⇢ OnDashed
+  → PlayerFeedback.OnDashed      Sfx.Dash + Sfx.Swing pitched 1.55 (two voices, rule 7: no new entry)
+     dirLocal = InputReader.MoveAxis on the SAME frame (camera yaw == body yaw)
+     → CameraFX.FovKick(feel.dashFovKick 8°), ChromaticPulse(0.35, 0.18 s)
+     → DashImpulse.FromDash(dirLocal, pitch 0.9, roll 1.4, offset 0.06)   pure math, unit tested
+        → CameraShake.Kick(euler, offset, 0.14 s, KickAttackFraction)     no yaw, ever
+     → DashFx.Fire(dirLocal, 0.22 s, alpha 0.85)   speed lines, CAMERA space, fixed LineRenderers,
+                                                    peak channel 0.90 < 1.05 bloom threshold, unscaled time
+FirstPersonMotor ⇢ OnSlideStarted / OnSlideEnded
+  → PlayerFeedback                one-shot entry punch (FovKick, CameraShake pitch kick) / end punch (-2.5°)
+     → SlideFx.Begin() / End()    End() releases the FOV hold (CameraFX.FovHold(0))
+PlayerFeedback.Update (every frame, unscaled)
+  → SlideFx.Tick(slideFovHold 8, slideRollDegrees 3.5, sparkRate 5, dustRate 34, scrapeVolume 0.22)
+     reads motor.IsSliding + HorizontalSpeed → SlideImpulse.FovForSpeed / Normalised speed band
+        → CameraFX.FovHold(...)   HELD, proportional to speed still carried; exactly 0 at slideEndSpeed
+        → scrape gain/pitch, grit rate ride the same fraction; grit shed into a SCENE root (a trail)
+Tuning: GameFeelSettings.dash* / slide* — written by DataFactory (rule 9), defaults in PlayerFeedback are fallbacks only.
+```
+
+**Invariants**
+- `*Impulse` is the math, `*Fx` is the component — the `ParryImpulse` / `ParryImpact` split, so every curve is
+  an EditMode test, not prose.
+- **Force, not light.** Nothing in a slide or dash crosses the 1.05 bloom threshold; emission on an enemy means
+  "you deflected" and traversal never speaks that language.
+- The slide's sustained layers are driven from the motor's **live state** every frame, not from the events
+  alone: a respawn or a disabled player can swallow `OnSlideEnded`, and a held FOV that never released would be
+  wrong for the rest of the run.
+
 ## Boss
 
 ```
@@ -1051,12 +1095,23 @@ Sanctum (top y 0, pink)          wand altar - the loadout is chosen before the c
   Checkpoint_1
 Tile 1  THE SHATTERED CAUSEWAY   low, fast, horizontal - stepping stones + a railed dash run
   (cyan)                         arena top y 4    Legendary_Ninja
+                                 wall-run walls (right, both run north, both optional):
+                                   T1_Wall_Start    (7.1, 2.5, 22.5)  1.2 x 7 x 20   skips the four stones
+                                   T1_Wall_Causeway (3.9, 2.5, 50)    1.0 x 7 x 16 → T1_Wall_Landing (4.6, 2, 64.5) 4 x 1 x 10
   Checkpoint_2
 Tile 2  THE ASCENT               vertical - 11 ledges spiralling a 20 m tower
   (yellow)                       arena top y 20   Legendary_Knight
+                                 wall-run walls (outside of the spiral; a run DESCENDS, the exit jump buys the height back):
+                                   T2_Wall_East (11.1, 5.5, 123.5)  1.2 x 9 x 21 → T2_Wall_Landing_East (6.8, 7.5, 137.5) 5.6 x 1 x 8
+                                   T2_Wall_West (-11.2, 10.5, 115)  1.2 x 9 x 22 → T2_Wall_Landing_West (-7.05, 12, 101.75) 5.1 x 1 x 9.5
   Checkpoint_3
 Tile 3  THE LONG SPAN            high and exposed - pillar hops, then a 22 m span with a Heavy on it
   (red)                          arena top y 28   Legendary_Spellsword
+                                 wall-run walls (right, both run north, both optional; they chain):
+                                   T3_Wall_Pillars (7.1, 22.5, 198.5) 1.2 x 7 x 16 → T3_Wall_Landing_S (5.5, 22.5, 210.5) 6 x 1 x 7
+                                   T3_Wall_Span    (7.6, 26, 224.5)   1.2 x 8 x 20
+                                 All authored in Level_01_Level.asset (Stone, NeonCyan trim), NOT in LevelGreyboxBuilder;
+                                 proven by LevelSpan1-3Report / LevelSpan1-3Tests against `longest`, never `best`.
   Checkpoint_4
 Boss    THE ECLIPSE COURT        38 m walled court facing the eclipse down +Z
   (pink)                         arena top y 28   Boss

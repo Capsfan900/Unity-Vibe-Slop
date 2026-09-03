@@ -156,7 +156,7 @@ namespace VibeGame1
 
         public Vector3 Velocity => vel;
         public bool IsGrounded { get; private set; }
-        public bool IsDashing => Time.time < dashUntil;
+        public bool IsDashing => now < dashUntil;
         public bool IsSliding => sliding;
         /// <summary>Wall jumps spent since the last landing. Resets on ground contact.</summary>
         public int WallJumpsUsed => wallJumpsUsed;
@@ -203,7 +203,7 @@ namespace VibeGame1
         public bool TryJump()
         {
             if (!CanAct) return false;
-            jumpPressedAt = Time.time;
+            jumpPressedAt = now;
             return true;
         }
 
@@ -226,8 +226,8 @@ namespace VibeGame1
         public bool TrySlide()
         {
             if (!CanAct || sliding) return false;
-            if (Time.time < slideReadyAt) return false;
-            if (!IsGrounded && Time.time - lastGroundedTime > coyoteTime) return false;
+            if (now < slideReadyAt) return false;
+            if (!IsGrounded && now - lastGroundedTime > coyoteTime) return false;
 
             float sx = vel.x, sz = vel.z;
             float sp = Mathf.Sqrt(sx * sx + sz * sz);
@@ -239,7 +239,7 @@ namespace VibeGame1
             vel.z = sz * k;
 
             sliding = true;
-            slideEndsAt = Time.time + slideMaxDuration;
+            slideEndsAt = now + slideMaxDuration;
             SetHeight(slideHeight);
 
             // RESEAT THE CONTROLLER. Resizing a CharacterController drops its ground contact until the
@@ -265,7 +265,7 @@ namespace VibeGame1
             if (!force && CeilingBlocked()) return false;
             sliding = false;
             SetHeight(standHeight);
-            slideReadyAt = Time.time + slideCooldown;
+            slideReadyAt = now + slideCooldown;
             if (OnSlideEnded != null) OnSlideEnded();
             return true;
         }
@@ -298,7 +298,7 @@ namespace VibeGame1
                 return true;
             }
 
-            if (IsGrounded || Time.time - lastGroundedTime <= coyoteTime) return false;
+            if (IsGrounded || now - lastGroundedTime <= coyoteTime) return false;
             if (wallJumpsUsed >= maxWallJumps) return false;
 
             Vector3 n;
@@ -373,9 +373,9 @@ namespace VibeGame1
         public bool TryWallRun()
         {
             if (!CanAct || wallRunning || sliding) return false;
-            if (IsGrounded || Time.time - lastGroundedTime <= coyoteTime) return false;
+            if (IsGrounded || now - lastGroundedTime <= coyoteTime) return false;
             if (wallRunsUsed >= maxWallRuns) return false;
-            if (Time.time < wallRunReadyAt) return false;
+            if (now < wallRunReadyAt) return false;
             if (vel.y < -Mathf.Abs(wallRunMaxEntryFallSpeed)) return false;
             if (vel.x * vel.x + vel.z * vel.z < wallRunMinEntrySpeed * wallRunMinEntrySpeed) return false;
 
@@ -411,7 +411,7 @@ namespace VibeGame1
             if (!wallRunning) return false;
             wallRunning = false;
             wallRunEndReason = why;
-            wallRunReadyAt = Time.time + wallRunCooldown;
+            wallRunReadyAt = now + wallRunCooldown;
             if (look != null) look.SetRollBias(0f);
             if (OnWallRunEnded != null) OnWallRunEnded();
             return true;
@@ -456,7 +456,7 @@ namespace VibeGame1
 
             if (look != null) look.SetRollBias(-WallSide(n) * wallRunCameraRoll);
 
-            if (cc.isGrounded) { IsGrounded = true; lastGroundedTime = Time.time; EndWallRun(WallRunEnd.Landed); return used; }
+            if (cc.isGrounded) { IsGrounded = true; lastGroundedTime = now; EndWallRun(WallRunEnd.Landed); return used; }
 
             float along = Mathf.Abs(vel.x * runDir.x + vel.z * runDir.z);
             WallRunEnd why;
@@ -477,6 +477,11 @@ namespace VibeGame1
 
         CharacterController cc;
         Vector3 vel;
+        // The motor's own clock. Every timer here (dash, slide, coyote, jump buffer, cooldowns) is
+        // measured against THIS, never Time.time: Time.time is the world clock, which hitstop drives to
+        // ~0.02x while the player keeps moving on PlayerDelta. On the world clock a dash landed with a
+        // hit kept travelling for the whole freeze and every window grew by the hitstop length.
+        float now;
         float lastGroundedTime = -99f, jumpPressedAt = -99f;
         float dashUntil, dashReadyAt;
         bool airDashUsed;
@@ -527,6 +532,7 @@ namespace VibeGame1
             // never brakes your momentum. See TimeScaleController.PlayerDelta.
             float dt = TimeScaleController.PlayerDelta;
             if (dt <= 0f) return;
+            now += dt;
 
             // Posture broken: heavily slowed and unable to jump or dash, but NOT frozen — a full
             // lock-up over a pit would turn a stagger into a fall death.
@@ -542,7 +548,7 @@ namespace VibeGame1
             IsGrounded = cc.isGrounded;
             if (IsGrounded)
             {
-                lastGroundedTime = Time.time;
+                lastGroundedTime = now;
                 airDashUsed = false;
                 wallJumpsUsed = 0;
                 wallRunsUsed = 0;
@@ -568,16 +574,22 @@ namespace VibeGame1
             // Entered by ARRIVING correctly, never by a key: there is no wall-run binding, which is also
             // why this needs nothing from InputReader beyond the jump and dash it already reads.
             if (!wallRunning) TryWallRun();
+            // A broken posture drops you off the wall. Being staggered mid-run and carrying on would be
+            // the one place in the game where losing a trade costs you nothing. Checked BEFORE the run
+            // advances: a run consumes the whole frame and returns, so a check after it never fired.
+            if (wallRunning && !canAct) EndWallRun(WallRunEnd.Cancelled);
             if (wallRunning)
             {
-                bool buffered = Time.time - jumpPressedAt <= jumpBuffer;
+                bool buffered = now - jumpPressedAt <= jumpBuffer;
                 if (canAct && buffered && TryWallJump())
                 {
                     // Left the wall with the run's momentum. The rest of the frame is ordinary air, so
                     // fall through with dt intact.
                 }
-                else if (canAct && dashRequested && Time.time >= dashReadyAt)
+                else if (canAct && dashRequested && now >= dashReadyAt && !airDashUsed)
                 {
+                    // Same gate as the dash below (airborne, so the air dash must be unspent) — otherwise
+                    // a spent dash press dropped you off the wall and no dash came.
                     EndWallRun(WallRunEnd.Cancelled);   // the dash below owns the frame
                 }
                 else
@@ -589,9 +601,6 @@ namespace VibeGame1
                     if (dt <= 1e-5f) { dashRequested = false; return; }
                 }
             }
-            // A broken posture drops you off the wall. Being staggered mid-run and carrying on would be
-            // the one place in the game where losing a trade costs you nothing.
-            if (wallRunning && !canAct) EndWallRun(WallRunEnd.Cancelled);
 
             Vector3 hv = new Vector3(vel.x, 0f, vel.z);
 
@@ -607,7 +616,7 @@ namespace VibeGame1
                 // reports isGrounded FALSE on a flat floor, so a strictly-grounded slide bled no speed,
                 // never reached its floor, and cancelled itself — 4.0 m at 500 fps and 1.8 m at 20 fps
                 // from the same press. Framerate-dependent movement is unshippable in a speedrun game.
-                bool slideOnGround = sliding && (IsGrounded || Time.time - lastGroundedTime <= coyoteTime);
+                bool slideOnGround = sliding && (IsGrounded || now - lastGroundedTime <= coyoteTime);
 
                 if (slideOnGround)
                 {
@@ -620,7 +629,7 @@ namespace VibeGame1
                         }
                         hv *= Mathf.Max(0f, 1f - slideFriction * dt);
 
-                        bool spent = hv.magnitude <= slideEndSpeed || Time.time >= slideEndsAt;
+                        bool spent = hv.magnitude <= slideEndSpeed || now >= slideEndsAt;
                         if (spent && !EndSlide())
                         {
                             // A ceiling is holding us down. Keep enough speed to crawl clear rather
@@ -629,7 +638,7 @@ namespace VibeGame1
                                       : (hv.sqrMagnitude > 0.0001f ? hv.normalized
                                       : new Vector3(transform.forward.x, 0f, transform.forward.z).normalized);
                             hv = d * Mathf.Max(hv.magnitude, slideEndSpeed);
-                            slideEndsAt = Time.time + 0.2f;
+                            slideEndsAt = now + 0.2f;
                         }
                         // Only pinned to the floor when actually ON it — sliding off a ledge has to fall.
                         if (IsGrounded && vel.y < 0f) vel.y = -2f;
@@ -663,15 +672,15 @@ namespace VibeGame1
                     // Reusing coyoteTime also means a lip, a seam between two platforms or a kerb no
                     // longer eats a slide, and sliding off a ledge still leaves the whole coyote window
                     // to jump-cancel with the speed intact.
-                    if (sliding && Time.time - lastGroundedTime > coyoteTime) EndSlide();
+                    if (sliding && now - lastGroundedTime > coyoteTime) EndSlide();
                     hv = AirAccelerate(hv, wish, groundSpeed * SpeedMultiplier, airAccel, dt);
                 }
 
                 vel.y += gravity * dt;
                 if (!IsGrounded && vel.y > 0f && !input.JumpHeld) vel.y += gravity * jumpCutGravityMultiplier * dt;
 
-                bool canJump = Time.time - lastGroundedTime <= coyoteTime;
-                bool buffered = Time.time - jumpPressedAt <= jumpBuffer;
+                bool canJump = now - lastGroundedTime <= coyoteTime;
+                bool buffered = now - jumpPressedAt <= jumpBuffer;
                 if (canAct && buffered)
                 {
                     if (canJump)
@@ -694,12 +703,12 @@ namespace VibeGame1
                     }
                 }
 
-                if (canAct && dashRequested && Time.time >= dashReadyAt && (IsGrounded || !airDashUsed))
+                if (canAct && dashRequested && now >= dashReadyAt && (IsGrounded || !airDashUsed))
                 {
                     EndSlide();
                     dashDir = wish.sqrMagnitude > 0.01f ? wish.normalized : new Vector3(transform.forward.x, 0f, transform.forward.z).normalized;
-                    dashUntil = Time.time + dashDuration;
-                    dashReadyAt = Time.time + dashCooldown;
+                    dashUntil = now + dashDuration;
+                    dashReadyAt = now + dashCooldown;
                     if (!IsGrounded) airDashUsed = true;
                     hv = dashDir * dashSpeed;
                     vel.y = 0f;
@@ -892,6 +901,11 @@ namespace VibeGame1
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             vel = Vector3.zero;
             dashUntil = 0f;
+            dashRequested = false;
+            airDashUsed = false;
+            jumpPressedAt = -99f;       // a jump buffered before a warp must not fire at the spawn
+            lastGroundedTime = -99f;    // no stale coyote window from the old location
+            IsGrounded = false;
             wallJumpsUsed = 0;
             wallRunsUsed = 0;
             hasLastWall = false;

@@ -134,7 +134,24 @@ contract `T1_Fallen_Obelisk` already keeps. Also unplayed.
 envelope caps rise at 1 m), and T3's pillars are 2.5 m squares that cannot host a slide entry. Scattering
 more tech would have been slop.
 
+**Since then: wall-run walls on spans 1–3.** `T1_Wall_Start` / `T1_Wall_Causeway`, `T2_Wall_East` /
+`T2_Wall_West`, `T3_Wall_Pillars` / `T3_Wall_Span` (with their landings) are authored in
+`Level_01_Level.asset` and flown by `LevelSpan1-3Report`; `LevelSpan1Tests` / `LevelSpan2Tests` /
+`LevelSpan3Tests` assert that a sprint entry runs each wall and arrives, that the landing needs the wall
+and rejoins the course (the spiral, on T2), and that the walls stand off every deck and ledge. Same status as the buttress: proven by
+arithmetic, unplayed by anyone.
+
 ---
+
+## 5c. The Legendary Ninja fails the riposte frame
+
+Found 2026-09-03 when the feature suite's dummy turned out to be whichever spawner came first. With
+`Legendary_Ninja` as the subject, `Deathblow_StaggerPoseClearsNearPlane` and `_StaysFramed` fail at both
+scales (`nearest=0.00 m, cameraInsideBody=True` at the 3.5 m stand-off) and its mark height (1.28) sits
+only 0.23 m from the lock dot (1.05) against the 0.3 m floor. The suite now measures a grunt on purpose, so
+this is **open, not hidden**: run `DeathblowFraming` against each `Legendary_*` prefab (its failure message
+now names the offending renderer) and either move the stagger pose, the stand-off, or the mark height per
+body in `MiniBossFactory`.
 
 ## 6. Smaller open questions
 

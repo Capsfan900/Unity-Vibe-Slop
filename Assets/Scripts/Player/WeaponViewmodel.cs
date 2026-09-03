@@ -391,7 +391,7 @@ namespace VibeGame1
             while (t < rise)
             {
                 float k = EaseOut(t / rise);
-                model.localPosition = Vector3.Lerp(p0, data.guard.pos, k);
+                model.localPosition = Vector3.Lerp(p0, data.guard.pos, k) + GuardArc(k);
                 model.localRotation = Quaternion.Slerp(r0, r1, k);
                 current = new Pose(model.localPosition, model.localRotation.eulerAngles);
                 t += TimeScaleController.PlayerDelta; yield return null;
@@ -400,6 +400,17 @@ namespace VibeGame1
             while (holding) yield return null;
             anim = null;
         }
+
+        /// <summary>
+        /// How far (metres, camera-right) the guard blend bows OUTWARD at its midpoint. A straight slerp
+        /// from idle to guard is one motion, but for the longer blades its yaw sweep still carries the tip
+        /// a few degrees NEARER the crosshair than either endpoint — the sword's 0.62 m tip dipped to 9.8°
+        /// between a 17° idle and a 12.7° guard. Bowing the grip outward on a half-sine keeps it one
+        /// motion (no waypoint, no pause) while the tip never crosses the view. Feature test:
+        /// GuardEntry_NeverSwingsAcrossTheView.
+        /// </summary>
+        const float GuardArcOut = 0.07f;
+        static Vector3 GuardArc(float k) => Vector3.right * (GuardArcOut * Mathf.Sin(k * Mathf.PI));
 
         IEnumerator GuardReleaseCo(float fall)
         {
@@ -412,7 +423,7 @@ namespace VibeGame1
             while (t < fall)
             {
                 float k = EaseInOut(t / fall);
-                model.localPosition = Vector3.Lerp(p0, data.idle.pos, k);
+                model.localPosition = Vector3.Lerp(p0, data.idle.pos, k) + GuardArc(k);
                 model.localRotation = Quaternion.Slerp(r0, r1, k);
                 current = new Pose(model.localPosition, model.localRotation.eulerAngles);
                 t += TimeScaleController.PlayerDelta; yield return null;

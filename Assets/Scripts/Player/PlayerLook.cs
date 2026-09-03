@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace VibeGame1
 {
@@ -93,7 +92,7 @@ namespace VibeGame1
         {
             // WebGL / first click: cursor lock only works inside a user gesture.
             if (GameManager.IsPlaying && Cursor.lockState != CursorLockMode.Locked &&
-                Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+                InputReader.I != null && InputReader.I.MouseClickedThisFrame)
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;

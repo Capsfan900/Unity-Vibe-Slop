@@ -241,7 +241,9 @@ namespace VibeGame1
             float dt = Time.unscaledDeltaTime;
             if (dt <= 0f) return;
 
-            bool sliding = running && motor != null && motor.IsSliding;
+            // Gated on IsPlaying: the motor stops updating when the game pauses but stays IsSliding,
+            // and without this the scrape loop, grit and sparks ran at full rate under the pause menu.
+            bool sliding = running && motor != null && motor.IsSliding && GameManager.IsPlaying;
             Vector3 vel = motor != null ? motor.Velocity : Vector3.zero;
             Vector3 flat = new Vector3(vel.x, 0f, vel.z);
             float speed = flat.magnitude;

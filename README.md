@@ -46,6 +46,8 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | Dash | `Left Shift` | B / Circle |
 | **Slide** (needs speed; jump out of it to keep it) | `Left Ctrl` | Left trigger |
 | **Wall jump** (airborne, near a wall) | `Space` again | A / Cross again |
+| **Wall run** (no binding — arrive fast along a wall, looking along it) | — | — |
+| **Settings** (sensitivity, FOV, graphics) | Title screen `SETTINGS`, or `Esc` → `SETTINGS` in a level | Same |
 | Attack | `LMB` | RB |
 | **Parry** (tap) | `RMB` | LB |
 | **Guard** (hold) | `RMB` **held** | LB held |
@@ -69,12 +71,30 @@ gap instead of 8.8 m. Cancel early and you keep all of it. A **wall jump** is ju
 airborne near a wall — it throws you off the wall and 2 m up, keeps whatever speed you had running *along*
 the wall, and refuses the same face twice in a row, so two facing walls climb and one does not.
 
-Level 01 uses them in three places. On **The Shattered Causeway** a fallen standing stone lies across the
+A **wall run** has no key. Arrive at a wall airborne, carrying at least 7 m/s *along* it (a sprint does,
+a shuffle does not), moving with the face rather than into it, and looking roughly down it — and you run
+it: a small upward catch, then gravity comes back in over about 1.6 s so you can feel the loan being called
+in. Hold forward to keep speed on a long wall; let go and it bleeds, and under 5 m/s the wall drops you.
+`Space` off the wall throws you *down the line* you were running — up 10, out 7, and +4 along the wall —
+which is the payoff. The camera leans 13° into the wall while you are on it. The same face cannot be
+re-run straight away, and three runs per airtime is the budget.
+
+**Settings** live in one menu reached two ways: `SETTINGS` on the title screen, or `Esc` then `SETTINGS`
+from the pause menu in a level. Mouse and stick sensitivity, FOV, resolution, display mode, vsync, frame
+cap, quality, bloom and film grain; saved between sessions and applied in every scene.
+
+Level 01 uses them in three places, plus the wall-run lines below. On **The Shattered Causeway** a fallen standing stone lies across the
 walkway near its north end — slide under it to keep your speed, or jump over it and lose it — and one broken
 slab out in the middle of the stepping stones is reachable only with a slide-jump, which skips two hops. On
 **The Long Span** the broken balustrade posts either side of the walkway are close enough to kick off, so a
 missed step is recoverable instead of fatal. **None of them is the only way through**: the original route
 still works with nothing but jump and dash, and the fallen stone can simply be jumped.
+
+The wall-run lines are all optional too and all faster than the route they stand beside: two trimmed
+walls on the right of **The Shattered Causeway** (the first skips the four stepping stones), two on the
+outside of **The Ascent**'s spiral (each skips two ledges of a leg — the run buys distance, the jump off it
+buys the height back), and two on the right of **The Long Span**, which chain. None has been played by a
+human yet; they are proven by the analyser only.
 
 **Lock-on is one key doing three things**, resolved by where you are aiming when you press it: nothing
 locked, it locks the enemy nearest the crosshair; already locked and still looking at it, it releases;

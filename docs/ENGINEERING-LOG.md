@@ -2383,6 +2383,71 @@ numbers a wall has to be sized against.
 
 ---
 
+## The motor's timers ran on the world clock (rule 1, the other direction)
+
+**Symptom.** None reported — found by review. Every `FirstPersonMotor` timer (`dashUntil`, `slideEndsAt`,
+coyote, jump buffer, the three cooldowns) compared against `Time.time`, while displacement integrated on
+`TimeScaleController.PlayerDelta`. Hitstop drives `Time.timeScale` to 0.02, so `Time.time` effectively
+stops: a dash that landed a hit kept travelling at `dashSpeed` for the whole freeze, a slide's duration
+cap grew by the hitstop length, and coyote / jump-buffer windows were wider under hitstop than without.
+Rule 1 says hitstop must never *freeze* the player; this was hitstop *extending* the player.
+
+**Fix.** A motor-local clock: `now += dt` at the top of `Update`, and every timer measured against
+`now`. `Time.unscaledTime` would have been wrong too — it ignores the pause (`PlayerScale = 0`).
+Asserted by `Hitstop_DashEndsOnPlayerClock` (a dash under a 0.6 s hitstop ends in 0.162 s).
+
+**Invariant.** Anything that moves the player and anything that *times* the player read the same clock.
+A timer on `Time.time` next to an integration on `PlayerDelta` is a bug even when nothing looks wrong.
+
+Three smaller motor findings from the same review, all fixed: the stagger-cancels-wall-run check sat
+*after* the run consumed the frame and returned, so it never fired (moved before the run branch); a
+dash press with the air dash already spent cancelled the run without dashing (the cancel now uses the
+dash's own gate); and `Teleport` left a buffered jump, a dash request, `airDashUsed` and a stale
+coyote window alive across a warp, so a jump pressed just before F5 fired at the spawn.
+
+---
+
+## The feature suite's dummy was whichever spawner came first
+
+**Symptom.** `Deathblow_StaggerPose*` and `Deathblow_MarkHeightSeparatedFromLockDot` failed on some runs
+and not others with no code change: `nearest=0.00 m cameraInsideBody=True`, `mark=1.28 lockDot=1.05`.
+
+**Root cause.** `SpawnDummy` took the first non-boss `EnemySpawner` that `FindObjectsByType` returned.
+`isBoss` is false on the `Legendary_*` spawners, and once the level carried them the "first" spawner was
+sometimes the Ninja — an imported skinned model with its own mark height (1.28) and bounds. The tests
+were measuring a different body on different runs. `Progression_BloodstainCarriesSouls` was flaky for
+the sibling reason: `FindAnyObjectByType<Bloodstain>` found an earlier section's stain.
+
+**Fix.** The dummy is `Enemy_Grunt` when a grunt spawner exists, never a Legendary; the stain check
+searches all stains for the one carrying the amount. The framing assertions now name the renderer that
+came nearest, so the next failure says *what* was in the lens.
+
+**What this leaves open.** The Ninja genuinely fails the framing test at both scales when it is the
+dummy: at the shipped stand-off its stagger pose puts a renderer inside the camera. That is a real
+finding about the mini-boss riposte frame, logged in `BACKLOG.md`, not fixed here.
+
+**Invariant.** A test that picks "the first X in the scene" is a test whose subject changes when the
+level does. Pick by name.
+
+---
+
+## The guard entry crossed the view once the blades got their length back
+
+**Symptom.** `GuardEntry_NeverSwingsAcrossTheView`: `worst=9.8° idle=17.0° guard=12.7°`. Present since
+the four weapon lengths landed; the last green run predates them.
+
+**Root cause.** The entry is a single position lerp plus a quaternion slerp from idle to guard — one
+motion, no waypoint, exactly as designed. But the sword's yaw sweeps −14° → 38° during the blend and on a
+0.62 m blade that sweep carries the *tip* a few degrees nearer the crosshair than either endpoint. The
+dagger never showed it because its tip is 0.32 m from the grip.
+
+**Fix.** The grip bows outward (camera-right) on a half-sine, `GuardArcOut = 0.07 m`, during the rise
+and the release. Still one motion, still no waypoint; the worst frame is now 12.0° against a 10.7°
+floor. **Invariant:** a blend that is "one motion" in grip space is not necessarily one motion in tip
+space. Measure the tip.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |
@@ -2397,3 +2462,4 @@ numbers a wall has to be sized against.
 | Naive brace-balance checks lie | A regex `{`/`}` counter reports imbalance on *every* file here (interpolated strings, chars). Do not use it as a compile proxy — it produced 78 false positives once. |
 | Do not `SetActive(false)` the viewmodel | `WeaponController.Awake` caches `GetComponentInChildren<WeaponViewmodel>()` — **active-only**. Hiding the viewmodel root for a screenshot and then reloading the scene leaves that cache null, and every `Equip()` silently stops swapping the weapon model. Hide `Renderer.enabled` instead. |
 | Enemy standoff distance | `agent.stoppingDistance = attackRange * 0.7` parks the 2.2×-scale boss ~2.1 m from the camera, too close to read in first person. Known, not yet changed. |
+| `Sword.parryPostureDamage = 25` is arithmetic, not tuning | 25 × 1.4 (`Marionette_SpinPass.parryPostureMultiplier`) × 6 = 210, exactly the Pale Marionette's `maxPosture`, and FeatureTests' Knight beat counts it at ×1.3. `MarionetteDataTests.SixCleanDeflects_BreakIt` asserts the six-deflect break against `Sword.asset`; `WeaponSilhouetteTests.SixDeflectEconomy_TheSwordStaysAt25` guards it from the weapon side. A weapon pass that touches this number silently re-tunes two boss fights — keep the arithmetic landing on 6 or move `maxPosture` in the same edit. |

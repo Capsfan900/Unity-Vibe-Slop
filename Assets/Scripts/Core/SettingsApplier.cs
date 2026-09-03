@@ -37,6 +37,7 @@ namespace VibeGame1
 
         /// <summary>Diagnostics: how many times settings have been pushed. Read by tests and the log.</summary>
         public int ApplyCount { get; private set; }
+        bool loggedEditorNote;
 
         // The volume profile instance we last measured, and the bloom/grain intensity it was AUTHORED
         // with. Cached per instance so re-applying never compounds (scale-of-a-scaled-value).
@@ -117,7 +118,7 @@ namespace VibeGame1
 
         void ApplyLook(SettingsData d)
         {
-            ApplyLookTo(d, FindObjectsByType<PlayerLook>(FindObjectsInactive.Include, FindObjectsSortMode.None));
+            ApplyLookTo(d, FindObjectsByType<PlayerLook>(FindObjectsInactive.Include));
         }
 
         // ------------------------------------------------------------------ field of view
@@ -127,7 +128,7 @@ namespace VibeGame1
             // CameraFX owns the camera's FOV every frame (baseFov + kick), so writing Camera.fieldOfView
             // alone would be overwritten on the next Update. Write BOTH: the component where one exists,
             // and the camera directly for a scene (like the menu) that has no CameraFX.
-            var fx = FindObjectsByType<CameraFX>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var fx = FindObjectsByType<CameraFX>(FindObjectsInactive.Include);
             for (int i = 0; i < fx.Length; i++)
             {
                 if (fx[i] == null) continue;
@@ -173,10 +174,18 @@ namespace VibeGame1
 
 #if UNITY_EDITOR
             // In the editor the Game view owns the resolution; Screen.SetResolution is a no-op that
-            // logs. Skip it so a developer's layout is never fought over, and say so once.
-            if (ApplyCount <= 1)
+            // logs. Skip it so a developer's layout is never fought over, and say so once. (A flag,
+            // not ApplyCount: the count is already past 1 by the time a real difference shows up.)
+            if (!loggedEditorNote)
+            {
+                loggedEditorNote = true;
                 Debug.Log("[Settings] Resolution/display mode are saved but not applied in the editor — " +
                           "the Game view owns them. They take effect in a build.");
+            }
+#elif UNITY_WEBGL
+            // The browser owns the canvas. fullScreenMode never reports FullScreenWindow outside a user
+            // gesture, so the equality guard above fails on every scene load and SetResolution would
+            // pin the canvas to a fixed size, detaching it from the page's responsive layout.
 #else
             Screen.SetResolution(w, h, mode);
 #endif
@@ -225,7 +234,7 @@ namespace VibeGame1
 
         void ApplyPost(SettingsData d)
         {
-            var volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include);
             for (int i = 0; i < volumes.Length; i++)
             {
                 var v = volumes[i];

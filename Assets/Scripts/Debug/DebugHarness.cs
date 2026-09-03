@@ -94,7 +94,7 @@ namespace VibeGame1
         /// </summary>
         static EnemyController FindSpawned(string spawnerName)
         {
-            var all = FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None);
+            var all = FindObjectsByType<EnemySpawner>();
             foreach (var s in all)
                 if (s.name == spawnerName && s.Instance != null) return s.Instance.GetComponent<EnemyController>();
 

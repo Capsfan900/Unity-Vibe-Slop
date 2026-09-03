@@ -140,8 +140,8 @@ namespace VibeGame1
         void RefreshPadCache(bool force)
         {
             if (!force && padCache != null && Time.unscaledTime < padCacheRefreshAt) return;
-            padCache = FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None);
-            switchCache = FindObjectsByType<SandboxEnemySwitch>(FindObjectsSortMode.None);
+            padCache = FindObjectsByType<EnemySpawner>();
+            switchCache = FindObjectsByType<SandboxEnemySwitch>();
             padCacheRefreshAt = Time.unscaledTime + PadCacheRefreshSeconds;
         }
 
@@ -328,7 +328,7 @@ namespace VibeGame1
             // And put every pad back to SLEEP. ResetEnemies re-instantiates from the prefab, whose
             // aggroLocked is false, so without this a reset would leave the whole row awake and walking
             // at you — the exact state the wake switches exist to prevent.
-            foreach (var sw in FindObjectsByType<SandboxEnemySwitch>(FindObjectsSortMode.None)) sw.Rearm();
+            foreach (var sw in FindObjectsByType<SandboxEnemySwitch>()) sw.Rearm();
 
             var player = Player();
             if (player != null)

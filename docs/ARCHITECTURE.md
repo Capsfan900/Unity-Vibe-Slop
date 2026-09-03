@@ -23,13 +23,13 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Folder | Files | Contents |
 |---|---:|---|
-| `Core/` | 5 | `GameManager` (state machine, cursor, `runInBackground`), `InputReader`, `TimeScaleController`, `GameEvents`, `Layers` |
+| `Core/` | 9 | `GameManager` (state machine, cursor, `runInBackground`), `InputReader`, `TimeScaleController`, `GameEvents`, `Layers`, `ViewCamera`, `SettingsData` / `SettingsStore` (PlayerPrefs under `vg1.settings.*`) / `SettingsApplier` (the only thing that pushes settings outward; self-bootstrapped `DontDestroyOnLoad`) |
 | `Combat/` | 6 | `Health`, `Posture`, `DamageInfo`, `ParryMath`, `PostureMath`, `EmissiveFlash` |
-| `Player/` | 16 | `FirstPersonMotor`, `PlayerLook`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
+| `Player/` | 19 | `FirstPersonMotor` (+ `WallRunMath`, same file), `PlayerLook`, `LockOnController`, `LockOnMarker`, `OffhandViewmodel`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
 | `Enemies/` | 5 | `EnemyController` (FSM), `BossController`, `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
 | `Level/` | 6 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer` |
-| `UI/` | 10 | `HUDController`, `BarView`, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, **`MainMenuController`** |
-| `Feel/` | 7 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx` |
+| `UI/` | 10 | `HUDController`, `BarView`, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), **`MainMenuController`** |
+| `Feel/` | 22 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx`, `ParryImpulse` / `ParryImpact`, `DashImpulse` / `DashFx`, `SlideImpulse` / `SlideFx` (the `*Impulse` is pure math, the `*Fx` / `*Impact` applies it), `SlashFx`, `WeaponTrail`, `WeaponEmber`, `PyreArc`, `EnergyGlow`, `ItemVfx`, `DeathMist`, `SkyFollower`, `Starfield` |
 | `Progression/` | 4 | `SoulsWallet`, `Bloodstain`, `UpgradeMath`, `LevelUpMenu` |
 | `Data/` | 9 | ScriptableObject definitions (see below) |
 | `Debug/` | 5 | `DebugKeys`, `TestMenu`, `DebugHarness`, `FeatureTests`, `SandboxController` |
@@ -75,7 +75,7 @@ mutually exclusive; never raise it twice for one riposte.
 
 ## Singletons
 
-Ten, all exposing a static `I`. Note for any future multiplayer work: roughly half are per-player
+Twelve, all exposing a static `I`. Note for any future multiplayer work: roughly half are per-player
 concepts and would need de-singletoning first — see the design doc.
 
 | Singleton | Owns |
@@ -89,6 +89,8 @@ concepts and would need de-singletoning first — see the design doc.
 | `AudioManager` | SFX pool + crossfading music |
 | `CameraShake`, `CameraFX` | Camera feel |
 | `ScreenFlash` | Full-screen flashes |
+| `SettingsApplier` | Pushes `SettingsStore.Current` onto `PlayerLook`, `CameraFX`, `QualitySettings`, the URP volume clone. `DontDestroyOnLoad`, bootstrapped by `RuntimeInitializeOnLoadMethod` — nothing to place |
+| `SettingsMenu` | The settings panel, one instance per scene (title screen and pause path share the class) |
 
 ---
 
@@ -246,8 +248,31 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
 - **The same wall twice is refused** (normals within ~32°), so one face is not a free ladder; two facing walls
   alternate normals and chain. `maxWallJumps` (5) bounds a chimney to about **8-10 m of climb per airtime**,
   which is one tower section, not an elevator. Landing forgives the wall.
+- **Wall run (no binding).** Entered by *arriving*: airborne, off a 0.25 s cooldown, under the `maxWallRuns`
+  (3) budget, and then four gates in `WallRunMath.CanEnter` — `wallRunMinEntrySpeed` **7 m/s along the
+  face** (a sprint qualifies, a shuffle never does), falling slower than `wallRunMaxEntryFallSpeed` 9 (a run
+  extends a line, it does not undo a plummet), travel within `wallRunMaxApproachCos` 0.55 (~33°) of the wall
+  plane, and looking down the run within `wallRunMinLookAlongCos` 0.30 (~72°) — the intent term that makes it
+  feel chosen rather than sprung. Entry drops the into-wall component and floors `vel.y` at
+  `wallRunEntryUpSpeed` 3 (the catch, ~1.25 m of borrowed height). Gravity ramps `0.10× → 0.60×` on t² over
+  `wallRunMaxDuration` 1.6 s, so the end of the loan is legible while you are still on the wall. Speed along
+  the face bleeds at `wallRunSpeedDecay` 0.35/s (stick released) or is topped up at `wallRunAccel` 14 m/s²
+  toward `groundSpeed` (held forward); under `wallRunMinSustainSpeed` 5 the wall drops you — a sprint entry
+  rides the full clock, a scraping entry bleeds out at ~0.96 s. `wallRunStickSpeed` 2.5 presses you into the
+  face on displacement only. `Space` while running is the exit, `WallRunMath.Exit`: `vel.y = 10`, +7 along
+  the normal, **+4 along the run** (`wallRunExitTangentBoost`) — a wall jump throws you *off* the wall, a run
+  exit throws you *down the line*, clamped to `dashSpeed`. `PlayerLook` sums two roll channels about the
+  camera's own forward: a held `rollBias` of `wallRunCameraRoll` 13° toward the wall and a transient
+  `rollKick` of 7° away on exit; the aim vector never moves. Same-wall refusal and `lastWallNormal` are
+  shared with the wall jump. Full map: DATAFLOW "Movement — wall run".
+- **The motor keeps its own clock.** Every timer — dash, slide, coyote, jump buffer, wall-run cooldown — is
+  measured against a motor-local `now` advanced by `TimeScaleController.PlayerDelta`, never `Time.time`.
+  `Time.time` is the world clock and hitstop drives it to ~0.02×; on it a dash that landed a hit kept
+  travelling for the whole freeze and every window grew by the hitstop length. Hitstop now neither freezes
+  nor extends a dash, a slide or a coyote window.
 - **The movement path allocates nothing and is measured, not asserted.** `FindWall` is 0 bytes over 20 000
-  calls at 2.36 µs, and runs at most once per jump press. See DATAFLOW's Movement invariants.
+  calls at 2.36 µs, and runs at most once per jump press. The wall run adds two spherecasts on eligible
+  airborne frames and one per frame while running. See DATAFLOW's Movement invariants.
 
 ### Enemy aggression
 
@@ -845,26 +870,35 @@ as the HUD, but a HUD layout tweak must not silently move the menu.
 
 ### The blade family — weapon viewmodels
 
-Every weapon is a **short blade**, built from primitives by `PrefabFactory.BuildWeaponViewmodels`. The
-player's read, once visible arms landed, was that a short blade is the only thing that shows the swing
-*and* the hand at 95° FOV — a long blade is a pole across the frame and its arc leaves the screen. So
-length stopped being the differentiator and **mass and edge** took over: the on-screen extent above the
-fist sits in a deliberately tight 0.27–0.32 m band, and each weapon still has to answer *what does this
-do* in one glance.
+Four lengths, built from primitives by `PrefabFactory.BuildWeaponViewmodels`. The dagger pass had
+shrunk every weapon into a 0.27–0.32 m band because a long blade at 95° FOV became a pole across the
+frame — but **length was never what broke the frame; pose was.** A long weapon held vertically 0.6 m from
+the lens fills the screen; the same weapon held further out and *canted* lies diagonally across the
+lower-right corner and covers less than the old sword did. So the three properties the dagger set
+actually earned are now enforced by measurement — `WeaponSilhouette` rasterises the real prefab at the
+real `viewmodelScale` from the player's own eye, and `WeaponSilhouetteTests` holds every shipped weapon
+in every held pose to them: (1) nothing crosses the crosshair disc (≤ 1.5 % of it) in idle or guard,
+(2) nothing covers more than 5 % of the frame, (3) the tip stays inside the frame. Length is free again,
+and the extent above the fist now spans **0.32–0.72 m, a 2.3× spread** where the dagger pass had 1.2×.
 
-| Weapon | Silhouette | The one-glance tell | `viewmodelScale` | Extent above the fist |
-|---|---|---|---|---|
-| **Cerulean Edge** (sword) | Short cruciform dirk | The **cross** — the widest guard in the set, ending in knobbed quillons, over a parallel-sided blade and a disc pommel. Symmetric and featureless on purpose: the generalist looks like the default sword. Steel-blue `#8FB5D9`. | `0.52` | 0.321 m |
-| **Sunbreaker** (hammer) | Weighted war-dirk | **Top-heavy.** A blocky mass head ~4× the width of any blade, cheeks either side, an ember band across it and a stubby spike over the top, on the shortest and thickest haft. All the volume is above the hand. Ember `#E0661A`. | `0.50` | 0.298 m |
-| **Rosethorn** (dagger) | Needle stiletto | **Thinnest section in the set**, hard taper to a point, a guard barely wider than the blade. This is the reference silhouette — the one that reads best — so it is the one changed least. Green `#5FD66A`. | `0.50` | 0.271 m |
-| **Oathbreaker (TEST)** (dev) | Serrated arcane kris | The only **non-straight** blade (slices alternate side to side), the only **barbed** edge, twin rings at two radii, and pale violet `#C6A6FF` rather than the set's greens so it can never be read as Rosethorn. The cheat weapon should look ceremonial and wrong. | `0.53` | 0.318 m |
+| Weapon | Silhouette | The one-glance tell | `viewmodelScale` | Extent above the fist | Swing |
+|---|---|---|---|---|---|
+| **Rosethorn** (dagger) | Needle stiletto | **Unchanged to the millimetre.** Thinnest section in the set, hard taper, barely a guard. The reference the player already likes — the one weapon the length pass does not touch. Green `#5FD66A`. | `0.50` | 0.32 m | 0.22 s, 4-hit |
+| **Oathbreaker (TEST)** (dev) | Serrated arcane kris | The only **non-straight** blade, barbed down one edge, twin rings at two radii, pale violet `#C6A6FF` so it can never be read as Rosethorn. Deliberately *between* dagger and sword. | `0.46` | 0.50 m | 0.32 s |
+| **Cerulean Edge** (sword) | Cruciform arming sword | A real sword at last: 8-slice tapered blade, wide knobbed quillons, hand-and-a-half grip, disc pommel. Held across the lower-right corner so the whole length reads. Steel-blue `#8FB5D9`. | `0.46` | 0.62 m | 0.44 s, 3-hit |
+| **Sunbreaker** (hammer) | Maul | A long haft the fist grips **low**, carrying a blocky mass head, cheeks and a spike three quarters of a metre above the hand — the only weapon whose mass is at the *far* end, where the commitment can be seen. Ember `#E0661A`. | `0.50` | 0.72 m | 0.86 s, 2-hit |
 
-**Weight class is told by mass, not by reach.** A hammer that is dagger-length can no longer say "slow
-and heavy" by being long, so it says it by putting every cubic centimetre of its volume above the fist
-and by having the only grip the hand visibly has to open wider for. This is a real, acknowledged loss of
-information: reach is *not* encoded in the viewmodel at all and never was — `hitOffset` / `hitRadius` are
-camera-space and a 0.3 m viewmodel never reached 1.6 m — so the weapon's true range is still learned only
-from the cadence (`attackDuration` 0.22 s to 0.70 s), never from the model.
+**Reach is still not encoded in the viewmodel** — `hitOffset` / `hitRadius` are camera-space and always
+were (a 0.6 m model does not reach 2.1 m). The geometry *sells* the reach; the data *is* the reach
+(Rosethorn 1.3 + 0.9, Cerulean Edge 2.1 + 1.15, Sunbreaker 2.5 + 1.7), and the two are tuned to agree in
+direction, never in metres. Every step up the set is roughly 2× in swing time and +0.4–0.8 m of reach, so
+a swap is noticed inside one swing without reading a stat.
+
+**`Sword.parryPostureDamage = 25` is load-bearing, not a tuning knob.** 25 × 1.4 (the Marionette's
+`SpinPass` parry multiplier) × 6 = 210, exactly the Pale Marionette's posture bar;
+`MarionetteDataTests.SixCleanDeflects_BreakIt` asserts the six-deflect break against `Sword.asset` and
+`WeaponSilhouetteTests.SixDeflectEconomy_TheSwordStaysAt25` guards it from inside weapon-land. Change it
+and either keep the arithmetic landing on 6 or move `maxPosture` in the same edit.
 
 **`viewmodelScale` is shipped from `DataFactory`, per weapon** (rule 9). A geometry change in
 `PrefabFactory` without the matching scale is a weapon that quietly resizes on screen.

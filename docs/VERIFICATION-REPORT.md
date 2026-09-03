@@ -2,7 +2,7 @@
 
 What is actually proven about `vibegame1`, how it was proven, and — just as important — what is **not**.
 
-Run date: this session. Reproduce with the commands in [TOOLING.md](TOOLING.md).
+Run date: 2026-09-03. Before that day's fixes the same suite was 659–661 / 6–7 failing: the guard-entry sweep and the deathblow framing (see ENGINEERING-LOG, "The feature suite's dummy"). Reproduce with the commands in [TOOLING.md](TOOLING.md).
 
 Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -12,8 +12,8 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Suite | Scope | Result |
 |---|---|---|
-| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests`, `LockOnTrackingTests`, `ParryImpactTests`, `PyreArcTests` — plus `MarionetteDataTests` and `RevenantDataTests` (shipped-asset arithmetic) | **111 / 111 pass**, real Unity runner in batch mode |
-| `FeatureTests` | Behavioural, real systems in play mode | **666 passed · 0 failed · 0 skipped** (43.1 s), fresh play-mode session on `Level_01.unity` |
+| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests`, `LockOnTrackingTests`, `ParryImpactTests`, `PyreArcTests` — plus `MarionetteDataTests` and `RevenantDataTests` (shipped-asset arithmetic) | **382 / 382 pass**, real Unity runner in batch mode (2026-09-03, live editor via the MCP bridge) |
+| `FeatureTests` | Behavioural, real systems in play mode | **667 passed · 0 failed · 0 skipped** (42.5 s), fresh play-mode session on `Level_01.unity`, 2026-09-03 |
 
 The count rose from 633 with the **33 new `WindupPoses` checks** (below). The run immediately before it
 failed three — `Items_PhysicsPickup`, `Level_CheckpointHeals`, `Level_CheckpointRefillsFlask` — which

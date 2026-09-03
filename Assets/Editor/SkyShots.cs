@@ -216,7 +216,7 @@ namespace VibeGame1.EditorTools
 
         static void EnsureVolume(StringBuilder sb)
         {
-            foreach (var v in Object.FindObjectsByType<Volume>(FindObjectsSortMode.None))
+            foreach (var v in Object.FindObjectsByType<Volume>())
                 if (v.isGlobal && v.sharedProfile != null)
                 {
                     sb.AppendLine("post volume already in scene: " + v.sharedProfile.name);

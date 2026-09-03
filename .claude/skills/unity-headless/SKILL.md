@@ -18,6 +18,10 @@ difference matters.
 | **Play mode** (`FeatureTests`, `DebugHarness`) | **no** | **yes** |
 | Reads the user's real console / scene | no | yes |
 
+**The user's rule (2026-09-03): do NOT run a headless copy while their editor is open on the project.**
+Use the live bridge (section 4) — `run_tests` for EditMode, play mode for `FeatureTests`. The copy is for
+when there is no editor at all.
+
 **The copy proves arithmetic and assets. Only the bridge can run a frame of gameplay.** Do not describe
 work verified solely in a copy as "verified" without saying which half you did.
 

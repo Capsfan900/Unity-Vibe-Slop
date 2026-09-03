@@ -165,7 +165,7 @@ namespace VibeGame1
             // switch EVERY enemy off: a second body wandering into frame ruins a silhouette comparison.
             EnemyController host = null;
             float bestD = float.MaxValue;
-            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            foreach (var e in FindObjectsByType<EnemyController>())
             {
                 if (!e.IsAlive || !e.gameObject.activeInHierarchy) continue;
                 float d = Vector3.Distance(e.transform.position, combat.transform.position);
@@ -173,7 +173,7 @@ namespace VibeGame1
             }
             if (host == null) { L("noHostSpot"); Done = true; yield break; }
             Vector3 spot = host.transform.position;
-            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            foreach (var e in FindObjectsByType<EnemyController>())
                 e.gameObject.SetActive(false);
 
             GameObject prefab = null;
@@ -437,7 +437,7 @@ namespace VibeGame1
             // switch that enemy off, and instantiate a clean one of the requested kind there.
             EnemyController host = null;
             float bestD = float.MaxValue;
-            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            foreach (var e in FindObjectsByType<EnemyController>())
             {
                 if (!e.IsAlive || !e.gameObject.activeInHierarchy) continue;
                 float d = Vector3.Distance(e.transform.position, combat.transform.position);

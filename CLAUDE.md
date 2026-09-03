@@ -81,7 +81,7 @@ Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 | Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
 | Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
 
-Current: EditMode **176/176** (real Unity runner, batch mode), feature suite **666 passed / 0 failed /
+Current: EditMode **382/382** (real Unity runner, batch mode), feature suite **667 passed / 0 failed /
 0 skipped** from a fresh play-mode session ([report](docs/VERIFICATION-REPORT.md)). The EditMode suite
 grew from 32 in one session and covers shipped-asset arithmetic for the Marionette, the Revenant and the
 wands, the lock-on control law, the parry impulse, the Pyre arc and level jump-arc clearance. **A session that has been recompiled under

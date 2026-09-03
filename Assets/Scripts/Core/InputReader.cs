@@ -62,6 +62,10 @@ namespace VibeGame1
         public Vector2 MoveAxis => move != null ? move.ReadValue<Vector2>() : Vector2.zero;
         public Vector2 LookDelta => look != null ? look.ReadValue<Vector2>() : Vector2.zero;
         public bool LookIsMouse => look != null && look.activeControl != null && look.activeControl.device is Mouse;
+        /// <summary>The physical left mouse button, this frame, regardless of action maps. Exists so
+        /// PlayerLook can re-lock the cursor inside a user gesture (WebGL) without touching the Input
+        /// System itself — this class is the only one that does (hard rule 2).</summary>
+        public bool MouseClickedThisFrame => Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
 
         public bool JumpPressed => jump != null && jump.WasPressedThisFrame();
         public bool JumpHeld => jump != null && jump.IsPressed();

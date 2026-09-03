@@ -199,13 +199,19 @@ namespace VibeGame1
         /// <summary>Spawn a controllable, non-aggressive grunt near the player for combat tests.</summary>
         IEnumerator SpawnDummy(Vector3 position, Action<EnemyController> onReady)
         {
-            GameObject prefab = null;
+            // A plain grunt, deliberately. The spawner order FindObjectsByType returns is not stable,
+            // and once the level carried Legendary_* spawners (isBoss is false on those) the "first
+            // non-boss spawner" was sometimes the Ninja: an imported skinned model whose mark height and
+            // bounds are its own, so Deathblow_* framing failed or passed depending on scene order.
+            GameObject prefab = null, fallback = null;
             foreach (var s in FindObjectsByType<EnemySpawner>())
             {
                 if (s.isBoss || s.prefab == null) continue;
-                prefab = s.prefab;
-                break;
+                if (s.prefab.name.StartsWith("Legendary")) { if (fallback == null) fallback = s.prefab; continue; }
+                if (prefab == null || s.prefab.name == "Enemy_Grunt") prefab = s.prefab;
+                if (s.prefab.name == "Enemy_Grunt") break;
             }
+            if (prefab == null) prefab = fallback;
             if (prefab == null) { onReady(null); yield break; }
 
             // Snap onto the NavMesh before spawning. Placing a dummy blindly in front of the player can
@@ -810,6 +816,27 @@ namespace VibeGame1
 
             yield return SettleTimeScale();
             Check("Hitstop_ExpiresAutomatically", ts.WorldScale > 0.99f, "world=" + ts.WorldScale.ToString("0.###"));
+
+            // The other half of the contract: hitstop must not EXTEND the player either. The motor's
+            // timers once ran on Time.time, which hitstop drives to ~0.02x, so a dash landed with a
+            // hit kept travelling at dashSpeed for the whole freeze. The motor now keeps its own clock.
+            var hsMotor = UnityEngine.Object.FindAnyObjectByType<FirstPersonMotor>();
+            if (hsMotor != null)
+            {
+                yield return WaitUntilOrTimeout(() => hsMotor.IsGrounded, 4f);
+                float savedCd = hsMotor.dashCooldown;
+                hsMotor.dashCooldown = 0.02f;
+                hsMotor.TryDash();
+                yield return null;
+                ts.HitStop(0.6f);
+                float t0 = Time.unscaledTime;
+                yield return WaitUntilOrTimeout(() => !hsMotor.IsDashing, 2f);
+                float ran = Time.unscaledTime - t0;
+                hsMotor.dashCooldown = savedCd;
+                Check("Hitstop_DashEndsOnPlayerClock", ran < hsMotor.dashDuration + 0.1f,
+                    "dash ran " + ran.ToString("0.###") + "s under hitstop, dashDuration=" + hsMotor.dashDuration.ToString("0.###"));
+                yield return SettleTimeScale();
+            }
 
             // A pause request DOES stop the player.
             int handle = ts.Request(0f);
@@ -1646,21 +1673,28 @@ namespace VibeGame1
             // conservative in the safe direction.
             float nearest = float.MaxValue;
             bool inside = false;
+            string nearestName = "";
             foreach (var r in dummy.GetComponentsInChildren<Renderer>(true))
             {
                 if (r == null || !r.enabled || r.transform.IsChildOf(mark.transform)) continue;
                 if (r.bounds.Contains(eye)) inside = true;
-                nearest = Mathf.Min(nearest, Vector3.Distance(r.bounds.ClosestPoint(eye), eye));
+                float d = Vector3.Distance(r.bounds.ClosestPoint(eye), eye);
+                if (d < nearest)
+                {
+                    nearest = d;
+                    nearestName = r.name + "<" + r.GetType().Name + "> size=" + r.bounds.size.ToString("0.0");
+                }
             }
             Check("Deathblow_StaggerPoseClearsNearPlane_" + tag,
                 !inside && nearest > 0.03f,
                 "nearest=" + nearest.ToString("0.00") + "m cameraInsideBody=" + inside +
-                " standoff=" + standoff.ToString("0.00") +
+                " standoff=" + standoff.ToString("0.00") + " via " + nearestName +
                 " (a break that pitches the body FORWARD walks the chest through the lens)");
             // And a real margin, not just technically-not-clipping: the whole point of the standoff is
             // that the victim stays framed.
             Check("Deathblow_StaggerPoseStaysFramed_" + tag, nearest > 0.5f,
-                "nearest=" + nearest.ToString("0.00") + "m (under half a metre the body IS the frame)");
+                "nearest=" + nearest.ToString("0.00") + "m via " + nearestName +
+                " (under half a metre the body IS the frame)");
 
             // ---- 2. THE MARK IS ON THE TORSO, NOT OVERHEAD ------------------------------------
             var dm = mark.GetComponent<DeathblowMarker>();
@@ -2519,7 +2553,7 @@ namespace VibeGame1
             // unauthored attacks as failures. The legendaries are content: they ride the cone-derived
             // fallback on purpose, and the last check in this test is what proves that still works.
             GameObject gruntPf = null, heavyPf = null, bossPf = null;
-            foreach (var sp in FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None))
+            foreach (var sp in FindObjectsByType<EnemySpawner>())
             {
                 if (sp.prefab == null) continue;
                 if (sp.prefab.GetComponentInChildren<BossController>(true) != null) { bossPf = sp.prefab; continue; }
@@ -2598,7 +2632,7 @@ namespace VibeGame1
             // rather than reading a field, because the fallback lives inside EnemyVisuals.PoseFor.
             if (gruntPf == null) { Skip("Windup_UnauthoredFallsBack", "no grunt prefab"); yield break; }
             EnemyController host = null;
-            foreach (var e in FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            foreach (var e in FindObjectsByType<EnemyController>())
                 if (e.IsAlive && e.gameObject.activeInHierarchy) { host = e; break; }
             if (host == null) { Skip("Windup_UnauthoredFallsBack", "no live enemy to borrow a spot from"); yield break; }
 
@@ -3160,7 +3194,12 @@ namespace VibeGame1
             health.Invulnerable = false;
             health.TakeDamage(new DamageInfo { damage = 999999f });
             Check("Progression_SoulsLostOnDeath", SoulsWallet.I.Souls == 0, "souls=" + SoulsWallet.I.Souls);
-            var dropped = FindAnyObjectByType<Bloodstain>();
+            // Any stain, not the first found: an earlier section's stain can still be in the scene
+            // (the stain is only recovered by touching it), and FindAnyObjectByType picked that one.
+            Bloodstain dropped = null;
+            foreach (var st in FindObjectsByType<Bloodstain>())
+                if (st != null && st.amount == carried) { dropped = st; break; }
+            if (dropped == null) dropped = FindAnyObjectByType<Bloodstain>();
             Check("Progression_BloodstainCarriesSouls", dropped != null && dropped.amount == carried,
                 dropped == null
                     ? "no bloodstain spawned — LevelManager.bloodstainPrefab unassigned?"
@@ -3796,7 +3835,7 @@ namespace VibeGame1
                 var kc = kill.GetComponent<Collider>();
                 float lowest = float.MaxValue;
                 string lowestName = "none";
-                foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+                foreach (var r in FindObjectsByType<MeshRenderer>())
                 {
                     if (r.gameObject.layer != 0) continue;               // Sky and FX live elsewhere
                     if (r.transform.root.name != "Level") continue;      // built geometry only
