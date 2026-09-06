@@ -87,9 +87,11 @@ namespace VibeGame1
             var d = GameManager.I.statsData;
             var feel = GameManager.I.feel;
 
-            Vector3 to = a.attacker.transform.position - transform.position; to.y = 0f;
-            Vector3 f = transform.forward; f.y = 0f;
-            bool facing = to.sqrMagnitude < 0.01f || Vector3.Angle(f, to) <= d.facingConeDeg;
+            // Facing is judged against where the attack COMES FROM: the attacker for a swing, against
+            // the travel for a bolt (AttackInfo.incomingDirection; combat plan 2026-09-06, P2). Melee
+            // passes a zero direction and resolves exactly as before.
+            Vector3 to = ParryMath.SourceDirection(a.incomingDirection, a.attacker.transform.position, transform.position);
+            bool facing = ParryMath.IsFacing(transform.forward, to, d.facingConeDeg);
 
             var result = parry.Resolve(a, facing);
             var w = weapons.Current;

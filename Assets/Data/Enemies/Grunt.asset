@@ -45,7 +45,7 @@ MonoBehaviour:
   projectileMinRange: 3
   projectileMaxRange: 32
   projectileLead: 0.8
-  parriedProjectileDamage: 30
+  parriedProjectileDamage: 20
   parriedProjectilePosture: 40
   parrySpeedGain: 9
   soulValue: 40

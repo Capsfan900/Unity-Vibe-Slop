@@ -259,7 +259,11 @@ namespace VibeGame1.EditorTools
             grunt.rangedOnly = true; grunt.projectileLead = 0.8f;
             grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 32f;
             grunt.projectileMinRange = 3f; grunt.projectileMaxRange = 32f;
-            grunt.parriedProjectileDamage = 30f; grunt.parriedProjectilePosture = 40f;
+            // P1 (combat plan 2026-09-06): a reflected bolt OPENS a sentry, it does not kill it. At 30 damage
+            // two reflects were exactly the Grunt's 60 HP, and Health.TakeDamage runs before Posture.Add, so
+            // the body died on the frame it would have staggered and the sentry dash never had a target.
+            // Invariant (ProjectileTests): ceil(maxPosture / parriedPosture) * parriedDamage < maxHP.
+            grunt.parriedProjectileDamage = 20f; grunt.parriedProjectilePosture = 40f;
             grunt.parrySpeedGain = 9f;
             EditorUtility.SetDirty(grunt);
 
@@ -295,7 +299,7 @@ namespace VibeGame1.EditorTools
             heavy.rangedOnly = true; heavy.projectileLead = 0.8f;
             heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 28f;
             heavy.projectileMinRange = 3f; heavy.projectileMaxRange = 32f;
-            heavy.parriedProjectileDamage = 40f; heavy.parriedProjectilePosture = 50f;
+            heavy.parriedProjectileDamage = 30f; heavy.parriedProjectilePosture = 50f;   // 3 reflects: 90 of 130 HP, 150 >= 110 posture
             heavy.parrySpeedGain = 9f;
             EditorUtility.SetDirty(heavy);
 

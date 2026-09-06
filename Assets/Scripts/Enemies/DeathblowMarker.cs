@@ -107,6 +107,11 @@ namespace VibeGame1
         public float minScale = 0.10f;
         [Tooltip("Ceiling so a distant enemy's mark cannot grow into the head markers.")]
         public float maxScale = 0.42f;
+        [Tooltip("Far cap for a SENTRY (EnemyData.rangedOnly): the mark may grow to this so 'open' reads from " +
+                 "across a span, where the duel's 0.42 m cap is a dot at 25 m. Written by EnemyVisuals.Setup.")]
+        public float sentryMaxScale = 1.1f;
+        [Tooltip("Set by EnemyVisuals.Setup for a sentry: use sentryMaxScale instead of maxScale.")]
+        public bool sentry;
         [Tooltip("Cap on surfaceOffset as a fraction of the distance to the eye, so the spot cannot end " +
                  "up in the player's face when the body is on top of them.")]
         public float frontOffsetMaxFraction = 0.35f;
@@ -190,7 +195,7 @@ namespace VibeGame1
             if (cam != null)
             {
                 float d = Vector3.Distance(cam.position, transform.position);
-                world = Mathf.Clamp(d * angularSize, minScale, maxScale);
+                world = Mathf.Clamp(d * angularSize, minScale, sentry ? sentryMaxScale : maxScale);
             }
             float pulse = 1f + Mathf.Cos(t * pulseSpeed) * pulseAmount;
             float k = world * pulse / parentScale;

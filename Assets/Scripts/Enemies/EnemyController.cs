@@ -680,6 +680,9 @@ namespace VibeGame1
             SetState(State.Staggered);
             if (visuals != null) { visuals.ClearTelegraph(); visuals.Slump(true); }
             AudioManager.Play(Sfx.Stagger);
+            // P4: a sentry breaking is a sting on top of the stagger -- the one sound on a span that says
+            // "look up, it is open", since the body itself is 25 m away and does not glow.
+            if (data != null && data.rangedOnly) AudioManager.Play(Sfx.PostureBreak, 0.7f, 1.35f, 0.03f);
         }
 
         protected virtual void HandleStaggerEnded()

@@ -101,6 +101,23 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void AReflectedBoltOpensASentry_ItNeverKillsItFirst()
+        {
+            // Combat plan 2026-09-06, P1. The sentry dash needs a body that is ALIVE and STAGGERED; a reflect
+            // applies health before posture, so the reflects it takes to break posture must leave HP over.
+            foreach (var path in new[] { "Assets/Data/Enemies/Grunt.asset", "Assets/Data/Enemies/Heavy.asset" })
+            {
+                var e = AssetDatabase.LoadAssetAtPath<EnemyData>(path);
+                if (e == null) Assert.Ignore("run 3. Create Data");
+                if (!e.rangedOnly) continue;
+                int reflectsToBreak = Mathf.CeilToInt(e.maxPosture / Mathf.Max(1f, e.parriedProjectilePosture));
+                float hpSpent = reflectsToBreak * e.parriedProjectileDamage;
+                Assert.Less(hpSpent, e.maxHP, e.name + ": " + reflectsToBreak + " reflects to break posture cost " + hpSpent +
+                    " of " + e.maxHP + " HP -- the sentry dies before it can be dashed");
+            }
+        }
+
+        [Test]
         public void TheLaunchSlowsInsideTheCueDistance_AndNeverBeyondIt()
         {
             // 32 m/s x 0.36 s = 11.52 m. Beyond that the data speed; inside it the flight is pinned at

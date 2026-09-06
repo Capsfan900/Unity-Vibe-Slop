@@ -224,6 +224,13 @@ namespace VibeGame1
         /// method (its materials will not be the generated <c>M_*</c> set) rather than extending it.</summary>
         public virtual void Setup(EnemyData d)
         {
+            // P4 (combat plan 2026-09-06): a sentry's "open" has to read from across the span, so its
+            // deathblow glyph is allowed a far cap of ~1.1 m instead of the duel's 0.42.
+            if (deathblowMarker != null)
+            {
+                var mk = deathblowMarker.GetComponent<DeathblowMarker>();
+                if (mk != null) mk.sentry = d != null && d.rangedOnly;
+            }
             var list = new System.Collections.Generic.List<Renderer>();
             if (body) list.Add(body);
             if (weapon) list.Add(weapon);

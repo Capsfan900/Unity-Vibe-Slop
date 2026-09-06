@@ -1180,6 +1180,7 @@ namespace VibeGame1.EditorTools
             mark.angularSize = 0.115f;   // ~5% of the frame at 95 deg FOV, at any distance
             mark.minScale = 0.10f;
             mark.maxScale = 0.42f;
+            mark.sentryMaxScale = 1.1f;   // P4: a sentry's open state reads at 25 m (~2.5 deg); EnemyVisuals.Setup flips `sentry`
             mark.frontOffsetMaxFraction = 0.35f;
             mark.spinSpeed = 110f;
             mark.bobAmount = 0.05f;

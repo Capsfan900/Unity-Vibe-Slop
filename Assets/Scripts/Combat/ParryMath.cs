@@ -1,8 +1,33 @@
+using UnityEngine;
+
 namespace VibeGame1
 {
     /// <summary>Pure parry timing rules. Unit tested in Assets/Editor/Tests.</summary>
     public static class ParryMath
     {
+        /// <summary>
+        /// Where the attack comes FROM, flat, as seen from the player. An attack that travels
+        /// (<paramref name="incomingDirection"/> non-zero: a bolt) comes from against its travel; one
+        /// that does not (a swing) comes from the attacker's position. Melee callers pass zero and get
+        /// exactly the old bearing, so the duel is untouched.
+        /// </summary>
+        public static Vector3 SourceDirection(Vector3 incomingDirection, Vector3 attackerPosition, Vector3 playerPosition)
+        {
+            Vector3 d = new Vector3(incomingDirection.x, 0f, incomingDirection.z);
+            if (d.sqrMagnitude > 1e-6f) return -d;
+            Vector3 to = attackerPosition - playerPosition; to.y = 0f;
+            return to;
+        }
+
+        /// <summary>The facing veto: the source lies inside <paramref name="coneDeg"/> of the flat forward. A degenerate source (on top of you) is facing.</summary>
+        public static bool IsFacing(Vector3 forward, Vector3 sourceDirection, float coneDeg)
+        {
+            Vector3 f = new Vector3(forward.x, 0f, forward.z);
+            Vector3 s = new Vector3(sourceDirection.x, 0f, sourceDirection.z);
+            if (s.sqrMagnitude < 0.01f || f.sqrMagnitude < 1e-6f) return true;
+            return Vector3.Angle(f, s) <= coneDeg;
+        }
+
         /// <param name="elapsedSincePress">Seconds between the parry press and the attack impact.</param>
         /// <param name="perfectWindow">Perfect window length starting at the press.</param>
         /// <param name="lateWindow">Block window length following the perfect window.</param>

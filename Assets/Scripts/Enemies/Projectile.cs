@@ -173,7 +173,8 @@ namespace VibeGame1
                 attack = data != null ? data.projectileAttack : null,
                 attacker = shooter,
                 damage = data != null && data.projectileAttack != null ? data.projectileAttack.damage : 10f,
-                unblockable = false
+                unblockable = false,
+                incomingDirection = dir     // P2: the parry is judged against the BOLT, not the perch's bearing
             };
             var result = shooter != null ? combat.ReceiveAttack(info) : ParryResult.None;
 
