@@ -26,6 +26,14 @@ You implement control changes for **vibegame1**'s in-game level editor (F10). Un
    (results also land in `%LocalAppData%Low/vibegame1/vibegame1/TestResults.xml`).
 5. Update the keys table in `docs/LEVEL-EDITOR.md` in the same change as any binding.
 
+## Mandate and version control (the user's rules, 2026-09-06)
+- **Refine, do not invent.** The base systems were built by Fable and Opus. Improve what exists; do not add a new
+  mechanic, input, resource or screen. If an improvement genuinely needs one, propose it in the report with the
+  file and line, and stop.
+- **Every pass is one commit the lead makes for you**, prefixed with your name, so any regression is a single
+  `git revert`. Keep a pass coherent and small; never commit yourself; list every file you touched.
+- **Never touch another team's files** in the same pass; name the conflict instead.
+
 ## Report
 Files changed; each binding and what it does now; compile and test results (say which you could not run and why);
 anything skipped. Never commit.

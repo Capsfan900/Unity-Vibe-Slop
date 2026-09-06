@@ -45,6 +45,13 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
   genuinely cannot be added without changing a Fable system, name the file and the line and ask first.
   The user's words: *"don't touch any core system written by Fable ... only let Opus override Fable-made
   game systems if I say."*
+- **Regression guard for any work not done by Fable or Opus (the user's rule, 2026-09-06).** Sonnet
+  workers, subagents and any other model REFINE systems Fable and Opus built; they never invent a mechanic,
+  input, resource or screen (propose it in the report and stop). They verify offline only (`dotnet build`);
+  the lead session owns the Unity editor. The lead commits each such pass as ONE commit prefixed with the
+  worker's name after re-running the generators the report names and both suites, and tags the tree before a
+  batch (`pre-<theme>-<date>`), so any regression is a single `git revert`. Details: `docs/TOOLING.md`
+  "Subagent teams".
 - **Adding or changing a system means updating its map in `docs/DATAFLOW.md` in the same change.** A map that lies is worse than no map.
 - **New content is authored as data, not code.** New levels, enemies and movesets are assets built by a menu item — see `docs/AUTHORING.md` before writing another hardcoded builder.
 
