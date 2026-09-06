@@ -3,9 +3,10 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// A parkour enemy DETONATES when it dies (2026-09-06): it throws a <see cref="SentryFlare"/> up over the
-    /// route it was covering. It dies to its own reflected bolts (two or three clean deflects), so the flare
-    /// is the reward for the parries -- a floating, optional grapple point, never the way to finish it.
+    /// A parkour enemy DETONATES (2026-09-06): on a posture break OR on death by its own reflected bolts it
+    /// explodes and throws a <see cref="SentryFlare"/> up over the route it was covering. It never waits to be
+    /// finished. The one exception is a finish by the grapple hook (pull, break, execute in one frame): that
+    /// kill is the reward itself and throws no flare.
     ///
     /// <para>Lives on the Sentry_* prefabs only (PrefabFactory adds it beside ProjectileShooter when the data
     /// shoots) and touches no brain code: it listens to Posture.OnBroken like the controller does. Every
@@ -58,23 +59,54 @@ namespace VibeGame1
         }
 
         Health health;
+        Posture posture;
+        bool pendingBurst;
 
         void OnEnable()
         {
             if (health == null) health = GetComponent<Health>();
+            if (posture == null) posture = GetComponent<Posture>();
             if (health != null) health.OnDied += HandleDied;
+            if (posture != null) posture.OnBroken += HandleBroken;
         }
-        void OnDisable() { if (health != null) health.OnDied -= HandleDied; }
+        void OnDisable()
+        {
+            if (health != null) health.OnDied -= HandleDied;
+            if (posture != null) posture.OnBroken -= HandleBroken;
+        }
+
+        bool IsParkour => ctrl != null && ctrl.data != null && ctrl.data.rangedOnly;
 
         /// <summary>
-        /// 2026-09-06 (user): the flare comes on DEATH -- and a parkour enemy dies to its own reflected bolts
-        /// (two or three clean deflects). The grapple is optional traversal, never the way to finish it.
+        /// 2026-09-06 (user): a parkour enemy NEVER waits to be finished. A posture break is a detonation --
+        /// deferred one frame so the grapple hook, which breaks and executes in the same frame, can claim
+        /// the body first (that finish throws no flare).
+        /// </summary>
+        void HandleBroken()
+        {
+            if (fired || !IsParkour || ctrl == null || !ctrl.IsAlive) return;
+            pendingBurst = true;
+        }
+
+        void Update()
+        {
+            if (!pendingBurst) return;
+            pendingBurst = false;
+            if (fired || ctrl == null) return;
+            if (ctrl.Current == EnemyController.State.Executed || ctrl.DiedExecuted) return;   // the hook got it: no flare
+            if (!ctrl.IsAlive) return;                                                          // died meanwhile: HandleDied decided
+            fired = true;
+            Detonate();
+        }
+
+        /// <summary>
+        /// Death by its own reflected bolt (or anything that is not an execute) throws the flare. A death
+        /// by deathblow / grapple-finish throws nothing: the finish is the reward, not a lift.
         /// </summary>
         void HandleDied()
         {
-            if (fired || ctrl == null) return;
-            var data = ctrl.data;
-            if (data == null || !data.rangedOnly) return;   // a melee body that shares the prefab code never bursts
+            if (fired || !IsParkour || ctrl == null) return;
+            if (ctrl.Current == EnemyController.State.Executed || ctrl.DiedExecuted) return;
             fired = true;
             Detonate();
         }

@@ -42,6 +42,9 @@ namespace VibeGame1
         public Posture Posture { get; private set; }
         public EnemyAttackData CurrentAttack => attack;
         public bool IsStaggered => Current == State.Staggered;
+        /// <summary>True once the body died to a deathblow / execute (set in Die, before the death events fire). A
+        /// parkour enemy finished this way throws no flare (SentryBurst).</summary>
+        public bool DiedExecuted { get; private set; }
         public bool IsAlive => Current != State.Dead;
 
         protected IEnemyLocomotion locomotion;
@@ -780,6 +783,7 @@ namespace VibeGame1
             if (Current == State.Dead) return;
             // Captured before the state change: a body that dies mid-deathblow gets the grander burst.
             bool executed = Current == State.Executed;
+            DiedExecuted = executed;
             SetState(State.Dead);
             combo = null;
             if (locomotion != null) locomotion.Disable();

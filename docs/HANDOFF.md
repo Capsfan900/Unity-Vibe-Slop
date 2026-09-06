@@ -7,7 +7,7 @@ Last session: **2026-09-04, late evening** (Fable 5.1, four parallel forks).
 
 ## What happened
 
-**Latest (2026-09-06 late, Fable 5.1):** (1) the user's tweak -- parkour enemies are FINISHED BY PARRYING (2-3 reflects
+**Latest (2026-09-06 late, Fable 5.1):** (0) LAST: a parkour enemy NEVER waits to be finished -- a posture break detonates it next frame (flare); a grapple-hook finish (Break+Execute same frame, EnemyController.DiedExecuted) kills with NO flare; FeatureTests Flare_BreakDetonates / Flare_ExecuteFinishThrowsNothing prove both. (1) the user's tweak -- parkour enemies are FINISHED BY PARRYING (2-3 reflects
 kill), the flare comes on death and is optional; first type renamed `pshooter_enemy01` (`pshooter_enemy02` heavy);
 bolts 40/36 m/s, full lead + in-flight homing so they never sail past unparriable, core 0.55, hitRadius 1.0. (2) Both
 teams now run on OPUS; Opus AUDITED their Sonnet passes (halo double-scale, ACES overshoot, pulse budget, doc lies;

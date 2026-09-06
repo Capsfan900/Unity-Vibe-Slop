@@ -1882,16 +1882,28 @@ namespace VibeGame1
             if (burst == null) { Destroy(go); yield break; }
 
             int flaresBefore = SentryFlare.Live.Count;
-            // 2026-09-06: the flare comes on DEATH (a parkour enemy dies to its own reflected bolts); a posture
-            // break alone throws nothing and the body stays alive to be parried again.
+            // 2026-09-06 (user): a parkour enemy never waits to be finished -- a posture break IS the detonation
+            // (deferred one frame so a same-frame grapple finish can claim the body), and it dies on the spot.
             e.Posture.Break();
-            yield return null;
-            Check("Flare_BreakAloneThrowsNothing", e.IsAlive && SentryFlare.Live.Count == flaresBefore, "live=" + SentryFlare.Live.Count + " alive=" + e.IsAlive);
-            e.Health.TakeDamage(new DamageInfo { damage = 999999f, source = combat.gameObject });
-            yield return null;
-            Check("Flare_DeathDetonates", !e.IsAlive, "state=" + e.Current);
-            Check("Flare_DeathThrowsAFlare", SentryFlare.Live.Count == flaresBefore + 1 && burst.LastFlare != null,
+            yield return null; yield return null;
+            Check("Flare_BreakDetonates", !e.IsAlive, "state=" + e.Current);
+            Check("Flare_BreakThrowsAFlare", SentryFlare.Live.Count == flaresBefore + 1 && burst.LastFlare != null,
                 "live=" + SentryFlare.Live.Count);
+
+            // The exception: a finish by the hook (break + execute in one frame, then the killing blow) throws no flare.
+            var go2 = Instantiate(sentryPf, pos + Vector3.right * 2.5f, Quaternion.LookRotation(-combat.transform.forward));
+            go2.name = "~TestSentry2";
+            var e2 = go2.GetComponent<EnemyController>();
+            if (e2 != null) e2.aggroLocked = true;
+            yield return null; yield return null;
+            int flaresMid = SentryFlare.Live.Count;
+            e2.Posture.Break();
+            e2.BeginExecuted(combat.transform);
+            e2.Health.TakeDamage(new DamageInfo { damage = 999999f, source = combat.gameObject, isExecute = true });
+            yield return null; yield return null;
+            Check("Flare_ExecuteFinishThrowsNothing", !e2.IsAlive && SentryFlare.Live.Count == flaresMid,
+                "alive=" + e2.IsAlive + " live=" + SentryFlare.Live.Count + " (was " + flaresMid + ")");
+            Destroy(go2);
             var flare = burst.LastFlare;
             if (flare == null) yield break;
             yield return WaitRealtime(0.4f);

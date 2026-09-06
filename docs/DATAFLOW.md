@@ -730,11 +730,15 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
 GameEvents.PlayerRespawned → every ItemPickup re-enables; PlayerItems clears
 
 THE SENTRY FLARE (2026-09-06; parkour_enemies)
-  Health.OnDied on a pshooter_* → SentryBurst.HandleDied (data.rangedOnly only)   [on DEATH, not the posture break]
-    → Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5) + the burst (2.4 m flash,
-      2.6 m ring shockwave, sparks, Thunder, shake -- vfx-art-team pass 1).
-      A parkour enemy dies to its own REFLECTED BOLTS (parriedProjectileDamage 30 on 60 HP = 2 deflects; 45 on
-      130 HP = 3): PARRYING is how it is finished. The flare is optional traversal, never the way to kill it.
+  Posture.OnBroken on a pshooter_* → SentryBurst.HandleBroken → pendingBurst, resolved NEXT frame in Update:
+      still alive and not Executed → Detonate() (kills through Health.TakeDamage: souls, EnemyKilled, mist) + the flare.
+      A parkour enemy NEVER waits to be finished (user, 2026-09-06).
+  Health.OnDied on a pshooter_* → SentryBurst.HandleDied: not Executed / DiedExecuted → Detonate() (the flare).
+      The reflected bolts kill it (parriedProjectileDamage 30 on 60 HP = 2 deflects; 45 on 130 HP = 3).
+  THE EXCEPTION: the grapple hook (PlayerItems.PullCo: Break + ExecuteNow in one frame, State.Executed, then the
+      killing blow) -- EnemyController.DiedExecuted -- throws NO flare. The finish is the reward, not a lift.
+  Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5) + the burst (2.4 m flash,
+      2.6 m ring shockwave, sparks, Thunder, shake). The flare is optional traversal.
   SentryFlare.Update (scaled time): position = FlareMath.Position(origin, v, g, t) -- floats up ~10 m, hangs, sinks;
       glow = 1 - t/life drives size and colour; Grappleable while glow > MinGrappleGlow 0.08; gone at life.
       SentryFlare.Live is the registry.
