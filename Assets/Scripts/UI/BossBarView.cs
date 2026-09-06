@@ -34,6 +34,9 @@ namespace VibeGame1
 
         void OnStarted(BossController b)
         {
+            // The flag can still be latched from the last fight (or from the moment before this boss died);
+            // a re-shown bar must not open mid-beat.
+            if (posture != null) posture.SetNearBreak(false);
             if (root != null) root.SetActive(true);
             if (nameText != null && b != null && b.data != null) nameText.text = b.data.displayName;
         }
@@ -57,8 +60,13 @@ namespace VibeGame1
             posture.SetNearBreak(r >= EnemyPostureBar.NearBreakRatio, BarView.NearBreakStrength(r, EnemyPostureBar.NearBreakRatio), EnemyPostureBar.NearBreakHz);
         }
 
-        void OnDefeated() { Invoke(nameof(Hide), 1.5f); }
+        // Broken/defeated shows the break read, not the near-break beat (mirrors EnemyPostureBar's !broken gate).
+        void OnDefeated() { if (posture != null) posture.SetNearBreak(false); Invoke(nameof(Hide), 1.5f); }
 
-        void Hide() { if (root != null) root.SetActive(false); }
+        void Hide()
+        {
+            if (posture != null) posture.SetNearBreak(false);
+            if (root != null) root.SetActive(false);
+        }
     }
 }

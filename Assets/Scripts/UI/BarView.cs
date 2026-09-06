@@ -10,6 +10,11 @@ namespace VibeGame1
     /// Unity's Image ignores type=Filled/fillAmount entirely when the Image has no sprite (it falls
     /// back to a plain quad), which silently left every bar in this HUD rendering permanently full.
     /// Anchor-driving works with or without a sprite and is independent of the pivot.
+    ///
+    /// COLOUR OWNERSHIP: BarView is the sole runtime owner of `fill.color`. Update() applies, in priority
+    /// order, a Flash override, the full-bar pulse (pulseWhenFull), the near-break beat, and otherwise the
+    /// base `fillColor` — but only ONCE on the falling edge of an override, so nothing is written every
+    /// frame on a resting bar. No other script may write `fill.color`; call SetColor/Flash/SetNearBreak.
     /// </summary>
     public class BarView : MonoBehaviour
     {
@@ -27,6 +32,7 @@ namespace VibeGame1
         Color flashColor = Color.white;
 
         bool nearBreak;
+        bool wasOverriding;
         float nearBreakStrength;
         float nearBreakHz = 4.5f;
 
@@ -38,9 +44,13 @@ namespace VibeGame1
         /// world-space bar already gives.</summary>
         public bool NearBreak => nearBreak;
 
+        /// <summary>The clamped 0-1 beat strength last handed to SetNearBreak.</summary>
+        public float NearBreakStrengthValue => nearBreakStrength;
+
         void Awake()
         {
             if (fill != null) fill.color = fillColor;
+            wasOverriding = false;
             SetFillRatio(fill, target);
             SetFillRatio(ghost, ghostValue);
         }
@@ -60,7 +70,7 @@ namespace VibeGame1
         public void SetColor(Color c)
         {
             fillColor = c;
-            if (fill != null && !pulseWhenFull && Time.unscaledTime >= flashUntil) fill.color = c;
+            if (fill != null && !pulseWhenFull && Time.unscaledTime >= flashUntil) { fill.color = c; wasOverriding = false; }
         }
 
         /// <summary>Briefly override the fill colour (posture break, big heal, etc). Unscaled time.</summary>
@@ -107,13 +117,16 @@ namespace VibeGame1
             if (Time.unscaledTime < flashUntil)
             {
                 fill.color = flashColor;
+                wasOverriding = true;
                 return;
             }
 
             if (pulseWhenFull && target >= 0.999f)
             {
                 float k = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f);
+                // 0.7 is how far the pulse lerps toward white, NOT a threshold of any kind.
                 fill.color = Color.Lerp(fillColor, Color.white, k * 0.7f);
+                wasOverriding = true;
                 return;
             }
 
@@ -121,10 +134,17 @@ namespace VibeGame1
             {
                 float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * nearBreakHz * Mathf.PI * 2f);
                 fill.color = Color.Lerp(fillColor, Color.white, 0.55f * nearBreakStrength * beat);
+                wasOverriding = true;
                 return;
             }
 
-            fill.color = fillColor;
+            // Falling edge only: restore the base colour once when an override ends, so a resting bar
+            // does not write fill.color (and dirty the canvas) every frame.
+            if (wasOverriding)
+            {
+                fill.color = fillColor;
+                wasOverriding = false;
+            }
         }
 
         /// <summary>
