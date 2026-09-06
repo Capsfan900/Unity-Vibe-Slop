@@ -24,15 +24,16 @@ namespace VibeGame1
         public const string ParkourMovesets = MovesetsRoot + "/parkour_enemies";
         public const string SoulsMovesets = MovesetsRoot + "/souls_enemies";
 
-        public const string ParkourPrefix = "Sentry_";
+        /// <summary>The user's naming for the parkour enemy types (2026-09-06): pshooter_enemy01, pshooter_enemy02, …</summary>
+        public const string ParkourPrefix = "pshooter_";
 
         /// <summary>A data or prefab name that belongs to the parkour family.</summary>
         public static bool IsParkourName(string name)
         {
-            return !string.IsNullOrEmpty(name) && name.StartsWith(ParkourPrefix);
+            return !string.IsNullOrEmpty(name) && (name.StartsWith(ParkourPrefix) || name.StartsWith("Sentry_"));
         }
 
-        /// <summary>"Grunt" → Assets/Data/Enemies/souls_enemies/Grunt.asset; "Sentry_Grunt" → parkour_enemies/…</summary>
+        /// <summary>"Grunt" → Assets/Data/Enemies/souls_enemies/Grunt.asset; "pshooter_enemy01" → parkour_enemies/…</summary>
         public static string Data(string name)
         {
             return (IsParkourName(name) ? Parkour : Souls) + "/" + name + ".asset";

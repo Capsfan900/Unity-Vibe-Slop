@@ -1867,8 +1867,8 @@ namespace VibeGame1
         /// </summary>
         IEnumerator TestFlare()
         {
-            var sentryPf = LevelEditor.I != null ? LevelEditor.I.PrefabFor("Sentry_Grunt") : null;
-            if (sentryPf == null) { Skip("Flare", "no Sentry_Grunt in the level editor library; run 4 / 5"); yield break; }
+            var sentryPf = LevelEditor.I != null ? LevelEditor.I.PrefabFor("pshooter_enemy01") : null;
+            if (sentryPf == null) { Skip("Flare", "no pshooter_enemy01 in the level editor library; run 4 / 5"); yield break; }
             yield return ResetPlayerState();
             Vector3 pos = combat.transform.position + combat.transform.forward * 6f;
             if (UnityEngine.AI.NavMesh.SamplePosition(pos, out var navHit, 6f, UnityEngine.AI.NavMesh.AllAreas)) pos = navHit.position;
@@ -1882,10 +1882,15 @@ namespace VibeGame1
             if (burst == null) { Destroy(go); yield break; }
 
             int flaresBefore = SentryFlare.Live.Count;
+            // 2026-09-06: the flare comes on DEATH (a parkour enemy dies to its own reflected bolts); a posture
+            // break alone throws nothing and the body stays alive to be parried again.
             e.Posture.Break();
             yield return null;
-            Check("Flare_BreakDetonates", !e.IsAlive, "state=" + e.Current);
-            Check("Flare_BreakThrowsAFlare", SentryFlare.Live.Count == flaresBefore + 1 && burst.LastFlare != null,
+            Check("Flare_BreakAloneThrowsNothing", e.IsAlive && SentryFlare.Live.Count == flaresBefore, "live=" + SentryFlare.Live.Count + " alive=" + e.IsAlive);
+            e.Health.TakeDamage(new DamageInfo { damage = 999999f, source = combat.gameObject });
+            yield return null;
+            Check("Flare_DeathDetonates", !e.IsAlive, "state=" + e.Current);
+            Check("Flare_DeathThrowsAFlare", SentryFlare.Live.Count == flaresBefore + 1 && burst.LastFlare != null,
                 "live=" + SentryFlare.Live.Count);
             var flare = burst.LastFlare;
             if (flare == null) yield break;

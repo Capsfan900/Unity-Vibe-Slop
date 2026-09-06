@@ -504,10 +504,10 @@ namespace VibeGame1.EditorTools
             }
             string[] spawnKeys = { "Enemy_Grunt", "Enemy_Heavy", "Legendary_Ninja", "Legendary_Knight", "Legendary_Spellsword",
                                    "Legendary_Marionette", "Legendary_Revenant", "Legendary_Halberdier",
-                                   "Sentry_Grunt", "Sentry_Heavy" };   // parkour_enemies (2026-09-06)
+                                   "pshooter_enemy01", "pshooter_enemy02" };   // parkour_enemies (2026-09-06)
             string[] prefabKeys = { "Enemy_Grunt", "Enemy_Heavy", "Legendary_Ninja", "Legendary_Knight", "Legendary_Spellsword",
                                     "Legendary_Marionette", "Legendary_Revenant", "Legendary_Halberdier", "Checkpoint", "ItemPickup", "Balloon",
-                                    "Sentry_Grunt", "Sentry_Heavy" };
+                                    "pshooter_enemy01", "pshooter_enemy02" };
             ed.spawnKeys = spawnKeys;
             ed.prefabKeys = prefabKeys;
             ed.prefabs = new GameObject[prefabKeys.Length];

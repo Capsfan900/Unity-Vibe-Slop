@@ -107,7 +107,7 @@ namespace VibeGame1.Tests
         [Test]
         public void SentriesNeverPunishTheFlask_TheWardenDoes()
         {
-            foreach (var n in new[] { "Sentry_Grunt", "Sentry_Heavy" })
+            foreach (var n in new[] { "pshooter_enemy01", "pshooter_enemy02" })
             {
                 var d = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(n));
                 if (d == null) Assert.Ignore("run 3. Create Data");

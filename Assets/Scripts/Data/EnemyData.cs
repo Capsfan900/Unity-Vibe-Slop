@@ -94,6 +94,10 @@ namespace VibeGame1
                  "(you meet the bolt on the run); 0 = aimed where they were (a runner outruns every bolt). " +
                  "Under 1 so a sidestep still steps out of the line.")]
         [Range(0f, 1f)] public float projectileLead = 0.8f;
+        [Tooltip("Degrees per second the bolt may TURN in flight toward the player's chest (2026-09-06: 'sometimes it " +
+                 "misses and you cannot parry'). 0 = a straight line. 180 makes a bolt that always arrives at a runner " +
+                 "while still reading as a line; the cue and the speed are untouched.")]
+        public float projectileHomingDegPerSec = 0f;
         public float parriedProjectileDamage = 30f;
         public float parriedProjectilePosture = 40f;
         [Tooltip("Metres per second added along the look on a perfect deflect of a bolt.")]

@@ -729,16 +729,14 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
 
 GameEvents.PlayerRespawned → every ItemPickup re-enables; PlayerItems clears
 
-THE SENTRY FLARE (2026-09-06, replaced the sentry dash the same day; parkour_enemies)
-  Posture.OnBroken on a Sentry_* → SentryBurst.HandleBroken (data.rangedOnly only)
-    → Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5)
-      + SlashFx.Flare(BurstHue, size 2.4, 0.3s) + SlashFx.Ring(BurstHue, radius 2.6, 0.4s) + Sparks(22) + Thunder/shake
-        -- the Flare+Sparks alone (VFX pass 2026-09-06) did not read as an EVENT at span range; the Ring
-           shockwave is what makes "a body just died here" legible from outside the sparks' own travel.
-           BurstHue is violet-white (SentryFlare's own family), never the bolt's amber: reward, not threat.
-      then Health.TakeDamage(999999) → the ORDINARY death path (souls, EnemyKilled, mist). No corpse to dash to.
+THE SENTRY FLARE (2026-09-06; parkour_enemies)
+  Health.OnDied on a pshooter_* → SentryBurst.HandleDied (data.rangedOnly only)   [on DEATH, not the posture break]
+    → Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5) + the burst (2.4 m flash,
+      2.6 m ring shockwave, sparks, Thunder, shake -- vfx-art-team pass 1).
+      A parkour enemy dies to its own REFLECTED BOLTS (parriedProjectileDamage 30 on 60 HP = 2 deflects; 45 on
+      130 HP = 3): PARRYING is how it is finished. The flare is optional traversal, never the way to kill it.
   SentryFlare.Update (scaled time): position = FlareMath.Position(origin, v, g, t) -- floats up ~10 m, hangs, sinks;
-      glow = 1 - t/life drives size (x0.25..1) and colour; Grappleable while glow > MinGrappleGlow 0.08; gone at life.
+      glow = 1 - t/life drives size and colour; Grappleable while glow > MinGrappleGlow 0.08; gone at life.
       SentryFlare.Live is the registry.
 FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEFORE the motor)
   every frame while playing, not pulling, not executing:
@@ -1034,7 +1032,7 @@ EnemyWeaponTrail.LateUpdate()          (MiniBossFactory.WireBladeTrail, ModelSpe
 
 ### parkour_enemies — the sentries shoot, and a deflect is a boost
 
-Since the 2026-09-06 split the span shooters are their own assets, `Sentry_Grunt` / `Sentry_Heavy`
+Since the 2026-09-06 split the span shooters are their own assets, `pshooter_enemy01` / `pshooter_enemy02`
 (`Assets/Data/Enemies/parkour_enemies`, copied from the melee Grunt / Heavy by `DataFactory` then flipped to
 `rangedOnly` + `shootsProjectiles`, violet body). `Level_01_Level.asset` places only these; the melee
 `Enemy_Grunt` / `Enemy_Heavy` are `souls_enemies` on the sandbox pads. `ProjectileShooter` is added by
@@ -1051,10 +1049,11 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
          not aggroLocked, player inside [projectileMinRange 3, projectileMaxRange 32], HasLineOfSight (same three lines)
    → on the METRONOME (ProjectileMath.NextBeat: Grunt 1.6 s, Heavy 2.4 s, no jitter; a held beat stays on the
      grid, a silence longer than one beat re-anchors instead of bursting):
-     speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed, CueLead 0.28, CueMargin 0.08) -- inside 11.5 m the
+     speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed 40 / 36, CueLead 0.28, CueMargin 0.08) -- inside 14.4 m the
              launch slows so every flight is ≥ 0.36 s and the cue is never owed before the bolt exists
-     target = ProjectileMath.LeadTarget(muzzle, chest, motor.Velocity (flat), speed, projectileLead 0.8) -- a runner
-              meets the bolt; 80% lead so a sidestep still leaves the line
+     target = ProjectileMath.LeadTarget(muzzle, chest, motor.Velocity (flat), speed, projectileLead 1.0), and in flight
+              the bolt HOMES toward the chest at projectileHomingDegPerSec (180 / 150) -- 2026-09-06: a bolt never
+              sails past unparriable; core 0.55 m, hitRadius 1.0
      a 0.36 m Bolt sphere at the chest --
      SlashFx additive ember with Projectile.HotCore (peak 1.6) written OVER the normalised colour: THE ONE
      GLOW IN TRAVERSAL, because the bolt is the tell -- plus a 2-point additive trail 0.12 s long,

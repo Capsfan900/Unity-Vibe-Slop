@@ -794,8 +794,8 @@ namespace VibeGame1.EditorTools
             // parkour_enemies: one SENTRY on the second row behind the Grunt pad, so a bolt, a deflect boost
             // and the sentry dash can be studied without leaving the arena. The pill Grunt/Heavy pads in
             // the front row stay MELEE (the user's "little pill guys for combat").
-            Box("Pad_Sentry_Grunt", new Vector3(-14f, padY, z - 8f), new Vector3(4f, 1f, 4f), mEnemy, root);
-            var sSentry = Spawner("Spawn_Sentry_Grunt", new Vector3(-14f, spawnY, z - 8f), pSentryGrunt, false, root);
+            Box("Pad_pshooter_enemy01", new Vector3(-14f, padY, z - 8f), new Vector3(4f, 1f, 4f), mEnemy, root);
+            var sSentry = Spawner("Spawn_pshooter_enemy01", new Vector3(-14f, spawnY, z - 8f), pSentryGrunt, false, root);
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -815,7 +815,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Revenant", new Vector3(-28f, FloorTop, switchZ), sRevenant, "EMBER REVENANT", root);
             Switch("Wake_Legendary_Halberdier", new Vector3(0.75f, FloorTop, switchZ), sHalberdier, "ARGENT HALBERDIER", root);
             Switch("Wake_Legendary_Drillmaster", new Vector3(14f, FloorTop, z - 8f + 3.2f), sDrill, "DRILLMASTER", root);
-            Switch("Wake_Sentry_Grunt", new Vector3(-14f, FloorTop, z - 8f + 3.2f), sSentry, "SENTRY", root);
+            Switch("Wake_pshooter_enemy01", new Vector3(-14f, FloorTop, z - 8f + 3.2f), sSentry, "SENTRY", root);
         }
 
         /// <summary>
@@ -986,8 +986,8 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Revenant"),
                 LoadEnemyData("Legendary_Halberdier"),
                 LoadEnemyData("Legendary_Drillmaster"),
-                LoadEnemyData("Sentry_Grunt"),
-                LoadEnemyData("Sentry_Heavy"),
+                LoadEnemyData("pshooter_enemy01"),
+                LoadEnemyData("pshooter_enemy02"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1033,8 +1033,8 @@ namespace VibeGame1.EditorTools
             pLegRevenant = LoadPrefab("Legendary_Revenant");
             pLegHalberdier = LoadPrefab("Legendary_Halberdier");
             pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
-            pSentryGrunt = LoadPrefab("Sentry_Grunt");
-            pSentryHeavy = LoadPrefab("Sentry_Heavy");
+            pSentryGrunt = LoadPrefab("pshooter_enemy01");
+            pSentryHeavy = LoadPrefab("pshooter_enemy02");
             pBalloon = LoadPrefab("Balloon");
         }
 

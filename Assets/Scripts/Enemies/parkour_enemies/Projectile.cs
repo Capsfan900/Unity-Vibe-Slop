@@ -34,13 +34,20 @@ namespace VibeGame1
         public const float HotCorePeak = 1.6f;
         /// <summary>At the cue the core goes white-hot: the "press now" pop, the same beat a body's cue flash is.</summary>
         public static readonly Color CueCore = new Color(1.6f, 1.45f, 1.2f, 1f);
-        /// <summary>Core diameter, metres. 0.28 read as a dot at 15 m; 0.36 reads as a ball in flight.</summary>
-        public const float CoreSize = 0.36f;
-        /// <summary>Seconds of flight the trail covers behind the core (at 32 m/s that is 3.8 m of streak).</summary>
-        public const float TrailSeconds = 0.12f;
+        /// <summary>Core diameter, metres. 0.28 read as a dot at 15 m; 0.55 reads as a ball in flight.</summary>
+        public const float CoreSize = 0.55f;   // 2026-09-06: up from 0.36 -- "easier to see / larger" (lead's number, do not move)
+        /// <summary>Seconds of flight the trail covers behind the core (at 36-40 m/s that is 5-6 m of streak).
+        /// 2026-09-06 VFX pass: up from 0.12 -- a longer streak is what turns a fast ball into a readable LINE
+        /// you can judge the path of, not just a dot you notice.</summary>
+        public const float TrailSeconds = 0.16f;
+        /// <summary>Trail head width as a fraction of the core: up from 0.55 so the streak has body, not just length.</summary>
+        public const float TrailWidthScale = 0.75f;
+        /// <summary>How much bigger the core gets at the cue -- the "press now" pop. Up from 1.9: a bigger cue
+        /// flare is the one honest way to make the tell louder without touching when it fires.</summary>
+        public const float CueFlareScale = 2.3f;
 
         [Tooltip("How close to the player's chest the bolt has to get to resolve as a hit, metres.")]
-        public float hitRadius = 0.7f;
+        public float hitRadius = 1.0f;   // 2026-09-06: up from 0.7 -- a bolt that grazes still resolves, so it can still be parried
         [Tooltip("Speed multiplier once deflected back at the shooter.")]
         public float reflectSpeedScale = 1.4f;
         [Tooltip("Seconds a bolt may live, either way, before it is cleaned up.")]
@@ -92,7 +99,7 @@ namespace VibeGame1
         {
             core = GetComponent<Renderer>();
             if (core == null) return;
-            trail = SlashFx.CreateLine(transform, "Trail", 2, CoreSize * 0.55f, 0.02f, false, core.sharedMaterial);
+            trail = SlashFx.CreateLine(transform, "Trail", 2, CoreSize * TrailWidthScale, 0.03f, false, core.sharedMaterial);
             trail.useWorldSpace = true;
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             trail.receiveShadows = false;
@@ -126,6 +133,15 @@ namespace VibeGame1
             age += dt;
             if (age > maxLife) { Spend(); return; }
 
+            if (!reflected && playerT != null && data != null && data.projectileHomingDegPerSec > 0f)
+            {
+                // HOMING (2026-09-06): the bolt turns toward the chest at a capped rate, so a runner is met
+                // and the parry is always on offer. It is still a line you can read; it is no longer one
+                // that sails past because the lead guessed wrong.
+                Vector3 want = (Chest(playerT) - transform.position);
+                if (want.sqrMagnitude > 1e-4f)
+                    dir = Vector3.RotateTowards(dir, want.normalized, data.projectileHomingDegPerSec * Mathf.Deg2Rad * dt, 0f).normalized;
+            }
             transform.position += dir * speed * dt;
             UpdateTrail();
 
@@ -138,7 +154,7 @@ namespace VibeGame1
                 {
                     cued = true;
                     AudioManager.Play(Sfx.ParryCue, 0.8f, 1.15f, 0.02f);
-                    transform.localScale = baseScale * 1.9f;   // the flare: "press now", the same beat as a body's cue
+                    transform.localScale = baseScale * CueFlareScale;   // the flare: "press now", the same beat as a body's cue
                     SetCoreColor(CueCore);                      // ...and the core goes white-hot for the same reason
                 }
                 if (Vector3.Distance(transform.position, target) <= hitRadius)

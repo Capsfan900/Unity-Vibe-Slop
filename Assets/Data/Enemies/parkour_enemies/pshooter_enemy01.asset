@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
-  m_Name: Sentry_Grunt
+  m_Name: pshooter_enemy01
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.EnemyData
   displayName: Sentry
   maxHP: 60
@@ -42,11 +42,12 @@ MonoBehaviour:
   rangedOnly: 1
   projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
   projectileInterval: 1.6
-  projectileSpeed: 32
+  projectileSpeed: 40
   projectileMinRange: 3
   projectileMaxRange: 32
-  projectileLead: 0.8
-  parriedProjectileDamage: 20
+  projectileLead: 1
+  projectileHomingDegPerSec: 180
+  parriedProjectileDamage: 30
   parriedProjectilePosture: 40
   parrySpeedGain: 9
   soulValue: 40

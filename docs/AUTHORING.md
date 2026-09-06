@@ -181,8 +181,8 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 |---|---|---|---|---|
 | `Grunt` (souls) | `Enemy_Grunt` | `Grunt_Moveset` | `EnemyController` | The melee trainer (sandbox pad); teaches the basic deflect |
 | `Heavy` (souls) | `Enemy_Heavy` | `Heavy_Moveset` | `EnemyController` | Slow melee trainer; tempo change |
-| `Sentry_Grunt` (parkour) | `Sentry_Grunt` | shares `Grunt_Moveset` (never used) | `EnemyController` + `ProjectileShooter` | Span sentry: 32 m/s bolts on a 1.6 s beat; the level's perches |
-| `Sentry_Heavy` (parkour) | `Sentry_Heavy` | shares `Heavy_Moveset` (never used) | `EnemyController` + `ProjectileShooter` | Slower, harder sentry |
+| `pshooter_enemy01` (parkour) | `pshooter_enemy01` | shares `Grunt_Moveset` (never used) | `EnemyController` + `ProjectileShooter` | Span sentry: 32 m/s bolts on a 1.6 s beat; the level's perches |
+| `pshooter_enemy02` (parkour) | `pshooter_enemy02` | shares `Heavy_Moveset` (never used) | `EnemyController` + `ProjectileShooter` | Slower, harder sentry |
 | `Legendary_Ninja` — *The Thirteenth Shade* | `Legendary_Ninja` | `Legendary_Ninja_Moveset` | `EnemyController` | Mini-boss; sustained cadence + an unblockable sweep |
 | `Legendary_Knight` — *The Iron Penitent* | `Legendary_Knight` | `Legendary_Knight_Moveset` | `EnemyController` | Mini-boss; the spinning furnace — a sustained parry cadence with an outsized payoff. **Imported body** (`Assets/Enemies/IronPenitent.fbx`) |
 | `Legendary_Spellsword` — *The Ashen Chorister* | `Legendary_Spellsword` | `Legendary_Spellsword_Moveset` | `EnemyController` | Mini-boss; feint/transition + ranged opener + grab. **Imported body** (`Assets/Enemies/AshenChorister.fbx`) |

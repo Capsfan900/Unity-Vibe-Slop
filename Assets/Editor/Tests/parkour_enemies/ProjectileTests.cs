@@ -54,10 +54,10 @@ namespace VibeGame1.Tests
         [Test]
         public void TheParkourEnemiesShipShooting()
         {
-            var grunt = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Sentry_Grunt"));
-            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Sentry_Heavy"));
+            var grunt = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy01"));
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
             if (grunt == null || heavy == null) Assert.Ignore("run 3. Create Data");
-            string yaml = System.IO.File.ReadAllText(EnemyPaths.Data("Sentry_Grunt"));
+            string yaml = System.IO.File.ReadAllText(EnemyPaths.Data("pshooter_enemy01"));
             if (!yaml.Contains("shootsProjectiles:")) Assert.Ignore("3. Create Data has not been re-run since the projectile fields were added");
             foreach (var e in new[] { grunt, heavy })
             {
@@ -68,7 +68,8 @@ namespace VibeGame1.Tests
                 Assert.LessOrEqual(e.projectileMinRange, 4f, e.name + ": a sentry keeps shooting all the way in");
                 Assert.GreaterOrEqual(e.projectileMaxRange, 30f, e.name + ": it wakes at the far end of the span");
                 Assert.GreaterOrEqual(e.projectileLead, 0.6f, e.name + ": a runner must MEET the bolt, not outrun it");
-                Assert.Less(e.projectileLead, 1f, e.name + ": a full lead cannot be sidestepped");
+                Assert.Greater(e.projectileHomingDegPerSec, 0f, e.name + ": a bolt that can miss is a parry you were never offered (2026-09-06)");
+                Assert.GreaterOrEqual(e.projectileSpeed, 36f, e.name + ": the user asked for faster bolts");
                 float launch = ProjectileMath.LaunchSpeed(e.projectileMinRange, e.projectileSpeed, Projectile.CueLead, ProjectileShooter.CueMargin);
                 Assert.Greater(ProjectileMath.TimeToImpact(e.projectileMinRange, launch), Projectile.CueLead,
                     e.name + ": the nearest bolt would arrive before its cue could fire");
@@ -101,19 +102,18 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void AReflectedBoltOpensASentry_ItNeverKillsItFirst()
+        public void ReflectedBoltsKillAParkourEnemy_InThreeOrFewer()
         {
-            // Combat plan 2026-09-06, P1. The sentry dash needs a body that is ALIVE and STAGGERED; a reflect
-            // applies health before posture, so the reflects it takes to break posture must leave HP over.
-            foreach (var path in new[] { EnemyPaths.Data("Sentry_Grunt"), EnemyPaths.Data("Sentry_Heavy") })
+            // 2026-09-06 (user): parkour enemies are finished by PARRYING their bolts, never by a grapple. The
+            // flare on death is optional traversal. So the reflects to kill must be few enough to be a rhythm.
+            foreach (var path in new[] { EnemyPaths.Data("pshooter_enemy01"), EnemyPaths.Data("pshooter_enemy02") })
             {
                 var e = AssetDatabase.LoadAssetAtPath<EnemyData>(path);
                 if (e == null) Assert.Ignore("run 3. Create Data");
                 if (!e.rangedOnly) continue;
-                int reflectsToBreak = Mathf.CeilToInt(e.maxPosture / Mathf.Max(1f, e.parriedProjectilePosture));
-                float hpSpent = reflectsToBreak * e.parriedProjectileDamage;
-                Assert.Less(hpSpent, e.maxHP, e.name + ": " + reflectsToBreak + " reflects to break posture cost " + hpSpent +
-                    " of " + e.maxHP + " HP -- the sentry dies before it can be dashed");
+                int reflectsToKill = Mathf.CeilToInt(e.maxHP / Mathf.Max(1f, e.parriedProjectileDamage));
+                Assert.LessOrEqual(reflectsToKill, 3, e.name + ": " + reflectsToKill + " reflects to kill is a chore, not a rhythm");
+                Assert.GreaterOrEqual(reflectsToKill, 2, e.name + ": one reflect killing it makes the bolt a free kill, not a duel");
             }
         }
 
@@ -170,9 +170,19 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TheBoltsTrailAndCueAreEasierToRead()
+        {
+            // 2026-09-06 VFX pass, from the user: "the projectile [needs to] be a little easier to see /
+            // larger". The lead already moved CoreSize/speed/homing; this pass owns the trail and the cue pop.
+            Assert.Greater(Projectile.TrailSeconds, 0.12f, "up from the 0.12 s it shipped at -- a longer streak reads as a LINE, not a dot with a smear");
+            Assert.Greater(Projectile.TrailWidthScale, 0.55f, "up from the 0.55 the trail shipped at -- the streak needs body as well as length");
+            Assert.Greater(Projectile.CueFlareScale, 1.9f, "up from the 1.9x the cue pop shipped at -- a louder 'press now' without moving when it fires");
+        }
+
+        [Test]
         public void EveryEnemyPrefabCarriesTheShooter()
         {
-            foreach (var n in new[] { "Sentry_Grunt", "Sentry_Heavy" })
+            foreach (var n in new[] { "pshooter_enemy01", "pshooter_enemy02" })
             {
                 var p = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + n + ".prefab");
                 if (p == null) Assert.Ignore("run 4. Build Prefabs");

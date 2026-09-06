@@ -3,10 +3,9 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// A sentry DETONATES when its posture breaks (2026-09-06): the body dies on the spot (souls, mist,
-    /// the EnemyKilled event, all through the ordinary death path via Health.TakeDamage) and throws a
-    /// <see cref="SentryFlare"/> up over the route it was covering. This replaces the sentry dash: the
-    /// reward for two clean deflects is a floating grapple point, not a body to blink to.
+    /// A parkour enemy DETONATES when it dies (2026-09-06): it throws a <see cref="SentryFlare"/> up over the
+    /// route it was covering. It dies to its own reflected bolts (two or three clean deflects), so the flare
+    /// is the reward for the parries -- a floating, optional grapple point, never the way to finish it.
     ///
     /// <para>Lives on the Sentry_* prefabs only (PrefabFactory adds it beside ProjectileShooter when the data
     /// shoots) and touches no brain code: it listens to Posture.OnBroken like the controller does. Every
@@ -48,7 +47,6 @@ namespace VibeGame1
         public float flareLife = 4.5f;
 
         EnemyController ctrl;
-        Posture posture;
         bool fired;
 
         /// <summary>The flare this sentry threw, or null. Tests and the harness.</summary>
@@ -57,15 +55,24 @@ namespace VibeGame1
         void Awake()
         {
             ctrl = GetComponent<EnemyController>();
-            posture = GetComponent<Posture>();
         }
 
-        void OnEnable() { if (posture != null) posture.OnBroken += HandleBroken; }
-        void OnDisable() { if (posture != null) posture.OnBroken -= HandleBroken; }
+        Health health;
 
-        void HandleBroken()
+        void OnEnable()
         {
-            if (fired || ctrl == null || !ctrl.IsAlive) return;
+            if (health == null) health = GetComponent<Health>();
+            if (health != null) health.OnDied += HandleDied;
+        }
+        void OnDisable() { if (health != null) health.OnDied -= HandleDied; }
+
+        /// <summary>
+        /// 2026-09-06 (user): the flare comes on DEATH -- and a parkour enemy dies to its own reflected bolts
+        /// (two or three clean deflects). The grapple is optional traversal, never the way to finish it.
+        /// </summary>
+        void HandleDied()
+        {
+            if (fired || ctrl == null) return;
             var data = ctrl.data;
             if (data == null || !data.rangedOnly) return;   // a melee body that shares the prefab code never bursts
             fired = true;
@@ -84,7 +91,8 @@ namespace VibeGame1
             AudioManager.Play(Sfx.Thunder, 0.6f, 1.5f, 0.05f);
             if (CameraShake.I != null) CameraShake.I.Small();
 
-            // Through the ordinary death path so souls, the kill event and the mist all happen as for any kill.
+            // Forced on a living body (tests, the harness): through the ordinary death path so souls, the kill
+            // event and the mist happen as for any kill. On a real death this is already true.
             if (ctrl.Health != null && !ctrl.Health.IsDead)
                 ctrl.Health.TakeDamage(new DamageInfo { damage = 999999f, point = chest, direction = Vector3.up, source = gameObject });
             return LastFlare;

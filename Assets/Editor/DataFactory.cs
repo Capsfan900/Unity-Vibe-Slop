@@ -260,14 +260,18 @@ namespace VibeGame1.EditorTools
             // is always cue lead + 0.08 s, so a runner is shot at all the way in and past. The beat is a
             // fixed 1.6 s metronome (no +-15% jitter), held while the line is blocked, and each shot leads
             // 80% of the player's velocity so a runner meets it instead of outrunning it.
-            grunt.rangedOnly = false; grunt.projectileLead = 0.8f;
-            grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 32f;
+            grunt.rangedOnly = false; grunt.projectileLead = 1.0f; grunt.projectileHomingDegPerSec = 180f;
+            // 2026-09-06 (user): faster, and it never misses -- full lead plus 180 deg/s homing. 40 m/s from 15 m
+            // is 0.37 s; the launch still slows inside 14.4 m so the cue is never owed before the bolt exists.
+            grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 40f;
             grunt.projectileMinRange = 3f; grunt.projectileMaxRange = 32f;
             // P1 (combat plan 2026-09-06): a reflected bolt OPENS a sentry, it does not kill it. At 30 damage
             // two reflects were exactly the Grunt's 60 HP, and Health.TakeDamage runs before Posture.Add, so
             // the body died on the frame it would have staggered and the sentry dash never had a target.
             // Invariant (ProjectileTests): ceil(maxPosture / parriedPosture) * parriedDamage < maxHP.
-            grunt.parriedProjectileDamage = 20f; grunt.parriedProjectilePosture = 40f;
+            // 2026-09-06 (user): a parkour enemy is KILLED by its own reflected bolts -- two for this one (60 HP).
+            // The flare is thrown on death (SentryBurst) and is optional traversal, never the way to finish it.
+            grunt.parriedProjectileDamage = 30f; grunt.parriedProjectilePosture = 40f;
             grunt.parrySpeedGain = 9f;
             EditorUtility.SetDirty(grunt);
 
@@ -301,30 +305,30 @@ namespace VibeGame1.EditorTools
             heavy.flaskPunishChance = 0.4f;
             heavy.shootsProjectiles = false;
             heavy.projectileAttack = grunt.projectileAttack;
-            heavy.rangedOnly = false; heavy.projectileLead = 0.8f;
-            heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 28f;
+            heavy.rangedOnly = false; heavy.projectileLead = 1.0f; heavy.projectileHomingDegPerSec = 150f;
+            heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 36f;
             heavy.projectileMinRange = 3f; heavy.projectileMaxRange = 32f;
-            heavy.parriedProjectileDamage = 30f; heavy.parriedProjectilePosture = 50f;   // 3 reflects: 90 of 130 HP, 150 >= 110 posture
+            heavy.parriedProjectileDamage = 45f; heavy.parriedProjectilePosture = 50f;   // 3 reflects kill: 135 >= 130 HP
             heavy.parrySpeedGain = 9f;
             EditorUtility.SetDirty(heavy);
 
             // ---- parkour_enemies: THE SENTRIES (2026-09-06 split) ----------------------------------------
-            // Sentry_Grunt / Sentry_Heavy are the Grunt and the Heavy's tuning copied whole (CopySerialized,
+            // pshooter_enemy01 / pshooter_enemy02 are the Grunt and the Heavy's tuning copied whole (CopySerialized,
             // so a retune of the pill guys carries over) and then flipped to the span role: rangedOnly,
             // shootsProjectiles, no flask interrupt (a route, not a duel), and a violet body so a perch
             // never reads as a melee enemy. Level_01's perches spawn THESE; the sandbox pads keep the melee
             // originals. Everything projectile-side lives in Enemies/parkour_enemies.
-            var sentryGrunt = GetOrCreate<EnemyData>(EnemyPaths.Data("Sentry_Grunt"));
+            var sentryGrunt = GetOrCreate<EnemyData>(EnemyPaths.Data("pshooter_enemy01"));
             EditorUtility.CopySerialized(grunt, sentryGrunt);
-            sentryGrunt.name = "Sentry_Grunt";
+            sentryGrunt.name = "pshooter_enemy01";
             sentryGrunt.displayName = "Sentry";
             sentryGrunt.shootsProjectiles = true; sentryGrunt.rangedOnly = true; sentryGrunt.flaskPunishChance = 0f;
             sentryGrunt.bodyColor = Hex("#2A2340"); sentryGrunt.emission = Hex("#5A2BD0") * 1.2f;
             EditorUtility.SetDirty(sentryGrunt);
 
-            var sentryHeavy = GetOrCreate<EnemyData>(EnemyPaths.Data("Sentry_Heavy"));
+            var sentryHeavy = GetOrCreate<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
             EditorUtility.CopySerialized(heavy, sentryHeavy);
-            sentryHeavy.name = "Sentry_Heavy";
+            sentryHeavy.name = "pshooter_enemy02";
             sentryHeavy.displayName = "Heavy Sentry";
             sentryHeavy.shootsProjectiles = true; sentryHeavy.rangedOnly = true; sentryHeavy.flaskPunishChance = 0f;
             sentryHeavy.bodyColor = Hex("#2E2838"); sentryHeavy.emission = Hex("#6A2BE0") * 1.2f;

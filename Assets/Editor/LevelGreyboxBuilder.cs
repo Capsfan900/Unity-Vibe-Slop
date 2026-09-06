@@ -335,8 +335,8 @@ namespace VibeGame1.EditorTools
             pHud = LoadPrefab("HUD");
             // parkour_enemies (2026-09-06 split): everything the campaign level places to cover a span is
             // a SENTRY. The melee Enemy_Grunt / Enemy_Heavy live on the sandbox pads.
-            pGrunt = LoadPrefab("Sentry_Grunt");
-            pHeavy = LoadPrefab("Sentry_Heavy");
+            pGrunt = LoadPrefab("pshooter_enemy01");
+            pHeavy = LoadPrefab("pshooter_enemy02");
             pBoss = LoadPrefab("Boss");
             pCheckpoint = LoadPrefab("Checkpoint");
             pItemPickup = LoadPrefab("ItemPickup");

@@ -42,11 +42,12 @@ MonoBehaviour:
   rangedOnly: 0
   projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
   projectileInterval: 2.4
-  projectileSpeed: 28
+  projectileSpeed: 36
   projectileMinRange: 3
   projectileMaxRange: 32
-  projectileLead: 0.8
-  parriedProjectileDamage: 30
+  projectileLead: 1
+  projectileHomingDegPerSec: 150
+  parriedProjectileDamage: 45
   parriedProjectilePosture: 50
   parrySpeedGain: 9
   soulValue: 120

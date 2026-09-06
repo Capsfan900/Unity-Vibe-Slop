@@ -22,8 +22,8 @@ misses). EditMode 584/584; feature 760/761 (the flask timing flake again). Nothi
 (Scripts/Enemies/Core) decides the family by name: `Sentry_*` is parkour, everything else souls. Scripts live
 in `Enemies/Core` (shared brain), `Enemies/parkour_enemies` (Projectile, ProjectileShooter, ProjectileMath) and
 `Enemies/souls_enemies` (BossController); data and movesets under `Data/Enemies|Movesets/{parkour,souls}_enemies`;
-tests split the same way. All moved with `AssetDatabase.MoveAsset` (GUIDs kept). New `Sentry_Grunt` /
-`Sentry_Heavy` data + prefabs (copied from the pill guys, flipped to shoot, violet); `Level_01_Level.asset` places
+tests split the same way. All moved with `AssetDatabase.MoveAsset` (GUIDs kept). New `pshooter_enemy01` /
+`pshooter_enemy02` data + prefabs (copied from the pill guys, flipped to shoot, violet); `Level_01_Level.asset` places
 only sentries and the scene was rebuilt from it by code. Grunt / Heavy are MELEE souls_enemies again on their
 sandbox pads (the user: "we still want the little pill guys for combat in the sandbox"), plus a sentry pad on the
 second row. `ProjectileShooter` is added only to a body whose data shoots. FeatureTests fetch the melee dummy

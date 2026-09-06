@@ -44,9 +44,23 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TheFlareIsMuchLargerAndAddsAHalo()
+        {
+            // 2026-09-06 VFX pass, from the user: "the flare needs to be much larger and more visible" -- it is
+            // a usable traversal tool (DASH-grapple, tossed up), not a decoration.
+            Assert.GreaterOrEqual(SentryFlare.CoreSize, 1.0f, "more than double the 0.5 m it shipped at");
+            Assert.Greater(SentryFlare.HaloScale, SentryFlare.CoreSize * 1.5f, "the halo must be visibly bigger than the core, not the same shape restated");
+            Assert.Greater(SentryFlare.PulseInterval, 0f);
+            Assert.Greater(SentryFlare.PulseSeconds, 0f);
+            Assert.LessOrEqual(SentryFlare.PulseSeconds, SentryFlare.PulseInterval, "a pulse must finish fading before the next one fires, or they stack into a flicker");
+            Assert.Greater(SentryFlare.PulseSize, SentryFlare.CoreSize, "the pulse has to read bigger than the standing glow to be worth the extra draw call");
+            Assert.Greater(SentryFlare.TrailSeconds, 0.18f, "up from the 0.18 s it shipped at -- a longer streak on a slow-moving flare reads as motion, not noise");
+        }
+
+        [Test]
         public void TheSentriesBurstAndThePlayerGrapples()
         {
-            foreach (var n in new[] { "Sentry_Grunt", "Sentry_Heavy" })
+            foreach (var n in new[] { "pshooter_enemy01", "pshooter_enemy02" })
             {
                 var p = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + n + ".prefab");
                 if (p == null) Assert.Ignore("run 4. Build Prefabs");

@@ -45,8 +45,8 @@ namespace VibeGame1.EditorTools
             BuildEnemy("Enemy_Heavy", EnemyPaths.Data("Heavy"), false);
             BuildEnemy("Boss", EnemyPaths.Data("Boss"), true);
             // parkour_enemies: the span sentries (same body, violet, ProjectileShooter, never melee).
-            BuildEnemy("Sentry_Grunt", EnemyPaths.Data("Sentry_Grunt"), false);
-            BuildEnemy("Sentry_Heavy", EnemyPaths.Data("Sentry_Heavy"), false);
+            BuildEnemy("pshooter_enemy01", EnemyPaths.Data("pshooter_enemy01"), false);
+            BuildEnemy("pshooter_enemy02", EnemyPaths.Data("pshooter_enemy02"), false);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
