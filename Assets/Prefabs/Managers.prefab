@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 620411125596698679}
   - component: {fileID: 7144823039878174407}
   - component: {fileID: 4838983748606241735}
+  - component: {fileID: 9049016937743798125}
   - component: {fileID: 1080047369039275882}
   - component: {fileID: 7153499466670572641}
   - component: {fileID: 6163541949244728403}
@@ -92,6 +93,21 @@ MonoBehaviour:
   masterVolume: 0.7
   musicVolume: 0.45
   musicFadeSeconds: 1.5
+--- !u!114 &9049016937743798125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4455819947192534127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f548622e3a127724b923354c17e54fda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.LevelRadio
+  previousRestartWindow: 3
+  fadeSeconds: 0.35
+  autoPlay: 1
 --- !u!114 &1080047369039275882
 MonoBehaviour:
   m_ObjectHideFlags: 0

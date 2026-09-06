@@ -7,6 +7,17 @@ Last session: **2026-09-04, late evening** (Fable 5.1, four parallel forks).
 
 ## What happened
 
+**Latest (2026-09-06 late, Fable 5.1):** (1) the user's tweak -- parkour enemies are FINISHED BY PARRYING (2-3 reflects
+kill), the flare comes on death and is optional; first type renamed `pshooter_enemy01` (`pshooter_enemy02` heavy);
+bolts 40/36 m/s, full lead + in-flight homing so they never sail past unparriable, core 0.55, hitRadius 1.0. (2) Both
+teams now run on OPUS; Opus AUDITED their Sonnet passes (halo double-scale, ACES overshoot, pulse budget, doc lies;
+the UI beat that never cleared) and each team fixed its own pass as a separate commit. (3) THE RADIO: LevelRadio
+backbone (mp3s in Resources/Audio/Radio/<levelId>, keys ] [ backslash, ducks the ambient bed) + RadioView pane in the
+top-right corner (BEST RUNS moved left to BestRunsX -348). (4) VFX passes: horizon silhouette under the eclipse,
+turbulent death mist. Regression guard is a CLAUDE.md hard rule. EditMode 603/603; feature 761/762 (the flask timing
+flake). NOTHING played by a human yet: the flare at 30 m, the bolt homing, the radio pane -- all reasoned, not seen.
+Open from the teams: a priority on PromptChanged; a screen-edge chevron for flares; a per-call drag on SlashFx.Sparks.
+
 **Latest (2026-09-06 night, Fable 5.1): THE SENTRY FLARE + the subagent teams.** A broken Sentry_* now DETONATES
 (`SentryBurst`, ordinary death path) and throws a `SentryFlare` (violet-white, low-gravity arc, fades over 4.5 s);
 DASH at a glowing flare (`FlareGrapple`, replaces SentryDash) pulls you to it and tosses you up 14 m/s. Proven end
