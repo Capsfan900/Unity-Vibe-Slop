@@ -266,9 +266,11 @@ body in `MiniBossFactory`.
 
 ## 6. Smaller open questions
 
-- **Boss framing at deathblow range.** At the 3.5 m `range` a 2.2×-scale boss's torso is a wall across
-  the middle of the shot. This is the `preferredRange`/`range` tension, not the stagger pose. Untouched
-  deliberately — changing either affects every fight.
+- **Boss framing at deathblow range.** A 2.2x-scale boss's torso is a wall across the middle of the shot.
+  This is the `preferredRange`/`range` tension, not the stagger pose. Untouched deliberately — changing
+  either affects every fight. **Numbers as of 2026-09-06:** `boss.preferredRange` is **4.6** (this line
+  used to say 3.5), `attackRange` 3.0, and the deathblow stand-off is `stabStandoff` 2.2 x the boss's 2.2
+  scale. The gap moved; whether it FRAMES has still never been measured or seen.
 - ~~**The alert tell may want to be bigger, not brighter.**~~ **Closed: leave it alone, measured.**
   Rendered through the shipped volume profile at 1920×1080 / FOV 95 and diffed tell-on against tell-off,
   the 0.25 m cube already covers 47 × 60 px at the grunt's 3 m `preferredRange` — 5.6% of frame height,
@@ -278,7 +280,8 @@ body in `MiniBossFactory`.
   at 2.6. Pinned in `Assets/Editor/Tests/AlertTellFramingTests.cs`. **Still open, and needs a human:**
   whether it *reads* in 0.45 s of peripheral vision, and whether angular sizing (it is 22 × 26 px at 6 m)
   is worth having.
-- **`parTime = 240`** for the four-tile run is a guess.
+- **`parTime` for the four-tile run is a guess.** It is **225** now, not the 240 this line used to say (verified
+  2026-09-06 against `Level_01_Level.asset`); still nobody has run the level to see whether it is a fair par.
 - ~~**42 point lights** in the level, up from 25. No performance measurement has been taken.~~
   **Measured, and it is 55, not 42.** `VibeGame1/Audit Level Lights` over 68 camera-height probes: 55
   additional point lights (43 with `FlickerLight`, ranges 7–9 m), **zero of them casting shadows** — the
