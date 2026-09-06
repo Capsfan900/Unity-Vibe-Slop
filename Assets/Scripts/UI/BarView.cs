@@ -26,7 +26,17 @@ namespace VibeGame1
         float flashUntil = -1f;
         Color flashColor = Color.white;
 
+        bool nearBreak;
+        float nearBreakStrength;
+        float nearBreakHz = 4.5f;
+
         public float Value => target;
+
+        /// <summary>True while this bar is beating toward white for a near-break read (see EnemyPostureBar,
+        /// NearBreakRatio 0.8 / NearBreakHz 4.5). Any posture-shaped bar should call this every time its
+        /// ratio changes so player and boss posture read the same "one more deflect" signal the grunt
+        /// world-space bar already gives.</summary>
+        public bool NearBreak => nearBreak;
 
         void Awake()
         {
@@ -60,6 +70,24 @@ namespace VibeGame1
             flashUntil = Time.unscaledTime + Mathf.Max(0.01f, seconds);
         }
 
+        /// <summary>
+        /// Drive the near-break beat for a posture-shaped bar. Call every time the ratio changes with
+        /// ratio &gt;= threshold (see EnemyPostureBar.NearBreakRatio, 0.8) and not broken. strength scales
+        /// with how close to break (0 at threshold, 1 at full) so the beat gets harder, not just binary.
+        /// </summary>
+        public void SetNearBreak(bool active, float strength = 1f, float hz = 4.5f)
+        {
+            nearBreak = active;
+            nearBreakStrength = Mathf.Clamp01(strength);
+            nearBreakHz = hz;
+        }
+
+        /// <summary>How hard a near-break beat should read at this ratio: 0 right at threshold, 1 at a full
+        /// bar. Shared by every posture-shaped bar (player, boss) so "how close to break" always answers
+        /// the same way EnemyPostureBar's world-space bar does.</summary>
+        public static float NearBreakStrength(float ratio, float threshold)
+            => ratio >= threshold ? Mathf.Clamp01((ratio - threshold) / (1f - threshold)) : 0f;
+
         void Update()
         {
             float dt = Time.unscaledDeltaTime;
@@ -82,15 +110,21 @@ namespace VibeGame1
                 return;
             }
 
-            if (pulseWhenFull)
+            if (pulseWhenFull && target >= 0.999f)
             {
-                if (target >= 0.999f)
-                {
-                    float k = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f);
-                    fill.color = Color.Lerp(fillColor, Color.white, k * 0.7f);
-                }
-                else fill.color = fillColor;
+                float k = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f);
+                fill.color = Color.Lerp(fillColor, Color.white, k * 0.7f);
+                return;
             }
+
+            if (nearBreak)
+            {
+                float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * nearBreakHz * Mathf.PI * 2f);
+                fill.color = Color.Lerp(fillColor, Color.white, 0.55f * nearBreakStrength * beat);
+                return;
+            }
+
+            fill.color = fillColor;
         }
 
         /// <summary>

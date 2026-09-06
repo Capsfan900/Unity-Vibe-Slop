@@ -48,7 +48,13 @@ namespace VibeGame1
 
         void OnPosture(float c, float m)
         {
-            if (posture != null) posture.Set(m > 0 ? c / m : 0f);
+            if (posture == null) return;
+            float r = m > 0 ? c / m : 0f;
+            posture.Set(r);
+            // Give the boss posture bar the same near-break read the grunt world-space bar has
+            // (EnemyPostureBar: NearBreakRatio 0.8, NearBreakHz 4.5) — the boss fight is the moment this
+            // signal matters most, and it was previously the one posture bar in the game without it.
+            posture.SetNearBreak(r >= EnemyPostureBar.NearBreakRatio, BarView.NearBreakStrength(r, EnemyPostureBar.NearBreakRatio), EnemyPostureBar.NearBreakHz);
         }
 
         void OnDefeated() { Invoke(nameof(Hide), 1.5f); }

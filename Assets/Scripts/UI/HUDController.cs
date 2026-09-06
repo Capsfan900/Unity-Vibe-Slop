@@ -222,6 +222,9 @@ namespace VibeGame1
             float r = m > 0f ? c / m : 0f;
             postureBar.Set(r);
             postureBar.SetColor(Color.Lerp(PostureBase, PostureDanger, Mathf.InverseLerp(0.7f, 1f, r)));
+            // Same near-break beat the enemy world-space bar gives at 80% (EnemyPostureBar.NearBreakRatio) —
+            // the player's own guard is about to break, which is at least as urgent a read as an enemy's.
+            postureBar.SetNearBreak(r >= EnemyPostureBar.NearBreakRatio, BarView.NearBreakStrength(r, EnemyPostureBar.NearBreakRatio), EnemyPostureBar.NearBreakHz);
         }
 
         void OnPlayerPostureBroken()
