@@ -798,8 +798,12 @@ Managers prefab → LevelRadio (one 2D AudioSource, volume = AudioManager.musicV
   InputReader.RadioPreviousPressed ([) → Previous() RadioMath.PreviousRestartsCurrent(elapsed, 3 s): restart, else back
   InputReader.RadioTogglePressed (\) → Toggle()     TurnOff → MusicDuck = 1
   track ends (source stopped, not AudioListener.pause) → Next()
-  OnTrackChanged → the HUD radio pane (RadioView, ui-designer): StationName, TrackTitle (RadioMath.Title), TrackIndex /
-                   TrackCount, Progress (RadioMath.Progress), IsOn; hidden when !HasPlaylist
+  OnTrackChanged → RadioView (HUD root, RadioPane in the top-right CORNER; BEST RUNS moved one column left to
+                   HudBuilder.BestRunsX -348, BestRunsBottom / HintText / LevelEditorPanel unchanged): rebuilds the
+                   station ("<displayName> FM") / title (ticker in a RectMask2D, unscaled) / "TRACK i/n" strings and
+                   fires a 0.45 s slide + ember→bone flash; Progress drives a BarView by anchors; polls HasPlaylist
+                   each frame and toggles the pane ROOT (a level with no mp3s shows nothing; OFF shows PAUSED).
+                   Read-only: the keys are InputReader → LevelRadio, never the HUD.
 ```
 
 ## Enemy AI

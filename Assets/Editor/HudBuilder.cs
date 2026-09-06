@@ -62,6 +62,21 @@ namespace VibeGame1.EditorTools
         public const float BestRunsHeight = Inset * 2f + 26f + Leaderboard.DisplayCount * BestRunsRowHeight + 6f;
         /// <summary>Canvas y of the pane's lower edge (anchored top-right at -32).</summary>
         public const float BestRunsBottom = -32f - BestRunsHeight;
+        // ---- the radio (2026-09-06) ----
+        // The radio owns the top-right CORNER — the user asked for "a radio at the top right like a
+        // 2000s racing game", and a car stereo lives in the corner of the dash, not under a table of
+        // times. BEST RUNS moves one column LEFT rather than down: the top-right is already a single
+        // stacked column (BEST RUNS -> hint -> level-editor panel, 700 tall) that reaches y -1020 on
+        // the 1080 canvas, so inserting anything into that stack pushed the editor panel off screen.
+        // Sideways costs nothing: at x -348 the BEST RUNS glass still starts at canvas x 1272, well
+        // clear of the clock pill's right edge at 1110, and BestRunsBottom is unchanged, so the hint
+        // and the editor panel keep the y they were tuned to.
+        public const float RadioWidth = 300f;
+        public const float RadioHeight = 116f;
+        /// <summary>Gap between the radio column and the BEST RUNS column.</summary>
+        public const float ColumnGap = 16f;
+        /// <summary>Canvas x offset of the BEST RUNS pane: one column left of the radio.</summary>
+        public const float BestRunsX = -32f - RadioWidth - ColumnGap;
         static readonly Vector2 Center = new Vector2(0.5f, 0.5f);
 
         [MenuItem("VibeGame1/5. Build HUD")]
@@ -218,7 +233,7 @@ namespace VibeGame1.EditorTools
             // 300 x BestRunsHeight (2026-09-06: was 196, and eight 17 pt rows at 4 pt spacing are ~200 tall
             // on their own, so the table spilled out of the glass): insets, the title band and one row per
             // Leaderboard.DisplayCount. Everything below (hint, editor panel) hangs off BestRunsBottom.
-            var best = Pane("BestRunsPane", t, TopRight, TopRight, TopRight, new Vector2(-32f, -32f), new Vector2(300f, BestRunsHeight), UiSprites.Pane(), 12f);
+            var best = Pane("BestRunsPane", t, TopRight, TopRight, TopRight, new Vector2(BestRunsX, -32f), new Vector2(300f, BestRunsHeight), UiSprites.Pane(), 12f);
             var bestTitle = Txt("BestRunsTitle", best, "BEST RUNS", 12f, new Color(Bone.r, Bone.g, Bone.b, 0.55f), TextAlignmentOptions.Left);
             bestTitle.characterSpacing = 6f;
             Rect(bestTitle.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset), new Vector2(200f, 18f));
@@ -231,6 +246,63 @@ namespace VibeGame1.EditorTools
             // GhostHud toggles it, and it must ship hidden until there is a board.
             hud.bestRunsPane = best.parent.gameObject;
             best.parent.gameObject.SetActive(false);
+
+            // ---------------- Top-right corner: THE RADIO ----------------
+            // A 2000s racing-game stereo in the HUD's glass: the station (the level's name, as
+            // "THE HOLLOW ASCENT FM"), the track title on a ticker when it will not fit, "TRACK 2/7",
+            // a one-pixel-thin ember progress line and the three keys. LevelRadio owns the audio and
+            // the input; RadioView only reads it, and hides this pane ROOT whenever the level ships no
+            // mp3s — HasPlaylist false must never leave a dead pane on screen (the BEST RUNS rule).
+            var radio = root.AddComponent<RadioView>();
+            var radioGlass = Pane("RadioPane", t, TopRight, TopRight, TopRight, new Vector2(-32f, -32f),
+                                  new Vector2(RadioWidth, RadioHeight), UiSprites.Pane(), 12f);
+            const float RadioInnerW = RadioWidth - Inset * 2f;
+
+            var station = Txt("RadioStation", radioGlass, "RADIO FM", 12f, new Color(Bone.r, Bone.g, Bone.b, 0.55f), TextAlignmentOptions.Left);
+            station.characterSpacing = 6f;
+            station.overflowMode = TextOverflowModes.Truncate;   // a long level name never spills the glass
+            Rect(station.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset), new Vector2(RadioInnerW, 18f));
+            radio.stationText = station;
+
+            // The ticker window: a RectMask2D, so a title wider than the glass is CLIPPED and scrolls
+            // instead of overhanging the pane. The text inside is left-anchored and 600 wide; RadioView
+            // moves its x, and nothing else on the HUD touches it.
+            var viewport = Group("RadioTitleViewport", radioGlass, TopLeft, TopLeft, TopLeft,
+                                 new Vector2(Inset, -Inset - 24f), new Vector2(RadioInnerW, 24f));
+            viewport.gameObject.AddComponent<RectMask2D>();
+            var trackTitle = Txt("RadioTitle", viewport, "", 17f, Bone, TextAlignmentOptions.Left);
+            Rect(trackTitle.gameObject, TopLeft, TopLeft, TopLeft, Vector2.zero, new Vector2(600f, 24f));
+            radio.titleText = trackTitle;
+            radio.titleViewport = viewport.GetComponent<RectTransform>();
+
+            var counter = Txt("RadioCounter", radioGlass, "", 12f, new Color(Bone.r, Bone.g, Bone.b, 0.55f), TextAlignmentOptions.Left);
+            counter.characterSpacing = 3f;
+            Rect(counter.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset - 54f), new Vector2(120f, 16f));
+            radio.counterText = counter;
+
+            // The keys, quieter than the counter: they are learned once and then ignored.
+            var keys = Txt("RadioKeys", radioGlass, "◀ [   ]  ▶    \\", 11f, new Color(Bone.r, Bone.g, Bone.b, 0.40f), TextAlignmentOptions.Right);
+            Rect(keys.gameObject, TopRight, TopRight, TopRight, new Vector2(-Inset, -Inset - 54f), new Vector2(148f, 16f));
+            radio.keyHintText = keys;
+
+            // The progress line: a BarView (anchor-driven — hard rule 5, never Image.fillAmount), four
+            // pixels tall, ember, no ghost and no pulse. It is a readout of where the track is, not a
+            // resource, so it must not draw the eye the way a vitals bar does.
+            var prog = Bar("RadioProgressBar", radioGlass, Pink, false, false);
+            Rect(prog.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset - 80f), new Vector2(RadioInnerW, 4f));
+            radio.progressBar = prog;
+
+            // Hard rule 9: the motion numbers are SHIPPED on the prefab, not left to field initialisers.
+            radio.tickerSpeed = 34f;
+            radio.tickerPause = 1.6f;
+            radio.changeSeconds = 0.45f;
+            radio.changeSlide = 26f;
+
+            // The pane ROOT (the group), not the glass Pane() returns — wiring the glass would leave the
+            // shadow and sheen layers on screen as an empty black card, the bug the level-editor panel hit.
+            radio.paneRoot = radioGlass.parent.gameObject;
+            hud.radioPane = radioGlass.parent.gameObject;
+            radioGlass.parent.gameObject.SetActive(false);   // ships hidden; RadioView shows it once there is a playlist
 
             // ---------------- Top-right: hints ----------------
             // ONE line, contextual hints only. The key-bind dump that used to live here (four lines under

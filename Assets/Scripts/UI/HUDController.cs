@@ -36,6 +36,9 @@ namespace VibeGame1
                  "the pane only once there is a board; it ships hidden.")]
         public GameObject bestRunsPane;
         public TMP_Text bestRunsText;
+        [Tooltip("The glass RADIO pane (the top-right corner). RadioView shows it only while the level has " +
+                 "a playlist; it ships hidden, and a level with no mp3s never sees a dead pane.")]
+        public GameObject radioPane;
         public TMPro.TMP_Text pyreReadyLabel;
         public ItemSlotView[] itemSlots;
         public TMP_Text itemToastText;
@@ -111,7 +114,7 @@ namespace VibeGame1
             if (wandCooldownBar != null) wandCooldownBar.Set(0f);
             if (deathblowText != null) deathblowText.alpha = 0f;
             if (itemToastText != null) itemToastText.alpha = 0f;
-            if (postureBar != null) { postureBar.SetColor(PostureBase); postureBar.Set(0f); }
+            if (postureBar != null) { postureBar.SetColor(PostureBase); postureBar.Set(0f); postureBar.SetNearBreak(false); }
             ClearItemSlots();
             // No bind dump here any more: the reference is ControlsInfo, on the settings INFO card and the
             // F1 menu. hintText is one line, for contextual hints only.
@@ -230,7 +233,9 @@ namespace VibeGame1
         void OnPlayerPostureBroken()
         {
             ShowCenter("POSTURE BROKEN", PostureDanger, 1.2f);
-            if (postureBar != null) postureBar.Flash(Color.white, 0.35f);
+            // A broken bar must show the BREAK read, never the near-break beat: mirror EnemyPostureBar's
+            // `!broken` gate, or the flash ends and the bar keeps beating "one more deflect" while guard is gone.
+            if (postureBar != null) { postureBar.SetNearBreak(false); postureBar.Flash(Color.white, 0.35f); }
         }
 
         void OnDeathblowReady(bool ready) => deathblowReady = ready;
@@ -336,7 +341,7 @@ namespace VibeGame1
         }
 
         void OnDied() { perfectStreak = 0; deathblowReady = false; ShowCenter("YOU DIED", new Color(1f, 0.15f, 0.25f), 1.8f); }
-        void OnRespawned() { deathblowReady = false; if (postureBar != null) postureBar.Set(0f); ShowCenter("", Color.white, 0.01f); }
+        void OnRespawned() { deathblowReady = false; if (postureBar != null) { postureBar.Set(0f); postureBar.SetNearBreak(false); } ShowCenter("", Color.white, 0.01f); }
         void OnCheckpoint(Checkpoint c) { ShowCenter("CHECKPOINT", new Color(0.3f, 1f, 1f), 1.2f); }
         // Named after the weapon that fired it: SUNBREAK and THORNSTORM are different events.
         void OnUltimate() { ShowCenter(superName.Length > 0 ? superName : "SUPER", new Color(1f, 0.55f, 0.18f), 1.2f); if (pyreReadyLabel != null) pyreReadyLabel.gameObject.SetActive(false); }
