@@ -521,3 +521,11 @@ Honest list of what this pass did **not** make data-driven:
 4. **Tiles are a naming convention, not a hierarchy.** `PlatformDef` has no tile field, so sections are
    distinguished only by a `T1_` / `T2_` / `T3_` / `Boss_` name prefix. Grouping them under scene
    sub-roots would break the exporter, which walks the direct children of `Level`.
+
+## 6. A level's radio playlist (2026-09-06)
+
+Content is files. Drop **mp3 / ogg / wav** into `Assets/Resources/Audio/Radio/<levelId>/` (`level_01/`) and they are that
+level's playlist in name order (`01_`, `02_` … to order). `Default/` plays for any level without its own folder.
+`LevelDefinition.radioFolder` points a level at another folder. Nothing there = the radio stays off and the ambient
+bed plays. Keys `]` `[` and backslash. Map: DATAFLOW "The radio". Set Load Type *Streaming* on long clips.
+

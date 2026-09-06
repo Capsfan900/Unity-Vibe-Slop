@@ -463,6 +463,33 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "RadioNext",
+                    "type": "Button",
+                    "id": "fd676995-ae17-4aac-b128-7444c173fc63",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RadioPrevious",
+                    "type": "Button",
+                    "id": "f49d948d-79b8-4bae-8747-93d3714cc111",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RadioToggle",
+                    "type": "Button",
+                    "id": "dfa20b79-88f5-4732-b535-15a312f95612",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -1541,6 +1568,39 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "EditorPlaceHere",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "fd0b09b1-5120-4278-94ce-912adf1b839b",
+                    "path": "<Keyboard>/rightBracket",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "RadioNext",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "653624fc-f0ce-4ebe-84de-e725e7a2f24a",
+                    "path": "<Keyboard>/leftBracket",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "RadioPrevious",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "100e7a32-a60d-450a-a68d-867e97d59cc5",
+                    "path": "<Keyboard>/backslash",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "RadioToggle",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

@@ -112,7 +112,7 @@ namespace VibeGame1
             // break is a surprise rather than a payoff you were chasing.
             if (!broken && shown >= NearBreakRatio)
             {
-                float k = Mathf.Clamp01((shown - NearBreakRatio) / (1f - NearBreakRatio));
+                float k = BarView.NearBreakStrength(shown, NearBreakRatio);   // the ONE formula, shared with the HUD bars
                 float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * NearBreakHz * Mathf.PI * 2f);
                 c = Color.Lerp(c, Color.white, 0.55f * k * beat);
             }

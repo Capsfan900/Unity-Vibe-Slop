@@ -14,6 +14,8 @@ namespace VibeGame1
         public static AudioManager I { get; private set; }
 
         [Range(0f, 1f)] public float masterVolume = 0.7f;
+        /// <summary>0..1 multiplier on the music bed. LevelRadio writes 0 while the radio plays and 1 when it is off.</summary>
+        public static float MusicDuck = 1f;
         [Range(0f, 1f)] public float musicVolume = 0.45f;
         public float musicFadeSeconds = 1.5f;
 
@@ -95,6 +97,9 @@ namespace VibeGame1
 
         void Update()
         {
+            // The radio's duck is applied live so turning it on or off mid-track is heard at once.
+            if (activeMusic != null && fade == null) activeMusic.volume = musicVolume * masterVolume * MusicDuck;
+
             // watchdog: keep music alive (editor focus loss, audio device change, etc.)
             if (activeMusic != null && activeMusic.clip != null && !activeMusic.isPlaying && fade == null && Time.frameCount % 30 == 0)
                 activeMusic.Play();
@@ -110,7 +115,7 @@ namespace VibeGame1
             var from = activeMusic;
             var to = activeMusic == musicA ? musicB : musicA;
             to.clip = clip;
-            to.volume = fadeSeconds <= 0f ? musicVolume * masterVolume : 0f;
+            to.volume = fadeSeconds <= 0f ? musicVolume * masterVolume * MusicDuck : 0f;
             to.Play();
             activeMusic = to;
             if (fade != null) StopCoroutine(fade);
@@ -125,11 +130,11 @@ namespace VibeGame1
             {
                 t += Time.unscaledDeltaTime;
                 float k = Mathf.Clamp01(t / Mathf.Max(0.01f, seconds));
-                to.volume = musicVolume * masterVolume * k;
+                to.volume = musicVolume * masterVolume * MusicDuck * k;
                 if (from != null) from.volume = fromStart * (1f - k);
                 yield return null;
             }
-            to.volume = musicVolume * masterVolume;
+            to.volume = musicVolume * masterVolume * MusicDuck;
             if (from != null) { from.Stop(); from.volume = 0f; }
             fade = null;
         }

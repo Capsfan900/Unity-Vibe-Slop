@@ -1024,6 +1024,9 @@ namespace VibeGame1.EditorTools
             root.AddComponent<InputReader>();
             root.AddComponent<TimeScaleController>();
             root.AddComponent<AudioManager>();
+            // THE RADIO (2026-09-06): per-level playlists from Resources/Audio/Radio/<levelId>. Rule 9 numbers.
+            var radio = root.AddComponent<LevelRadio>();
+            radio.previousRestartWindow = 3f; radio.fadeSeconds = 0.35f; radio.autoPlay = true;
             root.AddComponent<SoulsWallet>();
             root.AddComponent<SpeedrunTimer>();
             var lm = root.AddComponent<LevelManager>();

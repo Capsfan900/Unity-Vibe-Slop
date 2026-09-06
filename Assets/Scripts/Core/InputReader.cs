@@ -19,6 +19,8 @@ namespace VibeGame1
         InputAction levelEditor, editorPlace, editorDelete, editorGrab, editorRotate, editorGrow, editorShrink,
                     editorPrev, editorNext, editorVariant, editorCursor, editorFree, editorFast, editorDown,
                     editorWheelUp, editorWheelDown, editorUndo, editorRedo, editorDuplicate, editorCancel, editorPlaceHere, editorPick;
+        // The radio (LevelRadio). Optional like the editor actions.
+        InputAction radioNext, radioPrevious, radioToggle;
         int pauseSuppressedFrame = -1;
 
         void Awake()
@@ -83,6 +85,9 @@ namespace VibeGame1
             editorCancel = map.FindAction("EditorCancel", false);
             editorPlaceHere = map.FindAction("EditorPlaceHere", false);
             editorPick = map.FindAction("EditorPick", false);
+            radioNext = map.FindAction("RadioNext", false);
+            radioPrevious = map.FindAction("RadioPrevious", false);
+            radioToggle = map.FindAction("RadioToggle", false);
             map.Enable();
             asset.FindActionMap("UI")?.Enable();
         }
@@ -178,6 +183,9 @@ namespace VibeGame1
         public bool EditorPlaceHerePressed => editorPlaceHere != null && editorPlaceHere.WasPressedThisFrame();
         /// <summary>`I` (eyedropper): the aimed piece's kind, variant and size become the pending selection.</summary>
         public bool EditorPickPressed => editorPick != null && editorPick.WasPressedThisFrame();
+        public bool RadioNextPressed => radioNext != null && radioNext.WasPressedThisFrame();
+        public bool RadioPreviousPressed => radioPrevious != null && radioPrevious.WasPressedThisFrame();
+        public bool RadioTogglePressed => radioToggle != null && radioToggle.WasPressedThisFrame();
         /// <summary>The arrow keys as a nudge, pressed THIS frame (each axis −1 / 0 / +1). Read off the keyboard
         /// directly because the arrows are also part of the Move composite; the editor subtracts
         /// <see cref="ArrowAxis"/> from its fly so a nudge never also flies.</summary>

@@ -784,6 +784,24 @@ OffhandController  = the player's left hand, ALWAYS visible (OffhandViewmodel)
 
 ---
 
+## The radio (2026-09-06)
+
+```
+Managers prefab → LevelRadio (one 2D AudioSource, volume = AudioManager.musicVolume * masterVolume, faded on unscaled time)
+  Start / SceneManager.activeSceneChanged → LoadForActiveLevel()
+     LevelRegistryRuntime.Current   (Resources/LevelRegistry, matched by sceneName; null in the sandbox)
+     folder = def.radioFolder, else def.SafeLevelId, else ""  → RadioMath.ResourcesFolder → "Audio/Radio/<folder>"
+     Resources.LoadAll<AudioClip>  (mp3 / ogg / wav dropped in Assets/Resources/Audio/Radio/<folder>/, name order;
+                                    empty → "Audio/Radio/Default"; still empty → radio OFF, HasPlaylist false)
+     autoPlay → TurnOn(): AudioManager.MusicDuck = 0 (the ambient bed ducks; boss music still swaps as before)
+  InputReader.RadioNextPressed (]) → Next()        RadioMath.Next wraps
+  InputReader.RadioPreviousPressed ([) → Previous() RadioMath.PreviousRestartsCurrent(elapsed, 3 s): restart, else back
+  InputReader.RadioTogglePressed (\) → Toggle()     TurnOff → MusicDuck = 1
+  track ends (source stopped, not AudioListener.pause) → Next()
+  OnTrackChanged → the HUD radio pane (RadioView, ui-designer): StationName, TrackTitle (RadioMath.Title), TrackIndex /
+                   TrackCount, Progress (RadioMath.Progress), IsOn; hidden when !HasPlaylist
+```
+
 ## Enemy AI
 
 ### souls_enemies — the duel reads the player (2026-09-06, from docs/plans/soulslike-report-gap-analysis-2026-09-06.md)
@@ -1061,7 +1079,7 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
      beyond 11.5 m; a mid-band shot flies 0.47 s -- answered at a run, never waited for)
 Projectile.Update()  (scaled time: hitstop freezes it)
    straight line; remaining = ProjectileMath.TimeToImpact(dist, speed)
-   → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×1.9 and its core goes white-hot (CueCore)
+   → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×2.3 (CueFlareScale) and its core goes white-hot (CueCore)
                                                                         (the same lead every attack gives)
    → within hitRadius of the chest → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
         Perfect → the bolt REFLECTS at ×1.4 toward the shooter's chest,
@@ -1699,6 +1717,9 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
         white the same way the grunt world-space bar (EnemyPostureBar) already did; previously the boss
         bar had no near-break read at all and the player bar used an undocumented 0.7 threshold for its
         colour lerp alone (no beat). BarView.NearBreakStrength is the one formula all three bars share.
+        The beat is CLEARED (SetNearBreak(false)) on respawn and HUD Start, on PlayerPostureBroken, and in
+        BossBarView.OnStarted/OnDefeated/Hide — a broken or re-shown bar shows the break read, never a beat
+        latched from the last fight (mirrors EnemyPostureBar's `!broken` gate).
    PyreChanged        → PyreBar (bottom-left) + "<SUPER NAME> READY [Q]" banner at full
    WandCooldownChanged→ WandCooldownBar (top-left, under the wand name)
    item slots → ItemSlotView          deathblow banner, toasts, popups → TMP

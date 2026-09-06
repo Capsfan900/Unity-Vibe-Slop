@@ -39,6 +39,11 @@ namespace VibeGame1
         [Tooltip("Ordering within LevelRegistry. Lower runs first.")]
         public int orderIndex = 0;
 
+        [Header("Radio (2026-09-06)")]
+        [Tooltip("Folder under Assets/Resources/Audio/Radio/ holding this level's playlist (mp3 / ogg / wav, played in " +
+                 "name order). Empty = the levelId; a missing folder falls back to Audio/Radio/Default.")]
+        public string radioFolder = "";
+
         [Header("Player")]
         [Tooltip("Where the run begins. The Player prefab is placed here and LevelManager.startSpawn points at it.")]
         public Vector3 playerStart = new Vector3(0f, 1.2f, -4f);
