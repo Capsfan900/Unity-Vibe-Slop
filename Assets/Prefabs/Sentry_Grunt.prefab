@@ -525,6 +525,7 @@ GameObject:
   - component: {fileID: 5649605262633051058}
   - component: {fileID: 2479180703152629930}
   - component: {fileID: 3208923091175678620}
+  - component: {fileID: 7056201792610754041}
   m_Layer: 7
   m_Name: Sentry_Grunt
   m_TagString: Untagged
@@ -664,6 +665,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd422e9ce2ad6fd42ab2c3909ba1c48f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ProjectileShooter
+--- !u!114 &7056201792610754041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5922748960446909087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5df9cfb9ccd6c5d4e96993ae2cc23cb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.SentryBurst
+  flareUpSpeed: 9
+  flareOutSpeed: 3
+  flareGravity: 4
+  flareLife: 4.5
 --- !u!1 &6729980286324485463
 GameObject:
   m_ObjectHideFlags: 0

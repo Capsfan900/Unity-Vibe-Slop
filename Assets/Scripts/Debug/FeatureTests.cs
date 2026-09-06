@@ -323,6 +323,7 @@ namespace VibeGame1
                 Test("WindupPoses",     TestWindupPoses),
                 Test("Deathblow",       TestDeathblowMarker),
                 Test("FlaskPunish",     TestFlaskPunish),
+                Test("Flare",           TestFlare),
                 Test("LockOn",          TestLockOn),
                 Test("Items",           TestItems),
                 Test("Flask",           TestFlask),
@@ -1857,6 +1858,55 @@ namespace VibeGame1
             Check("FlaskPunish_NeverInsideAWindup", !again, "one attack at a time");
             UnityEngine.Object.Destroy(e.gameObject);
             yield return null;
+        }
+
+        /// <summary>
+        /// The sentry FLARE loop (2026-09-06): a broken sentry detonates (dies, throws a flare), and a DASH
+        /// at the glowing flare pulls the player to it and tosses them up. Forced through the public
+        /// entry points; the aim cone is a FlareGrapple.FindTarget matter the sandbox proves by hand.
+        /// </summary>
+        IEnumerator TestFlare()
+        {
+            var sentryPf = LevelEditor.I != null ? LevelEditor.I.PrefabFor("Sentry_Grunt") : null;
+            if (sentryPf == null) { Skip("Flare", "no Sentry_Grunt in the level editor library; run 4 / 5"); yield break; }
+            yield return ResetPlayerState();
+            Vector3 pos = combat.transform.position + combat.transform.forward * 6f;
+            if (UnityEngine.AI.NavMesh.SamplePosition(pos, out var navHit, 6f, UnityEngine.AI.NavMesh.AllAreas)) pos = navHit.position;
+            var go = Instantiate(sentryPf, pos, Quaternion.LookRotation(-combat.transform.forward));
+            go.name = "~TestSentry";
+            var e = go.GetComponent<EnemyController>();
+            var burst = go.GetComponent<SentryBurst>();
+            if (e != null) e.aggroLocked = true;
+            yield return null; yield return null;
+            Check("Flare_SentryCarriesBurst", burst != null);
+            if (burst == null) { Destroy(go); yield break; }
+
+            int flaresBefore = SentryFlare.Live.Count;
+            e.Posture.Break();
+            yield return null;
+            Check("Flare_BreakDetonates", !e.IsAlive, "state=" + e.Current);
+            Check("Flare_BreakThrowsAFlare", SentryFlare.Live.Count == flaresBefore + 1 && burst.LastFlare != null,
+                "live=" + SentryFlare.Live.Count);
+            var flare = burst.LastFlare;
+            if (flare == null) yield break;
+            yield return WaitRealtime(0.4f);
+            Check("Flare_Rises", flare != null && flare.transform.position.y > pos.y + 1.5f,
+                "y=" + (flare != null ? flare.transform.position.y.ToString("0.0") : "gone") + " from " + pos.y.ToString("0.0"));
+            Check("Flare_Glows", flare != null && flare.Grappleable && flare.Glow > 0.8f, "glow=" + (flare != null ? flare.Glow.ToString("0.00") : "gone"));
+
+            var grapple = combat.GetComponent<FlareGrapple>();
+            Check("Flare_PlayerCarriesGrapple", grapple != null);
+            if (grapple == null || flare == null) yield break;
+            int tossesBefore = grapple.Tosses;
+            bool started = grapple.GrappleNow(flare);
+            Check("Flare_GrappleStarts", started && motor.IsPulling, "started=" + started + " pulling=" + motor.IsPulling);
+            yield return WaitUntilOrTimeout(() => !motor.IsPulling, 2f);
+            yield return null;
+            Check("Flare_TossesUp", grapple.Tosses == tossesBefore + 1 && motor.Velocity.y > 8f,
+                "tosses=" + grapple.Tosses + " velY=" + motor.Velocity.y.ToString("0.0"));
+            Check("Flare_IsSpentByTheUse", flare == null, "a used flare is gone");
+            yield return WaitRealtime(1.2f);
+            yield return ResetPlayerState();
         }
 
         IEnumerator TestDeathblowMarker()

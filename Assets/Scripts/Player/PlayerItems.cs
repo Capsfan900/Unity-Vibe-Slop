@@ -219,21 +219,6 @@ namespace VibeGame1
             return true;
         }
 
-        /// <summary>
-        /// The SENTRY DASH (2026-09-06): the same pull-and-execute as a hook, spent on nothing. Only a
-        /// staggered sentry (EnemyData.rangedOnly) is a target -- <see cref="SentryDash"/> gates that --
-        /// and the sound is a teleport shimmer rather than the hook's whoosh. Refused mid-pull or
-        /// mid-execute, like a hook.
-        /// </summary>
-        public bool DashTo(EnemyController e, float seconds, Color hue)
-        {
-            if (e == null || motor == null || motor.IsPulling) return false;
-            if (exec != null && exec.IsExecuting) return false;
-            if (!e.IsAlive || !e.IsStaggered) return false;
-            StartCoroutine(PullCo(e, seconds, hue, Sfx.Teleport, 1f, 0f));
-            return true;
-        }
-
         /// <summary>The transform position that puts the player at deathblow stand-off from
         /// <paramref name="e"/>, on the player's side, at the enemy's floor.</summary>
         Vector3 StandoffPoint(EnemyController e)

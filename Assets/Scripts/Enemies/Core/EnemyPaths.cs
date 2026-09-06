@@ -6,7 +6,7 @@ namespace VibeGame1
     ///
     /// <para><b>parkour_enemies</b> — sentries on the spans: <c>Sentry_*</c>. Never melee, hold a perch,
     /// fire parriable bolts; a deflect is a boost, a stagger is a dash target. Code: <c>Enemies/parkour_enemies</c>
-    /// (Projectile, ProjectileShooter, ProjectileMath) plus <c>Player/SentryDash</c>.</para>
+    /// (Projectile, ProjectileShooter, ProjectileMath) plus <c>Player/FlareGrapple</c> (a broken sentry detonates into a flare you grapple).</para>
     /// <para><b>souls_enemies</b> — the duels: Grunt, Heavy, the Warden (Boss) and every <c>Legendary_*</c>.
     /// Melee movesets with cooled signatures, the flask interrupt, posture and the deathblow. Code:
     /// <c>Enemies/souls_enemies</c> (BossController) on the shared brain in <c>Enemies/Core</c>.</para>

@@ -51,7 +51,7 @@ Assets/Scripts/
 │   ├── PlayerItems.cs             Inventory/consumable item usage (item key, E to use)
 │   ├── FlaskAbility.cs            Healing flask consumable ability
 │   ├── UltimateAbility.cs         Ultimate/special ability logic
-│   ├── SentryDash.cs              Dash ability logic
+│   ├── FlareGrapple.cs            DASH at a glowing sentry flare: pull to it, get tossed up
 │   ├── WeaponController.cs        Melee weapon swing/combo state machine
 │   ├── WeaponViewmodel.cs         First-person weapon mesh/animation driver
 │   ├── ViewmodelArm.cs            Arm rig driver for viewmodel poses
@@ -69,7 +69,7 @@ Assets/Scripts/
 │
 ├── Enemies/                  Two families (EnemyPaths, 2026-09-06)
 │   ├── Core/                 Shared brain: EnemyController, EnemyVisuals, locomotion, marker, posture bar, EnemyPaths
-│   ├── parkour_enemies/      Sentries on the spans: Projectile, ProjectileShooter, ProjectileMath (Sentry_* data)
+│   ├── parkour_enemies/      Sentries on the spans: Projectile, ProjectileShooter, ProjectileMath, SentryBurst, SentryFlare, FlareMath (Sentry_* data)
 │   └── souls_enemies/        The duels: BossController (Grunt, Heavy, Warden, Legendary_* data)
 │   ├── EnemyController.cs        Per-enemy state machine (aggro, attack selection, telegraph)
 │   ├── BossController.cs         Boss-specific state machine/phases

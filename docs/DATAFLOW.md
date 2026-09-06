@@ -729,14 +729,27 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
 
 GameEvents.PlayerRespawned → every ItemPickup re-enables; PlayerItems clears
 
-SENTRY DASH (2026-09-06; SentryDash on the Player prefab, DefaultExecutionOrder -50 so it runs BEFORE the motor)
-  every frame while GameManager.IsPlaying, not pulling, not executing:
-    Target = FindTarget(): staggered enemy whose data.rangedOnly (Grunt / Heavy on the spans; never the boss),
-             within range 30 m and coneDeg 18 of the aim, world ray clear (motor.WorldMask)
-    prompt "DASH  [DASH]" when Target != null AND ExecuteInteractor.Target == null (at stab range ATTACK wins)
-  DASH pressed (InputReader.DashPressed) with a Target
-    → PlayerItems.DashTo(e, 0.35 s, violet)  → the SAME PullCo the Grapple runs: line + FovKick + Sfx.Teleport,
-      motor.BeginPull(StandoffPoint) → arrive → ExecuteInteractor.ExecuteNow(e)   (one pull-and-execute path)
+THE SENTRY FLARE (2026-09-06, replaced the sentry dash the same day; parkour_enemies)
+  Posture.OnBroken on a Sentry_* → SentryBurst.HandleBroken (data.rangedOnly only)
+    → Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5)
+      + SlashFx.Flare(BurstHue, size 2.4, 0.3s) + SlashFx.Ring(BurstHue, radius 2.6, 0.4s) + Sparks(22) + Thunder/shake
+        -- the Flare+Sparks alone (VFX pass 2026-09-06) did not read as an EVENT at span range; the Ring
+           shockwave is what makes "a body just died here" legible from outside the sparks' own travel.
+           BurstHue is violet-white (SentryFlare's own family), never the bolt's amber: reward, not threat.
+      then Health.TakeDamage(999999) → the ORDINARY death path (souls, EnemyKilled, mist). No corpse to dash to.
+  SentryFlare.Update (scaled time): position = FlareMath.Position(origin, v, g, t) -- floats up ~10 m, hangs, sinks;
+      glow = 1 - t/life drives size (x0.25..1) and colour; Grappleable while glow > MinGrappleGlow 0.08; gone at life.
+      SentryFlare.Live is the registry.
+FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEFORE the motor)
+  every frame while playing, not pulling, not executing:
+    Target = nearest-to-crosshair Grappleable flare within range 30 m, coneDeg 20, world ray clear
+    prompt "GRAPPLE  [DASH]" when Target != null and ExecuteInteractor has no target
+  DASH pressed with a Target → GrappleNow(f): line + FovKick + Sfx.Dash, motor.BeginPull(flare - 0.6 m, 0.35 s)
+    motor.OnPullEnded (arrived OR cut) → motor.Launch(tossUpSpeed 14) [rule 10 entry point], FovKick 8,
+      ChromaticPulse(tossChroma 0.16, 0.25s) [g-force read, a separate channel from FovKick -- VFX pass
+      2026-09-06, the toss used to have no visual anchored to the player at all], shake, Sfx.Teleport,
+      SlashFx.Ring(player position, hue, radius 1.4, 0.25s) [sells "thrown FROM here"],
+      f.Consume() (sparks; the flare is spent by the use). Tosses++.
     the motor's own Update returns early while IsPulling, so the press never doubles as an ordinary dash
 ```
 
@@ -1682,6 +1695,11 @@ SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, 
 ```
 gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
    health / pyre / posture / wand cooldown / boss health / boss posture → BarView
+   PlayerPostureChanged / BossPostureChanged → BarView.SetNearBreak(ratio ≥ EnemyPostureBar.NearBreakRatio
+        0.8, strength, NearBreakHz 4.5) (2026-09-06) — the player and boss posture bars now beat toward
+        white the same way the grunt world-space bar (EnemyPostureBar) already did; previously the boss
+        bar had no near-break read at all and the player bar used an undocumented 0.7 threshold for its
+        colour lerp alone (no beat). BarView.NearBreakStrength is the one formula all three bars share.
    PyreChanged        → PyreBar (bottom-left) + "<SUPER NAME> READY [Q]" banner at full
    WandCooldownChanged→ WandCooldownBar (top-left, under the wand name)
    item slots → ItemSlotView          deathblow banner, toasts, popups → TMP

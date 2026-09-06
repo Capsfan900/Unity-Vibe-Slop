@@ -256,6 +256,40 @@ point light, and both exist to stop it eating the frame. Closed as far as **shap
 68 mm. Borrowing the blade's material was the wrong call for a spark; it now owns an additive one, and
 additive can only ever *add* light, so a dim spark is faint rather than a hole in the frame.
 
+### 3.7 The sentry detonation and flare grapple ✅ first pass, 2026-09-06
+
+**Finding, this audit.** Two brand-new effects, untested by a human: the sentry detonation
+(`SentryBurst.Detonate`) and the flare-grapple toss (`FlareGrapple.HandlePullEnded`). Both are the
+payoff for two clean deflects and need to read at range and sell a mechanic, not just decorate one.
+
+- **The detonation under-read at distance.** It fired a `SlashFx.Flare` sized 1.6 m (the same "highlight,
+  not an explosion" primitive and a similar size to a routine parry spark) plus 18 sparks — nothing with
+  a footprint bigger than the sparks' own travel, so a body dying 20+ m down a span had no cue that
+  scaled with the distance. **Fixed**: added a `SlashFx.Ring` shockwave (`BurstRingRadius` 2.6 m,
+  `BurstRingSeconds` 0.4 s, longer than the flash) and grew the flare to 2.4 m / 0.3 s. Colour
+  (`SentryBurst.BurstHue`) stays violet-leaning — the same family as `SentryFlare.Core` — never the
+  bolt's amber, so the burst never lies about which kind of event it is (reward vs threat). All three
+  calls still go through `SlashFx`'s pooled, 1.0-normalised materials — this is size and shape doing the
+  work of "legible at range," not a bloom exception; the bolt and the standing flare glow keep that
+  privilege, the momentary flash does not need it.
+- **The toss had no visual anchored to the player.** `Consume()` puts sparks at the flare's own (already
+  spent) position; the only thing that happened to the player's view was the ordinary `FovKick` — the
+  same channel every other kick uses, so a toss read identically to a normal dash punch. **Fixed**: an
+  expanding `SlashFx.Ring` at the player's feet at the instant of launch ("thrown FROM here," mirroring
+  the pull line's "pulled TO there"), and a `CameraFX.ChromaticPulse` (`tossChroma` 0.16, 0.25 s) as a
+  separate g-force channel from the FovKick — the one moment the motor hands the player vertical speed
+  they did not ask for with WASD deserves its own cue, not a copy of an existing one.
+- **The flare-vs-bolt hue split already worked and needed no fix.** `SentryFlare.Core` (1.2, 0.9, 1.6 —
+  violet-white) against `Projectile.HotCore` (1.6, 0.95, 0.38 — amber): both peak at the same 1.6, so
+  brightness never carries the distinction, only hue does — bone/ember for "answer this," violet for
+  "use this." The flare's constant `sin(t·23)` flicker against the bolt's flat glow-until-cue is the same
+  split read as motion: alive and waiting (flare) vs steady until it demands you act (bolt).
+
+**Still open, needs a human playtest, not more code.** Whether 2.4 m / 2.6 m actually reads at 25 m on a
+real monitor is a claim this pass could only reason about, not measure — there is no in-editor way to
+screenshot the span from spawn distance without driving the editor, which is out of this agent's scope.
+Tests below pin the *numbers*, not the *look*.
+
 ---
 
 ## 4. Standing rules for this project's effects

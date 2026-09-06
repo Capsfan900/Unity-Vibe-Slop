@@ -783,6 +783,7 @@ GameObject:
   - component: {fileID: 3469647023690313034}
   - component: {fileID: 5202061242846367764}
   - component: {fileID: 8809098549704487242}
+  - component: {fileID: 2054412362580860981}
   m_Layer: 7
   m_Name: Sentry_Heavy
   m_TagString: Untagged
@@ -922,6 +923,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd422e9ce2ad6fd42ab2c3909ba1c48f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ProjectileShooter
+--- !u!114 &2054412362580860981
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7434583970276992419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5df9cfb9ccd6c5d4e96993ae2cc23cb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.SentryBurst
+  flareUpSpeed: 9
+  flareOutSpeed: 3
+  flareGravity: 4
+  flareLife: 4.5
 --- !u!1 &8156050557639146310
 GameObject:
   m_ObjectHideFlags: 0

@@ -722,11 +722,14 @@ namespace VibeGame1.EditorTools
             root.AddComponent<PlayerDeath>();
             root.AddComponent<PlayerFeedback>();
             root.AddComponent<PlayerItems>();
-            // The sentry dash (2026-09-06): DASH at a staggered span shooter pulls you to it and executes.
-            // Rule 9: written here, not left to the initialiser.
-            var sentryDash = root.AddComponent<SentryDash>();
-            sentryDash.range = 30f; sentryDash.coneDeg = 18f; sentryDash.pullSeconds = 0.35f;
-            sentryDash.hue = new Color(0.85f, 0.75f, 1f);
+            // The FLARE GRAPPLE (2026-09-06, replaces the sentry dash): DASH at a glowing sentry flare pulls you
+            // to it and tosses you up. Rule 9: written here, not left to the initialiser.
+            var flareGrapple = root.AddComponent<FlareGrapple>();
+            flareGrapple.range = 30f; flareGrapple.coneDeg = 20f; flareGrapple.pullSeconds = 0.35f;
+            flareGrapple.tossUpSpeed = 14f; flareGrapple.tossFovKick = 8f;
+            flareGrapple.hue = new Color(0.85f, 0.7f, 1f);
+            // The toss's player-anchored read (vfx-art-team pass, 2026-09-06): a ring at the feet and a g-force chroma pulse.
+            flareGrapple.tossChroma = 0.16f; flareGrapple.tossChromaSeconds = 0.25f; flareGrapple.tossRingRadius = 1.4f;
 
             // Camera rig
             var pivot = Empty("CameraPivot", root.transform, new Vector3(0f, 1.6f, 0f));
@@ -1068,7 +1071,13 @@ namespace VibeGame1.EditorTools
                 ctrl.data = Load<EnemyData>(dataPath);
                 // parkour_enemies only (2026-09-06 split): the shooter goes on a body whose data shoots.
                 // A melee Grunt or a legendary no longer carries an inert one. See Projectile.cs.
-                if (ctrl.data != null && ctrl.data.shootsProjectiles) root.AddComponent<ProjectileShooter>();
+                if (ctrl.data != null && ctrl.data.shootsProjectiles)
+                {
+                    root.AddComponent<ProjectileShooter>();
+                    // A sentry DETONATES on a posture break and throws a flare (SentryBurst). Rule 9 numbers.
+                    var burst = root.AddComponent<SentryBurst>();
+                    burst.flareUpSpeed = 9f; burst.flareOutSpeed = 3f; burst.flareGravity = 4f; burst.flareLife = 4.5f;
+                }
             }
 
             Material bodyMat = Mat(isBoss ? "M_Boss" : "M_Enemy");
