@@ -433,8 +433,8 @@ Unity editor and runs the generators and suites after a pass.
 |---|---|---|---|
 | `combat-designer` | Opus | combat, enemies, parry, difficulty | plan only unless told to implement |
 | `editor-controls` | Sonnet | the F10 level editor's controls | edits |
-| `ui-designer` | Sonnet | HUD, menus, bars, prompts, readouts | edits |
-| `vfx-art-team` | Sonnet | effects, materials, shaders, colour, light budget, tells | edits |
+| `ui-designer` | Opus | HUD, menus, bars, prompts, readouts | edits |
+| `vfx-art-team` | Opus | effects, materials, shaders, colour, light budget, tells | edits |
 
 **This applies to ANY work not done by Fable or Opus** — a one-off Sonnet worker, a fork on another model, a
 remote job — not only the four named teams (CLAUDE.md, "Regression guard").
