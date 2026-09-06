@@ -7,6 +7,17 @@ Last session: **2026-09-04, late evening** (Fable 5.1, four parallel forks).
 
 ## What happened
 
+**Latest (2026-09-06 night, Fable 5.1): THE SENTRY FLARE + the subagent teams.** A broken Sentry_* now DETONATES
+(`SentryBurst`, ordinary death path) and throws a `SentryFlare` (violet-white, low-gravity arc, fades over 4.5 s);
+DASH at a glowing flare (`FlareGrapple`, replaces SentryDash) pulls you to it and tosses you up 14 m/s. Proven end
+to end in FeatureTests (Flare_*). Two Sonnet teams exist in `.claude/agents/` (`ui-designer`, `vfx-art-team`) with
+the user's mandate: REFINE what Fable/Opus built, never invent; every pass is one lead-made commit prefixed with the
+team name (see TOOLING.md "Subagent teams"); tag `pre-team-passes-2026-09-06` precedes their first passes. Pass 1
+results: the near-break beat on the boss and player posture bars (ui-designer), a ring shockwave on the detonation
+and a feet-ring + chroma pulse on the toss (vfx-art-team). Open from the teams: a priority on `PromptChanged` so
+PERFECT cannot eat GRAPPLE [DASH]; a screen-edge chevron for live flares (diegetic first, only if playtest shows
+misses). EditMode 584/584; feature 760/761 (the flask timing flake again). Nothing played by a human.
+
 **Latest (2026-09-06 evening, Fable 5.1): the `parkour_enemies` / `souls_enemies` SPLIT.** `EnemyPaths`
 (Scripts/Enemies/Core) decides the family by name: `Sentry_*` is parkour, everything else souls. Scripts live
 in `Enemies/Core` (shared brain), `Enemies/parkour_enemies` (Projectile, ProjectileShooter, ProjectileMath) and
