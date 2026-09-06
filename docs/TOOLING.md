@@ -433,7 +433,7 @@ Unity editor and runs the generators and suites after a pass.
 |---|---|---|---|
 | `combat-designer` | Opus | combat, enemies, parry, difficulty | plan only unless told to implement |
 | `editor-controls` | Sonnet | the F10 level editor's controls | edits |
-| `ui-designer` | Opus | HUD, menus, bars, prompts, readouts | edits |
+| `ui-designer` | Opus | HUD, menus, bars, prompts, readouts | edits; **leads and delegates** its own lanes on a multi-part pass (`lead-and-delegate`) |
 | `vfx-art-team` | Opus | effects, materials, shaders, colour, light budget, tells | edits |
 | `audio-engineer` | Sonnet | every sound: cues, hits, movement, the radio, music beds, the mix; CC0 sourcing | edits |
 
