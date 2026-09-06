@@ -12,10 +12,10 @@ namespace VibeGame1.EditorTools
     {
         const string DataRoot = "Assets/Data";
         const string AttacksDir = DataRoot + "/Attacks";
-        const string EnemiesDir = DataRoot + "/Enemies";
+        const string EnemiesDir = EnemyPaths.Souls;   // the duels; parkour data is EnemyPaths.Parkour
         const string WeaponsDir = DataRoot + "/Weapons";
         const string ItemsDir = DataRoot + "/Items";
-        const string MovesetsDir = DataRoot + "/Movesets";
+        const string MovesetsDir = EnemyPaths.SoulsMovesets;
         const string LevelsDir = DataRoot + "/Levels";
 
         [MenuItem("VibeGame1/3. Create Data")]
@@ -23,10 +23,12 @@ namespace VibeGame1.EditorTools
         {
             EnsureFolder(DataRoot);
             EnsureFolder(AttacksDir);
-            EnsureFolder(EnemiesDir);
+            EnsureFolder(EnemyPaths.Parkour);
+            EnsureFolder(EnemyPaths.Souls);
             EnsureFolder(WeaponsDir);
             EnsureFolder(ItemsDir);
-            EnsureFolder(MovesetsDir);
+            EnsureFolder(EnemyPaths.ParkourMovesets);
+            EnsureFolder(EnemyPaths.SoulsMovesets);
             EnsureFolder(LevelsDir);
 
             // ---------------- Attacks ----------------
@@ -190,7 +192,7 @@ namespace VibeGame1.EditorTools
             });
 
             // ---------------- Enemies ----------------
-            var grunt = GetOrCreate<EnemyData>(EnemiesDir + "/Grunt.asset");
+            var grunt = GetOrCreate<EnemyData>(EnemyPaths.Data("Grunt"));
             grunt.displayName = "Grunt";
             grunt.maxHP = 60f; grunt.maxPosture = 60f; grunt.postureRegen = 6f; grunt.postureRegenDelay = 2.5f; grunt.staggerSeconds = 3f;
             grunt.moveSpeed = 5.6f; grunt.turnSpeed = 400f; grunt.aggroRange = 16f; grunt.attackRange = 2.2f;
@@ -227,7 +229,7 @@ namespace VibeGame1.EditorTools
             grunt.moveset = Moveset("Grunt_Moveset", "Grunt", new[]
             {
                 Entry("jab-slash (the common rhythm)",        3f, 0f, 99f, gruntJab, gruntSlash),
-                Entry("jab-jab-HEAVY (the signature bait)",   1f, 0f, 99f, gruntJab, gruntJab, gruntHeavy),
+                EntryCd("jab-jab-HEAVY (the signature bait)", 1f, 0f, 99f, 5f, gruntJab, gruntJab, gruntHeavy),
                 Entry("slash-heavy (slow, slower)",           1.5f, 0f, 99f, gruntSlash, gruntHeavy),
                 Entry("jab-slash-jab (fast, slow, fast)",     2f, 0f, 99f, gruntJab, gruntSlash, gruntJab),
             });
@@ -241,8 +243,10 @@ namespace VibeGame1.EditorTools
             // deflect throws it back for 30 damage / 40 posture on the shooter and buys the player 9 m/s
             // along their look (a run at 11 becomes 20, bleeding back toward the 17.6 air soft cap):
             // deflect while aiming at the next ledge and the enemy has just launched you.
-            // MOVEMENT-PRINCIPLES rules 3, 5 and 6.
-            grunt.shootsProjectiles = true;
+            // souls_enemies (2026-09-06 split): the pill Grunt is the MELEE trainer again. It keeps the bolt
+            // data authored below only as the SOURCE the sentry copies from; it never shoots.
+            grunt.flaskPunishChance = 0.35f;
+            grunt.shootsProjectiles = false;
             grunt.projectileAttack = Attack("Projectile_Bolt", a =>
             {
                 a.windup = 0.5f; a.impactDelay = 0f; a.strikeDuration = 0.05f; a.recovery = 0.2f;
@@ -256,7 +260,7 @@ namespace VibeGame1.EditorTools
             // is always cue lead + 0.08 s, so a runner is shot at all the way in and past. The beat is a
             // fixed 1.6 s metronome (no +-15% jitter), held while the line is blocked, and each shot leads
             // 80% of the player's velocity so a runner meets it instead of outrunning it.
-            grunt.rangedOnly = true; grunt.projectileLead = 0.8f;
+            grunt.rangedOnly = false; grunt.projectileLead = 0.8f;
             grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 32f;
             grunt.projectileMinRange = 3f; grunt.projectileMaxRange = 32f;
             // P1 (combat plan 2026-09-06): a reflected bolt OPENS a sentry, it does not kill it. At 30 damage
@@ -267,7 +271,7 @@ namespace VibeGame1.EditorTools
             grunt.parrySpeedGain = 9f;
             EditorUtility.SetDirty(grunt);
 
-            var heavy = GetOrCreate<EnemyData>(EnemiesDir + "/Heavy.asset");
+            var heavy = GetOrCreate<EnemyData>(EnemyPaths.Data("Heavy"));
             heavy.displayName = "Heavy";
             heavy.maxHP = 130f; heavy.maxPosture = 110f; heavy.postureRegen = 5f; heavy.postureRegenDelay = 3f; heavy.staggerSeconds = 3.5f;
             heavy.moveSpeed = 3.9f; heavy.turnSpeed = 260f; heavy.aggroRange = 16f; heavy.attackRange = 2.6f;
@@ -285,7 +289,7 @@ namespace VibeGame1.EditorTools
             heavy.moveset = Moveset("Heavy_Moveset", "Heavy", new[]
             {
                 Entry("sweep-overhead (medium, slow)",              2f, 0f, 99f, heavySweep, heavyOverhead),
-                Entry("step-sweep-OVERHEAD (the long phrase)",      1.5f, 0f, 99f, heavyStep, heavySweep, heavyOverhead),
+                EntryCd("step-sweep-OVERHEAD (the long phrase)",    1.5f, 0f, 99f, 6f, heavyStep, heavySweep, heavyOverhead),
                 Entry("sweep-sweep-overhead (tempo then break)",    1.5f, 0f, 99f, heavySweep, heavySweep, heavyOverhead),
                 // Step openers exist to CLOSE distance, so they are gated to the far band. Chosen
                 // point-blank the advancing jab looks like the enemy is walking through you.
@@ -294,16 +298,39 @@ namespace VibeGame1.EditorTools
             heavy.combos = heavy.moveset.ToComboArray();
             // The heavy shoots too, a touch slower and harder: the same bolt data, a longer interval.
             // 28 m/s from 10 m is a 0.36 s flight -- still a tell you answer at a run.
-            heavy.shootsProjectiles = true;
+            heavy.flaskPunishChance = 0.4f;
+            heavy.shootsProjectiles = false;
             heavy.projectileAttack = grunt.projectileAttack;
-            heavy.rangedOnly = true; heavy.projectileLead = 0.8f;
+            heavy.rangedOnly = false; heavy.projectileLead = 0.8f;
             heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 28f;
             heavy.projectileMinRange = 3f; heavy.projectileMaxRange = 32f;
             heavy.parriedProjectileDamage = 30f; heavy.parriedProjectilePosture = 50f;   // 3 reflects: 90 of 130 HP, 150 >= 110 posture
             heavy.parrySpeedGain = 9f;
             EditorUtility.SetDirty(heavy);
 
-            var boss = GetOrCreate<BossData>(EnemiesDir + "/Boss.asset");
+            // ---- parkour_enemies: THE SENTRIES (2026-09-06 split) ----------------------------------------
+            // Sentry_Grunt / Sentry_Heavy are the Grunt and the Heavy's tuning copied whole (CopySerialized,
+            // so a retune of the pill guys carries over) and then flipped to the span role: rangedOnly,
+            // shootsProjectiles, no flask interrupt (a route, not a duel), and a violet body so a perch
+            // never reads as a melee enemy. Level_01's perches spawn THESE; the sandbox pads keep the melee
+            // originals. Everything projectile-side lives in Enemies/parkour_enemies.
+            var sentryGrunt = GetOrCreate<EnemyData>(EnemyPaths.Data("Sentry_Grunt"));
+            EditorUtility.CopySerialized(grunt, sentryGrunt);
+            sentryGrunt.name = "Sentry_Grunt";
+            sentryGrunt.displayName = "Sentry";
+            sentryGrunt.shootsProjectiles = true; sentryGrunt.rangedOnly = true; sentryGrunt.flaskPunishChance = 0f;
+            sentryGrunt.bodyColor = Hex("#2A2340"); sentryGrunt.emission = Hex("#5A2BD0") * 1.2f;
+            EditorUtility.SetDirty(sentryGrunt);
+
+            var sentryHeavy = GetOrCreate<EnemyData>(EnemyPaths.Data("Sentry_Heavy"));
+            EditorUtility.CopySerialized(heavy, sentryHeavy);
+            sentryHeavy.name = "Sentry_Heavy";
+            sentryHeavy.displayName = "Heavy Sentry";
+            sentryHeavy.shootsProjectiles = true; sentryHeavy.rangedOnly = true; sentryHeavy.flaskPunishChance = 0f;
+            sentryHeavy.bodyColor = Hex("#2E2838"); sentryHeavy.emission = Hex("#6A2BE0") * 1.2f;
+            EditorUtility.SetDirty(sentryHeavy);
+
+            var boss = GetOrCreate<BossData>(EnemyPaths.Data("Boss"));
             boss.displayName = "THE HOLLOW WARDEN";
             boss.maxHP = 380f; boss.maxPosture = 220f; boss.postureRegen = 12f; boss.postureRegenDelay = 3f; boss.staggerSeconds = 4f;
             boss.moveSpeed = 5.5f; boss.turnSpeed = 300f; boss.aggroRange = 40f; boss.attackRange = 3.0f;
@@ -525,7 +552,7 @@ namespace VibeGame1.EditorTools
             });
 
             // --- EnemyData: The Thirteenth Shade ----------------------------------------------------
-            var ninja = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Ninja.asset");
+            var ninja = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Ninja"));
             ninja.displayName = "THE THIRTEENTH SHADE";
             ninja.maxHP = 150f; ninja.maxPosture = 120f; ninja.postureRegen = 7f;
             ninja.postureRegenDelay = 2.5f; ninja.staggerSeconds = 3.2f;
@@ -554,7 +581,7 @@ namespace VibeGame1.EditorTools
             EditorUtility.SetDirty(ninja);
 
             // --- EnemyData: The Iron Penitent -------------------------------------------------------
-            var knight = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Knight.asset");
+            var knight = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Knight"));
             knight.displayName = "THE IRON PENITENT";
             // POSTURE 260, not 190. He now throws far more parryable hits per fight than anything else
             // in the game, so the bar has to be long enough that surviving one spin is progress rather
@@ -616,7 +643,7 @@ namespace VibeGame1.EditorTools
             EditorUtility.SetDirty(knight);
 
             // --- EnemyData: The Ashen Chorister -----------------------------------------------------
-            var spellsword = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Spellsword.asset");
+            var spellsword = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Spellsword"));
             spellsword.displayName = "THE ASHEN CHORISTER";
             spellsword.maxHP = 300f; spellsword.maxPosture = 210f; spellsword.postureRegen = 8f;
             spellsword.postureRegenDelay = 3f; spellsword.staggerSeconds = 3.6f;
@@ -773,7 +800,7 @@ namespace VibeGame1.EditorTools
             });
 
             // --- EnemyData: The Pale Marionette -----------------------------------------------------
-            var marionette = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Marionette.asset");
+            var marionette = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Marionette"));
             marionette.displayName = "THE PALE MARIONETTE";
             // ===== THE POSTURE ECONOMY: SIX CLEAN DEFLECTS BREAK IT =============================
             // It breaks EARLY on a deflect chain rather than running a fixed number of revolutions,
@@ -981,7 +1008,7 @@ namespace VibeGame1.EditorTools
                      new Vector3(0.04f, -0.28f, 0.06f), new Vector3(10f, -16f, 18f), 0.35f);
             });
 
-            var revenant = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Revenant.asset");
+            var revenant = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Revenant"));
             revenant.displayName = "THE EMBER REVENANT";
             // Softer than the Marionette in every direction: more HP, less posture, slower. It is a
             // punching bag with a good silhouette, which is exactly what a test body should be.
@@ -1185,7 +1212,7 @@ namespace VibeGame1.EditorTools
                 a.comboGap = 0.25f; a.parryPostureMultiplier = 1.4f;
             });
 
-            var halberdier = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Halberdier.asset");
+            var halberdier = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Halberdier"));
             halberdier.displayName = "THE ARGENT HALBERDIER";
             halberdier.maxHP = 230f; halberdier.maxPosture = 200f; halberdier.postureRegen = 7f;
             halberdier.postureRegenDelay = 3f;
@@ -1295,7 +1322,7 @@ namespace VibeGame1.EditorTools
                 a.range = 3.2f; a.coneDeg = 40f; a.damage = 24f; a.lungeDistance = 4.5f; a.comboGap = 0.25f;
             });
 
-            var drill = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Drillmaster.asset");
+            var drill = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_Drillmaster"));
             drill.displayName = "THE DRILLMASTER";
             drill.maxHP = 220f; drill.maxPosture = 150f; drill.postureRegen = 4f; drill.postureRegenDelay = 2.5f; drill.staggerSeconds = 4f;
             drill.moveSpeed = 4.0f; drill.turnSpeed = 260f; drill.aggroRange = 18f; drill.attackRange = 3.0f;
@@ -1697,7 +1724,7 @@ namespace VibeGame1.EditorTools
         /// <summary>Creates or rewrites a moveset asset. Reset to defaults first, like Attack()/Item().</summary>
         static EnemyMoveset Moveset(string name, string displayName, MovesetEntry[] entries)
         {
-            var m = GetOrCreate<EnemyMoveset>(MovesetsDir + "/" + name + ".asset");
+            var m = GetOrCreate<EnemyMoveset>(EnemyPaths.Moveset(name));
             var fresh = ScriptableObject.CreateInstance<EnemyMoveset>();
             EditorUtility.CopySerialized(fresh, m);
             Object.DestroyImmediate(fresh);

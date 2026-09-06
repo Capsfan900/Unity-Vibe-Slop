@@ -228,7 +228,8 @@ namespace VibeGame1
             for (int i = 0; i < materialKeys.Length && i < materials.Length; i++) if (materialKeys[i] == key) return materials[i];
             return null;
         }
-        GameObject PrefabFor(string key)
+        /// <summary>The library lookup. Public so FeatureTests can fetch a melee Enemy_Grunt on a level that only places sentries.</summary>
+        public GameObject PrefabFor(string key)
         {
             for (int i = 0; i < prefabKeys.Length && i < prefabs.Length; i++) if (prefabKeys[i] == key) return prefabs[i];
             return null;

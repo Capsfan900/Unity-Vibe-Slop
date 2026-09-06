@@ -19,7 +19,7 @@ namespace VibeGame1.Tests
     /// </summary>
     public class MarionetteDataTests
     {
-        const string DataDir = "Assets/Data/Enemies";
+        const string DataDir = EnemyPaths.Souls;
         const string AttackDir = "Assets/Data/Attacks";
 
         // Shared constants the fight is tuned against. Read from the shipped assets where possible.

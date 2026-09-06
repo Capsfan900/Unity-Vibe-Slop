@@ -22,7 +22,7 @@ namespace VibeGame1.EditorTools
         const string MatDir = "Assets/Materials/";
         const string PrefabDir = "Assets/Prefabs/";
         const string ItemsDir = "Assets/Data/Items";
-        const string EnemiesDir = "Assets/Data/Enemies";
+        // Enemy data lives in EnemyPaths (parkour_enemies / souls_enemies) since the 2026-09-06 split.
         const string ScenePath = "Assets/Scenes/Sandbox.unity";
         const string ProfilePath = "Assets/Settings/SampleSceneProfile.asset";
 
@@ -42,6 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
+        static GameObject pSentryGrunt, pSentryHeavy;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -790,6 +791,11 @@ namespace VibeGame1.EditorTools
             // and inside the wall). Its switch sits between the rows on the player's side.
             Box("Pad_Legendary_Drillmaster", new Vector3(14f, padY, z - 8f), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
             var sDrill = Spawner("Spawn_Legendary_Drillmaster", new Vector3(14f, spawnY, z - 8f), pLegDrillmaster, false, root);
+            // parkour_enemies: one SENTRY on the second row behind the Grunt pad, so a bolt, a deflect boost
+            // and the sentry dash can be studied without leaving the arena. The pill Grunt/Heavy pads in
+            // the front row stay MELEE (the user's "little pill guys for combat").
+            Box("Pad_Sentry_Grunt", new Vector3(-14f, padY, z - 8f), new Vector3(4f, 1f, 4f), mEnemy, root);
+            var sSentry = Spawner("Spawn_Sentry_Grunt", new Vector3(-14f, spawnY, z - 8f), pSentryGrunt, false, root);
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -809,6 +815,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Revenant", new Vector3(-28f, FloorTop, switchZ), sRevenant, "EMBER REVENANT", root);
             Switch("Wake_Legendary_Halberdier", new Vector3(0.75f, FloorTop, switchZ), sHalberdier, "ARGENT HALBERDIER", root);
             Switch("Wake_Legendary_Drillmaster", new Vector3(14f, FloorTop, z - 8f + 3.2f), sDrill, "DRILLMASTER", root);
+            Switch("Wake_Sentry_Grunt", new Vector3(-14f, FloorTop, z - 8f + 3.2f), sSentry, "SENTRY", root);
         }
 
         /// <summary>
@@ -965,7 +972,8 @@ namespace VibeGame1.EditorTools
             // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
-                                              pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster };
+                                              pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
+                                              pSentryGrunt, pSentryHeavy };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -978,14 +986,15 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Revenant"),
                 LoadEnemyData("Legendary_Halberdier"),
                 LoadEnemyData("Legendary_Drillmaster"),
+                LoadEnemyData("Sentry_Grunt"),
+                LoadEnemyData("Sentry_Heavy"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
 
         static EnemyData LoadEnemyData(string name)
         {
-            if (!AssetDatabase.IsValidFolder(EnemiesDir)) return null;
-            return AssetDatabase.LoadAssetAtPath<EnemyData>($"{EnemiesDir}/{name}.asset");
+            return AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(name));
         }
 
         // ---- helpers -------------------------------------------------------------------------------
@@ -1024,6 +1033,8 @@ namespace VibeGame1.EditorTools
             pLegRevenant = LoadPrefab("Legendary_Revenant");
             pLegHalberdier = LoadPrefab("Legendary_Halberdier");
             pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
+            pSentryGrunt = LoadPrefab("Sentry_Grunt");
+            pSentryHeavy = LoadPrefab("Sentry_Heavy");
             pBalloon = LoadPrefab("Balloon");
         }
 

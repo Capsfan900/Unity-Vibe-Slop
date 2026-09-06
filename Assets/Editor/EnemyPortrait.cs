@@ -54,7 +54,7 @@ namespace VibeGame1.EditorTools
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + prefabName + ".prefab");
             if (prefab == null) return "FAIL: no prefab " + prefabName;
-            var data = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/" + prefabName + ".asset");
+            var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(prefabName));
 
             sb.AppendLine("=== " + prefabName);
             if (data != null)

@@ -53,7 +53,7 @@ namespace VibeGame1.Tests
         static GameObject Prefab() =>
             AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Legendary_Revenant.prefab");
         static EnemyData Data() =>
-            AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Legendary_Revenant.asset");
+            AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_Revenant"));
 
         // ---------------------------------------------------------------- the measurement
 

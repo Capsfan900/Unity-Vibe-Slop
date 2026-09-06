@@ -41,7 +41,7 @@ namespace VibeGame1.Tests
         };
 
         static EnemyData Data() =>
-            AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Legendary_Halberdier.asset");
+            AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_Halberdier"));
         static EnemyAttackData Atk(string n) =>
             AssetDatabase.LoadAssetAtPath<EnemyAttackData>("Assets/Data/Attacks/" + n + ".asset");
         static GameObject Prefab() =>

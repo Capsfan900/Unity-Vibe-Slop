@@ -32,7 +32,7 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 99
-    cooldown: 0
+    cooldown: 5
   - label: slash-heavy (slow, slower)
     combo:
       hits:

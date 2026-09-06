@@ -25,7 +25,7 @@ MonoBehaviour:
   attackCooldown: 0.15
   parryRecoilSeconds: 0.42
   aggression: 0.9
-  flaskPunishChance: 0
+  flaskPunishChance: 0.35
   windupTurnMultiplier: 0.32
   stepSpeedMultiplier: 0.38
   stepAcceleration: 8
@@ -38,8 +38,8 @@ MonoBehaviour:
   backStepSpeedMultiplier: 0.3
   strafeSpeedMultiplier: 0.34
   lungeMinDistance: 1.1
-  shootsProjectiles: 1
-  rangedOnly: 1
+  shootsProjectiles: 0
+  rangedOnly: 0
   projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
   projectileInterval: 1.6
   projectileSpeed: 32

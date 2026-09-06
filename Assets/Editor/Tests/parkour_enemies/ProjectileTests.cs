@@ -54,10 +54,10 @@ namespace VibeGame1.Tests
         [Test]
         public void TheParkourEnemiesShipShooting()
         {
-            var grunt = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Grunt.asset");
-            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Heavy.asset");
+            var grunt = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Sentry_Grunt"));
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Sentry_Heavy"));
             if (grunt == null || heavy == null) Assert.Ignore("run 3. Create Data");
-            string yaml = System.IO.File.ReadAllText("Assets/Data/Enemies/Grunt.asset");
+            string yaml = System.IO.File.ReadAllText(EnemyPaths.Data("Sentry_Grunt"));
             if (!yaml.Contains("shootsProjectiles:")) Assert.Ignore("3. Create Data has not been re-run since the projectile fields were added");
             foreach (var e in new[] { grunt, heavy })
             {
@@ -80,7 +80,7 @@ namespace VibeGame1.Tests
                 Assert.LessOrEqual(e.projectileInterval, 2.5f, e.name + ": a runner must meet a bolt on the way through, not after stopping");
                 Assert.GreaterOrEqual(e.parrySpeedGain, 8f, e.name + ": the deflect has to read as a boost on the run, close to a dash's scale");
             }
-            var boss = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Boss.asset");
+            var boss = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Boss"));
             if (boss != null) Assert.IsFalse(boss.shootsProjectiles, "the Warden is a duel, not a span");
         }
 
@@ -105,7 +105,7 @@ namespace VibeGame1.Tests
         {
             // Combat plan 2026-09-06, P1. The sentry dash needs a body that is ALIVE and STAGGERED; a reflect
             // applies health before posture, so the reflects it takes to break posture must leave HP over.
-            foreach (var path in new[] { "Assets/Data/Enemies/Grunt.asset", "Assets/Data/Enemies/Heavy.asset" })
+            foreach (var path in new[] { EnemyPaths.Data("Sentry_Grunt"), EnemyPaths.Data("Sentry_Heavy") })
             {
                 var e = AssetDatabase.LoadAssetAtPath<EnemyData>(path);
                 if (e == null) Assert.Ignore("run 3. Create Data");
@@ -172,7 +172,7 @@ namespace VibeGame1.Tests
         [Test]
         public void EveryEnemyPrefabCarriesTheShooter()
         {
-            foreach (var n in new[] { "Enemy_Grunt", "Enemy_Heavy" })
+            foreach (var n in new[] { "Sentry_Grunt", "Sentry_Heavy" })
             {
                 var p = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + n + ".prefab");
                 if (p == null) Assert.Ignore("run 4. Build Prefabs");

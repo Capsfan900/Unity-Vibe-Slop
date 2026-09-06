@@ -29,7 +29,7 @@ namespace VibeGame1.EditorTools
     {
         const string PrefabDir = "Assets/Prefabs";
         const string MaterialDir = "Assets/Materials";
-        const string EnemyDataDir = "Assets/Data/Enemies";
+        const string EnemyDataDir = EnemyPaths.Souls;   // every legendary is a souls_enemy
 
         /// <summary>
         /// Imported enemy art. <b>This is the one folder in the project that holds source art rather than

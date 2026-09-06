@@ -67,7 +67,10 @@ Assets/Scripts/
 │   ├── ParryMath.cs               Pure parry timing/impulse math (tested by FeatureTests)
 │   └── EmissiveFlash.cs           Hit-flash material effect
 │
-├── Enemies/                  Enemy AI, locomotion, presentation, boss, projectiles
+├── Enemies/                  Two families (EnemyPaths, 2026-09-06)
+│   ├── Core/                 Shared brain: EnemyController, EnemyVisuals, locomotion, marker, posture bar, EnemyPaths
+│   ├── parkour_enemies/      Sentries on the spans: Projectile, ProjectileShooter, ProjectileMath (Sentry_* data)
+│   └── souls_enemies/        The duels: BossController (Grunt, Heavy, Warden, Legendary_* data)
 │   ├── EnemyController.cs        Per-enemy state machine (aggro, attack selection, telegraph)
 │   ├── BossController.cs         Boss-specific state machine/phases
 │   ├── IEnemyLocomotion.cs       Locomotion interface (nav vs. scripted movers)

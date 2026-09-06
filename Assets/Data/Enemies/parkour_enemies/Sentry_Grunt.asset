@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Sentry_Grunt
+  m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.EnemyData
+  displayName: Sentry
+  maxHP: 60
+  maxPosture: 60
+  postureRegen: 6
+  postureRegenDelay: 2.5
+  staggerSeconds: 3
+  moveSpeed: 5.6
+  turnSpeed: 400
+  aggroRange: 16
+  attackRange: 2.2
+  attackCooldown: 0.15
+  parryRecoilSeconds: 0.42
+  aggression: 0.9
+  flaskPunishChance: 0
+  windupTurnMultiplier: 0.32
+  stepSpeedMultiplier: 0.38
+  stepAcceleration: 8
+  stepDeadzone: 0.95
+  comboBreathSeconds: 0.4
+  readyDistanceMultiplier: 1.8
+  preferredRange: 3
+  commitTolerance: 0.6
+  repositionDeadzone: 0.4
+  backStepSpeedMultiplier: 0.3
+  strafeSpeedMultiplier: 0.34
+  lungeMinDistance: 1.1
+  shootsProjectiles: 1
+  rangedOnly: 1
+  projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
+  projectileInterval: 1.6
+  projectileSpeed: 32
+  projectileMinRange: 3
+  projectileMaxRange: 32
+  projectileLead: 0.8
+  parriedProjectileDamage: 20
+  parriedProjectilePosture: 40
+  parrySpeedGain: 9
+  soulValue: 40
+  bodyColor: {r: 0.16470589, g: 0.13725491, b: 0.2509804, a: 1}
+  emission: {r: 0.42352945, g: 0.20235296, b: 0.9788236, a: 1.2}
+  scale: 1
+  moveset: {fileID: 11400000, guid: 78cd427c827643142ae64ec09cd63bf9, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: 7d2bf04b868ca584db8448a09b38d1c5, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+    - {fileID: 11400000, guid: 7d2bf04b868ca584db8448a09b38d1c5, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}
+    - {fileID: 11400000, guid: 7f606f326dd1c74439c9930ffe18c665, type: 2}
+    - {fileID: 11400000, guid: e52de81d027297946b5a5c4bdafdd7f0, type: 2}

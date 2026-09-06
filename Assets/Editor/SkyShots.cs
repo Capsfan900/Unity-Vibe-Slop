@@ -193,7 +193,7 @@ namespace VibeGame1.EditorTools
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Enemy_Grunt.prefab");
             if (prefab == null) { sb.AppendLine("WARNING: no Enemy_Grunt prefab; silhouette shots skipped."); return null; }
             var inst = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-            var data = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Grunt.asset");
+            var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Grunt"));
             var vis = inst.GetComponentInChildren<EnemyVisuals>(true);
             // Awake never runs in edit mode, and Awake is where the body albedo is applied. Without this
             // the frame photographs an untinted body and the contrast number would be a fiction.

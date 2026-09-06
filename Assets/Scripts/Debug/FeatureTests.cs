@@ -211,6 +211,13 @@ namespace VibeGame1
                 if (prefab == null || s.prefab.name == "Enemy_Grunt") prefab = s.prefab;
                 if (s.prefab.name == "Enemy_Grunt") break;
             }
+            // 2026-09-06 split: Level_01 places only Sentry_* (parkour_enemies), so the melee Grunt is fetched
+            // from the level editor's prefab library, which HudBuilder wires with every enemy key.
+            if (prefab == null || prefab.name != "Enemy_Grunt")
+            {
+                var lib = LevelEditor.I != null ? LevelEditor.I.PrefabFor("Enemy_Grunt") : null;
+                if (lib != null) prefab = lib;
+            }
             if (prefab == null) prefab = fallback;
             if (prefab == null) { onReady(null); yield break; }
 
@@ -3024,6 +3031,11 @@ namespace VibeGame1
                 if (sp.prefab.GetComponentInChildren<BossController>(true) != null) { bossPf = sp.prefab; continue; }
                 if (sp.prefab.name == "Enemy_Grunt") gruntPf = sp.prefab;
                 else if (sp.prefab.name == "Enemy_Heavy") heavyPf = sp.prefab;
+            }
+            if (LevelEditor.I != null)
+            {
+                if (gruntPf == null) gruntPf = LevelEditor.I.PrefabFor("Enemy_Grunt");
+                if (heavyPf == null) heavyPf = LevelEditor.I.PrefabFor("Enemy_Heavy");
             }
             Check("Windup_CoreMovesetsFound", gruntPf != null && heavyPf != null && bossPf != null,
                 $"grunt={(gruntPf != null ? gruntPf.name : "null")} heavy={(heavyPf != null ? heavyPf.name : "null")} " +

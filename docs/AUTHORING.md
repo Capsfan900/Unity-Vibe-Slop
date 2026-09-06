@@ -139,8 +139,15 @@ Neither piece is on the NavMesh: both sit on `Interactable`, and the water sheet
 
 ## 2. Enemies
 
-An enemy is one `EnemyData` asset (`Assets/Data/Enemies/`). Vitals, movement, spacing, aggression,
-look and its attack repertoire.
+An enemy is one `EnemyData` asset, in one of two FAMILIES (2026-09-06; `EnemyPaths` decides by name):
+
+| Family | Folder | Names | What it is |
+|---|---|---|---|
+| **parkour_enemies** | `Assets/Data/Enemies/parkour_enemies/` | `Sentry_*` | Anything placed to serve a parkour section. Holds a perch, never melees, mostly shoots parriable bolts (`rangedOnly` + `shootsProjectiles`). Code: `Scripts/Enemies/parkour_enemies`. |
+| **souls_enemies** | `Assets/Data/Enemies/souls_enemies/` | everything else | The duels: Grunt, Heavy, the Warden, every `Legendary_*`. Movesets with cooled signatures, the flask interrupt, posture, the deathblow. Code: `Scripts/Enemies/souls_enemies` on the shared `Core/`. |
+
+Movesets split the same way under `Assets/Data/Movesets/`. Vitals, movement, spacing, aggression,
+look and its attack repertoire live on the one `EnemyData` class, grouped by header.
 
 To add one:
 
@@ -172,8 +179,10 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 
 | `EnemyData` | Prefab | Moveset | Controller | Role |
 |---|---|---|---|---|
-| `Grunt` | `Enemy_Grunt` | `Grunt_Moveset` | `EnemyController` | Filler; teaches the basic deflect |
-| `Heavy` | `Enemy_Heavy` | `Heavy_Moveset` | `EnemyController` | Slow filler; tempo change |
+| `Grunt` (souls) | `Enemy_Grunt` | `Grunt_Moveset` | `EnemyController` | The melee trainer (sandbox pad); teaches the basic deflect |
+| `Heavy` (souls) | `Enemy_Heavy` | `Heavy_Moveset` | `EnemyController` | Slow melee trainer; tempo change |
+| `Sentry_Grunt` (parkour) | `Sentry_Grunt` | shares `Grunt_Moveset` (never used) | `EnemyController` + `ProjectileShooter` | Span sentry: 32 m/s bolts on a 1.6 s beat; the level's perches |
+| `Sentry_Heavy` (parkour) | `Sentry_Heavy` | shares `Heavy_Moveset` (never used) | `EnemyController` + `ProjectileShooter` | Slower, harder sentry |
 | `Legendary_Ninja` — *The Thirteenth Shade* | `Legendary_Ninja` | `Legendary_Ninja_Moveset` | `EnemyController` | Mini-boss; sustained cadence + an unblockable sweep |
 | `Legendary_Knight` — *The Iron Penitent* | `Legendary_Knight` | `Legendary_Knight_Moveset` | `EnemyController` | Mini-boss; the spinning furnace — a sustained parry cadence with an outsized payoff. **Imported body** (`Assets/Enemies/IronPenitent.fbx`) |
 | `Legendary_Spellsword` — *The Ashen Chorister* | `Legendary_Spellsword` | `Legendary_Spellsword_Moveset` | `EnemyController` | Mini-boss; feint/transition + ranged opener + grab. **Imported body** (`Assets/Enemies/AshenChorister.fbx`) |

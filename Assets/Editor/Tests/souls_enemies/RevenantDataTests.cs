@@ -29,7 +29,7 @@ namespace VibeGame1.Tests
         const float GapFloor = 0.10f;      // EnemyController.NextGap floors here
 
         static EnemyData Data() =>
-            AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Legendary_Revenant.asset");
+            AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_Revenant"));
         static EnemyAttackData Atk(string n) =>
             AssetDatabase.LoadAssetAtPath<EnemyAttackData>("Assets/Data/Attacks/" + n + ".asset");
         static GameObject Prefab() =>

@@ -82,7 +82,7 @@ namespace VibeGame1.Tests
         {
             foreach (var n in Duels)
             {
-                var d = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/" + n + ".asset");
+                var d = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(n));
                 if (d == null) Assert.Ignore("run 3. Create Data");
                 if (d.moveset == null) Assert.Ignore(n + " has no moveset yet");
                 float minW = float.MaxValue, maxW = 0f; bool anyCooldown = false;
@@ -107,20 +107,29 @@ namespace VibeGame1.Tests
         [Test]
         public void SentriesNeverPunishTheFlask_TheWardenDoes()
         {
-            foreach (var n in new[] { "Grunt", "Heavy" })
+            foreach (var n in new[] { "Sentry_Grunt", "Sentry_Heavy" })
             {
-                var d = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/" + n + ".asset");
+                var d = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(n));
                 if (d == null) Assert.Ignore("run 3. Create Data");
                 Assert.AreEqual(0f, d.flaskPunishChance, n + " is a route, not a duel: it has no interrupt");
+                Assert.IsTrue(d.rangedOnly && d.shootsProjectiles, n + " is a parkour_enemy: it shoots and never melees");
             }
-            var boss = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Boss.asset");
+            // The pill guys are souls_enemies again (2026-09-06 split): melee, with the interrupt.
+            foreach (var n in new[] { "Grunt", "Heavy" })
+            {
+                var d = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(n));
+                if (d == null) Assert.Ignore("run 3. Create Data");
+                Assert.IsFalse(d.rangedOnly || d.shootsProjectiles, n + " is the melee trainer, not a sentry");
+                Assert.Greater(d.flaskPunishChance, 0f, n + " is a duel: it reads the flask");
+            }
+            var boss = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Boss"));
             if (boss != null) Assert.Greater(boss.flaskPunishChance, 0f);
         }
 
         [Test]
         public void TheDrillmasterShipsAsTheShowcase()
         {
-            var d = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Legendary_Drillmaster.asset");
+            var d = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_Drillmaster"));
             if (d == null) Assert.Ignore("run 3. Create Data");
             Assert.AreEqual(1f, d.flaskPunishChance, 1e-4f, "the showcase punishes EVERY flask so the feature is seen");
             Assert.IsFalse(d.rangedOnly); Assert.IsFalse(d.shootsProjectiles);

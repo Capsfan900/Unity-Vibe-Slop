@@ -40,9 +40,13 @@ namespace VibeGame1.EditorTools
             BuildBalloon();
             BuildPlayer();
             BuildManagers(bloodstain);
-            BuildEnemy("Enemy_Grunt", "Assets/Data/Enemies/Grunt.asset", false);
-            BuildEnemy("Enemy_Heavy", "Assets/Data/Enemies/Heavy.asset", false);
-            BuildEnemy("Boss", "Assets/Data/Enemies/Boss.asset", true);
+            // souls_enemies: the melee pill guys and the Warden.
+            BuildEnemy("Enemy_Grunt", EnemyPaths.Data("Grunt"), false);
+            BuildEnemy("Enemy_Heavy", EnemyPaths.Data("Heavy"), false);
+            BuildEnemy("Boss", EnemyPaths.Data("Boss"), true);
+            // parkour_enemies: the span sentries (same body, violet, ProjectileShooter, never melee).
+            BuildEnemy("Sentry_Grunt", EnemyPaths.Data("Sentry_Grunt"), false);
+            BuildEnemy("Sentry_Heavy", EnemyPaths.Data("Sentry_Heavy"), false);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -1061,10 +1065,10 @@ namespace VibeGame1.EditorTools
             else
             {
                 ctrl = root.AddComponent<EnemyController>();
-                // Ranged presence on a span. Carries no numbers of its own -- everything is read off
-                // EnemyData, and an enemy whose data does not shoot never fires. See Projectile.cs.
-                root.AddComponent<ProjectileShooter>();
                 ctrl.data = Load<EnemyData>(dataPath);
+                // parkour_enemies only (2026-09-06 split): the shooter goes on a body whose data shoots.
+                // A melee Grunt or a legendary no longer carries an inert one. See Projectile.cs.
+                if (ctrl.data != null && ctrl.data.shootsProjectiles) root.AddComponent<ProjectileShooter>();
             }
 
             Material bodyMat = Mat(isBoss ? "M_Boss" : "M_Enemy");

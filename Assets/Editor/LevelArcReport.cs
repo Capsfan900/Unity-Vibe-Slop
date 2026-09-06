@@ -147,7 +147,7 @@ namespace VibeGame1.EditorTools
             // The band is the SHOOTER'S data (EnemyData.projectileMinRange/MaxRange), never a literal: the report
             // said 6-30 while the test read 10-30 after the 2026-09-05 projectile retune, and a report that lies
             // is worse than none.
-            var gruntData = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Grunt.asset");
+            var gruntData = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Sentry_Grunt"));
             float bandLo = gruntData != null ? gruntData.projectileMinRange : 6f;
             float bandHi = gruntData != null ? gruntData.projectileMaxRange : 30f;
             sb.AppendLine("SHOOTER PERCHES  (a bolt across the route inside the " + bandLo + "-" + bandHi + " m band, line clear)");

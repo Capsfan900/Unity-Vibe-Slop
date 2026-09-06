@@ -1019,7 +1019,13 @@ EnemyWeaponTrail.LateUpdate()          (MiniBossFactory.WireBladeTrail, ModelSpe
   played at ×0.45 at aggression 0.85; `HalberdierBehaviourTests.TheHeavyIsStillAPunishAfterTheAggressionScaling`
   holds the number the player actually gets.
 
-### Projectiles — the parkour enemies shoot, and a deflect is a boost
+### parkour_enemies — the sentries shoot, and a deflect is a boost
+
+Since the 2026-09-06 split the span shooters are their own assets, `Sentry_Grunt` / `Sentry_Heavy`
+(`Assets/Data/Enemies/parkour_enemies`, copied from the melee Grunt / Heavy by `DataFactory` then flipped to
+`rangedOnly` + `shootsProjectiles`, violet body). `Level_01_Level.asset` places only these; the melee
+`Enemy_Grunt` / `Enemy_Heavy` are `souls_enemies` on the sandbox pads. `ProjectileShooter` is added by
+`PrefabFactory` only to a body whose data shoots.
 
 ```
 EnemyController.Update()  Idle → Chase when dist ≤ WakeRange (= max(aggroRange, projectileMaxRange) for a shooter: 32 m)

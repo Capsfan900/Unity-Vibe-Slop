@@ -11,6 +11,22 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## Moving enemy files into family folders: AssetDatabase.MoveAsset, never delete-and-recreate
+
+**2026-09-06.** The `parkour_enemies` / `souls_enemies` split moved ten data assets, ten movesets, fifteen
+scripts and six tests. Every move went through `AssetDatabase.MoveAsset` from an `execute_code` snippet,
+so each `.meta` (and so each GUID) travelled with its file and every prefab's component and data
+reference survived; the generators were then re-run and Health Check read clean. Two traps met on the way:
+`"
+"` inside an `execute_code` JSON string arrives as a literal newline and fails the C# 6 compile
+("Newline in constant"), so build multi-line results with a separator instead; and the
+`8. Build Level From Definition` menu item shows a modal "select a definition" dialog when nothing is
+selected in the Project window, which blocks the main thread and kills the bridge until a human clicks it.
+Rebuild the level by code: `LevelDefinitionBuilder.Build(def)` or `BuildCanonicalHeadless()`.
+
+**Invariant.** A file move in this project is an `AssetDatabase.MoveAsset` (or a Project-window drag), and
+a generator a session drives is one that never opens a dialog.
+
 ## A pane's glass is not its root, so hiding the glass leaves a black frame
 
 **2026-09-06.** Play: "a random black menu below the best runs menu that does nothing." `HudBuilder.Pane()`

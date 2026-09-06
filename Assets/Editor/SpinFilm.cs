@@ -96,7 +96,7 @@ namespace VibeGame1.EditorTools
             // cover a WHOLE number of revolutions per BEAT. If it does not, an impact leaves it square-on
             // but the gap hands the next pass a yaw it cannot reach without changing speed — and a speed
             // change every beat is exactly the pulse this design exists to remove.
-            var d0 = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Legendary_Marionette.asset");
+            var d0 = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_Marionette"));
             float gap = Mathf.Max(0.10f, pass.comboGap * Mathf.Lerp(1f, 0.45f, d0 != null ? d0.aggression : 0.62f));
             float beat = pass.windup + gap + pass.impactDelay + pass.strikeDuration;
             float revsPerBeat = pv.spinDegPerSec * beat / 360f;
@@ -134,7 +134,7 @@ namespace VibeGame1.EditorTools
                 var spin = live != null ? live.spinRoot : null;
                 if (spin == null) return "FAIL: instantiated prefab has no spinRoot.";
 
-                var d = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Legendary_Marionette.asset");
+                var d = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_Marionette"));
 
                 lightGo = new GameObject("Sun");
                 var sun = lightGo.AddComponent<Light>();

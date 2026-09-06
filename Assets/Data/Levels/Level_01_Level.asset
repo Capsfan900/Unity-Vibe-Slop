@@ -715,12 +715,12 @@ MonoBehaviour:
     isStatic: 1
   spawns:
   - name: Spawn_T1_GruntA
-    prefabKey: Enemy_Grunt
+    prefabKey: Sentry_Grunt
     position: {x: -7.5, y: 4.1, z: 44}
     yaw: 90
     isBoss: 0
   - name: Spawn_T1_GruntB
-    prefabKey: Enemy_Grunt
+    prefabKey: Sentry_Grunt
     position: {x: 16, y: 4.1, z: 60}
     yaw: 270
     isBoss: 0
@@ -730,12 +730,12 @@ MonoBehaviour:
     yaw: 180
     isBoss: 0
   - name: Spawn_T2_GruntA
-    prefabKey: Enemy_Grunt
+    prefabKey: Sentry_Grunt
     position: {x: 13.8, y: 11.1, z: 129}
     yaw: 250
     isBoss: 0
   - name: Spawn_T2_GruntB
-    prefabKey: Enemy_Grunt
+    prefabKey: Sentry_Grunt
     position: {x: -7.5, y: 4.6, z: 110.5}
     yaw: 90
     isBoss: 0
@@ -745,12 +745,12 @@ MonoBehaviour:
     yaw: 180
     isBoss: 0
   - name: Spawn_T3_Grunt
-    prefabKey: Enemy_Grunt
+    prefabKey: Sentry_Grunt
     position: {x: -7.5, y: 24.6, z: 217.5}
     yaw: 60
     isBoss: 0
   - name: Spawn_T3_Heavy
-    prefabKey: Enemy_Heavy
+    prefabKey: Sentry_Heavy
     position: {x: 11, y: 31.6, z: 227.5}
     yaw: 240
     isBoss: 0

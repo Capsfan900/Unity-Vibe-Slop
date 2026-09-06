@@ -503,9 +503,11 @@ namespace VibeGame1.EditorTools
                 if (ed.materials[i] == null) Debug.LogWarning("[HudBuilder] LevelEditor library: missing M_" + matKeys[i] + " (run 2. Create Materials).");
             }
             string[] spawnKeys = { "Enemy_Grunt", "Enemy_Heavy", "Legendary_Ninja", "Legendary_Knight", "Legendary_Spellsword",
-                                   "Legendary_Marionette", "Legendary_Revenant", "Legendary_Halberdier" };
+                                   "Legendary_Marionette", "Legendary_Revenant", "Legendary_Halberdier",
+                                   "Sentry_Grunt", "Sentry_Heavy" };   // parkour_enemies (2026-09-06)
             string[] prefabKeys = { "Enemy_Grunt", "Enemy_Heavy", "Legendary_Ninja", "Legendary_Knight", "Legendary_Spellsword",
-                                    "Legendary_Marionette", "Legendary_Revenant", "Legendary_Halberdier", "Checkpoint", "ItemPickup", "Balloon" };
+                                    "Legendary_Marionette", "Legendary_Revenant", "Legendary_Halberdier", "Checkpoint", "ItemPickup", "Balloon",
+                                    "Sentry_Grunt", "Sentry_Heavy" };
             ed.spawnKeys = spawnKeys;
             ed.prefabKeys = prefabKeys;
             ed.prefabs = new GameObject[prefabKeys.Length];

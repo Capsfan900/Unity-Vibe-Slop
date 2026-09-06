@@ -7,6 +7,19 @@ Last session: **2026-09-04, late evening** (Fable 5.1, four parallel forks).
 
 ## What happened
 
+**Latest (2026-09-06 evening, Fable 5.1): the `parkour_enemies` / `souls_enemies` SPLIT.** `EnemyPaths`
+(Scripts/Enemies/Core) decides the family by name: `Sentry_*` is parkour, everything else souls. Scripts live
+in `Enemies/Core` (shared brain), `Enemies/parkour_enemies` (Projectile, ProjectileShooter, ProjectileMath) and
+`Enemies/souls_enemies` (BossController); data and movesets under `Data/Enemies|Movesets/{parkour,souls}_enemies`;
+tests split the same way. All moved with `AssetDatabase.MoveAsset` (GUIDs kept). New `Sentry_Grunt` /
+`Sentry_Heavy` data + prefabs (copied from the pill guys, flipped to shoot, violet); `Level_01_Level.asset` places
+only sentries and the scene was rebuilt from it by code. Grunt / Heavy are MELEE souls_enemies again on their
+sandbox pads (the user: "we still want the little pill guys for combat in the sandbox"), plus a sentry pad on the
+second row. `ProjectileShooter` is added only to a body whose data shoots. FeatureTests fetch the melee dummy
+from the level editor's prefab library. Generators 3, 4, 4b, 5, 7, level-from-definition and Health Check re-run.
+EditMode 575/575; feature 751/752 (one flask timing flake; the group passes twice in isolation). DebugHarness's
+parry scenario still looks up `Spawn_GruntA`, which is a sentry now -- it degrades, not fixed. Nothing played by a human.
+
 **Latest (2026-09-06 afternoon, Fable 5.1):** the SOULS COMBAT pass for the non-parkour enemies, from
 `docs/plans/soulslike-report-gap-analysis-2026-09-06.md`: per-move cooldowns in `EnemyMoveset.SelectIndex`
 (history on the instance), the Warden never repeats a phase pattern, a FLASK INTERRUPT (`flaskPunishChance`,

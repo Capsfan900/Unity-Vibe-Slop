@@ -69,7 +69,7 @@ namespace VibeGame1.EditorTools
 
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + prefabName + ".prefab");
-            var data = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/" + prefabName + ".asset");
+            var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(prefabName));
             if (prefab == null || data == null) return "FAIL: missing prefab or data for " + prefabName;
 
             // Every distinct attack in the moveset, in moveset order.

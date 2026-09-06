@@ -85,7 +85,7 @@ namespace VibeGame1.Tests
         {
             // The band is the shooter's (EnemyData.projectileMinRange/MaxRange, 6-30 m on Grunt and Heavy):
             // read off the data so a retune re-judges every perch.
-            var grunt = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Grunt.asset");
+            var grunt = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Sentry_Grunt"));
             float lo = grunt != null ? grunt.projectileMinRange : 6f, hi = grunt != null ? grunt.projectileMaxRange : 30f;
             foreach (var pc in LevelDefinitionAuthoring.Perches)
             {

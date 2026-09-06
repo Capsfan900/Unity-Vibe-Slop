@@ -42,7 +42,7 @@ namespace VibeGame1.Tests
     public class AlertTellFramingTests
     {
         const string GruntPrefab = "Assets/Prefabs/Enemy_Grunt.prefab";
-        const string GruntData = "Assets/Data/Enemies/Grunt.asset";
+        static readonly string GruntData = EnemyPaths.Data("Grunt");
 
         // The shipped values the render above was taken against.
         const float TellSize = 0.25f;
