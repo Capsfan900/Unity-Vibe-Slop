@@ -425,7 +425,7 @@ to tell "the window is wrong" from "the player is early".
 
 ## Subagent teams (2026-09-06)
 
-Four project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to
+Five project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to
 add mechanics; each is scoped to its own files and verifies offline (`dotnet build`) — the lead session owns the
 Unity editor and runs the generators and suites after a pass.
 
@@ -435,6 +435,7 @@ Unity editor and runs the generators and suites after a pass.
 | `editor-controls` | Sonnet | the F10 level editor's controls | edits |
 | `ui-designer` | Opus | HUD, menus, bars, prompts, readouts | edits |
 | `vfx-art-team` | Opus | effects, materials, shaders, colour, light budget, tells | edits |
+| `audio-engineer` | Sonnet | every sound: cues, hits, movement, the radio, music beds, the mix; CC0 sourcing | edits |
 
 **This applies to ANY work not done by Fable or Opus** — a one-off Sonnet worker, a fork on another model, a
 remote job — not only the four named teams (CLAUDE.md, "Regression guard").
