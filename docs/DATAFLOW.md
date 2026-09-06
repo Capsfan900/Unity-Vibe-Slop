@@ -819,8 +819,9 @@ Managers prefab → LevelRadio (one 2D AudioSource, volume = AudioManager.musicV
   InputReader.RadioPreviousPressed ([) → Previous() RadioMath.PreviousRestartsCurrent(elapsed, 3 s): restart, else back
   InputReader.RadioTogglePressed (\) → Toggle()     TurnOff → MusicDuck = 1
   track ends (source stopped, not AudioListener.pause) → Next()
-  OnTrackChanged → RadioView (HUD root, RadioPane in the top-right CORNER; BEST RUNS moved one column left to
-                   HudBuilder.BestRunsX -348, BestRunsBottom / HintText / LevelEditorPanel unchanged): rebuilds the
+  OnTrackChanged → RadioView (HUD root, RadioPane in the top-right CORNER; BEST RUNS sits UNDER it in the same
+                   column since 2026-09-06 — BestRunsX -32, BestRunsTop -164, collapsed 108 tall, which leaves
+                   BestRunsBottom / HintText / LevelEditorPanel on the y they were tuned to): rebuilds the
                    station ("<displayName> FM") / title (ticker in a RectMask2D, unscaled) / "TRACK i/n" strings and
                    fires a 0.45 s slide + ember→bone flash; Progress drives a BarView by anchors; polls HasPlaylist
                    each frame and toggles the pane ROOT (a level with no mp3s shows nothing; OFF shows PAUSED).
@@ -1736,7 +1737,7 @@ SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, 
 
 ```
 gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
-   health / pyre / posture / wand cooldown / boss health / boss posture → BarView
+   health / pyre / posture / boss health / boss posture → BarView
    PlayerPostureChanged / BossPostureChanged → BarView.SetNearBreak(ratio ≥ EnemyPostureBar.NearBreakRatio
         0.8, strength, NearBreakHz 4.5) (2026-09-06) — the player and boss posture bars now beat toward
         white the same way the grunt world-space bar (EnemyPostureBar) already did; previously the boss
@@ -1746,15 +1747,31 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
         BossBarView.OnStarted/OnDefeated/Hide — a broken or re-shown bar shows the break read, never a beat
         latched from the last fight (mirrors EnemyPostureBar's `!broken` gate).
    PyreChanged        → PyreBar (bottom-left) + "<SUPER NAME> READY [Q]" banner at full
-   WandCooldownChanged→ WandCooldownBar (top-left, under the wand name)
+   WandCooldownChanged→ nothing on the HUD (2026-09-06, the user's ask). The wand name and its cooldown
+                        hairline are gone from the loadout pane: the ONE moment a wand cooldown decides
+                        anything is the moment the execute prompt is up, and ExecuteInteractor.cs:95
+                        already prints "DEATHBLOW [ATTACK] WAND 2.0s" at the crosshair right then.
+                        The event still fires; HUDController no longer subscribes.
+   SoulsChanged       → SoulsText (top-left, "SOULS" label + the digits in mint, 26 pt).
+                        HUDController.UpdateSouls ROLLS the shown number toward the wallet on the
+                        unscaled clock (max(soulsRollPerSecond 24, gap × 4)/s) and flashes it toward
+                        ember for soulsFlashSeconds 0.45 with a 1.14 punch about its LEFT pivot.
+                        A gain rolls, a SPEND snaps — the label never shows souls the wallet does not
+                        hold. Formats only when the displayed integer changes (the run timer's rule).
    item slots → ItemSlotView          deathblow banner, toasts, popups → TMP
-   GhostHud (its own runtime canvas) → writes the PB table INTO HUD.BestRunsPane (glass, top-right,
-                                       300×196 at (−32,−32); shown only once there is a board) — falls
-                                       back to its own text when the pane is absent
+   GhostHud (its own runtime canvas) → builds the board TWICE (brief = the PB + "+N MORE", full = every
+                                       row) and hands both to HUDController.SetBestRuns; the pane is the
+                                       glass under the RADIO in the one top-right column (300 wide at
+                                       (−32, −164), COLLAPSED at 108 tall = 2 rows). A change to the
+                                       board expands it to bestRunsExpandSeconds 4 s of full table and
+                                       it settles back on its own — no bind, and the glass is SIZED FROM
+                                       THE ROWS IT HOLDS (chrome 64 + rows × 22, ≤ Leaderboard.DisplayCount).
+                                       Falls back to its own text, heading and all, when the pane is absent
    HintText (top-right, one line)     contextual hints ONLY — the static bind list is gone from play:
                                        ControlsInfo.Text → the settings INFO card (SettingsPanelKit, one
                                        emitter for the pause path AND the title path) and F1 → INFO
-   ItemsChanged → StatusStripView (top-left, under SOULS)   one line per HELD item, FIFO,
+   ItemsChanged → StatusStripView (top-left, one gap under the loadout pane at y −144)
+                                                            one line per HELD item, FIFO,
                                                             "> GRAPPLE" front / dimmed queue
                   + per-frame read of the player (the StaminaView idiom, not an event):
                     motor.IsWallSurging   → "WALL SURGE  6.4s"  (WallSurgeRemaining, tenths)
@@ -1836,7 +1853,14 @@ FluidBar.shader (fragment)   bar-space x = uv.x × _Fill; surface = level + wave
   shown on the settings INFO card (both prefabs, one emitter) and reached from F1. `HudGlassTests.
   ThePlayingHudCarriesNoBindDump` and `SettingsPrefabTests.BothPrefabs_CarryTheSameInfoTab` hold it.
 - **BEST RUNS is a glass pane, and it clears the clock and the level-editor panel** by rect; the pane
-  ships hidden and `GhostHud` owns showing it.
+  ships hidden AND collapsed, and `GhostHud` owns showing it.
+- **The top-right is ONE column: radio, BEST RUNS, hint, level-editor panel.** Every y below the radio
+  hangs off `HudBuilder.BestRunsBottom`, which the collapsed pane keeps at -272 — the value the hint and
+  the 700-tall editor panel were tuned against. Expanding BEST RUNS grows the glass DOWN over the hint
+  band and the F10-only editor panel for a few seconds; it never reaches anything that is always on
+  screen. `HudColumnTests` pins the stack, the gap, the collapsed height and the expanded clearance.
+- **A pane the runtime RESIZES needs stretched children.** `BestRunsText` is anchored to the glass on all
+  four sides; as a fixed rect it kept drawing eight rows out of the bottom of a 108 px pane.
 - **The status strip is one multi-line TMP label, rebuilt on change.** `StatusStripView.RowCount` /
   `IsEmpty` / `Text` are the test surface (`FeatureTests > HUD_StatusStrip*`); rows are rich-text
   lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.

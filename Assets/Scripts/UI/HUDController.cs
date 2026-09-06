@@ -9,8 +9,6 @@ namespace VibeGame1
     {
         public BarView healthBar;
         public BarView pyreBar;
-        /// <summary>Wand cooldown. Fills on discharge and drains to empty as the wand comes back.</summary>
-        public BarView wandCooldownBar;
         public BarView postureBar;
         /// <summary>Movement budget block (bar, ticks, ability pips). Self-driving; see StaminaView.</summary>
         public StaminaView staminaView;
@@ -20,7 +18,6 @@ namespace VibeGame1
         public TMP_Text soulsText;
         public TMP_Text timerText;
         public TMP_Text weaponText;
-        public TMP_Text wandText;
         public TMP_Text parryPopup;
         public TMP_Text centerText;
 
@@ -32,10 +29,28 @@ namespace VibeGame1
                  "under the clear message's own 8 s lifetime or the screen blanks before the load.")]
         public float returnToMenuSeconds = 4.5f;
         public TMP_Text hintText;
-        [Tooltip("The glass BEST RUNS pane (top-right). GhostHud writes its table into bestRunsText and shows " +
-                 "the pane only once there is a board; it ships hidden.")]
+        [Tooltip("The glass BEST RUNS pane (top-right, under the radio). GhostHud writes its table into " +
+                 "bestRunsText and shows the pane only once there is a board; it ships hidden AND collapsed.")]
         public GameObject bestRunsPane;
         public TMP_Text bestRunsText;
+        [Tooltip("Everything in the BEST RUNS glass that is not a row: insets, the title band, the tail. " +
+                 "Shipped by HudBuilder (hard rule 9) - the runtime cannot read an editor const.")]
+        public float bestRunsChrome = 64f;
+        [Tooltip("Height of one BEST RUNS row: 17 pt plus 4 pt line spacing.")]
+        public float bestRunsRowHeight = 22f;
+        [Tooltip("Most rows the board will ever send (Leaderboard.DisplayCount).")]
+        public int bestRunsMaxRows = 8;
+        [Tooltip("Unscaled seconds the board stays EXPANDED after it changes, then settles back to the " +
+                 "personal best and a '+N MORE' line. There is no key for this on purpose: a bind nobody " +
+                 "is told about is worse than a collapsed pane.")]
+        public float bestRunsExpandSeconds = 4f;
+
+        [Header("Souls")]
+        [Tooltip("Floor on how fast the counter rolls toward the wallet, in souls per second; a big gain " +
+                 "rolls proportionally faster so the number never crawls. Shipped by HudBuilder.")]
+        public float soulsRollPerSecond = 24f;
+        [Tooltip("Unscaled seconds the souls number stays punched and ember-warm after a gain.")]
+        public float soulsFlashSeconds = 0.45f;
         [Tooltip("The glass RADIO pane (the top-right corner). RadioView shows it only while the level has " +
                  "a playlist; it ships hidden, and a level with no mp3s never sees a dead pane.")]
         public GameObject radioPane;
@@ -47,9 +62,29 @@ namespace VibeGame1
 
         static readonly Color PostureBase = new Color(0.788f, 0.635f, 0.153f);   // #C9A227 bone/amber
         static readonly Color PostureDanger = new Color(1f, 0.227f, 0.102f);     // #FF3A1A
+        // The souls pair, the same two hexes HudBuilder paints the pane with: mint at rest, ember for
+        // the instant a gain lands. Both well under the 1.05 bloom cap - the UI never blooms.
+        static readonly Color SoulsRest = new Color(0.663f, 0.847f, 0.627f);     // #A9D8A0 mint
+        static readonly Color SoulsGain = new Color(0.851f, 0.537f, 0.102f);     // #D9891A ember
 
         int lastTimerCentis = -1;   // last value actually pushed to timerText; -1 forces the first write
 
+        // ---- souls: the wallet, the number on screen, and the roll between them ----
+        int soulsTarget;            // what the wallet actually holds
+        int soulsShown;             // what the label is counting through
+        int soulsWritten = -1;      // last value FORMATTED; -1 forces the first write
+        float soulsCarry;           // sub-soul remainder of the roll
+        float soulsFlash;           // seconds of gain flourish left
+        RectTransform soulsRect;
+
+        // ---- best runs: collapsed by default, expanded for a beat when the board changes ----
+        string bestRunsBrief = "";  // the personal best plus "+N MORE"
+        string bestRunsFull = "";   // every row the board sent
+        float bestRunsExpandUntil = -1f;
+        bool bestRunsExpanded;
+        bool bestRunsDirty = true;
+        int bestRunsRows = 1;       // rows in the text currently on screen; counted on a CHANGE, not per frame
+        RectTransform bestRunsRect;
         Coroutine popup;
         Coroutine center;
         Coroutine toast;
@@ -65,11 +100,9 @@ namespace VibeGame1
             GameEvents.DeathblowReady += OnDeathblowReady;
             GameEvents.PlayerHealthChanged += OnHealth;
             GameEvents.PyreChanged += OnPyre;
-            GameEvents.WandCooldownChanged += OnWandCooldown;
             GameEvents.FlaskChanged += OnFlask;
             GameEvents.SoulsChanged += OnSouls;
             GameEvents.WeaponChanged += OnWeapon;
-            GameEvents.WandChanged += OnWand;
             GameEvents.ParryResolved += OnParry;
             GameEvents.PlayerDied += OnDied;
             GameEvents.PlayerRespawned += OnRespawned;
@@ -89,11 +122,9 @@ namespace VibeGame1
             GameEvents.DeathblowReady -= OnDeathblowReady;
             GameEvents.PlayerHealthChanged -= OnHealth;
             GameEvents.PyreChanged -= OnPyre;
-            GameEvents.WandCooldownChanged -= OnWandCooldown;
             GameEvents.FlaskChanged -= OnFlask;
             GameEvents.SoulsChanged -= OnSouls;
             GameEvents.WeaponChanged -= OnWeapon;
-            GameEvents.WandChanged -= OnWand;
             GameEvents.ParryResolved -= OnParry;
             GameEvents.PlayerDied -= OnDied;
             GameEvents.PlayerRespawned -= OnRespawned;
@@ -111,8 +142,14 @@ namespace VibeGame1
             if (parryPopup != null) parryPopup.alpha = 0f;
             if (centerText != null) centerText.alpha = 0f;
             if (pyreReadyLabel != null) pyreReadyLabel.gameObject.SetActive(false);
-            if (wandCooldownBar != null) wandCooldownBar.Set(0f);
             if (deathblowText != null) deathblowText.alpha = 0f;
+            if (soulsText != null)
+            {
+                soulsRect = soulsText.rectTransform;
+                soulsText.color = SoulsRest;
+                soulsRect.localScale = Vector3.one;
+            }
+            if (bestRunsPane != null) bestRunsRect = bestRunsPane.GetComponent<RectTransform>();
             if (itemToastText != null) itemToastText.alpha = 0f;
             if (postureBar != null) { postureBar.SetColor(PostureBase); postureBar.Set(0f); postureBar.SetNearBreak(false); }
             ClearItemSlots();
@@ -204,6 +241,9 @@ namespace VibeGame1
                 }
             }
 
+            UpdateSouls();
+            ApplyBestRuns(false);
+
             if (deathblowText != null)
             {
                 if (deathblowReady)
@@ -257,20 +297,129 @@ namespace VibeGame1
             if (full) pyreReadyLabel.text = (superName.Length > 0 ? superName : "SUPER") + "  READY  [Q]";
         }
 
-        void OnWandCooldown(float remaining, float total)
-        {
-            if (wandCooldownBar == null) return;
-            wandCooldownBar.Set(total > 0f ? Mathf.Clamp01(remaining / total) : 0f);
-        }
-
         void OnFlask(int c, int m)
         {
             if (flaskText != null) flaskText.text = $"FLASK  {c} / {m}";
         }
 
+        /// <summary>
+        /// The wallet changed. The label does NOT snap to it: a gain rolls up (see UpdateSouls), which
+        /// is what makes a counted resource feel counted. A SPEND snaps, because a number that lingers
+        /// above what the wallet holds is a lie the player would spend against.
+        /// </summary>
         void OnSouls(int s)
         {
-            if (soulsText != null) soulsText.text = $"SOULS  {s}";
+            if (s > soulsTarget) soulsFlash = soulsFlashSeconds;
+            soulsTarget = s;
+            if (s < soulsShown) { soulsShown = s; soulsCarry = 0f; }
+        }
+
+        /// <summary>
+        /// Rolls the souls label toward the wallet and decays the gain flourish, on the unscaled clock
+        /// so hitstop never freezes it. Allocation discipline is the run timer's: format ONLY when the
+        /// displayed integer actually changes, never once per frame.
+        /// </summary>
+        void UpdateSouls()
+        {
+            if (soulsText == null) return;
+            float dt = Time.unscaledDeltaTime;
+
+            if (soulsShown != soulsTarget)
+            {
+                int gap = soulsTarget - soulsShown;
+                soulsCarry += Mathf.Max(soulsRollPerSecond, gap * 4f) * dt;
+                int step = Mathf.FloorToInt(soulsCarry);
+                if (step > 0)
+                {
+                    soulsCarry -= step;
+                    soulsShown = Mathf.Min(soulsTarget, soulsShown + step);
+                }
+            }
+            else soulsCarry = 0f;
+
+            if (soulsShown != soulsWritten)
+            {
+                soulsWritten = soulsShown;
+                soulsText.text = soulsShown.ToString();
+            }
+
+            if (soulsFlash <= 0f) return;
+            soulsFlash = Mathf.Max(0f, soulsFlash - dt);
+            float k = soulsFlashSeconds > 0f ? soulsFlash / soulsFlashSeconds : 0f;
+            soulsText.color = Color.Lerp(SoulsRest, SoulsGain, k);
+            if (soulsRect != null) soulsRect.localScale = Vector3.one * (1f + 0.14f * k);
+            if (soulsFlash > 0f) return;
+            soulsText.color = SoulsRest;
+            if (soulsRect != null) soulsRect.localScale = Vector3.one;
+        }
+
+        // ---- BEST RUNS ------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The board in two readings: <paramref name="brief"/> is what the pane shows at rest (the
+        /// personal best and a "+N MORE" line), <paramref name="full"/> is every row. Called by
+        /// <see cref="GhostHud"/> whenever the leaderboard changes; a change EXPANDS the pane for
+        /// <see cref="bestRunsExpandSeconds"/> and it settles back on its own. No new bind: the one
+        /// moment the whole table answers a question is the moment a run lands on it.
+        /// </summary>
+        public void SetBestRuns(string brief, string full)
+        {
+            if (bestRunsText == null) return;
+            brief = brief ?? "";
+            full = full ?? "";
+            bool changed = full != bestRunsFull;
+            bestRunsBrief = brief;
+            bestRunsFull = full;
+            if (changed && full != brief) bestRunsExpandUntil = Time.unscaledTime + bestRunsExpandSeconds;
+            bestRunsDirty = true;
+            // A pane about to be shown for the first time must ARRIVE at its size rather than grow into
+            // it from whatever the last board left behind.
+            ApplyBestRuns(bestRunsPane == null || !bestRunsPane.activeSelf);
+        }
+
+        /// <summary>Lines in a rich-text block: the row count the glass is sized from.</summary>
+        public static int LineCount(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+            int n = 1;
+            for (int i = 0; i < s.Length; i++) if (s[i] == '\n') n++;
+            return n;
+        }
+
+        void ApplyBestRuns(bool snap)
+        {
+            if (bestRunsText == null) return;
+            bool expanded = Time.unscaledTime < bestRunsExpandUntil;
+            if (bestRunsDirty || expanded != bestRunsExpanded)
+            {
+                bestRunsExpanded = expanded;
+                bestRunsDirty = false;
+                string shown = expanded ? bestRunsFull : bestRunsBrief;
+                bestRunsText.text = shown;
+                // Sized from the data it holds: a two-run board is a two-row pane, never eight rows of
+                // glass over empty space. Counted here, on the change, never once a frame.
+                bestRunsRows = Mathf.Clamp(LineCount(shown), 1, Mathf.Max(1, bestRunsMaxRows));
+            }
+
+            if (bestRunsRect == null)
+            {
+                if (bestRunsPane == null) return;
+                bestRunsRect = bestRunsPane.GetComponent<RectTransform>();
+                if (bestRunsRect == null) return;
+            }
+            float target = BestRunsPaneHeight(bestRunsRows);
+            var size = bestRunsRect.sizeDelta;
+            if (Mathf.Abs(size.y - target) < 0.01f) return;
+            size.y = snap ? target
+                          : Mathf.MoveTowards(size.y, target,
+                                              Mathf.Max(240f, Mathf.Abs(target - size.y) * 6f) * Time.unscaledDeltaTime);
+            bestRunsRect.sizeDelta = size;
+        }
+
+        /// <summary>Height of the BEST RUNS glass holding <paramref name="rows"/> rows.</summary>
+        public float BestRunsPaneHeight(int rows)
+        {
+            return bestRunsChrome + Mathf.Max(1, rows) * bestRunsRowHeight;
         }
 
         void OnWeapon(WeaponData w)
@@ -386,19 +535,6 @@ namespace VibeGame1
             if (TimeScaleController.I != null) TimeScaleController.I.ResetScale();
             AudioManager.Play(Sfx.Click);
             UnityEngine.SceneManagement.SceneManager.LoadScene(menuSceneName);
-        }
-
-
-        // The wand is the riposte weapon (Bloodborne firearm analogue), so it gets its own line
-        // under the melee weapon rather than sharing one.
-        void OnWand(WandData w)
-        {
-            if (wandText == null) return;
-            if (w == null) { wandText.text = ""; return; }
-            // Plain ASCII: the default LiberationSans SDF atlas has no dingbats, and a missing glyph
-            // renders as a hollow box.
-            wandText.text = "WAND  " + w.displayName.ToUpperInvariant() + "   [R] cycle";
-            wandText.color = ItemSlotView.Normalize(w.color);
         }
     }
 }

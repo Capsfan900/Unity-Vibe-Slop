@@ -27,6 +27,7 @@ namespace VibeGame1
         TMP_Text boardText;
         GhostPlayer ghost;
         readonly StringBuilder sb = new StringBuilder(512);
+        readonly StringBuilder brief = new StringBuilder(96);
 
         public bool BoardVisible { get; private set; } = true;
 
@@ -143,6 +144,23 @@ namespace VibeGame1
             return hud != null && hud.bestRunsText != null ? hud : null;
         }
 
+        /// <summary>One leaderboard row, in the HUD's language: rank, time, deaths, verified mark.</summary>
+        static void AppendRow(StringBuilder b, int index, RunEntry e)
+        {
+            b.Append(index == 0 ? "<b>" : "<alpha=#AA>");
+            b.Append(index + 1).Append(". ").Append(SpeedrunTimer.Format(e.TimeSeconds));
+            if (e.deaths > 0) b.Append("  <alpha=#77>x").Append(e.deaths);
+            if (e.verified) b.Append(" <alpha=#99>[v]");
+            if (index == 0) b.Append("</b>");
+        }
+
+        /// <summary>
+        /// Rebuilds the board in TWO readings and hands both to the HUD: the brief one it wears at rest
+        /// (the personal best plus a "+N MORE" line, so a collapsed pane reads as collapsible rather
+        /// than broken) and the full table it opens to for a few seconds when the board changes.
+        /// HUDController owns which of the two is on screen and how tall the glass is; this method only
+        /// knows the times. Without a HUD pane the fallback text is exactly what it always was.
+        /// </summary>
         public void RefreshBoard()
         {
             if (boardText == null) return;
@@ -156,11 +174,13 @@ namespace VibeGame1
 
             var board = Leaderboard.I;
             sb.Length = 0;
-            sb.AppendLine("<b>BEST RUNS</b>");
+            brief.Length = 0;
+            int rows = 0;
 
             if (board == null || board.Top.Length == 0)
             {
-                sb.AppendLine("<alpha=#77>no runs yet - finish the level");
+                sb.Append("<alpha=#77>no runs yet - finish the level");
+                brief.Append("<alpha=#77>no runs yet - finish the level");
             }
             else
             {
@@ -168,24 +188,29 @@ namespace VibeGame1
                 {
                     var e = board.Top[i];
                     if (e == null) continue;
-                    sb.Append(i == 0 ? "<b>" : "<alpha=#AA>");
-                    sb.Append(i + 1).Append(". ").Append(SpeedrunTimer.Format(e.TimeSeconds));
-                    if (e.deaths > 0) sb.Append("  <alpha=#77>x").Append(e.deaths);
-                    if (e.verified) sb.Append(" <alpha=#99>[v]");
-                    if (i == 0) sb.Append("</b>");
-                    sb.AppendLine();
+                    if (rows > 0) sb.Append('\n');
+                    AppendRow(sb, rows, e);
+                    if (rows == 0) AppendRow(brief, 0, e);
+                    rows++;
                 }
+                if (rows == 0) { sb.Append("<alpha=#77>no runs yet - finish the level"); brief.Append("<alpha=#77>no runs yet - finish the level"); }
+                // The affordance: a collapsed pane says how much it is holding back.
+                else if (rows > 1) brief.Append("\n<alpha=#66>+").Append(rows - 1).Append(" MORE");
             }
+
             if (pane != null)
             {
-                // Into the HUD's glass pane: it carries its own BEST RUNS title, so the heading line goes.
-                string s = sb.ToString();
-                int nl = s.IndexOf('\n');
-                pane.bestRunsText.text = nl >= 0 ? s.Substring(nl + 1) : s;
+                // Into the HUD's glass pane, which carries its own BEST RUNS title strip.
+                pane.SetBestRuns(brief.ToString(), sb.ToString());
                 if (pane.bestRunsPane != null) pane.bestRunsPane.SetActive(true);
                 boardText.text = "";
             }
-            else boardText.text = sb.ToString();
+            else
+            {
+                // No pane (a scene without HUD.prefab, or a prefab that predates it): the old block,
+                // heading and all, on this canvas.
+                boardText.text = "<b>BEST RUNS</b>\n" + sb.ToString();
+            }
         }
 
 

@@ -11,6 +11,22 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## A pane the runtime resizes needs stretched children, and the y under it needs a named constant
+
+**2026-09-06.** BEST RUNS moved out of its own column into the top-right stack, under the radio, and now
+ships COLLAPSED (title strip, the personal best, a "+N MORE" line) and grows to the full table for four
+seconds whenever the board changes. Two traps. (1) `BestRunsText` was authored with `Rect(...)` at the
+full table's height; a pane whose height the runtime changes has no layout group, so the fixed rect kept
+drawing eight rows out of the bottom of a 108 px glass — `Truncate` clips to the TEXT rect, not to the
+pane. It is stretched to the glass on all four sides now (`HudBuilder.StretchInto`). (2) The stack below
+BEST RUNS (hint at -12, the 700-tall level-editor panel at -48) is only on a 1080 canvas because
+`BestRunsBottom` is -272; that is why the collapsed height is 108 and not "whatever looks right" — radio
+116 + gap 16 + 108 lands on exactly the y the pieces under it were tuned against.
+
+**Invariant.** A child of a pane the runtime resizes is anchored to the pane, never sized by a literal.
+Anything positioned relative to another pane hangs off that pane's named constant, and the constant is
+the one a test asserts.
+
 ## Moving enemy files into family folders: AssetDatabase.MoveAsset, never delete-and-recreate
 
 **2026-09-06.** The `parkour_enemies` / `souls_enemies` split moved ten data assets, ten movesets, fifteen
