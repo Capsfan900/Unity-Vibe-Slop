@@ -30,7 +30,9 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0.5f, RadioMath.Progress(30f, 60f), 1e-4f);
             Assert.AreEqual(0f, RadioMath.Progress(5f, 0f), 1e-4f, "a zero-length clip is 0, not NaN");
             Assert.AreEqual(1f, RadioMath.Progress(90f, 60f), 1e-4f);
-            Assert.AreEqual("Audio/Radio/level_01", RadioMath.ResourcesFolder("level_01"));
+            Assert.AreEqual("Audio/Radio/Level_01", RadioMath.ResourcesFolder("Level_01"));
+            Assert.AreEqual("LEVEL 01", RadioMath.StationFor("Level_01"), "the scene names the station");
+            Assert.AreEqual("", RadioMath.StationFor(null));
             Assert.AreEqual("Audio/Radio/Default", RadioMath.ResourcesFolder(""));
             Assert.AreEqual("Audio/Radio/x", RadioMath.ResourcesFolder(" x/ "));
             Assert.AreEqual("03 Ash Cathedral", RadioMath.Title("03_Ash-Cathedral"));
@@ -49,6 +51,12 @@ namespace VibeGame1.Tests
             foreach (var n in new[] { "RadioNext", "RadioPrevious", "RadioToggle" })
                 Assert.IsTrue(json.Contains("\"name\": \"" + n + "\""), n + " is not in the actions asset");
             Assert.IsTrue(System.IO.Directory.Exists("Assets/Resources/Audio/Radio"), "the playlist root folder ships");
+            // The folder a scene looks for must exist for the campaign level, or a playlist dropped in by hand
+            // has nowhere obvious to go.
+            Assert.IsTrue(System.IO.Directory.Exists("Assets/Resources/Audio/Radio/Level_01"),
+                "Assets/Resources/Audio/Radio/Level_01 is where Level_01's mp3s go");
+            Assert.IsTrue(System.IO.Directory.Exists("Assets/Resources/Audio/Radio/Default"),
+                "Audio/Radio/Default is the fallback playlist");
         }
     }
 }

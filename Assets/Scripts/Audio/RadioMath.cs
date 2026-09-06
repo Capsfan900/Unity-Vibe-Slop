@@ -41,6 +41,16 @@ namespace VibeGame1
             return "Audio/Radio/" + f;
         }
 
+        /// <summary>
+        /// The station name for a scene: "Level_01" → "LEVEL 01". Underscores and dashes read as spaces and
+        /// the whole thing is upper-cased, so a scene named for its level reads as a station on the pane.
+        /// </summary>
+        public static string StationFor(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName)) return "";
+            return Title(sceneName).ToUpperInvariant();
+        }
+
         /// <summary>A clip's display title: the file name with underscores and dashes read as spaces.</summary>
         public static string Title(string clipName)
         {

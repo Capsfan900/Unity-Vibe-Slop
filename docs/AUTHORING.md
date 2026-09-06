@@ -524,8 +524,9 @@ Honest list of what this pass did **not** make data-driven:
 
 ## 6. A level's radio playlist (2026-09-06)
 
-Content is files. Drop **mp3 / ogg / wav** into `Assets/Resources/Audio/Radio/<levelId>/` (`level_01/`) and they are that
-level's playlist in name order (`01_`, `02_` … to order). `Default/` plays for any level without its own folder.
-`LevelDefinition.radioFolder` points a level at another folder. Nothing there = the radio stays off and the ambient
-bed plays. Keys `]` `[` and backslash. Map: DATAFLOW "The radio". Set Load Type *Streaming* on long clips.
+Content is files. Drop **mp3 / ogg / wav** into the folder named after the SCENE —
+`Assets/Resources/Audio/Radio/Level_01/` — and they are that level's playlist in name order (`01_`, `02_` … to
+order). `Default/` plays for any scene without its own folder. Nothing there = the radio stays off, its pane
+hides, and the ambient bed plays. The key is the scene, not `levelId`: `LevelRegistry` is an editor asset and a
+build never loads it. Keys `]` `[` and backslash. Map: DATAFLOW "The radio". Load Type *Streaming* on long clips.
 

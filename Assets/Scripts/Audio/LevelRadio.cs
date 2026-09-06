@@ -9,10 +9,13 @@ namespace VibeGame1
     /// system where I can load mp3s and make each level have a playlist"). Lives on the Managers prefab.
     ///
     /// <para><b>Content is files, not code.</b> Drop mp3 / ogg / wav files into
-    /// <c>Assets/Resources/Audio/Radio/&lt;levelId&gt;/</c> (for example <c>Audio/Radio/level_01/</c>) and
-    /// they are that level's playlist, in name order; <c>Audio/Radio/Default/</c> plays for a level with no
-    /// folder of its own. A <see cref="LevelDefinition.radioFolder"/> can point a level at another folder.
-    /// No files anywhere = the radio stays off and the ambient music plays as before.</para>
+    /// <c>Assets/Resources/Audio/Radio/&lt;SceneName&gt;/</c> — for the campaign that is
+    /// <c>Audio/Radio/Level_01/</c> — and they are that level's playlist, in name order.
+    /// <c>Audio/Radio/Default/</c> plays for any scene with no folder of its own, and no files anywhere means
+    /// the radio stays off and the ambient bed plays as before. The folder is keyed to the SCENE, which is the
+    /// only level identity that exists at runtime: <c>LevelRegistry</c> is an editor asset under
+    /// <c>Assets/Data</c> that nothing loads in a build, so a levelId lookup would always have come back null
+    /// (found in play, 2026-09-06).</para>
     ///
     /// <para>It owns one 2D <see cref="AudioSource"/>, plays tracks in order with wrap, and exposes what a
     /// HUD radio needs to draw: <see cref="StationName"/>, <see cref="TrackTitle"/>, <see cref="TrackIndex"/> /
@@ -32,7 +35,7 @@ namespace VibeGame1
         [Tooltip("Start playing as soon as a level with a playlist loads.")]
         public bool autoPlay = true;
 
-        /// <summary>The level's display name, for the station readout ("THE HOLLOW ASCENT FM").</summary>
+        /// <summary>The station readout, from the scene ("LEVEL 01" → "LEVEL 01 FM" on the pane).</summary>
         public string StationName { get; private set; } = "";
         public string TrackTitle => tracks.Count > 0 && TrackIndex >= 0 ? RadioMath.Title(tracks[TrackIndex].name) : "";
         public int TrackIndex { get; private set; } = -1;
@@ -78,14 +81,12 @@ namespace VibeGame1
 
         void HandleSceneChanged(UnityEngine.SceneManagement.Scene from, UnityEngine.SceneManagement.Scene to) { LoadForActiveLevel(); }
 
-        /// <summary>Load the playlist for the current level (by LevelDefinition.radioFolder, else levelId, else Default).</summary>
+        /// <summary>Load the playlist for the scene that is open: Audio/Radio/&lt;SceneName&gt;, else Default.</summary>
         public void LoadForActiveLevel()
         {
-            var def = LevelRegistryRuntime.Current;
-            string folder = def != null && !string.IsNullOrWhiteSpace(def.radioFolder) ? def.radioFolder
-                          : def != null ? def.SafeLevelId : "";
-            StationName = def != null ? def.displayName : "";
-            Load(folder);
+            string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            StationName = RadioMath.StationFor(scene);
+            Load(scene);
         }
 
         /// <summary>Load <c>Resources/Audio/Radio/&lt;folder&gt;</c>, falling back to Default. Public for tests.</summary>
