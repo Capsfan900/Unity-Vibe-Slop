@@ -422,3 +422,22 @@ to tell "the window is wrong" from "the player is early".
 | `.gitattributes` | Unity YAML gets `merge=unityyamlmerge eol=lf`; binaries marked `binary`. **SmartMerge needs a one-time `git config` per machine — command is in the file header.** Git LFS deliberately not configured; the header explains when to switch. |
 | `.claude/settings.json` | Permission allowlist for routine Unity MCP + read-only Bash. `execute_code` and `manage_asset` are deliberately **excluded** — both can destroy work. |
 | `CREDITS.md` | CC0 audio sources and licences. |
+
+## Subagent teams (2026-09-06)
+
+Four project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to
+add mechanics; each is scoped to its own files and verifies offline (`dotnet build`) — the lead session owns the
+Unity editor and runs the generators and suites after a pass.
+
+| Agent | Model | Owns | Mode |
+|---|---|---|---|
+| `combat-designer` | Opus | combat, enemies, parry, difficulty | plan only unless told to implement |
+| `editor-controls` | Sonnet | the F10 level editor's controls | edits |
+| `ui-designer` | Sonnet | HUD, menus, bars, prompts, readouts | edits |
+| `vfx-art-team` | Sonnet | effects, materials, shaders, colour, light budget, tells | edits |
+
+**Version control.** A team never commits. The lead commits each pass as ONE commit prefixed with the team's name
+(`[ui-designer] …`, `[vfx-art-team] …`) after re-running the generators the report names and both suites, so a
+regression is one `git revert <sha>`. Before a batch of team passes the lead tags the tree
+(`git tag pre-<theme>-<date>`) as the coarse revert point.
+
