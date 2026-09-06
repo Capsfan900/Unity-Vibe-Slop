@@ -21,6 +21,7 @@ MonoBehaviour:
     weight: 3
     minRange: 0
     maxRange: 6
+    cooldown: 0
   - label: slash, slash
     combo:
       hits:
@@ -29,6 +30,7 @@ MonoBehaviour:
     weight: 2
     minRange: 0
     maxRange: 6
+    cooldown: 0
   - label: slash into THRUST
     combo:
       hits:
@@ -37,6 +39,7 @@ MonoBehaviour:
     weight: 2
     minRange: 0
     maxRange: 7
+    cooldown: 0
   - label: OVERHEAD (the big punish)
     combo:
       hits:
@@ -44,6 +47,7 @@ MonoBehaviour:
     weight: 1.5
     minRange: 0
     maxRange: 6
+    cooldown: 6
   - label: thrust from range
     combo:
       hits:
@@ -51,6 +55,7 @@ MonoBehaviour:
     weight: 1.5
     minRange: 3.5
     maxRange: 8
+    cooldown: 0
   - label: KICK (unblockable, anti-turtle)
     combo:
       hits:
@@ -58,6 +63,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 0
     maxRange: 5
+    cooldown: 5
   - label: slash into the kick
     combo:
       hits:
@@ -66,3 +72,4 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 5
+    cooldown: 5

@@ -79,6 +79,20 @@ namespace VibeGame1
 
         /// <summary>Set when a deflect interrupts a combo the enemy should push through anyway.</summary>
         bool resumeComboAfterRecover;
+
+        // ---- move history (per instance, never on the shared moveset asset) ----
+        float[] moveLastUsedAt;
+        /// <summary>Entry index of the last combo chosen from the moveset, or -1. Tests read it.</summary>
+        public int LastMoveIndex { get; private set; } = -1;
+
+        // ---- interrupts ----
+        FlaskAbility playerFlask;
+        bool playerWasDrinking;
+        float nextFlaskPunishAt;
+        /// <summary>Seconds between two flask punishes by the same enemy.</summary>
+        public const float FlaskPunishCooldown = 4f;
+        /// <summary>How many times this enemy has punished a flask. Tests and the harness.</summary>
+        public int FlaskPunishes { get; private set; }
         /// <summary>Consecutive deflects inside the current exchange; tightens each following gap.</summary>
         int parryStreak;
 
@@ -260,6 +274,12 @@ namespace VibeGame1
             float dist = toP.magnitude;
             float dt = Time.deltaTime;
 
+            // INTERRUPT: the flask. A rising edge on the player's drink, while this enemy is between
+            // phrases (Chase or Recover), is FromSoft's heal punish -- chance-based, per-enemy cooldown,
+            // never for a sentry, never from inside a wind-up (one attack at a time, the tell stays true).
+            bool drinkEdge = PlayerDrinkEdge();
+            if (drinkEdge && (Current == State.Chase || Current == State.Recover)) TryPunishFlask(dist);
+
             switch (Current)
             {
                 case State.Idle:
@@ -359,6 +379,45 @@ namespace VibeGame1
                     }
                     break;
             }
+        }
+
+        bool PlayerDrinkEdge()
+        {
+            if (playerFlask == null && player != null) playerFlask = player.GetComponent<FlaskAbility>();
+            bool drinking = playerFlask != null && playerFlask.IsDrinking;
+            bool edge = drinking && !playerWasDrinking;
+            playerWasDrinking = drinking;
+            return edge;
+        }
+
+        void TryPunishFlask(float dist)
+        {
+            if (data == null || data.flaskPunishChance <= 0f || data.rangedOnly || aggroLocked) return;
+            if (Time.time < nextFlaskPunishAt || dist > data.aggroRange) return;
+            if (!MayCommitToAttack()) return;
+            bool inBand = dist <= data.preferredRange + data.commitTolerance * 2f
+                       || (data.moveset != null && data.moveset.HasEligible(dist));
+            if (!inBand) return;
+            if (Random.value > data.flaskPunishChance) return;
+            PunishFlaskNow(dist);
+        }
+
+        /// <summary>
+        /// Abort the breath and attack NOW: the flask punish, forced. Public so the harness and
+        /// FeatureTests can prove the path without rolling dice. Refused while dead, executed, staggered
+        /// or already committed; otherwise the recovery is cut and a combo begins this frame, with the
+        /// cue still cueLead before impact like every other attack.
+        /// </summary>
+        public bool PunishFlaskNow(float dist)
+        {
+            if (Current == State.Dead || Current == State.Executed || Current == State.Staggered || IsCommitted) return false;
+            var c = ChooseCombo(dist);
+            if (c == null || c.hits == null || c.hits.Length == 0) return false;
+            FlaskPunishes++;
+            nextFlaskPunishAt = Time.time + FlaskPunishCooldown;
+            AudioManager.Play(Sfx.Tick, 0.7f, 0.8f);
+            BeginCombo(c);
+            return true;
         }
 
         /// <summary>How far away the player wakes this enemy: melee aggro, or the bolt band for a shooter.</summary>
@@ -511,6 +570,24 @@ namespace VibeGame1
         protected virtual AttackCombo ChooseCombo(float distanceToTarget)
         {
             if (data == null) return null;
+            // History-aware when a moveset is authored: per-entry cooldowns keep a signature from coming
+            // twice running (EnemyMoveset.SelectIndex). The clock is this instance's, never the asset's.
+            var ms = data.moveset;
+            if (ms != null && ms.entries != null && ms.entries.Length > 0)
+            {
+                if (moveLastUsedAt == null || moveLastUsedAt.Length != ms.entries.Length)
+                {
+                    moveLastUsedAt = new float[ms.entries.Length];
+                    for (int i = 0; i < moveLastUsedAt.Length; i++) moveLastUsedAt[i] = -1e9f;
+                }
+                int idx = ms.SelectIndex(distanceToTarget, moveLastUsedAt, Time.time);
+                if (idx >= 0)
+                {
+                    moveLastUsedAt[idx] = Time.time;
+                    LastMoveIndex = idx;
+                    return ms.entries[idx].combo;
+                }
+            }
             var picked = data.SelectCombo(distanceToTarget);
             if (picked != null) return picked;
             // No moveset authored: fall back to the flat list.

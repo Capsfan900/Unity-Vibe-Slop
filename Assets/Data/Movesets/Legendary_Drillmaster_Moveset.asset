@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_Drillmaster_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Drillmaster
+  entries:
+  - label: jab-cross (the rhythm)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: fabed09f23dc058409536be737fb5e38, type: 2}
+      - {fileID: 11400000, guid: f5c578327780dac429f0368f85468e75, type: 2}
+    weight: 3
+    minRange: 0
+    maxRange: 99
+    cooldown: 0
+  - label: jab-jab-cross (the longer rhythm)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: fabed09f23dc058409536be737fb5e38, type: 2}
+      - {fileID: 11400000, guid: fabed09f23dc058409536be737fb5e38, type: 2}
+      - {fileID: 11400000, guid: f5c578327780dac429f0368f85468e75, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 99
+    cooldown: 0
+  - label: FEINT...cross (the pause is a lie)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: f5b5df1fa2d2872499959831479734c4, type: 2}
+      - {fileID: 11400000, guid: f5c578327780dac429f0368f85468e75, type: 2}
+    weight: 1.5
+    minRange: 0
+    maxRange: 99
+    cooldown: 5
+  - label: DELAYED OVERHEAD (the tempo break)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: ebe3bb6bdc3667e4e948a629f6865723, type: 2}
+    weight: 1.5
+    minRange: 0
+    maxRange: 99
+    cooldown: 7
+  - label: jab-KICK (unblockable, anti-turtle)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: fabed09f23dc058409536be737fb5e38, type: 2}
+      - {fileID: 11400000, guid: 413893dda09d7c645ad6c50e8903509c, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 99
+    cooldown: 6
+  - label: LUNGE (closes from range)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: dcd9d3e73253303458027f52a69aa7cf, type: 2}
+    weight: 2
+    minRange: 4.5
+    maxRange: 9
+    cooldown: 4
+  - label: lunge-jab-DELAYED OVERHEAD (closes, then breaks tempo)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: dcd9d3e73253303458027f52a69aa7cf, type: 2}
+      - {fileID: 11400000, guid: fabed09f23dc058409536be737fb5e38, type: 2}
+      - {fileID: 11400000, guid: ebe3bb6bdc3667e4e948a629f6865723, type: 2}
+    weight: 1
+    minRange: 4.5
+    maxRange: 9
+    cooldown: 8

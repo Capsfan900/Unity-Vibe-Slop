@@ -18,7 +18,7 @@ MonoBehaviour:
     the floor, and it catches you at any speed.'
   effect: 1
   color: {r: 5, g: 4.4313726, b: 1.4509804, a: 1}
-  viewmodelPrefab: {fileID: 4466756855791403990, guid: e078eb782a4a922448b16e2b026ff9f7, type: 3}
+  viewmodelPrefab: {fileID: 0}
   viewmodelScale: 0.5
   grappleRange: 28
   grappleConeDeg: 12

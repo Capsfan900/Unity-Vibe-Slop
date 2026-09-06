@@ -7,6 +7,18 @@ Last session: **2026-09-04, late evening** (Fable 5.1, four parallel forks).
 
 ## What happened
 
+**Latest (2026-09-06 afternoon, Fable 5.1):** the SOULS COMBAT pass for the non-parkour enemies, from
+`docs/plans/soulslike-report-gap-analysis-2026-09-06.md`: per-move cooldowns in `EnemyMoveset.SelectIndex`
+(history on the instance), the Warden never repeats a phase pattern, a FLASK INTERRUPT (`flaskPunishChance`,
+4 s cooldown, from Chase/Recover only), the NEAR-BREAK beat on the posture bar and the eye from 80%, and
+THE DRILLMASTER showcase (`Legendary_Drillmaster`, sandbox second row x 14 z −26, index 9) carrying all of it.
+Also P1/P2/P4 from the combat plan (commit e2dceac). EditMode 575/575. Feature suite 750/752 with the two
+failures being frame-timing flakes (hitstop checks on a 50 ms frame in an unfocused editor; a different pair
+each run, all timing-shaped; every group passes in isolation). Tag `pre-combat-plan-2026-09-06` is the revert
+point before any of the combat plan work. Open: the user wants the pill grunts to stay MELEE in the sandbox
+(they are sentries now) and a `parkour_enemies` / `souls_enemies` split — see the Plan agent's proposal in
+this session and `docs/plans/`. Nothing here has been played by a human.
+
 **Latest (2026-09-06 midday, Fable 5.1):** the span shooters are SENTRIES (`EnemyData.rangedOnly`: never melee,
 hold the perch, wake at 32 m with a three-line sight check, fire on a fixed metronome with 80% velocity lead and
 a launch that slows inside 11.5 m so the near edge is 3 m). New SENTRY DASH: DASH at a staggered sentry pulls you

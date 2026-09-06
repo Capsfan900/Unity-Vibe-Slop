@@ -311,6 +311,7 @@ namespace VibeGame1.EditorTools
             // Explicitly 0: the boss keeps its authored phase pacing and is NOT swept up in the
             // grunt/heavy aggression pass. Its pressure comes from phases, not from this multiplier.
             boss.aggression = 0f;
+            boss.flaskPunishChance = 0.7f;   // the Warden reads the flask; its phases are already its aggression curve
             // The boss turns more freely than the grunts (it is the duel, you are meant to face it) but
             // still cannot track a strafe perfectly mid-swing. It fights alone, so the ready-distance and
             // step values barely matter — set explicitly anyway so the asset never carries stale defaults.
@@ -544,11 +545,12 @@ namespace VibeGame1.EditorTools
             {
                 Entry("cut-cut-cut (the cadence you learn to ride)",   3f,   0f,   99f, ninjaCut, ninjaCut, ninjaCut),
                 Entry("cut-cross-cut-FALL (ride it, then it breaks)",  2.5f, 0f,   99f, ninjaCut, ninjaCross, ninjaCut, ninjaFall),
-                Entry("cut-cross-REAP (the cadence baits the sweep)",  1.2f, 0f,   99f, ninjaCut, ninjaCross, ninjaReap),
+                EntryCd("cut-cross-REAP (the cadence baits the sweep)", 1.2f, 0f,  99f, 6f, ninjaCut, ninjaCross, ninjaReap),
                 Entry("rush-cut-cut (closes, then flurries)",          2f,   3.4f, 99f, ninjaRush, ninjaCut, ninjaCut),
-                Entry("cut-cut-cross-cut-FALL (the long string)",      1f,   0f,   99f, ninjaCut, ninjaCut, ninjaCross, ninjaCut, ninjaFall),
+                EntryCd("cut-cut-cross-cut-FALL (the long string)",    1f,   0f,   99f, 7f, ninjaCut, ninjaCut, ninjaCross, ninjaCut, ninjaFall),
             });
             ninja.combos = ninja.moveset.ToComboArray();
+            ninja.flaskPunishChance = 0.75f;   // the Shade is the one that WILL be on you when you drink
             EditorUtility.SetDirty(ninja);
 
             // --- EnemyData: The Iron Penitent -------------------------------------------------------
@@ -602,12 +604,15 @@ namespace VibeGame1.EditorTools
                 Entry("shove into the SPIN (closes, then whirls)",     2f,   3.6f, 99f, knightShove, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinHit, knightSpinOut),
                 // The tempo break. One 1.0 s wind-up in a fight of 0.94 s beats, to punish parrying on
                 // the metronome instead of on the tell.
-                Entry("OVERHEAD (the tempo break)",                    1.2f, 0f,   99f, knightOverhead),
+                // COOLDOWNS (2026-09-06): the tempo break and the vent are surprises, so they cannot come
+                // twice running -- the report's "never spam a heavy" rule, as data.
+                EntryCd("OVERHEAD (the tempo break)",                  1.2f, 0f,   99f, 7f, knightOverhead),
                 // Far band only: these are what a player who backed out of spin range gets instead.
-                Entry("FURNACE VENT (punishes waiting it out)",        1.4f, 5f,   99f, knightVent),
-                Entry("VENT-shove-SPIN (vents you back in, then spins)", 0.9f, 5.5f, 99f, knightVent, knightShove, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinOut),
+                EntryCd("FURNACE VENT (punishes waiting it out)",      1.4f, 5f,   99f, 5f, knightVent),
+                EntryCd("VENT-shove-SPIN (vents you back in, then spins)", 0.9f, 5.5f, 99f, 8f, knightVent, knightShove, knightSpinUp, knightSpinHit, knightSpinHit, knightSpinOut),
             });
             knight.combos = knight.moveset.ToComboArray();
+            knight.flaskPunishChance = 0.6f;   // drinking inside 18 m of the Penitent is a decision
             EditorUtility.SetDirty(knight);
 
             // --- EnemyData: The Ashen Chorister -----------------------------------------------------
@@ -631,11 +636,12 @@ namespace VibeGame1.EditorTools
                 Entry("arc-thrust (the plain rhythm it teaches you)",  2.5f, 0f,   99f, swordArc, swordThrust),
                 Entry("thrust-arc-arc (pressure)",                     2f,   0f,   99f, swordThrust, swordArc, swordArc),
                 Entry("FEINT...arc-thrust (the pause is a lie)",       1.8f, 0f,   99f, swordFeint, swordArc, swordThrust),
-                Entry("arc-GRASP (punishes stepping in)",              1.2f, 3f,   99f, swordArc, swordGrasp),
-                Entry("EMBERFALL-thrust (ranged opener, then closes)", 1.2f, 4.5f, 99f, swordEmberfall, swordThrust),
-                Entry("arc-thrust-FEINT-arc (the long unreadable one)",1f,   0f,   99f, swordArc, swordThrust, swordFeint, swordArc),
+                EntryCd("arc-GRASP (punishes stepping in)",            1.2f, 3f,   99f, 6f, swordArc, swordGrasp),
+                EntryCd("EMBERFALL-thrust (ranged opener, then closes)", 1.2f, 4.5f, 99f, 5f, swordEmberfall, swordThrust),
+                EntryCd("arc-thrust-FEINT-arc (the long unreadable one)", 1f, 0f,  99f, 8f, swordArc, swordThrust, swordFeint, swordArc),
             });
             spellsword.combos = spellsword.moveset.ToComboArray();
+            spellsword.flaskPunishChance = 0.5f;
             EditorUtility.SetDirty(spellsword);
 
             // --- Marionette: THE PALE MARIONETTE. PROTOTYPE. ----------------------------------------
@@ -838,15 +844,16 @@ namespace VibeGame1.EditorTools
                       marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
                       marSpinOut),
                 // The tempo break. One square-on 1.0 s wind-up, no whirl at all.
-                Entry("OVERHEAD (the tempo break)",                    1.2f, 0f,   99f, marOverhead),
+                EntryCd("OVERHEAD (the tempo break)",                  1.2f, 0f,   99f, 7f, marOverhead),
                 Entry("overhead into the spin",                        1f,   0f,   6f,
                       marOverhead, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
                 // Far band only: what a player who backed out of spin range gets instead of a rest.
-                Entry("STRING LASH (punishes waiting it out)",         1.6f, 5f,   99f, marLash),
+                EntryCd("STRING LASH (punishes waiting it out)",       1.6f, 5f,   99f, 5f, marLash),
                 Entry("LASH into the spin (drags you back in)",        1f,   5.5f, 99f,
                       marLash, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
             });
             marionette.combos = marionette.moveset.ToComboArray();
+            marionette.flaskPunishChance = 0.6f;
             EditorUtility.SetDirty(marionette);
 
             // --- Revenant: THE EMBER REVENANT. PROTOTYPE. ------------------------------------------
@@ -1014,12 +1021,13 @@ namespace VibeGame1.EditorTools
                 // The read: a wide cut, then the thrust down the middle. Two different cones back to
                 // back, so sidestepping the first puts you in front of the second.
                 Entry("slash into THRUST",               2f,   0f,  7f, revSlash, revStab),
-                Entry("OVERHEAD (the big punish)",       1.5f, 0f,  6f, revOverhead),
+                EntryCd("OVERHEAD (the big punish)",     1.5f, 0f,  6f, 6f, revOverhead),
                 Entry("thrust from range",               1.5f, 3.5f, 8f, revStab),
-                Entry("KICK (unblockable, anti-turtle)", 1.2f, 0f,  5f, revKick),
-                Entry("slash into the kick",             1f,   0f,  5f, revSlash, revKick),
+                EntryCd("KICK (unblockable, anti-turtle)", 1.2f, 0f,  5f, 5f, revKick),
+                EntryCd("slash into the kick",           1f,   0f,  5f, 5f, revSlash, revKick),
             });
             revenant.combos = revenant.moveset.ToComboArray();
+            revenant.flaskPunishChance = 0.6f;
             EditorUtility.SetDirty(revenant);
 
             // --- Halberdier: THE ARGENT HALBERDIER. PROTOTYPE. ------------------------------------
@@ -1229,16 +1237,90 @@ namespace VibeGame1.EditorTools
                 Entry("sweep, thrust (the fast pair)",                    2f,   0f,   3.6f, halSweep, halThrust),
                 Entry("sweep",                                            1.2f, 0f,   3.6f, halSweep),
                 Entry("thrust down the middle",                           1.2f, 0f,   3.6f, halThrust),
-                Entry("OVERHEAD SLAM (the punish)",                       0.8f, 0f,   3.6f, halSlam),
-                Entry("the SPIN (all round)",                             1f,   0f,   3.6f, halSpin),
-                Entry("KICK (unblockable, anti-turtle)",                  1.2f, 0f,   3.0f, halKick),
+                EntryCd("OVERHEAD SLAM (the punish)",                     0.8f, 0f,   3.6f, 6f, halSlam),
+                EntryCd("the SPIN (all round)",                           1f,   0f,   3.6f, 7f, halSpin),
+                EntryCd("KICK (unblockable, anti-turtle)",                1.2f, 0f,   3.0f, 5f, halKick),
                 Entry("CHARGE into sweep, THRUST (unblockable opener)",   5f,   5f,   8f,   halCharge, halSweep, halThrust),
                 Entry("CHARGE into SLAM (unblockable opener)",            4f,   5f,   8f,   halCharge, halSlam),
                 Entry("SHOULDER CHARGE (unblockable, to the aggro edge)", 2f,   5f,   18f,  halCharge),
-                Entry("LEAP SLAM from range",                             1.2f, 4.5f, 8f,   halLeap),
+                EntryCd("LEAP SLAM from range",                           1.2f, 4.5f, 8f, 6f, halLeap),
             });
             halberdier.combos = halberdier.moveset.ToComboArray();
+            halberdier.flaskPunishChance = 0.6f;
             EditorUtility.SetDirty(halberdier);
+
+            // ---- THE DRILLMASTER: the showcase duellist (2026-09-06) ----------------------------------
+            // Sandbox pad only (x 14, z -26, the second row). One body that carries every soulslike
+            // combat feature the report brought in, tuned so each one is SEEN inside one fight:
+            //   * per-move cooldowns on every signature (EntryCd) -- nothing heavy comes twice running;
+            //   * a DELAYED overhead: 1.25 s wind-up in a 0.5 s fight, the tempo break that eats rhythm parrying;
+            //   * a feint whose pause is a lie (0.95 s) and an unblockable kick for the turtle;
+            //   * flaskPunishChance 1.0 -- drink inside 18 m and it WILL come, every 4 s at most;
+            //   * posture 150 with the near-break beat from 80%: four clean deflects and the bar is beating.
+            // Knight silhouette at 1.3x, slate body, cold blue accent so it is never mistaken for the Penitent.
+            var drillJab = Attack("Drill_Jab", a =>
+            {
+                a.windup = 0.5f; a.impactDelay = 0.05f; a.strikeDuration = 0.15f; a.recovery = 0.6f;
+                a.range = 3.0f; a.coneDeg = 60f; a.damage = 16f; a.lungeDistance = 0.6f; a.comboGap = 0.2f;
+            });
+            var drillCross = Attack("Drill_Cross", a =>
+            {
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.7f;
+                a.range = 3.0f; a.coneDeg = 65f; a.damage = 18f; a.lungeDistance = 0.7f; a.comboGap = 0.22f;
+                a.parryPostureMultiplier = 1.2f;
+            });
+            var drillOverhead = Attack("Drill_DelayedOverhead", a =>
+            {
+                // THE DELAYED ATTACK. The cue still fires 0.28 s before impact -- it punishes a player
+                // parrying on the 0.5 s metronome, never one watching the blade. 1.6 s of recovery is the
+                // reward for reading it.
+                a.windup = 1.25f; a.impactDelay = 0.08f; a.strikeDuration = 0.2f; a.recovery = 1.6f;
+                a.range = 3.2f; a.coneDeg = 50f; a.damage = 34f; a.lungeDistance = 0.8f; a.comboGap = 0.3f;
+                a.parryPostureMultiplier = 1.6f;
+            });
+            var drillFeint = Attack("Drill_Feint", a =>
+            {
+                a.windup = 0.95f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.4f;
+                a.range = 2.8f; a.coneDeg = 60f; a.damage = 14f; a.lungeDistance = 0.5f; a.comboGap = 0.15f;
+            });
+            var drillKick = Attack("Drill_Kick", a =>
+            {
+                a.windup = 0.7f; a.impactDelay = 0.05f; a.strikeDuration = 0.15f; a.recovery = 0.9f;
+                a.range = 2.6f; a.coneDeg = 45f; a.damage = 20f; a.lungeDistance = 0.9f; a.comboGap = 0.3f;
+                a.unblockable = true;
+            });
+            var drillLunge = Attack("Drill_Lunge", a =>
+            {
+                a.windup = 0.8f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.9f;
+                a.range = 3.2f; a.coneDeg = 40f; a.damage = 24f; a.lungeDistance = 4.5f; a.comboGap = 0.25f;
+            });
+
+            var drill = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Drillmaster.asset");
+            drill.displayName = "THE DRILLMASTER";
+            drill.maxHP = 220f; drill.maxPosture = 150f; drill.postureRegen = 4f; drill.postureRegenDelay = 2.5f; drill.staggerSeconds = 4f;
+            drill.moveSpeed = 4.0f; drill.turnSpeed = 260f; drill.aggroRange = 18f; drill.attackRange = 3.0f;
+            drill.attackCooldown = 0.4f; drill.parryRecoilSeconds = 0.6f; drill.aggression = 0.6f;
+            drill.windupTurnMultiplier = 0.3f; drill.stepSpeedMultiplier = 0.3f;
+            drill.stepAcceleration = 5f; drill.stepDeadzone = 0.95f;
+            drill.comboBreathSeconds = 0.25f; drill.readyDistanceMultiplier = 1.6f;
+            drill.preferredRange = 3.8f; drill.commitTolerance = 0.8f; drill.repositionDeadzone = 0.5f;
+            drill.backStepSpeedMultiplier = 0.3f; drill.strafeSpeedMultiplier = 0.3f; drill.lungeMinDistance = 1.4f;
+            drill.soulValue = 500;
+            drill.bodyColor = Hex("#2E3A44"); drill.emission = Hex("#4FB3FF") * 1.2f; drill.scale = 1.3f;
+            drill.flaskPunishChance = 1.0f;
+            drill.shootsProjectiles = false; drill.rangedOnly = false;
+            drill.moveset = Moveset("Legendary_Drillmaster_Moveset", "The Drillmaster", new[]
+            {
+                Entry("jab-cross (the rhythm)",                          3f,   0f,   99f, drillJab, drillCross),
+                Entry("jab-jab-cross (the longer rhythm)",               2f,   0f,   99f, drillJab, drillJab, drillCross),
+                EntryCd("FEINT...cross (the pause is a lie)",            1.5f, 0f,   99f, 5f, drillFeint, drillCross),
+                EntryCd("DELAYED OVERHEAD (the tempo break)",            1.5f, 0f,   99f, 7f, drillOverhead),
+                EntryCd("jab-KICK (unblockable, anti-turtle)",           1.2f, 0f,   99f, 6f, drillJab, drillKick),
+                EntryCd("LUNGE (closes from range)",                     2f,   4.5f, 9f,  4f, drillLunge),
+                EntryCd("lunge-jab-DELAYED OVERHEAD (closes, then breaks tempo)", 1f, 4.5f, 9f, 8f, drillLunge, drillJab, drillOverhead),
+            });
+            drill.combos = drill.moveset.ToComboArray();
+            EditorUtility.SetDirty(drill);
 
             // ---------------- Weapons ----------------
             //
@@ -1627,6 +1709,14 @@ namespace VibeGame1.EditorTools
         }
 
         /// <summary>One weighted, range-gated combo. Terse on purpose so a moveset stays readable inline.</summary>
+        /// <summary>An entry with a per-move cooldown: a signature that never comes twice running.</summary>
+        static MovesetEntry EntryCd(string label, float weight, float minRange, float maxRange, float cooldown, params EnemyAttackData[] hits)
+        {
+            var e = Entry(label, weight, minRange, maxRange, hits);
+            e.cooldown = cooldown;
+            return e;
+        }
+
         static MovesetEntry Entry(string label, float weight, float minRange, float maxRange, params EnemyAttackData[] hits)
         {
             return new MovesetEntry

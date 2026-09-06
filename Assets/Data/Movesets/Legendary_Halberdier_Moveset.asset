@@ -23,6 +23,7 @@ MonoBehaviour:
     weight: 4
     minRange: 0
     maxRange: 3.6
+    cooldown: 0
   - label: thrust, sweep, thrust
     combo:
       hits:
@@ -32,6 +33,7 @@ MonoBehaviour:
     weight: 1.5
     minRange: 0
     maxRange: 3.6
+    cooldown: 0
   - label: sweep, thrust (the fast pair)
     combo:
       hits:
@@ -40,6 +42,7 @@ MonoBehaviour:
     weight: 2
     minRange: 0
     maxRange: 3.6
+    cooldown: 0
   - label: sweep
     combo:
       hits:
@@ -47,6 +50,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 0
     maxRange: 3.6
+    cooldown: 0
   - label: thrust down the middle
     combo:
       hits:
@@ -54,6 +58,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 0
     maxRange: 3.6
+    cooldown: 0
   - label: OVERHEAD SLAM (the punish)
     combo:
       hits:
@@ -61,6 +66,7 @@ MonoBehaviour:
     weight: 0.8
     minRange: 0
     maxRange: 3.6
+    cooldown: 6
   - label: the SPIN (all round)
     combo:
       hits:
@@ -68,6 +74,7 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 3.6
+    cooldown: 7
   - label: KICK (unblockable, anti-turtle)
     combo:
       hits:
@@ -75,6 +82,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 0
     maxRange: 3
+    cooldown: 5
   - label: CHARGE into sweep, THRUST (unblockable opener)
     combo:
       hits:
@@ -84,6 +92,7 @@ MonoBehaviour:
     weight: 5
     minRange: 5
     maxRange: 8
+    cooldown: 0
   - label: CHARGE into SLAM (unblockable opener)
     combo:
       hits:
@@ -92,6 +101,7 @@ MonoBehaviour:
     weight: 4
     minRange: 5
     maxRange: 8
+    cooldown: 0
   - label: SHOULDER CHARGE (unblockable, to the aggro edge)
     combo:
       hits:
@@ -99,6 +109,7 @@ MonoBehaviour:
     weight: 2
     minRange: 5
     maxRange: 18
+    cooldown: 0
   - label: LEAP SLAM from range
     combo:
       hits:
@@ -106,3 +117,4 @@ MonoBehaviour:
     weight: 1.2
     minRange: 4.5
     maxRange: 8
+    cooldown: 6

@@ -31,6 +31,7 @@ MonoBehaviour:
     weight: 4
     minRange: 0
     maxRange: 6
+    cooldown: 0
   - label: short spin (same beat, five passes)
     combo:
       hits:
@@ -44,6 +45,7 @@ MonoBehaviour:
     weight: 2
     minRange: 0
     maxRange: 6
+    cooldown: 0
   - label: OVERHEAD (the tempo break)
     combo:
       hits:
@@ -51,6 +53,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 0
     maxRange: 99
+    cooldown: 7
   - label: overhead into the spin
     combo:
       hits:
@@ -63,6 +66,7 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 6
+    cooldown: 0
   - label: STRING LASH (punishes waiting it out)
     combo:
       hits:
@@ -70,6 +74,7 @@ MonoBehaviour:
     weight: 1.6
     minRange: 5
     maxRange: 99
+    cooldown: 5
   - label: LASH into the spin (drags you back in)
     combo:
       hits:
@@ -83,3 +88,4 @@ MonoBehaviour:
     weight: 1
     minRange: 5.5
     maxRange: 99
+    cooldown: 0

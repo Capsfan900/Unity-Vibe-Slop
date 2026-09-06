@@ -315,6 +315,7 @@ namespace VibeGame1
                 Test("TellReadability", TestTellReadability),
                 Test("WindupPoses",     TestWindupPoses),
                 Test("Deathblow",       TestDeathblowMarker),
+                Test("FlaskPunish",     TestFlaskPunish),
                 Test("LockOn",          TestLockOn),
                 Test("Items",           TestItems),
                 Test("Flask",           TestFlask),
@@ -1829,6 +1830,28 @@ namespace VibeGame1
         /// the difference — the suite previously proved the deathblow fired and was completely blind to
         /// whether anything told the player it was about to. See docs/ENGINEERING-LOG.md.
         /// </summary>
+        /// <summary>
+        /// The flask interrupt (2026-09-06): the forced path. A dummy between phrases, told to punish,
+        /// must be in Windup THIS frame with a cue still owed cueLead before impact, and the counter must
+        /// say so. The dice (flaskPunishChance) are EditMode data; this proves the state transition.
+        /// </summary>
+        IEnumerator TestFlaskPunish()
+        {
+            EnemyController e = null;
+            yield return SpawnDummy(combat.transform.position + combat.transform.forward * 3f, x => e = x);
+            if (e == null) { Skip("FlaskPunish", "no dummy"); yield break; }
+            int before = e.FlaskPunishes;
+            bool started = e.PunishFlaskNow(3f);
+            Check("FlaskPunish_Starts", started, "PunishFlaskNow refused on a fresh dummy");
+            Check("FlaskPunish_IsAWindup", e.Current == EnemyController.State.Windup, "state=" + e.Current);
+            Check("FlaskPunish_Counted", e.FlaskPunishes == before + 1);
+            Check("FlaskPunish_CueStillOwed", e.NextCueTime > Time.time - 0.01f, "the punish must keep the tell: cue at " + e.NextCueTime + " now " + Time.time);
+            bool again = e.PunishFlaskNow(3f);
+            Check("FlaskPunish_NeverInsideAWindup", !again, "one attack at a time");
+            UnityEngine.Object.Destroy(e.gameObject);
+            yield return null;
+        }
+
         IEnumerator TestDeathblowMarker()
         {
             // ---- the marker is its own material, loud, and not the alert tell ------------------

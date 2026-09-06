@@ -31,6 +31,9 @@ namespace VibeGame1
         [Tooltip("Posture below this (and not staggered) hides the bar so idle enemies stay uncluttered.")]
         public float hideBelowRatio = 0.02f;
 
+        /// <summary>Posture ratio from which the bar (and the eye) start beating: the near-break read.</summary>
+        public const float NearBreakRatio = 0.8f;
+        public const float NearBreakHz = 4.5f;
         static readonly Color Bone = new Color(0.788f, 0.635f, 0.153f);   // #C9A227
         static readonly Color Hot = new Color(1f, 0.227f, 0.102f);        // #FF3A1A
         static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
@@ -103,6 +106,15 @@ namespace VibeGame1
             {
                 float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 12f);
                 c = Color.Lerp(Hot, Color.white, 0.35f + 0.65f * pulse);
+            }
+            // NEAR-BREAK (2026-09-06, Sekiro's orange flash): from 80% the fill beats toward white,
+            // harder the closer it is. "One more deflect" has to be readable before the break, or the
+            // break is a surprise rather than a payoff you were chasing.
+            if (!broken && shown >= NearBreakRatio)
+            {
+                float k = Mathf.Clamp01((shown - NearBreakRatio) / (1f - NearBreakRatio));
+                float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * NearBreakHz * Mathf.PI * 2f);
+                c = Color.Lerp(c, Color.white, 0.55f * k * beat);
             }
             c = Color.Lerp(c, Color.white, flash);
             Tint(fillRenderer, c, broken ? 6f : 3f);

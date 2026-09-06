@@ -22,6 +22,7 @@ MonoBehaviour:
     weight: 2.5
     minRange: 0
     maxRange: 99
+    cooldown: 0
   - label: thrust-arc-arc (pressure)
     combo:
       hits:
@@ -31,6 +32,7 @@ MonoBehaviour:
     weight: 2
     minRange: 0
     maxRange: 99
+    cooldown: 0
   - label: FEINT...arc-thrust (the pause is a lie)
     combo:
       hits:
@@ -40,6 +42,7 @@ MonoBehaviour:
     weight: 1.8
     minRange: 0
     maxRange: 99
+    cooldown: 0
   - label: arc-GRASP (punishes stepping in)
     combo:
       hits:
@@ -48,6 +51,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 3
     maxRange: 99
+    cooldown: 6
   - label: EMBERFALL-thrust (ranged opener, then closes)
     combo:
       hits:
@@ -56,6 +60,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 4.5
     maxRange: 99
+    cooldown: 5
   - label: arc-thrust-FEINT-arc (the long unreadable one)
     combo:
       hits:
@@ -66,3 +71,4 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 99
+    cooldown: 8

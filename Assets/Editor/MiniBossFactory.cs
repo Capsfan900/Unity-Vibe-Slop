@@ -64,6 +64,9 @@ namespace VibeGame1.EditorTools
             // (forge.py --motion), named on the attack data, with the art's own travel held in
             // lungeDistance. See docs/ARCHITECTURE.md -> The Argent Halberdier.
             BuildMiniBoss("Legendary_Halberdier", EnemyDataDir + "/Legendary_Halberdier.asset", Silhouette.Halberdier);
+            // SHOWCASE (2026-09-06). Sandbox pad only, second row. The Knight silhouette in slate and cold
+            // blue; every soulslike combat feature of the day on one body. See DataFactory, THE DRILLMASTER.
+            BuildMiniBoss("Legendary_Drillmaster", EnemyDataDir + "/Legendary_Drillmaster.asset", Silhouette.Knight);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -75,7 +78,7 @@ namespace VibeGame1.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
-            Debug.Log("[MiniBossFactory] Built 6 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 7 legendary mini-boss prefabs under " + PrefabDir);
         }
 
         enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier }

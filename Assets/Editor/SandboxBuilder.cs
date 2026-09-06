@@ -41,7 +41,7 @@ namespace VibeGame1.EditorTools
         static GameObject pBalloon;
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
-        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier;
+        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -785,6 +785,11 @@ namespace VibeGame1.EditorTools
             var sMarionette = Spawner("Spawn_Legendary_Marionette", new Vector3(-22f, spawnY, z), pLegMarionette, false, root);
             var sRevenant = Spawner("Spawn_Legendary_Revenant", new Vector3(-28f, spawnY, z), pLegRevenant, false, root);
             var sHalberdier = Spawner("Spawn_Legendary_Halberdier", new Vector3(0.75f, spawnY, z), pLegHalberdier, false, root);
+            // THE DRILLMASTER (2026-09-06): the soulslike-combat showcase. The southern row is full, so it
+            // takes a SECOND ROW at z -26 behind the Ninja pad (x 14: clear of the Warden's pad, x <= 12,
+            // and inside the wall). Its switch sits between the rows on the player's side.
+            Box("Pad_Legendary_Drillmaster", new Vector3(14f, padY, z - 8f), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+            var sDrill = Spawner("Spawn_Legendary_Drillmaster", new Vector3(14f, spawnY, z - 8f), pLegDrillmaster, false, root);
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -803,6 +808,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Marionette", new Vector3(-22f, FloorTop, switchZ), sMarionette, "PALE MARIONETTE", root);
             Switch("Wake_Legendary_Revenant", new Vector3(-28f, FloorTop, switchZ), sRevenant, "EMBER REVENANT", root);
             Switch("Wake_Legendary_Halberdier", new Vector3(0.75f, FloorTop, switchZ), sHalberdier, "ARGENT HALBERDIER", root);
+            Switch("Wake_Legendary_Drillmaster", new Vector3(14f, FloorTop, z - 8f + 3.2f), sDrill, "DRILLMASTER", root);
         }
 
         /// <summary>
@@ -959,7 +965,7 @@ namespace VibeGame1.EditorTools
             // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
-                                              pLegMarionette, pLegRevenant, pLegHalberdier };
+                                              pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -971,6 +977,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Marionette"),
                 LoadEnemyData("Legendary_Revenant"),
                 LoadEnemyData("Legendary_Halberdier"),
+                LoadEnemyData("Legendary_Drillmaster"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1016,6 +1023,7 @@ namespace VibeGame1.EditorTools
             pLegMarionette = LoadPrefab("Legendary_Marionette");
             pLegRevenant = LoadPrefab("Legendary_Revenant");
             pLegHalberdier = LoadPrefab("Legendary_Halberdier");
+            pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
             pBalloon = LoadPrefab("Balloon");
         }
 

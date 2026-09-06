@@ -29,6 +29,12 @@ namespace VibeGame1
                  "Readability is NOT affected: the parry cue still fires cueLead seconds before every impact.")]
         public float aggression = 0f;
 
+        [Header("Interrupts — the duel reads the player (2026-09-06)")]
+        [Tooltip("Chance (0-1) that this enemy ABORTS its recovery or approach and attacks the moment the player " +
+                 "starts drinking a flask inside aggro range (FromSoft's heal punish). 0 = never. Chance-based and " +
+                 "on a 4 s per-enemy cooldown so the flask is a decision, not a trap. Ignored by sentries.")]
+        [Range(0f, 1f)] public float flaskPunishChance = 0f;
+
         [Header("Weight — aggressive should read as deliberate, not twitchy")]
         [Tooltip("Turn rate multiplier while winding up. Well under 1 so a committed attack stays committed " +
                  "and circling the enemy is a real answer. This is the main thing separating pressure from unfairness.")]

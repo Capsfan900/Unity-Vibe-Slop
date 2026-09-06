@@ -1212,6 +1212,8 @@ MonoBehaviour:
   angularSize: 0.115
   minScale: 0.1
   maxScale: 0.42
+  sentryMaxScale: 1.1
+  sentry: 0
   frontOffsetMaxFraction: 0.35
 --- !u!1 &6084142355115596966
 GameObject:

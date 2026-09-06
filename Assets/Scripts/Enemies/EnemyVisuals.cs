@@ -284,6 +284,14 @@ namespace VibeGame1
             // The one permitted always-on emissive on an enemy, and deliberately tiny: enough to locate
             // a body in a dark room, far too weak to light it. Posture still reads here, just quietly.
             Color c = Color.Lerp(new Color(0.35f, 0.10f, 0.05f), new Color(1f, 0.45f, 0.12f) * 1.4f, r);
+            // Near-break: the eye beats with the posture bar (EnemyPostureBar.NearBreakRatio). Toward a
+            // hot white at the SAME peak (1.4) -- hue, not brightness, so the bloom budget is untouched.
+            if (r >= EnemyPostureBar.NearBreakRatio && !slumped)
+            {
+                float k = Mathf.Clamp01((r - EnemyPostureBar.NearBreakRatio) / (1f - EnemyPostureBar.NearBreakRatio));
+                float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * EnemyPostureBar.NearBreakHz * Mathf.PI * 2f);
+                c = Color.Lerp(c, new Color(1.4f, 1.3f, 1.15f), 0.6f * k * beat);
+            }
             eyeMpb.SetColor(EmissionId, c);
             eye.SetPropertyBlock(eyeMpb);
         }

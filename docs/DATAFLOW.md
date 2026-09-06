@@ -775,6 +775,31 @@ OffhandController  = the player's left hand, ALWAYS visible (OffhandViewmodel)
 
 ## Enemy AI
 
+### souls_enemies — the duel reads the player (2026-09-06, from docs/plans/soulslike-report-gap-analysis-2026-09-06.md)
+
+```
+ChooseCombo(dist)   (EnemyController; the boss overrides for its phase patterns)
+   moveset authored → EnemyMoveset.SelectIndex(dist, moveLastUsedAt[], Time.time)
+        rule 1: in band, weight > 0, off cooldown (MovesetEntry.cooldown; signatures carry 5-8 s, filler 0)
+        rule 2: in band ignoring cooldowns (a fight where everything cools still attacks)
+        rule 3: first non-empty entry
+        → moveLastUsedAt[idx] = now on THIS instance (never on the shared asset), LastMoveIndex = idx
+   BossController.ChooseCombo: the phase's patterns[], never the same index twice running when it has > 1
+INTERRUPT: the flask   (EnemyController.Update, before the state switch; never a sentry)
+   PlayerDrinkEdge(): FlaskAbility.IsDrinking rising edge on the player
+   in Chase or Recover → TryPunishFlask(dist): data.flaskPunishChance > 0, not aggroLocked, ≥ FlaskPunishCooldown 4 s
+        since the last one, dist ≤ aggroRange, an attack slot free (MayCommitToAttack), in the commit band or
+        moveset.HasEligible(dist), Random.value ≤ chance → PunishFlaskNow(dist): FlaskPunishes++, BeginCombo(ChooseCombo)
+        -- the recovery is CUT and the wind-up starts this frame; the cue is still cueLead before impact.
+        Refused inside Windup/Strike/Staggered (one attack at a time). Legendaries 0.5-0.75, Warden 0.7, Drillmaster 1.0.
+NEAR-BREAK read   (EnemyPostureBar.LateUpdate + EnemyVisuals.SetPostureRatio)
+   posture ratio ≥ NearBreakRatio 0.8 and not broken → the fill and the eye beat toward white at NearBreakHz 4.5,
+   amplitude rising to the break. Hue, not brightness: the eye's peak stays 1.4 (bloom budget untouched).
+THE DRILLMASTER   (Legendary_Drillmaster; sandbox pad x 14, z -26, SpawnEnemyInFront 9) -- the showcase body:
+   every signature on cooldown, a 1.25 s DELAYED overhead in a 0.5 s fight, a feint, an unblockable kick,
+   a far-band lunge, flaskPunishChance 1.0, posture 150. Knight silhouette in slate and cold blue.
+```
+
 ```
 EnemyController  = the BRAIN ONLY. Rig-agnostic: it knows states, timings and distances.
    ├─ IEnemyLocomotion    (NavMeshLocomotion today; root-motion rig later)

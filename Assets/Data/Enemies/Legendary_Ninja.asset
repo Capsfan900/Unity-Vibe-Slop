@@ -25,6 +25,7 @@ MonoBehaviour:
   attackCooldown: 0.1
   parryRecoilSeconds: 0.34
   aggression: 1
+  flaskPunishChance: 0.75
   windupTurnMultiplier: 0.36
   stepSpeedMultiplier: 0.5
   stepAcceleration: 10

@@ -26,6 +26,7 @@ MonoBehaviour:
     weight: 3.5
     minRange: 0
     maxRange: 99
+    cooldown: 0
   - label: short spin (same beat, three of them)
     combo:
       hits:
@@ -36,6 +37,7 @@ MonoBehaviour:
     weight: 2
     minRange: 0
     maxRange: 99
+    cooldown: 0
   - label: shove into the SPIN (closes, then whirls)
     combo:
       hits:
@@ -48,6 +50,7 @@ MonoBehaviour:
     weight: 2
     minRange: 3.6
     maxRange: 99
+    cooldown: 0
   - label: OVERHEAD (the tempo break)
     combo:
       hits:
@@ -55,6 +58,7 @@ MonoBehaviour:
     weight: 1.2
     minRange: 0
     maxRange: 99
+    cooldown: 7
   - label: FURNACE VENT (punishes waiting it out)
     combo:
       hits:
@@ -62,6 +66,7 @@ MonoBehaviour:
     weight: 1.4
     minRange: 5
     maxRange: 99
+    cooldown: 5
   - label: VENT-shove-SPIN (vents you back in, then spins)
     combo:
       hits:
@@ -74,3 +79,4 @@ MonoBehaviour:
     weight: 0.9
     minRange: 5.5
     maxRange: 99
+    cooldown: 8

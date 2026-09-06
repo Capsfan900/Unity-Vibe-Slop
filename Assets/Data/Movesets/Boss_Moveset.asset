@@ -21,3 +21,4 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 99
+    cooldown: 0

@@ -62,12 +62,20 @@ namespace VibeGame1
             if (visuals != null) visuals.SetAccent(p.accent);
         }
 
+        int lastPattern = -1;
+
         protected override AttackCombo ChooseCombo(float distanceToTarget)
         {
             if (Boss == null || Boss.phases == null || Boss.phases.Length == 0) return base.ChooseCombo(distanceToTarget);
             var p = Boss.phases[Mathf.Clamp(Phase, 0, Boss.phases.Length - 1)];
             if (p.patterns == null || p.patterns.Length == 0) return base.ChooseCombo(distanceToTarget);
-            return p.patterns[Random.Range(0, p.patterns.Length)];
+            // Never the same pattern twice running when the phase has more than one (2026-09-06): the
+            // Warden's phases are authored sequences, and a repeat is the one thing that reads as a dice roll.
+            int n = p.patterns.Length;
+            int idx = Random.Range(0, n);
+            if (n > 1 && idx == lastPattern) idx = (idx + 1 + Random.Range(0, n - 1)) % n;
+            lastPattern = idx;
+            return p.patterns[idx];
         }
 
         protected override void HandleStaggerEnded()
