@@ -41,6 +41,54 @@ namespace VibeGame1.Tests
         {
             float peak = Mathf.Max(SentryFlare.Core.r, Mathf.Max(SentryFlare.Core.g, SentryFlare.Core.b));
             Assert.Greater(peak, 1.05f); Assert.LessOrEqual(peak, 2f);
+            Assert.AreEqual(1.6f, peak, Eps, "the same peak as Projectile.HotCore: hue carries flare-vs-bolt, never brightness");
+        }
+
+        [Test]
+        public void TheCoreAndHaloTogetherStayUnderTheAcesCeiling()
+        {
+            // The halo is an ADDITIVE sphere drawn over the core, so in the overlap the two peaks sum. Budget
+            // them together or the flare clips: 1.9 + 0.75 was 2.65 against a 2.0 ceiling.
+            float corePeak = Mathf.Max(SentryFlare.Core.r, Mathf.Max(SentryFlare.Core.g, SentryFlare.Core.b));
+            float haloPeak = Mathf.Max(SentryFlare.Halo.r, Mathf.Max(SentryFlare.Halo.g, SentryFlare.Halo.b));
+            Assert.LessOrEqual(corePeak + haloPeak, 2f + Eps, "core + halo overlap must not overshoot the 2.0 ACES ceiling");
+            Assert.Greater(corePeak, 1.05f, "the core is still a documented exception to the bloom cap");
+            Assert.Less(haloPeak, corePeak * 0.5f, "the halo buys range with area, not brightness -- it must stay far below the core");
+            Assert.Greater(SentryFlare.Halo.b, SentryFlare.Halo.r, "the halo is the same violet family as the core, never amber like the bolt");
+        }
+
+        [Test]
+        public void TheHaloIsDrivenInWorldSpaceAndNeverCollapses()
+        {
+            // REGRESSION GUARD: the halo is a child of the sphere the core scaling writes to. Driven in LOCAL
+            // space its scale compounded the core's, squaring both the glow curve and the flicker -- at glow 0.1
+            // the "never a pinprick" halo was smaller than the core it was meant to surround.
+            float f1 = SentryFlare.Flicker(0f);
+            Assert.AreEqual(1f, f1, Eps, "flicker at birth is unity");
+
+            Assert.AreEqual(SentryFlare.HaloScale, SentryFlare.HaloWorldDiameter(1f, 1f), Eps, "at full glow the halo is exactly HaloScale across");
+            Assert.AreEqual(2.6f, SentryFlare.HaloWorldDiameter(1f, 1f), Eps);
+
+            // glow 0.15: lerp(0.5, 1, 0.15) = 0.575 -> 2.6 * 0.575 = 1.495 m. Compounded, it would have been
+            // that times the core's own 0.2875 factor -- 0.43 m, a THIRD of what the code's comment promises.
+            float d15 = SentryFlare.HaloWorldDiameter(0.15f, 1f);
+            Assert.AreEqual(2.6f * 0.575f, d15, Eps);
+            Assert.Greater(d15, SentryFlare.CoreWorldDiameter(0.15f, 1f) * 2f, "even a dying halo stays a wide aura around the core, not a pinprick inside it");
+
+            // The flicker is applied ONCE: doubling it doubles the diameter, it never squares.
+            Assert.AreEqual(d15 * 1.12f, SentryFlare.HaloWorldDiameter(0.15f, 1.12f), Eps, "flicker applies linearly, exactly once");
+            Assert.AreEqual(SentryFlare.CoreSize, SentryFlare.CoreWorldDiameter(1f, 1f), Eps);
+        }
+
+        [Test]
+        public void TheIdlePulseRespectsTheSharedSlashFxBudget()
+        {
+            // SlashFx pools 28 live effects and Spawn() returns null at the cap. A flare pulses forever, every
+            // 0.55 s: unbudgeted, a span full of flares would push the combat tells out of the pool.
+            Assert.IsTrue(SentryFlare.PulseAllowed(0));
+            Assert.IsTrue(SentryFlare.PulseAllowed(SentryFlare.PulseLiveBudget));
+            Assert.IsFalse(SentryFlare.PulseAllowed(SentryFlare.PulseLiveBudget + 1), "past the budget the standing core+halo is the read");
+            Assert.LessOrEqual(SentryFlare.PulseLiveBudget, 4, "the pool is 28 slots shared with every combat tell");
         }
 
         [Test]
@@ -48,6 +96,8 @@ namespace VibeGame1.Tests
         {
             // 2026-09-06 VFX pass, from the user: "the flare needs to be much larger and more visible" -- it is
             // a usable traversal tool (DASH-grapple, tossed up), not a decoration.
+            Assert.AreEqual(1.15f, SentryFlare.CoreSize, Eps, "the shipped core diameter");
+            Assert.AreEqual(2.6f, SentryFlare.HaloScale, Eps, "the shipped halo diameter");
             Assert.GreaterOrEqual(SentryFlare.CoreSize, 1.0f, "more than double the 0.5 m it shipped at");
             Assert.Greater(SentryFlare.HaloScale, SentryFlare.CoreSize * 1.5f, "the halo must be visibly bigger than the core, not the same shape restated");
             Assert.Greater(SentryFlare.PulseInterval, 0f);

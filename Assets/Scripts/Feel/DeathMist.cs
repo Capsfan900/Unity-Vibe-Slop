@@ -238,7 +238,7 @@ namespace VibeGame1
 
         /// <summary>Test-only: first pooled system's noise module, so the buoyancy wiring can be pinned
         /// without touching play mode. Builds the pool if it does not exist yet.</summary>
-        internal static ParticleSystem.NoiseModule PeekNoiseModuleForTests()
+        public static ParticleSystem.NoiseModule PeekNoiseModuleForTests()
         {
             EnsurePool();
             return pool[0].ps.noise;

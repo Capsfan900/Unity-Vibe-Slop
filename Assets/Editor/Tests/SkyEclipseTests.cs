@@ -73,8 +73,8 @@ namespace VibeGame1.Tests
         {
             RunOnBuiltSky((mesh, mats) =>
             {
-                // The dome is written first: (latitude+1) * (longitude+1) = 21 * 41 vertices.
-                const int domeVerts = 21 * 41;
+                // The dome is written first; its vertex count comes from the builder's own constants.
+                int domeVerts = Starfield.DomeVertexCount;
                 Color[] cols = mesh.colors;
                 Assert.GreaterOrEqual(cols.Length, domeVerts, "dome vertex layout changed; update this test");
 
@@ -116,7 +116,7 @@ namespace VibeGame1.Tests
             // ruins without spending any of the light budget or introducing a new hue.
             RunOnBuiltSky((mesh, mats) =>
             {
-                const int domeVerts = 21 * 41;
+                int domeVerts = Starfield.DomeVertexCount;
                 Color[] cols = mesh.colors;
                 Vector3[] verts = mesh.vertices;
                 int silhouetteVerts = 0;

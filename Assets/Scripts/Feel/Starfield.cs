@@ -59,6 +59,13 @@ namespace VibeGame1
         /// and contrast, never intensity.</summary>
         public const float CoronaHdrBoost = 1.35f;
 
+        /// <summary>Dome tessellation. The dome is the FIRST thing written into the sky mesh, so its
+        /// (latitude + 1) * (longitude + 1) = <see cref="DomeVertexCount"/> vertices are the mesh's first
+        /// vertices -- SkyEclipseTests reads these rather than re-deriving the layout.</summary>
+        public const int DomeLongitude = 40;
+        public const int DomeLatitude = 20;
+        public const int DomeVertexCount = (DomeLatitude + 1) * (DomeLongitude + 1);
+
         /// <summary>
         /// Vertex colours and no fog. URP/Unlit ignores COLOR and applies fog, so it cannot be used here.
         /// </summary>
@@ -217,8 +224,8 @@ namespace VibeGame1
         /// </summary>
         static void BuildDome(List<Vector3> v, List<Color> c, List<int> t, float radius, Vector3 eclipseDir)
         {
-            const int longitude = 40;
-            const int latitude = 20;
+            const int longitude = DomeLongitude;
+            const int latitude = DomeLatitude;
 
             Color zenith = Hex("#1A0407");    // black-red overhead: dark, but the dark is red
             Color horizon = Hex("#4A0A0D");   // blood band at eye level — the silhouette backdrop

@@ -279,11 +279,27 @@ payoff for two clean deflects and need to read at range and sell a mechanic, not
   the pull line's "pulled TO there"), and a `CameraFX.ChromaticPulse` (`tossChroma` 0.16, 0.25 s) as a
   separate g-force channel from the FovKick — the one moment the motor hands the player vertical speed
   they did not ask for with WASD deserves its own cue, not a copy of an existing one.
-- **The flare-vs-bolt hue split already worked and needed no fix.** `SentryFlare.Core` (1.2, 0.9, 1.6 —
-  violet-white) against `Projectile.HotCore` (1.6, 0.95, 0.38 — amber): both peak at the same 1.6, so
-  brightness never carries the distinction, only hue does — bone/ember for "answer this," violet for
-  "use this." The flare's constant `sin(t·23)` flicker against the bolt's flat glow-until-cue is the same
-  split read as motion: alive and waiting (flare) vs steady until it demands you act (bolt).
+- **The flare-vs-bolt hue split is hue-only, and the halo is budgeted into it.** `SentryFlare.Core`
+  (1.18, 0.88, 1.6 — violet-white) against `Projectile.HotCore` (1.6, 0.95, 0.38 — amber): both peak at
+  the same **1.6**, so brightness never carries the distinction, only hue does — bone/ember for "answer
+  this," violet for "use this." The flare's constant `sin(t·23)` flicker against the bolt's flat
+  glow-until-cue is the same split read as motion: alive and waiting (flare) vs steady until it demands
+  you act (bolt). The halo is an **additive sphere drawn over the core**, so the two peaks *sum in the
+  overlap*: `SentryFlare.Halo` is a named constant at peak **0.4**, and 1.6 + 0.4 lands exactly on the
+  2.0 ACES ceiling (`FlareTests.TheCoreAndHaloTogetherStayUnderTheAcesCeiling`). The core was dropped
+  from 1.9 to 1.6 rather than the halo dropped to 0.1: the halo is what makes the flare findable at
+  30 m, and a 0.1 aura is not visible at all — the core loses nothing at 1.6 because it is already the
+  brightest violet on the span.
+- **The halo is driven in WORLD space.** It is a child of the sphere `Update` rescales, so a local scale
+  would compound the core's — squaring both the glow curve and the `sin(t·23)` flicker, and collapsing
+  the "never a pinprick" aura to a third of its intended size at low glow. `HaloWorldDiameter(glow,
+  flicker)` is the single source of truth and the parent's scale is divided out each frame
+  (`FlareTests.TheHaloIsDrivenInWorldSpaceAndNeverCollapses`).
+- **The idle pulse is budgeted against the shared `SlashFx` pool.** A flare re-fires a soft
+  `SlashFx.Flare` every `PulseInterval` 0.55 s for its whole life; `SlashFx` pools 28 live effects and
+  `Spawn` returns null at the cap, so a span full of flares could push a *combat tell* out of the pool.
+  `SentryFlare.PulseAllowed(liveCount)` gates it at `PulseLiveBudget` 2 — past that, the standing
+  1.15 m core inside its 2.6 m halo is the read (`FlareTests.TheIdlePulseRespectsTheSharedSlashFxBudget`).
 
 **Still open, needs a human playtest, not more code.** Whether 2.4 m / 2.6 m actually reads at 25 m on a
 real monitor is a claim this pass could only reason about, not measure — there is no in-editor way to
@@ -315,12 +331,22 @@ Tests below pin the *numbers*, not the *look*.
    out to be lit black boxes.
 8. **Timings are data.** Anything that changes how long an attack takes belongs in `AttackData` /
    `WeaponData`, never in an animation curve. The parry window is tuned against those numbers.
-9. **One exception to the bloom cap, and it is the tell, not the enemy.** The enemy bolt
-   (`Projectile.HotCore`, peak 1.6) is the only traversal effect over the 1.05 threshold: a shot you have
-   to deflect at 32 m/s while running must be the brightest thing on the span. The rule survives because
-   the SHOOTER still never glows until deflected, `SlashFx` still normalises everything it makes, and the
-   exception is a named constant with a test (`ProjectileTests.TheBoltIsTheOneGlowInTraversal`), not a
-   widened cap. Anything else that wants to glow argues against this rule, not around it.
+9. **Exactly two exceptions to the bloom cap, both tells, neither an enemy.** Two traversal effects sit
+   over the 1.05 threshold, and both peak at **1.6**:
+   - the enemy bolt, `Projectile.HotCore` (1.6, 0.95, 0.38 — amber) — a shot you must deflect at 32 m/s
+     while running has to be the brightest threat on the span. Pinned by
+     `ProjectileTests.TheBoltIsTheOneGlowInTraversal`.
+   - the sentry flare, `SentryFlare.Core` (1.18, 0.88, 1.6 — violet-white) plus its additive
+     `SentryFlare.Halo` (peak 0.4) — a grapple point you have to *find* at 30 m against a dark sky. The
+     two overlap additively, so they are budgeted together: 1.6 + 0.4 = the 2.0 ACES ceiling exactly.
+     Pinned by `FlareTests.TheFlareIsATellSoItMayBloom` and
+     `FlareTests.TheCoreAndHaloTogetherStayUnderTheAcesCeiling`.
+
+   Equal peaks are the point: brightness says "this matters," **hue** says which — amber for "answer
+   this," violet for "use this." The rule survives because the SHOOTER still never glows until deflected,
+   `SlashFx` still normalises everything it makes to 1.0, and each exception is a named constant with a
+   test rather than a widened cap. Anything else that wants to glow argues against this rule, not around
+   it — and anything additive stacked on an exception must be budgeted into the same 2.0 ceiling.
 
 ---
 
