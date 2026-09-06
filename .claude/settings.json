@@ -32,5 +32,18 @@
       "Bash(pwd)",
       "Bash(echo:*)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/tyler/Main Storage/vibegame1/.claude/skills/session-handoff/scripts/context_watch.py\""
+          }
+        ]
+      }
+    ]
   }
 }
