@@ -36,6 +36,10 @@ namespace VibeGame1
         public static event Action<ItemData> ItemUsed;
         /// <summary>A riposte (deathblow/critical attack) landed on this enemy.</summary>
         public static event Action<EnemyController> RiposteLanded;
+        /// <summary>Movement budget (PlayerStamina). (current, max). The HUD bar and the ability pips read this.</summary>
+        public static event Action<float, float> StaminaChanged;
+        /// <summary>A movement ability was refused for lack of stamina. The HUD flashes the bar and names it.</summary>
+        public static event Action<StaminaAction> StaminaRefused;
 
         public static void RaisePlayerHealthChanged(float c, float m) => PlayerHealthChanged?.Invoke(c, m);
         public static void RaisePyreChanged(float v, float max) => PyreChanged?.Invoke(v, max);
@@ -63,6 +67,8 @@ namespace VibeGame1
         public static void RaiseItemPickedUp(ItemData i) => ItemPickedUp?.Invoke(i);
         public static void RaiseItemUsed(ItemData i) => ItemUsed?.Invoke(i);
         public static void RaiseRiposteLanded(EnemyController e) => RiposteLanded?.Invoke(e);
+        public static void RaiseStaminaChanged(float c, float m) => StaminaChanged?.Invoke(c, m);
+        public static void RaiseStaminaRefused(StaminaAction a) => StaminaRefused?.Invoke(a);
 
         /// <summary>Clear all subscribers (domain reload safety when Enter Play Mode options disable reload).</summary>
         public static void ClearAll()
@@ -73,6 +79,8 @@ namespace VibeGame1
             BossHealthChanged = null; BossPostureChanged = null; BossDefeated = null; PromptChanged = null;
             UltimateUsed = null; PlayerPostureChanged = null; PlayerPostureBroken = null; DeathblowReady = null;
             ItemsChanged = null; ItemPickedUp = null; ItemUsed = null; RiposteLanded = null;
+            StaminaChanged = null;
+            StaminaRefused = null;
         }
     }
 }

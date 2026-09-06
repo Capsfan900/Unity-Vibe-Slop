@@ -9,7 +9,7 @@ namespace VibeGame1
     /// The rule everything here follows is that an item must read as HELD MAGIC — something with a
     /// shape and a direction — rather than a coloured explosion. So a pickup orbits and breathes, a
     /// collect visibly travels into you, and each effect moves the way the effect actually behaves:
-    /// Updraft rises, Soul Lantern draws inward, Phantom Step recedes.
+    /// the Grapple throws a line OUT to the victim, the Wall Surge sheds speed-arcs off the wall.
     ///
     /// All of it is procedural and self-destructing, on unscaled time, matching SlashFx/LightningEffect.
     /// </summary>
@@ -39,35 +39,32 @@ namespace VibeGame1
             ItemConverge.Play(from, target, color, 7, 0.26f, 1.0f, true);
         }
 
-        /// <summary>Updraft: a column of rising streaks and a ground ring, so the launch has a source.</summary>
-        public static void Updraft(Transform player, Color color)
+        /// <summary>
+        /// Grapple: the line goes OUT from the hand to the victim and bites there. The connect has
+        /// to be visible before the pull moves the player, or the pull reads as a teleport.
+        /// </summary>
+        public static void GrappleLine(Vector3 from, Vector3 to, Color color)
         {
-            if (player == null) return;
-            Vector3 feet = player.position + Vector3.down * 0.9f;
-            SlashFx.Ring(feet, Vector3.up, color, 2.4f, 0.30f);
-            SlashFx.Ring(feet, Vector3.up, color, 1.2f, 0.22f);
-            // Thrown hard upward through a narrow cone: the arc reads as a column, not a fountain.
-            SlashFx.Sparks(feet + Vector3.up * 0.2f, Vector3.up, color, 14, 11f, 13f);
-            SlashFx.Flare(player.position, color, 0.9f, 0.18f);
+            SlashFx.Beam(from, to, color, 0.06f, 0.30f);
+            SlashFx.Flare(to, color, 0.7f, 0.18f);
+            SlashFx.Ring(to, (from - to).normalized, color, 0.6f, 0.22f);
+            SlashFx.Sparks(to, (from - to).normalized, color, 8, 5f, 60f);
         }
 
-        /// <summary>Soul Lantern: warm motes drawn INWARD. Restorative reads as gathering, not bursting.</summary>
-        public static void Lantern(Transform player, Color color)
+        /// <summary>
+        /// Wall Surge: a burst at the feet on use, then speed-arcs shed off the wall for as long as
+        /// the surge lasts while the player is actually running one. The trail is what says "this is
+        /// the wall being faster", not just "something happened when I pressed E".
+        /// </summary>
+        public static void Surge(Transform player, FirstPersonMotor motor, Color color, float duration)
         {
             if (player == null) return;
-            Vector3 feet = player.position + Vector3.down * 0.85f;
-            SlashFx.Ring(feet, Vector3.up, color, 1.8f, 0.42f);
-            SlashFx.Ring(feet, Vector3.up, color, 2.9f, 0.55f);
-            ItemConverge.Play(player.position, player, color, 12, 0.5f, 2.6f, false);
-        }
-
-        /// <summary>Phantom Step: receding after-images. Should read as displacement, not as a flash.</summary>
-        public static void PhantomStep(Transform player, Color color, float duration)
-        {
-            if (player == null) return;
-            var host = new GameObject("Fx_PhantomTrail");
+            Vector3 feet = player.position + Vector3.up * 0.05f;
+            SlashFx.Ring(feet, Vector3.up, color, 1.6f, 0.28f);
+            SlashFx.Flare(player.position + Vector3.up * 0.9f, color, 0.8f, 0.16f);
+            var host = new GameObject("Fx_SurgeTrail");
             host.transform.position = player.position;
-            host.AddComponent<PhantomTrail>().Init(player, color, Mathf.Clamp(duration, 0.2f, 6f));
+            host.AddComponent<SurgeTrail>().Init(player, motor, color, Mathf.Clamp(duration, 0.2f, 20f));
         }
 
         /// <summary>Drive the alpha of a runtime additive material (shared fade path for all item FX).</summary>
@@ -172,16 +169,19 @@ namespace VibeGame1
         void OnDestroy() { if (mat != null) Destroy(mat); }
     }
 
-    /// <summary>Ghost arcs shed behind the player while Phantom Step is active.</summary>
-    public class PhantomTrail : MonoBehaviour
+    /// <summary>Speed-arcs shed off the wall while a Wall Surge is active AND the player is on a wall.
+    /// Silent on the ground and in the air: the surge is a promise about walls, so its trail is too.</summary>
+    public class SurgeTrail : MonoBehaviour
     {
         Transform player;
+        FirstPersonMotor motor;
         Color color;
         float duration, life, nextShed;
 
-        public void Init(Transform p, Color c, float seconds)
+        public void Init(Transform p, FirstPersonMotor m, Color c, float seconds)
         {
             player = p;
+            motor = m;
             color = c;
             duration = seconds;
         }
@@ -189,15 +189,18 @@ namespace VibeGame1
         void Update()
         {
             life += Time.unscaledDeltaTime;
-            if (player == null || life >= duration) { Destroy(gameObject); return; }
+            bool over = motor != null ? !motor.IsWallSurging : life >= duration;
+            if (player == null || over || life >= duration + 1f) { Destroy(gameObject); return; }
+            if (motor == null || !motor.IsWallRunning) return;
 
-            // Shed an after-image behind the player at a fixed cadence, facing backward and slightly
-            // down, so it reads as something left behind rather than something being emitted.
+            // Shed an arc off the wall face at a fixed cadence, thrown down the run direction, so
+            // the wall reads as the thing being fast, not the player.
             if (life >= nextShed)
             {
-                nextShed = life + 0.09f;
-                Vector3 behind = player.position - player.forward * 0.45f + Vector3.down * 0.2f;
-                SlashFx.Arc(behind, player.right, color, 0.75f, 150f, 0.30f, -player.forward);
+                nextShed = life + 0.07f;
+                Vector3 n = motor.WallRunNormal;
+                Vector3 at = player.position + Vector3.up * 0.6f - n * 0.35f;
+                SlashFx.Arc(at, n, color, 0.55f, 120f, 0.24f, Vector3.up);
             }
         }
     }

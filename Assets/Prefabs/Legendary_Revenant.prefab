@@ -942,8 +942,8 @@ SkinnedMeshRenderer:
   m_BlendShapeWeights: []
   m_RootBone: {fileID: 6631713051741163453}
   m_AABB:
-    m_Center: {x: 0.025046438, y: -0.058460355, z: -0.10075614}
-    m_Extent: {x: 0.9872819, y: 1.0648261, z: 0.74319124}
+    m_Center: {x: -0.018634677, y: -0.058460414, z: 0.06098306}
+    m_Extent: {x: 1.0309631, y: 1.0648263, z: 0.9049305}
   m_DirtyAABB: 0
 --- !u!1 &5697756675511725748
 GameObject:
@@ -1409,9 +1409,29 @@ MonoBehaviour:
   stabClipLength: 0.91666603
   kickHitNormalized: 0.55
   kickClipLength: 1.083333
+  travelRoot: {fileID: 0}
+  hipsBone: {fileID: 0}
+  hipsRestLocal: {x: 0, y: 0.93, z: 0}
+  namedClips:
+  - AttackSwing
+  - AttackOverhead
+  - AttackStab
+  - AttackKick
+  namedClipLengths:
+  - 1.166667
+  - 1.416667
+  - 0.91666603
+  - 1.083333
+  namedClipHits:
+  - 0.55
+  - 0.6
+  - 0.55
+  - 0.55
   minClipSpeed: 0.4
   maxClipSpeed: 3.5
   clipBlend: 0.07
+  recoverySpeed: 1
+  followThroughSeconds: 0.45
   spinAttackPrefix: 
   spinDegPerSec: 2087
   maxRateCorrection: 0.12

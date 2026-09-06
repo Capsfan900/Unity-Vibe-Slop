@@ -109,5 +109,89 @@ namespace VibeGame1
         {
             return peakRate * (0.34f + 0.66f * Mathf.Clamp01(speedFraction));
         }
+
+        /// <summary>
+        /// Amplitude of the HELD camera rumble while sliding, metres. Quadratic in speed, so it is the
+        /// first sustained channel to go quiet as the slide spends itself: a floor read through the
+        /// body at 20 m/s is a rattle, at 9 m/s it is nothing, and unlike the scrape it has no floor —
+        /// a rumble that never stops is a broken camera. Zero at the end speed by construction.
+        /// </summary>
+        public static float RumbleAmplitude(float speedFraction, float maxMetres)
+        {
+            float f = Mathf.Clamp01(speedFraction);
+            return maxMetres * f * f;
+        }
+
+        /// <summary>
+        /// One step of a damped harmonic spring, CLOSED FORM (the standard Juckett solution), so the
+        /// result at any time is the same whatever the frame rate — an explicit spring at these
+        /// stiffnesses blows up at 20 fps, and a frame-rate-dependent slide has shipped here once.
+        /// <paramref name="omega"/> is the angular frequency (2π × Hz), <paramref name="zeta"/> the
+        /// damping ratio: under 1 overshoots (see <see cref="OvershootFraction"/>), 1 is critical, over
+        /// 1 crawls. Used for the eye's plop onto the floor and the legs' throw-out.
+        /// </summary>
+        public static void Spring(float x, float v, float target, float omega, float zeta, float dt,
+                                  out float nx, out float nv)
+        {
+            const float Eps = 0.0001f;
+            if (dt <= 0f || omega <= Eps) { nx = x; nv = v; return; }
+            if (zeta < 0f) zeta = 0f;
+
+            float pp, pv, vp, vv;
+            if (zeta > 1f + Eps)
+            {
+                float za = -omega * zeta;
+                float zb = omega * Mathf.Sqrt(zeta * zeta - 1f);
+                float z1 = za - zb, z2 = za + zb;
+                float e1 = Mathf.Exp(z1 * dt), e2 = Mathf.Exp(z2 * dt);
+                float inv2zb = 1f / (2f * zb);
+                float e1o = e1 * inv2zb, e2o = e2 * inv2zb;
+                float z1e1o = z1 * e1o, z2e2o = z2 * e2o;
+                pp = e1o * z2 - z2e2o + e2;
+                pv = -e1o + e2o;
+                vp = (z1e1o - z2e2o + e2) * z2;
+                vv = -z1e1o + z2e2o;
+            }
+            else if (zeta < 1f - Eps)
+            {
+                float oz = omega * zeta;
+                float alpha = omega * Mathf.Sqrt(1f - zeta * zeta);
+                float e = Mathf.Exp(-oz * dt);
+                float c = Mathf.Cos(alpha * dt), s = Mathf.Sin(alpha * dt);
+                float invAlpha = 1f / alpha;
+                float eSin = e * s, eCos = e * c;
+                float eOzSinOverAlpha = e * oz * s * invAlpha;
+                pp = eCos + eOzSinOverAlpha;
+                pv = eSin * invAlpha;
+                vp = -eSin * alpha - oz * eOzSinOverAlpha;
+                vv = eCos - eOzSinOverAlpha;
+            }
+            else
+            {
+                float e = Mathf.Exp(-omega * dt);
+                float te = dt * e;
+                float tef = te * omega;
+                pp = tef + e;
+                pv = te;
+                vp = -omega * tef;
+                vv = -tef + e;
+            }
+
+            float d = x - target;
+            nx = d * pp + v * pv + target;
+            nv = d * vp + v * vv;
+        }
+
+        /// <summary>
+        /// How far past its target an under-damped spring overshoots on its first swing, as a fraction
+        /// of the step: exp(−ζπ / √(1−ζ²)). 0.55 → about 12%, 0.6 → about 9.5%, 1 → 0. This is what
+        /// sizes the eye's plop below the slide height and the legs' throw past their pose.
+        /// </summary>
+        public static float OvershootFraction(float zeta)
+        {
+            if (zeta >= 1f) return 0f;
+            if (zeta <= 0f) return 1f;
+            return Mathf.Exp(-zeta * Mathf.PI / Mathf.Sqrt(1f - zeta * zeta));
+        }
     }
 }

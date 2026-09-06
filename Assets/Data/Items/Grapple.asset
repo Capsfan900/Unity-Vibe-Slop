@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e21a596daad07f7498bdd915254f0c9d, type: 3}
+  m_Name: Grapple
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ItemData
+  displayName: Grapple
+  shortLabel: HOOK
+  description: Hook a foe in your sights and arrive with the blade. Lesser things
+    die on the hook; great ones are shaken, and you land at their feet.
+  effect: 0
+  color: {r: 1.7647059, g: 4.745098, b: 5, a: 1}
+  viewmodelPrefab: {fileID: 5387924563961540692, guid: e637fe0a881c1514dbfbf7c11212cdb9, type: 3}
+  viewmodelScale: 0.5
+  grappleRange: 28
+  grappleConeDeg: 12
+  grappleSeconds: 0.35
+  grappleBigPostureFraction: 0.35
+  surgeSeconds: 8

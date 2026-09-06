@@ -137,6 +137,22 @@ namespace VibeGame1
             return true;
         }
 
+        /// <summary>
+        /// Deathblow a specific enemy NOW, without the look-cone scan. The Grapple item's arrival
+        /// calls this: it has already put the player at stand-off, and the enemy has already been
+        /// staggered, so the ordinary "is it marked and in front of me" gate would only re-derive what
+        /// the pull just guaranteed. Runs the SAME coroutine as a pressed deathblow — wand riposte or
+        /// melee execute, RiposteLanded, hitstop, the lot — so there is one execute path, not two.
+        /// Refused while an execute is running, and for a dead or unstaggered enemy.
+        /// </summary>
+        public bool ExecuteNow(EnemyController e)
+        {
+            if (e == null || IsExecuting || !e.IsAlive || !e.IsStaggered) return false;
+            Target = e;
+            StartCoroutine(ExecuteCo(e));
+            return true;
+        }
+
         IEnumerator ExecuteCo(EnemyController e)
         {
             IsExecuting = true;

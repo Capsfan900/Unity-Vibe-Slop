@@ -56,6 +56,12 @@ namespace VibeGame1
         public TorchDef[] torches = new TorchDef[0];
         public PedestalDef[] pedestals = new PedestalDef[0];
 
+        [Header("Traversal (2026-09-04 pivot)")]
+        [Tooltip("Floating orbs that launch the player up, or let a dash carry through and re-arm it.")]
+        public BalloonDef[] balloons = new BalloonDef[0];
+        [Tooltip("Sheets of flowing water on the ground: the fastest surface, skated rather than run.")]
+        public WaterDef[] waters = new WaterDef[0];
+
         [Header("Arenas")]
         [Tooltip("Every gated fight in the level, in course order: the three mini-boss arenas and the " +
                  "boss arena all use the same ArenaDef. A mini-boss arena sets clearSpawnerName and an " +
@@ -129,9 +135,9 @@ namespace VibeGame1
     {
         public string name = "Pickup";
 
-        [Tooltip("Item asset name in Assets/Data/Items, without the extension — e.g. 'SoulLantern'. " +
+        [Tooltip("Item asset name in Assets/Data/Items, without the extension — 'Grapple' or 'WallSurge'. " +
                  "A key rather than a reference so DataFactory can recreate items freely.")]
-        public string itemKey = "SoulLantern";
+        public string itemKey = "Grapple";
 
         [Tooltip("Float it about 1.2 m above the platform's top surface so it reads as collectable.")]
         public Vector3 position;
@@ -205,6 +211,44 @@ namespace VibeGame1
 
         [Tooltip("Where the exit gate drops to when the mini-boss dies.")]
         public Vector3 exitGateOpenPosition;
+    }
+
+    /// <summary>
+    /// A balloon: a floating orb the player launches off (or dashes through). See <see cref="Balloon"/>.
+    /// Author it where a jump alone falls short: 14 m/s up against gravity -30 is a 3.3 m rise from
+    /// wherever you touch it, and a dash through it re-arms the dash for the next one.
+    /// </summary>
+    [Serializable]
+    public class BalloonDef
+    {
+        public string name = "Balloon";
+        [Tooltip("Centre of the orb, world space.")]
+        public Vector3 position;
+        [Tooltip("Upward speed the player leaves with, m/s. Replaces the vertical speed (a capped jump).")]
+        public float launchSpeed = 11f;
+        [Tooltip("Seconds until the orb is back after a pop.")]
+        public float respawnSeconds = 2.5f;
+        [Tooltip("Trigger radius, metres.")]
+        public float radius = 1.1f;
+    }
+
+    /// <summary>
+    /// A sheet of flowing water on the ground. See <see cref="WaterVolume"/> and
+    /// <see cref="TraversalMath.WaterStep"/>: no friction, a speed floor of groundSpeed x 1.35, and the
+    /// flow added as a conveyor. Lay it ON a platform's top surface (centre.y = top + size.y / 2).
+    /// </summary>
+    [Serializable]
+    public class WaterDef
+    {
+        public string name = "Water";
+        [Tooltip("Centre of the sheet, world space. Its bottom face should sit on the floor.")]
+        public Vector3 center;
+        [Tooltip("Full size (x, thickness, z). Thin: 0.04 m reads as a film, not a slab.")]
+        public Vector3 size = new Vector3(10f, 0.04f, 10f);
+        [Tooltip("Flow direction, world space, flattened. Zero = still water.")]
+        public Vector3 flowDirection = Vector3.forward;
+        [Tooltip("Conveyor speed, m/s.")]
+        public float flowSpeed = 6f;
     }
 
     /// <summary>A wand altar. Aim at it and press F; see WandPedestal.</summary>

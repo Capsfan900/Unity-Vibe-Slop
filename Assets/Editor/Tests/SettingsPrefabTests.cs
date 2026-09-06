@@ -143,5 +143,51 @@ namespace VibeGame1.Tests
                 Assert.AreEqual(a.rows[i].kind, b.rows[i].kind);
             }
         }
+    
+        // ---- the INFO tab (2026-09-05): the key-bind reference, one emitter, both prefabs ----
+
+        static (GameObject panel, string text) InfoOf(SettingsMenu menu, string which)
+        {
+            // Read through SerializedObject so this test compiles whatever the field set on SettingsMenu
+            // looks like on the day; a missing property is an Ignore, not a red.
+            var so = new SerializedObject(menu);
+            var panelProp = so.FindProperty("infoPanel");
+            var textProp = so.FindProperty("infoText");
+            var buttonProp = so.FindProperty("infoButton");
+            if (panelProp == null || textProp == null || buttonProp == null)
+                Assert.Ignore(which + ": SettingsMenu has no infoPanel / infoText / infoButton yet — rebuild after the INFO tab lands");
+            Assert.IsNotNull(panelProp.objectReferenceValue, which + ": infoPanel is null — rebuild with 5 / 9");
+            Assert.IsNotNull(buttonProp.objectReferenceValue, which + ": infoButton is null — the tab would be unreachable");
+            var text = textProp.objectReferenceValue as TMPro.TMP_Text;
+            Assert.IsNotNull(text, which + ": infoText is null");
+            var panel = (GameObject)panelProp.objectReferenceValue;
+            Assert.IsFalse(panel.activeSelf, which + ": the INFO panel must ship closed, like the settings panel");
+            return (panel, text.text);
+        }
+
+        [Test]
+        public void BothPrefabs_CarryTheSameInfoTab()
+        {
+            var hud = InfoOf(Load(HudPath), "HUD");
+            var menu = InfoOf(Load(MenuPath), "MainMenu");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(hud.text), "HUD: the INFO text is empty");
+            Assert.AreEqual(hud.text, menu.text, "the two INFO tabs differ — SettingsPanelKit is the one emitter; both must come from ControlsInfo");
+            string lower = hud.text.ToLowerInvariant();
+            foreach (var must in new[] { "f10", "slide", "dash", "parry", "f1", "level editor" })
+                StringAssert.Contains(must, lower, "the INFO text does not mention " + must);
+        }
+
+        [Test]
+        public void TheTestMenuOpensTheInfoTab()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(HudPath);
+            Assert.IsNotNull(prefab);
+            var tm = prefab.GetComponent<VibeGame1.TestMenu>();
+            if (tm == null) Assert.Ignore("no TestMenu on HUD.prefab");
+            var so = new SerializedObject(tm);
+            var p = so.FindProperty("infoButton");
+            if (p == null) Assert.Ignore("TestMenu has no infoButton yet");
+            Assert.IsNotNull(p.objectReferenceValue, "TestMenu.infoButton is null — F1 → INFO would do nothing");
+        }
     }
 }

@@ -10,10 +10,22 @@ namespace VibeGame1
     /// Trigger idiom is <see cref="ItemPickup"/>'s — layer Interactable, trigger collider, player
     /// detected via <c>GetComponentInParent</c> — but the trigger is a RANGE CHECK ONLY. Walking past
     /// must never open a menu; the player has to look at the altar and press the key.
+    ///
+    /// <para><b>It is a dev fixture unless <see cref="DevMenuEnabled"/> is on.</b> The altar is built
+    /// into every level and sandbox spawn, but by default it does not draw, does not prompt and
+    /// refuses <see cref="TryInteract"/>; the F1 test menu's "WAND PEDESTAL" button turns it on. The
+    /// player keeps whatever the Player prefab's <see cref="WandController.loadout"/> gives them.</para>
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public class WandPedestal : MonoBehaviour
     {
+        /// <summary>
+        /// Master switch for every pedestal in the scene. Off: hidden (crystal, glow, plinth, trigger),
+        /// no prompt, <see cref="TryInteract"/> and <see cref="Open"/> refuse. On: the full altar.
+        /// Static and session-wide, like god mode — toggled from <c>TestMenu</c>, never by gameplay.
+        /// </summary>
+        public static bool DevMenuEnabled;
+
         public Transform visual;
         public float spinDegreesPerSecond = 40f;
         public float bobHeight = 0.12f;
@@ -35,15 +47,29 @@ namespace VibeGame1
         Vector3 visualBase;
         WandController inRange;
         bool promptShown;
+        bool appliedEnabled;
+        bool applied;
+        GameObject plinth;
 
         /// <summary>True while the player is inside the trigger — range only, never a reason to open.</summary>
         public bool PlayerInRange => inRange != null;
+
+        /// <summary>True while the altar is switched off: nothing drawn, trigger off, prompt suppressed.</summary>
+        public bool IsHidden => applied && !appliedEnabled;
 
         void Awake()
         {
             col = GetComponent<Collider>();
             col.isTrigger = true;
             if (visual != null) visualBase = visual.localPosition;
+            // The builders put the stone plinth beside the trigger root, not under it (it has to stay on
+            // Default so it bakes into the NavMesh). Found by the builder's naming convention.
+            if (transform.parent != null)
+            {
+                var t = transform.parent.Find(name + "_Plinth");
+                if (t != null) plinth = t.gameObject;
+            }
+            ApplyEnabled(DevMenuEnabled);
         }
 
         void OnEnable() { GameEvents.PlayerRespawned += Clear; }
@@ -58,6 +84,9 @@ namespace VibeGame1
 
         void Update()
         {
+            if (!applied || appliedEnabled != DevMenuEnabled) ApplyEnabled(DevMenuEnabled);
+            if (!appliedEnabled) return;
+
             if (visual != null)
             {
                 // Unscaled: the altar keeps turning while its own menu holds time at zero.
@@ -81,6 +110,7 @@ namespace VibeGame1
         /// </summary>
         public bool TryInteract()
         {
+            if (!DevMenuEnabled) return false;
             bool menuOpen = WandSelectMenu.I != null && WandSelectMenu.I.IsOpen;
             if (menuOpen || !GameManager.IsPlaying || inRange == null || !IsLookedAt()) return false;
             Open(inRange);
@@ -127,12 +157,29 @@ namespace VibeGame1
         /// </summary>
         public void Open(WandController wands)
         {
-            if (wands == null || !GameManager.IsPlaying) return;
+            if (!DevMenuEnabled || wands == null || !GameManager.IsPlaying) return;
             var menu = WandSelectMenu.I;
             if (menu == null) menu = FindAnyObjectByType<WandSelectMenu>();
             if (menu == null) return;
             ShowPrompt(false);
             menu.Open(wands);
+        }
+
+        /// <summary>
+        /// Show or hide the whole altar. Renderers and lights are toggled rather than the objects
+        /// deactivated so <c>visual</c>'s bob/spin state survives a round trip; the trigger collider is
+        /// switched off so a hidden altar cannot even register range. The plinth IS deactivated: a
+        /// visible-but-untouchable altar would be odd, an invisible wall at spawn would be worse.
+        /// </summary>
+        void ApplyEnabled(bool on)
+        {
+            applied = true;
+            appliedEnabled = on;
+            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = on;
+            foreach (var l in GetComponentsInChildren<Light>(true)) l.enabled = on;
+            if (col != null) col.enabled = on;
+            if (plinth != null && plinth.activeSelf != on) plinth.SetActive(on);
+            if (!on) Clear();   // a collider switched off fires no OnTriggerExit
         }
 
         void OnDrawGizmos()

@@ -157,6 +157,14 @@ namespace VibeGame1.EditorTools
             // Neutral emissive body EnergyGlow tints at runtime. White because the property block
             // multiplies the hue in; a coloured base would double-tint.
             new Spec("M_Energy",        Color.black,    Color.white * 0.9f),
+            // ---- Traversal (2026-09-04 pivot) ---------------------------------------------------
+            // The balloon is a MARKER, not a light: soft gold held under the 1.05 bloom threshold so it
+            // never competes with a cue flash, and warm so it separates from the cold water and the
+            // teal trims. Its pop is the only bright thing about it, and SlashFx caps that at 1.0.
+            new Spec("M_Balloon",       Hex("#3A2A10"), Hex("#FFC24A") * 0.95f, 0.4f),
+            // Water: a cold translucent film (alpha in Configure), lit, a little glossy so the sky term
+            // skims it. Emission just enough to read in the dark, far under the bloom threshold.
+            new Spec("M_Water",         new Color(0.16f, 0.42f, 0.70f, 0.55f), Hex("#2A6FB0") * 0.35f, 0.7f),
 
             // ---- Eclipse backdrop -------------------------------------------------------------
             // The disc is PURE BLACK with no emission on purpose. Linear fog blends distant geometry
@@ -239,6 +247,22 @@ namespace VibeGame1.EditorTools
             // double-sided means a wrong-way rotation can never silently blank the entire sky.
             if (spec.name.StartsWith("M_Eclipse") && mat.HasProperty("_Cull"))
                 mat.SetFloat("_Cull", 0f);   // UnityEngine.Rendering.CullMode.Off
+
+            // Water is the one TRANSPARENT surface: URP/Lit's alpha-blend setup, done here rather than
+            // by hand in the Inspector (rule 4). Alpha comes from the spec's base colour.
+            if (spec.name == "M_Water")
+            {
+                mat.SetFloat("_Surface", 1f);                      // SurfaceType.Transparent
+                mat.SetFloat("_Blend", 0f);                        // BlendMode.Alpha
+                mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetFloat("_ZWrite", 0f);
+                mat.SetFloat("_AlphaClip", 0f);
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.DisableKeyword("_ALPHATEST_ON");
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
         }
 
         static void EnsureFolder()

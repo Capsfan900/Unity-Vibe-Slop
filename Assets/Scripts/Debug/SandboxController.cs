@@ -49,6 +49,11 @@ namespace VibeGame1
                  "the death and collect souls, short enough that you are not waiting to try again.")]
         [Range(0.5f, 15f)] public float respawnDelay = 4f;
 
+        [Header("Movement yard")]
+        [Tooltip("Where WarpToMovementYard() puts you: just inside the yard doorway, facing down the yard. " +
+                 "Written by SandboxBuilder (the YardSpawn empty under MovementYard).")]
+        public Transform yardSpawn;
+
         readonly List<GameObject> spawned = new List<GameObject>();
 
         // Pad respawn bookkeeping. Keyed by spawner so a pad only ever has one pending respawn, and so
@@ -352,6 +357,29 @@ namespace VibeGame1
             }
 
             Debug.Log("[Sandbox] Reset.");
+        }
+
+        /// <summary>
+        /// Teleport to the movement yard (the 120 x 60 m annex east of the arena) without walking the
+        /// 36 m from spawn. Same Teleport + SetYaw pattern as <see cref="ResetSandbox"/>; nothing else is
+        /// touched — health, enemies and the respawn clock are exactly as you left them.
+        /// </summary>
+        [ContextMenu("Warp To Movement Yard")]
+        public void WarpToMovementYard()
+        {
+            if (yardSpawn == null)
+            {
+                Debug.LogWarning("[Sandbox] No yardSpawn assigned — rebuild the sandbox (VibeGame1/7. Build Sandbox Scene).");
+                return;
+            }
+
+            var motor = OnPlayer<FirstPersonMotor>();
+            if (motor == null) { Debug.LogWarning("[Sandbox] No player in the scene."); return; }
+
+            float yaw = yardSpawn.eulerAngles.y;
+            motor.Teleport(yardSpawn.position, yaw);
+            var look = OnPlayer<PlayerLook>();
+            if (look != null) look.SetYaw(yaw);
         }
 #endif
     }

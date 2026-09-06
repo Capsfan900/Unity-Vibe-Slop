@@ -22,6 +22,7 @@ namespace VibeGame1.Tests
     /// <para>What passing means: the arithmetic says the run exists, is long, is gated and rejoins. Nobody
     /// has run either wall.</para>
     /// </summary>
+    [Category("LevelLines")]  // slow: simulates the motor along the level lines; excluded by VibeGame1/Run Quick EditMode Tests
     public class LevelSpan3Tests
     {
         static LevelDefinition def;
@@ -63,9 +64,12 @@ namespace VibeGame1.Tests
             var w = Box(wall);
             Assert.GreaterOrEqual(w.max.z - w.min.z, R.MinWallLength,
                 wall + " is " + (w.max.z - w.min.z).ToString("0.0") + " m; size walls to the run, not to the gap");
-            var held = A.MeasureWallRun(profile, profile.groundSpeed, true);
-            Assert.GreaterOrEqual(w.max.z - w.min.z, held.distance * 0.75f,
-                "a held sprint run (" + held.distance.ToString("0.0") + " m) overruns most of " + wall);
+            // The contract is the RELEASED run (stick off: 14.4 m at 1.75 s). Holding forward now tops up
+            // toward wallRunTopSpeed 13.75 and covers ~24 m — that is the payoff for committing, and a
+            // wall does not have to be sized to the payoff, only to the loan.
+            var released = A.MeasureWallRun(profile, profile.groundSpeed, false);
+            Assert.GreaterOrEqual(w.max.z - w.min.z, released.distance * 0.9f,
+                "a released sprint run (" + released.distance.ToString("0.0") + " m) overruns most of " + wall);
         }
 
         /// <summary>The face has to exist at running height: the wall must top out well above the

@@ -12,6 +12,8 @@ namespace VibeGame1
         /// <summary>Wand cooldown. Fills on discharge and drains to empty as the wand comes back.</summary>
         public BarView wandCooldownBar;
         public BarView postureBar;
+        /// <summary>Movement budget block (bar, ticks, ability pips). Self-driving; see StaminaView.</summary>
+        public StaminaView staminaView;
         public TMP_Text deathblowText;
         public TMP_Text healthText;
         public TMP_Text flaskText;
@@ -30,9 +32,15 @@ namespace VibeGame1
                  "under the clear message's own 8 s lifetime or the screen blanks before the load.")]
         public float returnToMenuSeconds = 4.5f;
         public TMP_Text hintText;
+        [Tooltip("The glass BEST RUNS pane (top-right). GhostHud writes its table into bestRunsText and shows " +
+                 "the pane only once there is a board; it ships hidden.")]
+        public GameObject bestRunsPane;
+        public TMP_Text bestRunsText;
         public TMPro.TMP_Text pyreReadyLabel;
         public ItemSlotView[] itemSlots;
         public TMP_Text itemToastText;
+        /// <summary>Top-left held-items / active-effects strip. Self-driving; see StatusStripView.</summary>
+        public StatusStripView statusStrip;
 
         static readonly Color PostureBase = new Color(0.788f, 0.635f, 0.153f);   // #C9A227 bone/amber
         static readonly Color PostureDanger = new Color(1f, 0.227f, 0.102f);     // #FF3A1A
@@ -105,11 +113,9 @@ namespace VibeGame1
             if (itemToastText != null) itemToastText.alpha = 0f;
             if (postureBar != null) { postureBar.SetColor(PostureBase); postureBar.Set(0f); }
             ClearItemSlots();
-            if (hintText != null) hintText.text =
-                "WASD move   SPACE jump   SHIFT dash   LMB attack   RMB parry   MMB lock on   E use item   F flask   Q super   1/2/3 weapons   4 test blade   TAB level up" +
-                "\n<alpha=#AA>PARRY to break their POSTURE, then DEATHBLOW  -  blocking costs YOUR posture" +
-                "\n<alpha=#AA>Every parry stokes PYRE - your weapon catches fire. Full PYRE unlocks the weapon SUPER on Q" +
-                "\n<alpha=#88>F1 test menu   F5 warp to boss   F6 restore   F7 +souls   F8 god mode";
+            // No bind dump here any more: the reference is ControlsInfo, on the settings INFO card and the
+            // F1 menu. hintText is one line, for contextual hints only.
+            if (hintText != null) hintText.text = "";
         }
 
         void ClearItemSlots()

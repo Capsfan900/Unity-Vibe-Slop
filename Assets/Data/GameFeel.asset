@@ -45,11 +45,33 @@ MonoBehaviour:
   slideFovHold: 8
   slideEndFovPunch: -2.5
   slideRollDegrees: 3.5
-  slideKickPitch: 1.2
+  slideKickPitch: 1.8
   slideKickTime: 0.13
+  slideRumble: 0.006
+  slideCrouchHz: 4.5
+  slideCrouchDamping: 0.55
   slideDustRate: 34
   slideSparkRate: 5
   slideScrapeVolume: 0.22
+  balloonFovKick: 5
+  balloonKickPitch: 1.5
+  burstFovKick: 6
+  waterEnterFovKick: 3
+  waterSprayRate: 26
+  waterHissVolume: 0.14
+  perfectFovKick: 3
+  perfectPromptSeconds: 0.6
+  wallRunFovHold: 3.5
+  wallRunAttachOffset: 0.03
+  wallRunAttachTime: 0.12
+  wallRunStepDistance: 1.6
+  wallRunStepVolume: 0.4
+  wallRunDropPitch: 1.4
+  wallRunDropOffset: 0.03
+  wallRunDropTime: 0.15
+  wallRunLostDrift: 0.02
+  wallRunGritRate: 44
+  wallRunStepSparks: 3
   parryKickPitch: 1.6
   parryKickYaw: 1.1
   parryKickRoll: 1.3

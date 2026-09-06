@@ -97,12 +97,19 @@ namespace VibeGame1
 
         public void Show(bool v)
         {
-            if (v == shown) return;
+            // The first call must always apply. `shown` defaults to false, so an early-return on
+            // "already in that state" made Awake's Show(false) a no-op and left the 1 m marker sphere
+            // ENABLED at the player's feet -- a white disc under the boots, seen the first time anyone
+            // looked down (2026-09-04, after the legs arrived). A cache of "what I last set" is only
+            // valid once something has been set.
+            if (applied && v == shown) return;
+            applied = true;
             shown = v;
             for (int i = 0; i < renderers.Length; i++)
                 if (renderers[i] != null) renderers[i].enabled = v;
         }
 
         public bool IsShown => shown;
+        bool applied;
     }
 }

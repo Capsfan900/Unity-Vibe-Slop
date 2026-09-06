@@ -263,10 +263,20 @@ namespace VibeGame1
             switch (Current)
             {
                 case State.Idle:
-                    if (!aggroLocked && dist <= data.aggroRange && HasLineOfSight()) SetState(State.Chase);
+                    if (!aggroLocked && dist <= WakeRange && HasLineOfSight()) SetState(State.Chase);
                     break;
 
                 case State.Chase:
+                    // A SENTRY (EnemyData.rangedOnly, 2026-09-06) never closes and never commits. It holds
+                    // its perch, tracks the player at full turn rate the whole time they are in range, and
+                    // leaves the shooting to ProjectileShooter. Losing the line does not put it to sleep:
+                    // a runner ducking behind a pillar is met by the next bolt the moment they clear it.
+                    if (data.rangedOnly)
+                    {
+                        if (locomotion != null) locomotion.Stop();
+                        FaceTarget(toP, dt);
+                        break;
+                    }
                     // Only close in for real if an attack slot is free. Otherwise hold at a ready
                     // distance and circle, so the player faces a queue of threats instead of a scrum.
                     bool mayCommit = MayCommitToAttack();
@@ -286,6 +296,25 @@ namespace VibeGame1
                     if (mayCommit && dist <= data.preferredRange + data.commitTolerance
                         && Time.time >= nextAttackTime
                         && Vector3.Angle(transform.forward, toP) <= 50f)
+                    {
+                        var c = ChooseCombo(dist);
+                        if (c != null && c.hits != null && c.hits.Length > 0) BeginCombo(c);
+                    }
+                    // FAR-BAND COMMIT (2026-09-04, from play: "he needs to use his charge when you get
+                    // too far"). The gate above only ever attacks inside the commit band, so a moveset
+                    // entry authored for 5-18 m -- a shoulder charge, a leaping slam -- could never fire:
+                    // the enemy walked in to 3.6 m and threw a sweep. Now, outside the band, an enemy
+                    // attacks IF AND ONLY IF the moveset has an entry whose range band contains this
+                    // distance (EnemyMoveset.HasEligible; the selector's fallback-to-anything is not
+                    // consulted, so nothing without a closer is thrown from range). The chosen combo's
+                    // own lungeDistance does the closing, from the cue like every other lunge, and the
+                    // facing gate is tighter than the near one because a lunge is aimed where the body
+                    // faces at the cue and a 50 deg miss from 8 m is a body flying past the player.
+                    else if (mayCommit && dist > data.preferredRange + data.commitTolerance
+                             && dist <= data.aggroRange
+                             && Time.time >= nextAttackTime
+                             && data.moveset != null && data.moveset.HasEligible(dist)
+                             && Vector3.Angle(transform.forward, toP) <= 25f)
                     {
                         var c = ChooseCombo(dist);
                         if (c != null && c.hits != null && c.hits.Length > 0) BeginCombo(c);
@@ -332,12 +361,28 @@ namespace VibeGame1
             }
         }
 
+        /// <summary>How far away the player wakes this enemy: melee aggro, or the bolt band for a shooter.</summary>
+        float WakeRange => data.shootsProjectiles ? Mathf.Max(data.aggroRange, data.projectileMaxRange) : data.aggroRange;
+
+        /// <summary>
+        /// Any of three lines (head, chest, feet) clear counts as sight. One line to the chest missed a
+        /// player whose chest was behind a rail while their head and legs were in plain view, which is
+        /// exactly the shape a runner on a span presents to a perch above it.
+        /// </summary>
         bool HasLineOfSight()
         {
-            Vector3 from = transform.position + Vector3.up * 1.2f;
-            Vector3 to = player.position + Vector3.up * 0.8f;
+            return HasLineOfSight(transform.position + Vector3.up * 1.2f, player.position);
+        }
+
+        public static bool HasLineOfSight(Vector3 eye, Vector3 playerFeet)
+        {
             int mask = ~(Layers.EnemyMask | Layers.PlayerMask | (1 << Layers.Interactable));
-            return !Physics.Linecast(from, to, mask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < 3; i++)
+            {
+                Vector3 to = playerFeet + Vector3.up * (i == 0 ? 0.8f : i == 1 ? 1.5f : 0.2f);
+                if (!Physics.Linecast(eye, to, mask, QueryTriggerInteraction.Ignore)) return true;
+            }
+            return false;
         }
 
         /// <summary>

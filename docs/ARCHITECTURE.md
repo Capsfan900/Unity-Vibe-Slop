@@ -25,10 +25,10 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 |---|---:|---|
 | `Core/` | 9 | `GameManager` (state machine, cursor, `runInBackground`), `InputReader`, `TimeScaleController`, `GameEvents`, `Layers`, `ViewCamera`, `SettingsData` / `SettingsStore` (PlayerPrefs under `vg1.settings.*`) / `SettingsApplier` (the only thing that pushes settings outward; self-bootstrapped `DontDestroyOnLoad`) |
 | `Combat/` | 6 | `Health`, `Posture`, `DamageInfo`, `ParryMath`, `PostureMath`, `EmissiveFlash` |
-| `Player/` | 19 | `FirstPersonMotor` (+ `WallRunMath`, same file), `PlayerLook`, `LockOnController`, `LockOnMarker`, `OffhandViewmodel`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
+| `Player/` | 20 | `FirstPersonMotor` (+ `WallRunMath`, same file), `PlayerLook`, `LockOnController`, `LockOnMarker`, `OffhandViewmodel`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, **`PlayerStamina`**, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
 | `Enemies/` | 5 | `EnemyController` (FSM), `BossController`, `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
 | `Level/` | 6 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer` |
-| `UI/` | 10 | `HUDController`, `BarView`, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), **`MainMenuController`** |
+| `UI/` | 11 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), **`MainMenuController`** |
 | `Feel/` | 22 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx`, `ParryImpulse` / `ParryImpact`, `DashImpulse` / `DashFx`, `SlideImpulse` / `SlideFx` (the `*Impulse` is pure math, the `*Fx` / `*Impact` applies it), `SlashFx`, `WeaponTrail`, `WeaponEmber`, `PyreArc`, `EnergyGlow`, `ItemVfx`, `DeathMist`, `SkyFollower`, `Starfield` |
 | `Progression/` | 4 | `SoulsWallet`, `Bloodstain`, `UpgradeMath`, `LevelUpMenu` |
 | `Data/` | 9 | ScriptableObject definitions (see below) |
@@ -63,13 +63,13 @@ into gameplay. `GameEvents.ClearAll()` exists for domain-reload safety.
 `WandChanged` · `ParryResolved` · `PlayerDamaged` · `PlayerDied` · `PlayerRespawned` ·
 `CheckpointReached` · `EnemyKilled` · `BossStarted` · `BossHealthChanged` · `BossPostureChanged` ·
 `BossDefeated` · `PromptChanged` · `UltimateUsed` · `PlayerPostureChanged` · `PlayerPostureBroken` ·
-`DeathblowReady` · `ItemsChanged` · `ItemPickedUp` · `ItemUsed` · `ItemArmed` · `RiposteLanded`
+`DeathblowReady` · `ItemsChanged` · `ItemPickedUp` · `ItemUsed` · `RiposteLanded`
 
-`ItemArmed` carries the armed item, or `null` to clear the HUD tell. `RiposteLanded` is raised **before**
-the killing damage, so listeners can still read the victim's position and state — that ordering is what
-makes the Stormcall discharge work. It is raised by whichever path actually lands the riposte:
-`WandController` at the discharge, or `ExecuteInteractor` in the no-wand melee fallback. The two are
-mutually exclusive; never raise it twice for one riposte.
+`RiposteLanded` is raised **before** the killing damage, so listeners can still read the victim's
+position and state. It is raised by whichever path actually lands the riposte: `WandController` at the
+discharge, or `ExecuteInteractor` in the no-wand melee fallback — and the Grapple kill goes through
+`ExecuteInteractor.ExecuteNow`, so it raises it the same way. The two are mutually exclusive; never
+raise it twice for one riposte.
 
 ---
 
@@ -229,6 +229,11 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   `OnJumped` / `OnLanded` / `OnDashed` / `OnSlideStarted` / `OnWallJumped`. The landing dip and the slide
   crouch are **separate** offsets on the same pivot: the dip is a spring back to zero, the crouch is held for
   as long as the slide lasts, so the two never fight.
+- **A wall run sheds grit and sparks from the feet** (2026-09-03 evening). `WallRunFx` keeps a 40-mote additive
+  pool in a scene-level root and throws it back down the run from the foot contact on the face, at a rate that
+  falls with speed and with the age of the loan (`WallRunImpulse.GritRate`, pinned in `WallRunImpulseTests`),
+  so a run about to let go visibly thins out; each foot-tick adds three discrete sparks. Dust, not fire:
+  peak channel 0.55, zero bloom, unscaled time, no per-frame allocation.
 - **Slide (`Left Ctrl`).** A momentum move, not a crouch: refused below `5 m/s`, so you cannot slide out of a
   standstill. Entry is `max(current, run) + 5` capped at `22`, i.e. **16 m/s out of an 11 m/s run**. It bleeds
   at `2/s` to a floor of `8 m/s` — **4.0 m in 0.35 s**, measured, and identical from 20 fps to 400 fps. The
@@ -248,23 +253,71 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
 - **The same wall twice is refused** (normals within ~32°), so one face is not a free ladder; two facing walls
   alternate normals and chain. `maxWallJumps` (5) bounds a chimney to about **8-10 m of climb per airtime**,
   which is one tower section, not an elevator. Landing forgives the wall.
-- **Wall run (no binding).** Entered by *arriving*: airborne, off a 0.25 s cooldown, under the `maxWallRuns`
-  (3) budget, and then four gates in `WallRunMath.CanEnter` — `wallRunMinEntrySpeed` **7 m/s along the
-  face** (a sprint qualifies, a shuffle never does), falling slower than `wallRunMaxEntryFallSpeed` 9 (a run
-  extends a line, it does not undo a plummet), travel within `wallRunMaxApproachCos` 0.55 (~33°) of the wall
-  plane, and looking down the run within `wallRunMinLookAlongCos` 0.30 (~72°) — the intent term that makes it
-  feel chosen rather than sprung. Entry drops the into-wall component and floors `vel.y` at
+- **Wall run (no binding).** Entered by *arriving*: airborne (no coyote wait — running off a ledge along a
+  wall attaches on the next frame), off a 0.20 s cooldown, under `maxWallRuns` 6 (stamina is the real
+  bound), able to pay 12 stamina, and then the gates in `WallRunMath.CanEnter` — **total** horizontal speed
+  `wallRunMinEntrySpeed` 6 (a jog qualifies; a shuffle never does), falling slower than
+  `wallRunMaxEntryFallSpeed` 9 (a run extends a line, it does not undo a plummet), travel within
+  `wallRunMaxApproachCos` 0.80 (**53°**) of the wall plane — a sprint-jump taken at 45° toward a wall is
+  how a first-person player actually arrives at one — and not looking *backwards* (`wallRunMinLookAlongCos`
+  −0.05). A slide that left the ground yields to the wall. **Entry redirects all of your horizontal speed
+  down the run** (Titanfall: the wall catches you, it does not bill the angle) and floors `vel.y` at
   `wallRunEntryUpSpeed` 3 (the catch, ~1.25 m of borrowed height). Gravity ramps `0.10× → 0.60×` on t² over
-  `wallRunMaxDuration` 1.6 s, so the end of the loan is legible while you are still on the wall. Speed along
-  the face bleeds at `wallRunSpeedDecay` 0.35/s (stick released) or is topped up at `wallRunAccel` 14 m/s²
-  toward `groundSpeed` (held forward); under `wallRunMinSustainSpeed` 5 the wall drops you — a sprint entry
-  rides the full clock, a scraping entry bleeds out at ~0.96 s. `wallRunStickSpeed` 2.5 presses you into the
-  face on displacement only. `Space` while running is the exit, `WallRunMath.Exit`: `vel.y = 10`, +7 along
-  the normal, **+4 along the run** (`wallRunExitTangentBoost`) — a wall jump throws you *off* the wall, a run
-  exit throws you *down the line*, clamped to `dashSpeed`. `PlayerLook` sums two roll channels about the
-  camera's own forward: a held `rollBias` of `wallRunCameraRoll` 13° toward the wall and a transient
-  `rollKick` of 7° away on exit; the aim vector never moves. Same-wall refusal and `lastWallNormal` are
-  shared with the wall jump. Full map: DATAFLOW "Movement — wall run".
+  `wallRunMaxDuration` 1.75 s, so the end of the loan is legible while you are still on the wall. Speed
+  along the face bleeds at `wallRunSpeedDecay` 0.35/s (stick released) or is topped up at `wallRunAccel`
+  14 m/s² toward **`wallRunTopSpeed` 13.75 — 1.25× a sprint: the wall is faster than the floor, by exactly
+  that much** (held forward); under `wallRunMinSustainSpeed` 4 the wall drops you — a sprint entry rides
+  the full clock, a 6 m/s entry bleeds out at 1.16 s; an empty stamina bar drops you too (`Exhausted`,
+  22/s on the wall). Losing contact at a seam is ridden out for `wallRunLostGrace` 0.15 s before the run
+  ends. `wallRunStickSpeed` 2.5 presses you into the face on displacement only. `Space` while running is
+  the exit, `WallRunMath.Exit`: `vel.y = 10`, +7 along the normal, **+4 along the run**
+  (`wallRunExitTangentBoost`) — a wall jump throws you *off* the wall, a run exit throws you *down the
+  line*, clamped to `dashSpeed` — and a press within `wallRunExitGrace` 0.15 s of a run ending on its own
+  is *still that exit*, never a whiff (the wall-run coyote time; Titanfall's players never trusted the wall
+  until an early or late press paid). `PlayerLook` sums two roll channels about the camera's own forward: a
+  held `rollBias` of `wallRunCameraRoll` 13° **away from the wall** (Titanfall's convention — it shipped
+  toward the wall for a day and was played as "reversed"; `WallRunLive_LeansAwayFromTheWall` pins the sign)
+  and a transient `rollKick` of 7° back toward the wall on exit, so the release snaps through level; the
+  aim vector never moves. Same-wall refusal and `lastWallNormal` are shared with the wall jump. Full
+  map: DATAFLOW "Movement — wall run".
+- **Momentum is a soft cap, never a ceiling.** `FirstPersonMotor.DecayExcess` bleeds only the speed *above*
+  a cap on `exp(-k dt)`: in the air the excess over `airSoftCap` 17.6 (1.6× run) at `airDrag` 3/s, so a 22
+  m/s dash is within 1 m/s of the cap half a second later — you kept 17.6, you did not keep 22 forever; on
+  the ground the excess over a sprint at `groundOverspeedDecay` 4/s. `maxHorizontalSpeed` 27.5 is the hard
+  clamp nothing legal reaches. The slide boost (+5) **fades with the speed you already carry** (full at a
+  sprint, zero at `slideMaxSpeed`) and with every slide chained inside `slideChainWindow` 1.2 s
+  (`slideChainFalloff` 0.6: 5, 3, 1.8, 1.1 …). Speed is earned once and preserved; it is never minted on
+  every press, which is what stopped "dash and move endlessly at a constant speed".
+- **Weight: you fall harder than you rise, you spend what you carry, and a hard landing costs.** (2026-09-03
+  evening, after play: "the movement needs more weight, I can still just shoot off a wall or ledge".) Gravity is
+  `-30` rising and `fallGravityMultiplier` 1.5× (`-45`) while airborne and descending, so `jumpHeight` still means
+  2.4 m but the way down is heavy — a held flat jump lands at ~14.7 m/s instead of 12. In the air the excess over
+  a sprint bleeds at `airCarryDecay` 0.8/s *before* the soft cap: a 17.6 m/s wall exit is 15.4 half a second later
+  and 13.9 after one, a burst you spend rather than a glide you keep. And a landing at or above `landingSoftSpeed`
+  16 costs horizontal speed, linearly to `landingSpeedLoss` 35% at `landingHardSpeed` 26 (a 7.5 m drop); it is
+  applied before that frame's slide press, so the landing-slide is still how you keep a run alive off a drop.
+  All three are pure functions (`FallGravity`, `DecayExcess`, `LandingSpeedFactor`), pinned in `AirFeelTests`,
+  and `LevelArcAnalyzer` reads the first two off the prefab so every route is re-judged under them.
+- **Air control is a steer, then a bleed.** (Same session: "more control in the air, like CS:GO surfing".)
+  `AirSteer` turns the airborne velocity toward the stick at `airSteerDegPerSec` 120 with the speed untouched —
+  you decide *where* 17 m/s goes, you cannot pump it — and only while the stick is within 90° of travel. Then
+  Source's `AirAccelerate` adds along the stick only up to a run, which is what a stick held back brakes with.
+  Steer, then accelerate, then the two decays. The analyser's three control modes (hold / brake / none) are
+  unchanged by the steer because a stick along or against travel has nothing to turn toward.
+- **The controller is pressed into the floor by distance, not by speed.** The final `cc.Move` displacement is at
+  least `groundSnapDistance` 0.12 m down while grounded and not rising. The old `-2 m/s` pin moved 0.004 m per
+  frame at 500 fps — inside the 0.05 skin — and `CharacterController.isGrounded` flickered off, which is why the
+  suite's slide measured `0/80 frames grounded` and 1.66 m, and why a slide-jump pressed more than 0.12 s into a
+  slide was refused on a fast machine: the coyote window had expired on a player standing on the floor. The sweep
+  stops at the floor, so on flat ground the snap costs nothing; on a step down it follows; at a ledge it is one
+  frame of extra drop.
+- **Stamina is the budget, and it is on screen.** `PlayerStamina` (100): dash 30, wall-run entry 12 then
+  22/s, wall jump 12; regen 45/s grounded and 18/s airborne after a 0.45 s delay. Three dashes from full;
+  one comes back in about a second on the ground; a full bar always covers a full wall run (50.5), which
+  `LevelArcAnalyzer` assumes. `StaminaView` draws the bar with a tick at every dash between health and
+  posture, three pips (**DASH / AIR / WALL**) that light only when the ability is available *this frame*
+  (stamina and cooldown and the air charge), fades to 45% when full and idle, and on a refusal flashes red
+  and names the ability — never a silent no. `F8` god mode makes it infinite.
 - **The motor keeps its own clock.** Every timer — dash, slide, coyote, jump buffer, wall-run cooldown — is
   measured against a motor-local `now` advanced by `TimeScaleController.PlayerDelta`, never `Time.time`.
   `Time.time` is the world clock and hitstop drives it to ~0.02×; on it a dash that landed a hit kept
@@ -273,6 +326,14 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
 - **The movement path allocates nothing and is measured, not asserted.** `FindWall` is 0 bytes over 20 000
   calls at 2.36 µs, and runs at most once per jump press. The wall run adds two spherecasts on eligible
   airborne frames and one per frame while running. See DATAFLOW's Movement invariants.
+
+**Perfect timing (2026-09-04).** Three moves have a PERFECT: a wall jump on the wall's last breath (the loan's
+final 0.14 s, or the exit-grace jump within 0.14 s of a natural let-go), a jump thrown 0.04–0.16 s out of a
+dash, and the grapple burst pressed in the first 0.12 s of its window. A perfect gives stamina back — the
+dash's own 30, 20 for the wall, +30 for the burst — clamped to the bar; a miss is simply the ordinary move.
+The windows sit in the learnable band (Celeste's 5-frame coyote below, Sekiro's ~12-frame deflect above) and
+are judged on the motor clock, so they are the same width of time at any frame rate. `PerfectMath` is pure;
+`FirstPersonMotor.OnPerfect` and `PlayerStamina.Refunded` are the seams the feel layer and the HUD hang off.
 
 ### Enemy aggression
 
@@ -392,6 +453,85 @@ is the anti-turtle: the one unblockable, so simply holding guard is never a comp
 240 HP against 160 posture, `aggression 0.38`: tankier and far less pushy than the Marionette's 170/210
 at 0.62. It does **not** hold the Marionette's beat identity, and that is deliberate — a visible stumble
 after a deflect is the reward here, not a metronome that must not drift.
+
+### The Argent Halberdier — the reach prototype
+
+`Legendary_Halberdier`. **A prototype and a sandbox exhibit**, like the other two: a pad at x 0.75
+(between the Heavy pad and the Warden's), a wake switch, and in no `LevelDefinition` and no
+`LevelRegistry`. The body is the third `ai_skelly_tool` export — a towering armoured halberdier with a
+tail, the first forge model to ship a painted albedo — and the first whose attacks are **generated,
+per-character clips** (`forge.py --motion`) — nine generated, of which only four turned out to be
+attacks (below).
+
+It exists to answer one question, which turned into two:
+
+**1. Does a forge model whose animation is its OWN drop in without the pipeline learning its name?**
+Not as it stood. `PuppetVisuals.ClipFor` mapped attacks onto the forge's four canonical clips (swing,
+heavy, `_Stab`, `_Kick`) and the Marionette-era reasoning — "the forge exports the same four clips for
+every model, so the mapping is a property of the pipeline" — was true of authored clips and false of
+generated ones. A `HalberdSweep` has no canonical name to map to. So the name moved onto the content:
+`EnemyAttackData.clip`, resolved before every heuristic, against a table `4b` bakes onto the prefab from
+every manifest clip carrying `OnAttackHit`, each with its own length and contact frame. The clip still
+bends to the attack's clock; only the choice of clip is data now.
+
+**2. What happens to root motion?**
+The tool bakes a thrust's or a charge's pelvis path onto the Hips bone and, in its own Unity contract,
+applies it through a component that moves the agent. This project does not let a clip own a transform:
+the NavMeshAgent moves the enemy and an attack's reach is `range + lungeDistance`, run from the cue to
+the impact. Unity's own root-node extraction turned out to be the wrong tool on a Generic rig (it moves
+the Hips' whole transform — the leap's lift and the body turn included — onto the model root, and a bad
+node path imports zero clips), so the travel stays IN the clip and `PuppetVisuals.CompensateTravel`
+cancels its XZ on a dedicated `TravelRoot` every frame — the mesh stays over its collider instead of
+running a metre ahead and snapping back — and the distance the art travelled ships as `lungeDistance`.
+A test samples the clip's Hips travel and holds the data to it, and another holds the drift under 5 cm.
+One trap on the way: the sidecar's `forward_m` is the *source* motion, scaled about ×1.3 onto this rig
+at export; the clip is the truth, the sidecar is not. See ENGINEERING-LOG.md.
+
+**3. Do generated strike clips strike? (2026-09-04, from play: "the animations don't line up with the
+attack hitboxes.")** No. Sampling the halberd's tip through every clip: the four authored strikes whip
+it at 36–86 m/s with the blow exactly on the manifest's contact frame; the generated "strikes"
+(HalberdSweep, HalberdBackswing, Thrust, OverheadSlam, HeavyWindup) move it at 1–8 m/s, two of them
+ending with the blade behind the body. Only Kick, LeapSlam, SpinSweep and ShoulderCharge have real
+action. So the cuts now play the AUTHORED AttackSwing / AttackStab / AttackOverhead, the backswing and
+the heavy are gone rather than doubled onto a shared clip (seven attacks, seven animations), and every
+range came down to the blade: 2.7–2.9 m for the cuts plus a 1.0–1.3 m step from the cue, the commit band
+at 3.2 + 0.4 m. `MiniBossFactory` now measures every generated clip's tip at `4b` and says "NO STRIKE"
+for one that should not be an attack.
+
+**The fight is REACH THROUGH THE CHARGE — the third lesson, after the Marionette's cadence and the
+Revenant's read.** He fights at the blade (3.2 m) and is the fastest chaser in the roster, and what he
+does with distance is the lesson: from 5 m to the aggro edge the shoulder charge is near-certain — the
+longest lunge in the game, 4.7 m of the clip's own travel — and it opens straight into the string
+(sweep, thrust, SLAM is the signature: wide, narrow, then the punish). Two unblockables, one for each way
+of refusing the fight — the kick for a player who gets inside the halberd and holds guard, the charge for
+one who backs out — a leap slam that visibly leaves the ground, an all-round spin for a player circling
+behind, and the slam's recovery as the punish window. Firing an attack from OUTSIDE the commit band is
+new in `EnemyController` (the far-band commit: only when the moveset has an entry whose band contains
+the distance). No wind-up pose is authored, on purpose: each attack is a different animation, so the clip
+is the silhouette, and a pose gets written only if a photograph shows two of them aliasing.
+
+The pivots and the lunges were all measured — in Blender, because the editor's bridge was down that
+day (`Tools/measure_forge_fbx.py`). The forge places every bone on the drawing's z = 0 plane while this
+body's mass sits a quarter-metre ahead of it, hence `ModelSpec.zShift`; the tail is the only thing
+behind that plane, which is how the facing was settled.
+
+**Played once (2026-09-04) and retuned the same evening.** The first cut held at 4 m and threw the
+charge from 5.5–9.5 m at the same weight as a sweep; in play he stood off, and a player who backed
+away got a leap or nothing. Now the charge is *the* answer to distance — three entries from 5 m to the
+aggro edge weighing 11 against the leap's 1.2, two of them chaining straight into the sweep pair or the
+thrust — and inside 6 m the default pick is a three-hit string (sweep, backswing, thrust is the
+signature). `aggression` 0.85: `EnemyController` plays recoveries at ×0.45, the cooldown at ×0.4 and the
+gaps at ×0.53, and keeps swinging through a deflect. **No tell got shorter**: every wind-up is still ≥
+0.45 s and the cue still leads by 0.28 s; the speed is density. Because the same scaling shrinks every
+opening, the raw recoveries were rewritten for the aggressive enemy — the heavy at 2.4 s raw is a 1.08 s
+opening in play, and `HalberdierBehaviourTests` holds the *effective* numbers, not the raw ones.
+
+**The blade trail.** `EnemyWeaponTrail` (any `ModelSpec` with `bladeTrail`): a 14-sample strip of quads
+between the weapon hand and the axe head, drawn only while the attack clip is inside its contact window
+(`hit − 0.22 … hit + 0.12` of the clip, keyed to the same contact frame the blow is timed to), four
+sparks on the contact frame, one owned additive material normalised to a peak channel of 1.0 — under
+the 1.05 bloom threshold, so a swing has motion and shape but never the light a deflect owns. No particle
+system, no per-frame allocation, disabled entirely between swings.
 
 ### The Pale Marionette — the animated prototype
 
@@ -596,29 +736,18 @@ HUD slot.
   renderers; `GameEvents.PlayerRespawned` restores them, so a run always starts from the same state.
 - Colour comes from `ItemData.color` (HDR) via `MaterialPropertyBlock`, so one prefab serves every item.
 
+There are exactly **two** items and both are MOVES — the level is built around them, Neon White
+style (kill to move, wall to move). Nothing in the slot heals or protects.
+
 | Item | Effect | Behaviour |
 |---|---|---|
-| **Stormcall** | `LightningStrike` | **Arms** on use; discharges on the next riposte (see below) |
-| **Updraft** | `Updraft` | `FirstPersonMotor.Launch()` — a vertical platforming shortcut |
-| **Soul Lantern** | `SoulLantern` | Full heal, clears posture, refills the flask |
-| **Phantom Step** | `PhantomStep` | Temporary invulnerability + `SpeedMultiplier` boost |
+| **Grapple** (HOOK, cyan) | `Grapple` | Hooks the lock-on target, else the enemy nearest the crosshair (28 m, 12°, world line of sight). `FirstPersonMotor.BeginPull` flies the player to `ExecuteInteractor.stabStandoff × scale` in 0.35 s; on arrival a normal enemy is posture-broken and deathblown through `ExecuteInteractor.ExecuteNow` (the ONE execute path, so `RiposteLanded` fires). A `Legendary_*` / boss that is staggered dies the same way; one that is not takes 35% of its max posture and you land at stand-off. No target → "NO TARGET", **not consumed**. |
+| **Wall Surge** (SURGE, yellow) | `WallSurge` | `FirstPersonMotor.StartWallSurge(8)`: motor STATE, not a tuning write. While `IsWallSurging`, `WallRunSettings` scales top speed and accel ×1.5 and zeroes `minEntrySpeed` (any airborne touch attaches), and both stamina calls in `TryWallRun` / `AdvanceWallRun` are skipped. HUD prompt counts down "SURGE 8s". |
 
-### Stormcall: arm, then riposte
+### Refusal keeps the item
 
-Stormcall is **not** a panic button. Using it stores the charge and raises `ItemArmed`; it only
-discharges when `RiposteLanded` fires — i.e. once you have earned a deflect-to-deathblow exchange.
-
-```
-PlayerItems.UseCurrent  → Apply → ArmLightning        [ArmedStorm set, ItemArmed raised, HUD tell]
-        …player fights…
-ExecuteInteractor       → GameEvents.RiposteLanded(victim)   [raised BEFORE the killing damage]
-        └→ PlayerItems.OnRiposteLanded → Detonate(item, victim.position)
-             normal enemies → killed outright (isExecute)
-             boss          → heavy damage + posture shattered → deathblow window
-```
-
-The blast is centred on the **riposte victim**, not the player, so it is an AoE reward for closing the
-exchange. `ArmedStorm` is cleared on respawn along with the inventory.
+`PlayerItems.Apply` runs **before** the item leaves the slot and returns `false` to refuse. A Grapple
+with nothing in range costs nothing and says "NO TARGET"; there is no second spend path.
 
 ---
 
@@ -661,12 +790,14 @@ Two rules:
 - **Only the ripostee takes `isExecute` damage.** Splash, chain and lance damage on every other enemy is
   ordinary damage. This is what stops an AoE deathblowing a bystander boss — `Health.deathIsStagger`
   means a boss segment may only be removed by an explicit riposte.
-- **`RiposteLanded` is raised before the damage**, so the armed Stormcall can still read the victim.
+- **`RiposteLanded` is raised before the damage**, so listeners can still read the victim.
   `WandController` raises it at the discharge; `ExecuteInteractor` raises it only in the no-wand melee
-  fallback. Exactly one of the two fires per riposte.
+  fallback (which is also the Grapple's path). Exactly one of the two fires per riposte.
 
 Chosen at the **wand pedestal** at the level's spawn point: aim at the altar and press `F`
 (`WandPedestal` → `WandSelectMenu` → `WandController.Equip`) — see the Wand pedestal map in `DATAFLOW.md`.
+The altar is a **dev fixture**, hidden and inert until `WandPedestal.DevMenuEnabled` is switched on from the
+F1 test menu; the default loadout (all four wands, Emberlance equipped) is what the player runs with.
 Also cycled with **`R`** (`WandCycle`) as a debug convenience; both raise `GameEvents.WandChanged` for the HUD
 label. With no wand equipped the original melee deathblow runs unchanged, so the system degrades safely.
 
@@ -685,7 +816,7 @@ All balance lives in ScriptableObjects under `Assets/Data/`. Edit in the Inspect
 | `WandData` | Emberlance, Gravecall, Stormneedle, Voidspine (`Assets/Data/Wands/`) |
 | `EnemyData` / `BossData` | Grunt, Heavy, Boss |
 | `EnemyAttackData` | 11 attacks (Grunt_Jab/Slash/Heavy, Heavy_Step/Sweep/Overhead, Boss_×5) |
-| `ItemData` | Stormcall, Updraft, SoulLantern, PhantomStep |
+| `ItemData` | Grapple, WallSurge |
 | `PlayerStatsData` | `PlayerStats.asset` — parry windows, posture, flask, Pyre, super slow-mo |
 | `UpgradeTable` | Souls costs |
 | `GameFeelSettings` | Hitstop, shake, flash, FOV kick |
@@ -705,6 +836,22 @@ torches (`FlickerLight`), film grain and heavy vignette. Four separable trim acc
 gold, crimson, ember orange - one per level tile.
 
 Palette lives in `Editor/MaterialFactory.cs` and the colour constants in `Editor/HudBuilder.cs`.
+
+**The HUD is panes of smoked glass, edge-lit by the eclipse (2026-09-04).** UGUI has no blur, so glass
+is built from four cheap layers — a dark rounded 9-slice at a linear-space alpha of 0.58, a soft shadow
+under it so the pane sits *off* the frame, a faint sheen across its upper third, and a one-pixel light
+along the top edge that warms from ember at the left to bone — all generated as tiny PNGs by
+`Editor/UiSprites.cs` on every `5. Build HUD`. Three panes, three shapes: the vitals (a wide low pane,
+bottom-left, one left edge and one bar width for health / stamina / posture / Pyre, numerals and pips in a
+column to the right), the loadout (a narrow pane, top-left), and the clock (a pill). Item slots are glass
+tiles; every menu is a scrim with a glass card on it; every button is a glass pill. Type is one family on
+one scale, values in bone (`#E8E2D6`), labels quieter than values, offsets on an 8 px rhythm. **The UI
+never blooms**: no graphic on the canvas exceeds 1.0 in any channel (`HudGlassTests`), because light on
+screen means "you deflected". BEST RUNS is a fourth pane, top-right and hidden until a board exists; the
+key-bind reference is not on the playing HUD at all — `ControlsInfo` feeds the settings INFO card and the F1
+menu. Weapon name in bone; teal is left to the wand alone so the accent means one
+thing. The fluid bars and the Pyre fire are styling passes applied afterwards through
+`Editor/HudExtensions.cs`, which find `HealthBar` / `StaminaBar` / `PyreBar` by name.
 **Material names are historical and no longer describe their colour** — they are kept stable because the
 builders reference them by name:
 

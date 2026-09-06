@@ -43,6 +43,7 @@ namespace VibeGame1
         void OnDisable()
         {
             if (Leaderboard.I != null) Leaderboard.I.Changed -= RefreshBoard;
+            if (hud != null && hud.bestRunsPane != null) hud.bestRunsPane.SetActive(false);
         }
 
         void Start()
@@ -105,6 +106,9 @@ namespace VibeGame1
 
         void Update()
         {
+            // The HUD usually spawns after this canvas: while the board is still on the fallback text and
+            // the HUD's pane turns up, move the table into the pane (HudPane re-tries once a second).
+            if (BoardVisible && boardText != null && boardText.text.Length > 0 && HudPane() != null) RefreshBoard();
             if (deltaText == null) return;
             var timer = SpeedrunTimer.I;
 
@@ -124,10 +128,31 @@ namespace VibeGame1
 
         // ---- leaderboard ----------------------------------------------------------------------------
 
+        HUDController hud;
+        float hudLookupAt = -1f;
+
+        /// <summary>The HUD's glass BEST RUNS pane, if the HUD prefab carries one. Looked up lazily and
+        /// re-tried every second: the HUD may spawn after this canvas, and a scene change replaces it.</summary>
+        HUDController HudPane()
+        {
+            if (hud == null && Time.unscaledTime - hudLookupAt > 1f)
+            {
+                hudLookupAt = Time.unscaledTime;
+                hud = FindAnyObjectByType<HUDController>();
+            }
+            return hud != null && hud.bestRunsText != null ? hud : null;
+        }
+
         public void RefreshBoard()
         {
             if (boardText == null) return;
-            if (!BoardVisible) { boardText.text = ""; return; }
+            var pane = HudPane();
+            if (!BoardVisible)
+            {
+                boardText.text = "";
+                if (pane != null && pane.bestRunsPane != null) pane.bestRunsPane.SetActive(false);
+                return;
+            }
 
             var board = Leaderboard.I;
             sb.Length = 0;
@@ -151,8 +176,18 @@ namespace VibeGame1
                     sb.AppendLine();
                 }
             }
-            boardText.text = sb.ToString();
+            if (pane != null)
+            {
+                // Into the HUD's glass pane: it carries its own BEST RUNS title, so the heading line goes.
+                string s = sb.ToString();
+                int nl = s.IndexOf('\n');
+                pane.bestRunsText.text = nl >= 0 ? s.Substring(nl + 1) : s;
+                if (pane.bestRunsPane != null) pane.bestRunsPane.SetActive(true);
+                boardText.text = "";
+            }
+            else boardText.text = sb.ToString();
         }
+
 
         public void SetBoardVisible(bool value)
         {

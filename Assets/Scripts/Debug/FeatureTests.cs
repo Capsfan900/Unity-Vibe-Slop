@@ -242,7 +242,8 @@ namespace VibeGame1
             if (health != null) { health.Invulnerable = false; health.ResetFull(); }
             if (posture != null) posture.ResetFull();
             if (res != null) { res.RefillFlask(); res.ConsumePyre(); }
-            if (motor != null) { motor.SpeedMultiplier = 1f; motor.CanMove = true; }
+            if (motor != null) { motor.SpeedMultiplier = 1f; motor.CanMove = true; motor.wallSurgeUntil = -99f; motor.CancelPull(); }
+            if (motor != null) { var st = motor.GetComponent<PlayerStamina>(); if (st != null) st.ResetFull(); }
             if (parry != null) parry.Cancel();
             if (weapons != null) weapons.CancelAttack();
             if (items != null) ClearItems();
@@ -261,17 +262,14 @@ namespace VibeGame1
             }
         }
 
-        static ItemData MakeItem(ItemEffect effect, float radius, float damage, float power, float duration)
+        /// <summary>A throwaway item with the class-default tuning (28 m / 12 deg / 0.35 s hook, 8 s surge).</summary>
+        static ItemData MakeItem(ItemEffect effect)
         {
             var it = ScriptableObject.CreateInstance<ItemData>();
             it.displayName = "Test " + effect;
             it.shortLabel = effect.ToString().ToUpperInvariant();
             it.effect = effect;
             it.color = Color.white;
-            it.radius = radius;
-            it.damage = damage;
-            it.power = power;
-            it.duration = duration;
             return it;
         }
 
@@ -300,7 +298,11 @@ namespace VibeGame1
             {
                 Test("Movement",        TestMovement),
                 Test("SlideWallJump",   TestSlideAndWallJump),
+                Test("WallRunLive",     TestWallRunLive),
                 Test("HitstopScoping",  TestHitstopScoping),
+                Test("Stamina",         TestStamina),
+                Test("PerfectTiming",   TestPerfectTiming),
+                Test("LevelEditor",     TestLevelEditor),
                 Test("ParryMathPure",   TestParryMathPure),
                 Test("ParryLive",       TestParryLive),
                 Test("Guard",           TestGuard),
@@ -416,7 +418,7 @@ namespace VibeGame1
 
             yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
 
-            // Launch() is also the Updraft item's mechanism.
+            // Launch() has no shipped caller any more (the Updraft item is gone) but stays as motor API.
             motor.Launch(20f);
             yield return null;
             Check("Movement_LaunchSetsUpwardVelocity", motor.Velocity.y > 10f, "velY=" + motor.Velocity.y.ToString("0.0"));
@@ -438,7 +440,7 @@ namespace VibeGame1
             CheckApprox("Movement_TeleportClearsVelocity", new Vector2(motor.Velocity.x, motor.Velocity.z).magnitude, 0f, 0.5f);
             CheckApprox("Movement_TeleportSetsYaw", Mathf.DeltaAngle(combat.transform.eulerAngles.y, 90f), 0f, 1f);
 
-            // SpeedMultiplier is the PhantomStep hook.
+            // SpeedMultiplier is the generic item-speed hook; nothing shipped drives it today.
             motor.SpeedMultiplier = 1.35f;
             Check("Movement_SpeedMultiplierSettable", Mathf.Approximately(motor.SpeedMultiplier, 1.35f));
             motor.SpeedMultiplier = 1f;
@@ -534,6 +536,65 @@ namespace VibeGame1
             // A dash can end anywhere; put the player back on known ground for the next section.
             motor.Teleport(ground + Vector3.up * 0.3f, 0f);
             yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+
+            // ---- FORGIVENESS (MOVEMENT-PRINCIPLES rule 4) -------------------------------------
+            // A rig far from the level: a floor and a 2 m ledge. Falling toward the ledge with the feet
+            // 0.15 m under its top must land ON it (the near-miss catch); 0.5 m under must not; falling
+            // along a tall wall's side must never be lifted.
+            var fFloor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            fFloor.name = "~TestFloor_Forgive"; fFloor.layer = 0;
+            fFloor.transform.position = new Vector3(400f, -60f, 200f);
+            fFloor.transform.localScale = new Vector3(40f, 1f, 40f);
+            var ledge = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ledge.name = "~TestLedge_Forgive"; ledge.layer = 0;
+            ledge.transform.position = new Vector3(400f, -58.5f, 200f);       // top at -57.5
+            ledge.transform.localScale = new Vector3(6f, 2f, 6f);
+            float ledgeTop = -57.5f;
+            Physics.SyncTransforms();
+
+            // Near miss: feet 0.05 m under the top, 0.2 m before the edge (x = 397), moving +x at 6 m/s.
+            // 0.5 m before it (the first cut) let gravity drop the feet under the 0.22 m band before
+            // the edge arrived - a real miss, not a near one.
+            motor.Teleport(new Vector3(396.8f, ledgeTop - 0.05f, 200f), 90f);
+            yield return null;
+            motor.AddImpulse(new Vector3(6f, 0f, 0f));
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 1.5f);
+            // Caught = standing on the ledge top. The capsule (radius 0.4) can stand with its centre a little
+            // before the edge at x 397, so the x check is the radius, not the edge.
+            bool caught = motor.IsGrounded && combat.transform.position.y > ledgeTop - 0.05f && combat.transform.position.x > 396.6f;
+            Check("Forgive_NearMissLandsOnTheLedge", caught,
+                $"grounded={motor.IsGrounded} y={combat.transform.position.y:0.00} (top {ledgeTop}) x={combat.transform.position.x:0.0}");
+
+            // A real miss: 0.5 m under the top must end on the floor, not the ledge.
+            motor.Teleport(new Vector3(396.5f, ledgeTop - 0.5f, 200f), 90f);
+            yield return null;
+            motor.AddImpulse(new Vector3(6f, 0f, 0f));
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 2.5f);
+            // A miss = never standing on the ledge top. Measured 2026-09-05: the capsule pressed into the
+            // ledge's side by the impulse hovers at y -58.1 for the whole wait instead of sliding to the
+            // floor, so "grounded on the floor" is not the right proof of a miss; "not on the ledge" is.
+            bool onLedge = motor.IsGrounded && combat.transform.position.y > ledgeTop - 0.05f && combat.transform.position.x > 396.6f;
+            bool missed = !onLedge && combat.transform.position.y < ledgeTop - 0.4f;
+            Check("Forgive_AHalfMetreMissIsAMiss", missed,
+                $"grounded={motor.IsGrounded} y={combat.transform.position.y:0.00} (top {ledgeTop})");
+
+            // Falling along the ledge's side wall must never be lifted: y only ever decreases.
+            motor.Teleport(new Vector3(396.6f, ledgeTop + 1.2f, 196.6f), 90f);
+            yield return null;
+            motor.AddImpulse(new Vector3(0f, 0f, 2f));   // sideways along the face at x ~397
+            float prevY = combat.transform.position.y; bool everRose = false;
+            for (int f = 0; f < 40 && !motor.IsGrounded; f++)
+            {
+                yield return null;
+                float y = combat.transform.position.y;
+                if (y > prevY + 0.001f) everRose = true;
+                prevY = y;
+            }
+            Check("Forgive_AWallSideNeverCatches", !everRose, $"rose={everRose} y={combat.transform.position.y:0.00}");
+
+            UnityEngine.Object.Destroy(ledge); UnityEngine.Object.Destroy(fFloor);
+            motor.Teleport(ground + Vector3.up * 0.3f, 0f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
         }
 
 
@@ -542,6 +603,152 @@ namespace VibeGame1
         // The two movement techs, driven through the motor's own public entry points (TrySlide /
         // TryWallJump) - the exact methods Update calls when InputReader reports a press. No synthesised
         // device, and therefore no skip.
+
+        // ================================================================ WALL RUN, LIVE
+
+        /// <summary>
+        /// The first LIVE wall run in the suite (everything before this was WallRunMath in EditMode): a
+        /// rig floor and one long face beside it, a launch along the face, and then the things a player
+        /// sees — the run attaches, grit leaves the feet while it lasts, sparks mark the foot-ticks, and
+        /// the grit is gone shortly after the wall lets go. A particle count is a state-machine fact,
+        /// never a claim that it looks right; that is the user's.
+        /// </summary>
+        IEnumerator TestWallRunLive()
+        {
+            var rig = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rig.name = "~TestFloor_WallRun";
+            rig.layer = 0;
+            rig.transform.position = new Vector3(300f, -40f, 200f);
+            rig.transform.localScale = new Vector3(60f, 1f, 60f);
+            Vector3 pad = new Vector3(280f, -39.5f, 200f);
+            motor.Teleport(pad + Vector3.up * 0.4f, 90f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            Vector3 fwd = combat.transform.forward, right = combat.transform.right;
+            // One face on the RIGHT, 0.75 m off the capsule axis: inside the 0.55 m scan past the 0.4 m
+            // capsule, running the length of the launch.
+            var face = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            face.name = "~TestWallRunFace";
+            face.layer = 0;
+            face.transform.position = pad + fwd * 10f + right * 0.75f + Vector3.up * 3.5f;
+            face.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
+            face.transform.localScale = new Vector3(0.3f, 8f, 24f);
+            yield return null;
+
+            var st = motor.GetComponent<PlayerStamina>();
+            if (st != null) st.ResetFull();
+            // Arrive: airborne, 9 m/s along the face (over the 6 m/s entry gate), looking down the line.
+            motor.Launch(3f);
+            motor.AddImpulse(fwd * 9f);
+            yield return WaitUntilOrTimeout(() => motor.IsWallRunning, 1.5f);
+            Check("WallRunLive_Attaches", !waitTimedOut, "running=" + motor.IsWallRunning + " speed=" + motor.HorizontalSpeed.ToString("0.0")
+                + " grounded=" + motor.IsGrounded + " (entry gate " + motor.wallRunMinEntrySpeed + " m/s)");
+            // PlayerFeedback builds its FX objects lazily on the first dash / slide / wall run, so the
+            // lookup comes AFTER the catch. SparksThrown counts from Build, which is this run or earlier.
+            var fx = FindAnyObjectByType<WallRunFx>();
+            Check("WallRunLive_FxExists", fx != null, "PlayerFeedback.EnsureFx builds WallRunFx on the catch");
+            if (fx == null) { UnityEngine.Object.Destroy(face); UnityEngine.Object.Destroy(rig); yield break; }
+            int sparks0 = 0;
+
+            int peakGrit = 0; float ran = 0f; float t0 = Time.unscaledTime;
+            var look = FindAnyObjectByType<PlayerLook>();
+            float peakRoll = 0f;   // signed: the face is on the RIGHT, so the lean must be POSITIVE (head tilts left, away)
+            while (motor.IsWallRunning && Time.unscaledTime - t0 < 3f)
+            {
+                peakGrit = Mathf.Max(peakGrit, fx.GritAlive);
+                if (look != null && Mathf.Abs(look.Roll) > Mathf.Abs(peakRoll)) peakRoll = look.Roll;
+                ran = Time.unscaledTime - t0;
+                yield return null;
+            }
+            Check("WallRunLive_LeansAwayFromTheWall", look == null || peakRoll > 2f,
+                "roll=" + peakRoll.ToString("0.0") + " deg with the face on the RIGHT (positive = head tilts left = away; " +
+                "it shipped toward the wall once and was played as reversed)");
+            Check("WallRunLive_ShedsGrit", peakGrit > 0, "peak motes alive=" + peakGrit + " over a " + ran.ToString("0.00") + " s run");
+            Check("WallRunLive_GritIsAPool", peakGrit <= fx.gritCount, "alive=" + peakGrit + " pool=" + fx.gritCount);
+            Check("WallRunLive_SparksOnSteps", fx.SparksThrown > sparks0,
+                "sparks " + sparks0 + " -> " + fx.SparksThrown + " over " + ran.ToString("0.00") + " s (a foot-tick every "
+                + (GameManager.I != null && GameManager.I.feel != null ? GameManager.I.feel.wallRunStepDistance : 1.6f) + " m)");
+            Note("MEASURED wall-run particles: peak " + peakGrit + " motes, " + (fx.SparksThrown - sparks0) + " sparks, run "
+                + ran.ToString("0.00") + " s, ended " + motor.LastWallRunEnd + ".");
+
+            // The wall let go (or was jumped): the grit is left behind and winks out within its life.
+            yield return WaitRealtime(fx.gritLife + 0.25f);
+            Check("WallRunLive_GritClearsAfterRun", fx.GritAlive == 0, "alive=" + fx.GritAlive + " " + (fx.gritLife + 0.25f).ToString("0.00") + " s after the run");
+
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 4f);
+            UnityEngine.Object.Destroy(face);
+            UnityEngine.Object.Destroy(rig);
+            yield return null;
+        }
+
+        /// <summary>
+        /// The in-game level editor, driven through its public API: enter, place a platform, save, start a
+        /// new document, load the save back, find the platform rebuilt, leave. Runs over the campaign
+        /// scene with the scene roots left visible (hideSceneRootsWhileEditing off) so the tests after it
+        /// meet the level exactly as they did before.
+        /// </summary>
+        IEnumerator TestLevelEditor()
+        {
+            var ed = LevelEditor.I;
+            Check("LevelEditor_OnHud", ed != null, "no LevelEditor on the HUD - run VibeGame1/5. Build HUD");
+            if (ed == null) yield break;
+
+            bool hid = ed.hideSceneRootsWhileEditing;
+            ed.hideSceneRootsWhileEditing = false;
+            Vector3 before = motor.transform.position;
+            try
+            {
+                bool entered = ed.Enter();
+                yield return null;
+                Check("LevelEditor_Enters", entered && ed.CurrentMode == LevelEditor.Mode.Editing && GameManager.IsEditing,
+                    "entered=" + entered + " mode=" + ed.CurrentMode + " editing=" + GameManager.IsEditing);
+                int start = ed.Document.platforms.Count;
+
+                ed.SelectKind(LevelPieceKind.Platform);
+                ed.SetPendingSize(6f);
+                var placed = ed.Place(new Vector3(400f, 20f, 400f), Vector3.up);
+                yield return null;
+                Check("LevelEditor_PlacesAPlatform", placed != null && ed.Document.platforms.Count == start + 1
+                    && Mathf.Abs(placed.transform.position.y - 19.5f) < 0.01f,
+                    "placed=" + (placed != null) + " count=" + ed.Document.platforms.Count + (placed != null ? " y=" + placed.transform.position.y : ""));
+                Check("LevelEditor_PieceIsTagged", placed != null && placed.GetComponent<LevelPiece>() != null
+                    && placed.GetComponent<LevelPiece>().kind == LevelPieceKind.Platform,
+                    "the factory must tag what it builds");
+                Check("LevelEditor_TrimIsBuilt", placed != null && placed.transform.Find(placed.name + "_Trim_N") != null,
+                    "the platform's trim bars are the factory's, same as menu item 8");
+
+                ed.Save("~featuretest");
+                string path = LevelEditor.PathFor("~featuretest");
+                Check("LevelEditor_SavesJson", System.IO.File.Exists(path), path);
+
+                ed.NewDocument("~featuretest_other");
+                yield return null;
+                Check("LevelEditor_NewDocumentClears", ed.Document.platforms.Count == 1 && ed.CustomRoot != null
+                    && ed.CustomRoot.Find("Platform_1") == null, "count=" + ed.Document.platforms.Count);
+
+                bool loaded = ed.Load("~featuretest");
+                yield return null;
+                var back = ed.CustomRoot != null ? ed.CustomRoot.Find("Platform_" + start) : null;
+                Check("LevelEditor_LoadRebuildsThePlatform", loaded && ed.Document.platforms.Count == start + 1 && back != null
+                    && (back.position - new Vector3(400f, 19.5f, 400f)).magnitude < 0.01f,
+                    "loaded=" + loaded + " count=" + ed.Document.platforms.Count + " found=" + (back != null));
+
+                var doc = ed.Document;
+                string json = doc.ToJson();
+                var round = LevelDocument.FromJson(json);
+                Check("LevelEditor_JsonRoundTrip", round != null && round.platforms.Count == doc.platforms.Count
+                    && round.levelId == doc.levelId, "round trip through JsonUtility");
+            }
+            finally
+            {
+                ed.Exit();
+                ed.hideSceneRootsWhileEditing = hid;
+                try { System.IO.File.Delete(LevelEditor.PathFor("~featuretest")); } catch (System.Exception) { }
+            }
+            yield return null;
+            Check("LevelEditor_ExitRestoresPlay", ed.CurrentMode == LevelEditor.Mode.Off && GameManager.IsPlaying
+                && ed.CustomRoot == null && (motor.transform.position - before).magnitude < 0.5f,
+                "mode=" + ed.CurrentMode + " playing=" + GameManager.IsPlaying + " pos=" + motor.transform.position);
+        }
 
         IEnumerator TestSlideAndWallJump()
         {
@@ -744,6 +951,10 @@ namespace VibeGame1
             yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
             float chainFromY = combat.transform.position.y;
             int before2 = wallJumps;
+            // The chain is a test of chaining, not of the budget: the wall tests before this one have
+            // been spending the bar, and a chimney push costs 12. Start from a full bar.
+            var chainStamina = motor.GetComponent<PlayerStamina>();
+            if (chainStamina != null) chainStamina.ResetFull();
             motor.Launch(7f);
             yield return WaitUntilOrTimeout(() => !motor.IsGrounded, 1.5f);
             yield return WaitRealtime(motor.coyoteTime + 0.1f);
@@ -763,7 +974,8 @@ namespace VibeGame1
             int chained = wallJumps - before2;
             motor.OnWallJumped -= onWall;
             Check("WallJump_ChainsBetweenFacingWalls", chained >= 2,
-                $"chained={chained} of max {motor.maxWallJumps}");
+                $"chained={chained} of max {motor.maxWallJumps} stamina={(chainStamina != null ? chainStamina.Current.ToString("0") : "n/a")} " +
+                $"canAct={motor.CanAct} grounded={motor.IsGrounded} attempts={attempts} drift={(combat.transform.position - c).magnitude:0.00}m");
             Check("WallJump_BoundedPerAirtime", chained <= motor.maxWallJumps,
                 $"chained={chained} max={motor.maxWallJumps} - an unbounded chain is a free elevator");
             Note($"MEASURED wall-jump chain: {chained} pushes, +{chainApex - chainFromY:0.00} m above the " +
@@ -795,6 +1007,168 @@ namespace VibeGame1
         }
 
         // ================================================================ 2. HITSTOP SCOPING
+
+        // ================================================================ STAMINA
+
+        /// <summary>
+        /// The movement budget: three dashes from a full bar, the fourth REFUSED with a named event (never
+        /// silently), regen that waits its delay and then comes back, and a wall run that costs. This is
+        /// the contract behind "it is not clear when I have an ability".
+        /// </summary>
+        /// <summary>
+        /// PERFECT timing, driven on the motor's own clock: a jump thrown out of a dash inside the
+        /// window refunds the dash; the same jump thrown on the dash's own frame does not. The wall
+        /// jump and the burst share the same laws (PerfectTimingTests) and are not staged here — a
+        /// full wall run to its let-go is a 1.75 s ride the WallRunLive rig would need extending for.
+        /// </summary>
+        IEnumerator TestPerfectTiming()
+        {
+            var st = motor != null ? motor.GetComponent<PlayerStamina>() : null;
+            if (st == null) { Check("Perfect_StaminaOnPlayer", false, "PlayerStamina missing"); yield break; }
+            bool savedInfinite = st.Infinite;
+            st.Infinite = false;
+            st.ResetFull();
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded && !motor.IsDashing, 4f);
+            Vector3 home = combat.transform.position;
+            float yaw = combat.transform.eulerAngles.y;
+            float savedCd = motor.dashCooldown;
+            motor.dashCooldown = 0.02f;
+
+            int perfects = 0; PerfectKind lastKind = PerfectKind.None; float lastRefund = -1f;
+            System.Action<PerfectKind, float> onPerfect = (k, r) => { perfects++; lastKind = k; lastRefund = r; };
+            motor.OnPerfect += onPerfect;
+
+            // ORDINARY: dash and jump on the same frame. The jump buffer lands the jump this frame, the
+            // dash fires below it in the same step: sinceDash is 0, under the minimum delay.
+            float before = st.Current;
+            motor.TryJump();
+            motor.TryDash();
+            yield return null; yield return null;
+            Check("Perfect_SameFrameDashJumpIsOrdinary", perfects == 0,
+                "perfects=" + perfects + " (a mashed dash+jump counted)");
+            Check("Perfect_OrdinaryDashStillCosts", st.Current <= before - st.dashCost + 2f,
+                "stamina " + before.ToString("0") + " -> " + st.Current.ToString("0"));
+            yield return WaitUntilOrTimeout(() => !motor.IsDashing, 1.5f);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            motor.Teleport(home, yaw);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            st.ResetFull();
+            yield return null;
+
+            // PERFECT: dash, wait into the window (0.04 .. 0.16 s after the dash), then jump.
+            before = st.Current;
+            int dashesBefore = 0;
+            System.Action onDash = () => dashesBefore++;
+            motor.OnDashed += onDash;
+            motor.TryDash();
+            yield return null;
+            Check("Perfect_DashFired", dashesBefore == 1, "dashes=" + dashesBefore);
+            float mid = motor.perfectDashJumpMinDelay + motor.perfectDashJumpWindow * 0.5f;
+            yield return WaitRealtime(mid);
+            float afterDash = st.Current;
+            motor.TryJump();
+            yield return null; yield return null;
+            Check("Perfect_DashJumpInsideTheWindowIsPerfect", perfects == 1 && lastKind == PerfectKind.DashJump,
+                "perfects=" + perfects + " kind=" + lastKind + " (jumped " + mid.ToString("0.00") + "s after the dash)");
+            Check("Perfect_DashJumpRefundsTheDash", st.Current >= afterDash + motor.perfectDashJumpRefund - 2f
+                                                    && st.Current <= st.max + 0.01f,
+                "stamina " + afterDash.ToString("0") + " -> " + st.Current.ToString("0") + " refund=" + lastRefund.ToString("0"));
+            Check("Perfect_LastPerfectKindReads", motor.LastPerfectKind == PerfectKind.DashJump, "kind=" + motor.LastPerfectKind);
+
+            motor.OnDashed -= onDash;
+            motor.OnPerfect -= onPerfect;
+            motor.dashCooldown = savedCd;
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            motor.Teleport(home, yaw);
+            st.ResetFull();
+            st.Infinite = savedInfinite;
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+        }
+
+        IEnumerator TestStamina()
+        {
+            var st = motor != null ? motor.GetComponent<PlayerStamina>() : null;
+            if (st == null) { Check("Stamina_ComponentOnPlayer", false, "PlayerStamina missing — rebuild prefabs"); yield break; }
+            Check("Stamina_ComponentOnPlayer", true);
+            Check("Stamina_ShippedValues", st.max == 100f && st.dashCost == 30f && st.wallRunEntryCost == 12f,
+                "max=" + st.max + " dash=" + st.dashCost + " wallEntry=" + st.wallRunEntryCost);
+
+            st.Infinite = false;
+            st.ResetFull();
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 4f);
+            Vector3 staminaHome = combat.transform.position;
+            float staminaYaw = combat.transform.eulerAngles.y;
+            float savedCd = motor.dashCooldown;
+            motor.dashCooldown = 0.02f;
+            int refused = 0; StaminaAction lastRefused = StaminaAction.WallJump;
+            System.Action<StaminaAction> onRefused = a => { refused++; lastRefused = a; };
+            GameEvents.StaminaRefused += onRefused;
+
+            int dashes = 0;
+            System.Action onDash = () => dashes++;
+            motor.OnDashed += onDash;
+
+            // Three dashes, each waited out so the cooldown is never the gate, each costing 30.
+            for (int i = 0; i < 3; i++)
+            {
+                motor.TryDash();
+                yield return null; yield return null;
+                yield return WaitUntilOrTimeout(() => !motor.IsDashing, 1.5f);
+                yield return WaitUntilOrTimeout(() => motor.IsGrounded, 2f);
+                yield return null;
+            }
+            Check("Stamina_ThreeDashesFromFull", dashes == 3, "dashes=" + dashes + " stamina=" + st.Current.ToString("0"));
+            // Three dashes are ~13 m of travel from wherever the previous test left us, which can be off
+            // a ledge; the regen timings below assume a GROUNDED player (45/s, not the air's 18/s). Go home.
+            motor.Teleport(staminaHome, staminaYaw);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+            Check("Stamina_ThreeDashesCostNinety", st.Current <= 10f + 3f * st.regenPerSecondGrounded * 0.4f,
+                "stamina after three dashes=" + st.Current.ToString("0") + " (delay " + st.regenDelay + "s should have held most of the spend)");
+
+            // Spend whatever regen crept back, then the fourth press must be REFUSED, loudly.
+            while (st.Current >= st.dashCost) st.TrySpend(st.dashCost, StaminaAction.Dash);
+            int before = dashes; refused = 0;
+            motor.TryDash();
+            yield return null; yield return null;
+            Check("Stamina_FourthDashRefused", dashes == before, "a dash fired on " + st.Current.ToString("0") + " stamina");
+            Check("Stamina_RefusalIsNamed", refused >= 1 && lastRefused == StaminaAction.Dash,
+                "refused=" + refused + " last=" + lastRefused + " (a silent refusal reads as a dropped input)");
+            Check("Stamina_PipReadsFalseWhenBroke", !motor.CanDashNow, "CanDashNow=" + motor.CanDashNow);
+
+            // Regen: nothing during the delay, then back. Grounded rate is 45/s. A fresh spend first:
+            // by now the last real spend is over a second old and the delay has already lapsed.
+            st.Drain(1f, 1f);
+            float t0 = Time.unscaledTime; float atStart = st.Current;
+            yield return WaitRealtime(st.regenDelay * 0.6f);
+            Check("Stamina_RegenWaitsItsDelay", st.Current <= atStart + 2f,
+                "regen started inside the delay: " + atStart.ToString("0") + " -> " + st.Current.ToString("0"));
+            yield return WaitUntilOrTimeout(() => st.Current >= st.dashCost, 3f);
+            Check("Stamina_ADashComesBackWithinASecondOrSo", !waitTimedOut && Time.unscaledTime - t0 < 2f,
+                "took " + (Time.unscaledTime - t0).ToString("0.00") + "s to afford a dash");
+            Check("Stamina_PipReadsTrueAgain", motor.CanDashNow, "CanDashNow=" + motor.CanDashNow);
+            yield return WaitUntilOrTimeout(() => st.IsFull, 4f);
+            Check("Stamina_RefillsToFull", st.IsFull, "current=" + st.Current.ToString("0") + " grounded=" + motor.IsGrounded
+                + " (grounded regen " + st.regenPerSecondGrounded + "/s, airborne " + st.regenPerSecondAirborne + "/s)");
+
+            // God mode is infinite stamina: a spend is free and nothing is refused.
+            st.Infinite = true;
+            bool freeSpend = st.TrySpend(9999f, StaminaAction.Dash);
+            Check("Stamina_InfiniteNeverRefuses", freeSpend && st.IsFull);
+            st.Infinite = false;
+
+            // Drain: the wall's per-second cost, and the empty-bar signal.
+            st.ResetFull();
+            bool stillHas = st.Drain(st.wallRunDrainPerSecond, 1f);
+            CheckApprox("Stamina_WallDrainPerSecond", st.Current, st.max - st.wallRunDrainPerSecond, 0.01f);
+            Check("Stamina_DrainReportsRemaining", stillHas);
+            bool empty = st.Drain(st.max * 10f, 1f);
+            Check("Stamina_DrainReportsEmpty", !empty && st.Current == 0f, "current=" + st.Current);
+
+            GameEvents.StaminaRefused -= onRefused;
+            motor.OnDashed -= onDash;
+            motor.dashCooldown = savedCd;
+            st.ResetFull();
+        }
 
         IEnumerator TestHitstopScoping()
         {
@@ -2038,6 +2412,7 @@ namespace VibeGame1
         /// </summary>
         IEnumerator TestWandPedestal()
         {
+            bool devMenuWas = WandPedestal.DevMenuEnabled;
             var ts = TimeScaleController.I;
             var pedestal = FindAnyObjectByType<WandPedestal>();
             var menu = FindAnyObjectByType<WandSelectMenu>();
@@ -2048,6 +2423,68 @@ namespace VibeGame1
             Check("WandPedestal_MenuStartsClosed", !menu.IsOpen);
             Check("WandPedestal_MenuHasRows", menu.rows != null && menu.rows.Length > 0,
                 "rows=" + (menu.rows != null ? menu.rows.Length : 0));
+
+            // ---- the altar is a DEV FIXTURE: off by default, hidden and inert ----------------------
+            // The test menu's "WAND PEDESTAL" button is the only switch. Driven through the same
+            // TestMenu body the button calls, then the flag directly, so both the wiring and the gate
+            // are proven. The flag is restored at the end of this test whatever it was before.
+            var testMenu = FindAnyObjectByType<TestMenu>();
+            if (testMenu == null) Skip("WandPedestal_TestMenuToggleFlipsFlag", "no TestMenu on the HUD prefab");
+            else
+            {
+                Check("WandPedestal_TestMenuButtonWired", testMenu.wandPedestalButton != null,
+                    "HudBuilder.BuildTestMenu must build wandPedestalButton");
+                bool flagBefore = WandPedestal.DevMenuEnabled;
+                if (testMenu.wandPedestalButton != null) testMenu.wandPedestalButton.onClick.Invoke();
+                else testMenu.ToggleWandPedestal();
+                bool flipped = WandPedestal.DevMenuEnabled != flagBefore;
+                string label = testMenu.wandPedestalButton != null
+                    ? testMenu.wandPedestalButton.GetComponentInChildren<TMPro.TMP_Text>().text : "";
+                Check("WandPedestal_TestMenuToggleFlipsFlag", flipped, flagBefore + " -> " + WandPedestal.DevMenuEnabled);
+                Check("WandPedestal_TestMenuLabelTracksFlag",
+                    label == (WandPedestal.DevMenuEnabled ? "WAND PEDESTAL: ON" : "WAND PEDESTAL: OFF"), "label='" + label + "'");
+                testMenu.ToggleWandPedestal();
+                Check("WandPedestal_TestMenuToggleFlipsBack", WandPedestal.DevMenuEnabled == flagBefore);
+            }
+
+            if (pedestal == null) Skip("WandPedestal_HiddenWhenDevMenuOff", "no pedestal in this scene");
+            else
+            {
+                WandPedestal.DevMenuEnabled = false;
+                yield return null;   // the pedestal applies the flag on its next Update
+                Check("WandPedestal_HiddenWhenDevMenuOff", pedestal.IsHidden, "hidden=" + pedestal.IsHidden);
+                bool anyDrawn = false;
+                foreach (var r in pedestal.GetComponentsInChildren<Renderer>(true)) if (r.enabled) anyDrawn = true;
+                Check("WandPedestal_NoRenderersWhenDevMenuOff", !anyDrawn);
+                Check("WandPedestal_TriggerOffWhenDevMenuOff", !pedestal.GetComponent<Collider>().enabled);
+
+                string offPrompt = "";
+                Action<string> onOffPrompt = p => offPrompt = p;
+                GameEvents.PromptChanged += onOffPrompt;
+                Vector3 standOff = pedestal.transform.position - Vector3.forward * 2f + Vector3.up * 1.2f;
+                motor.Teleport(standOff, 0f);
+                FacePoint(pedestal.transform.position + Vector3.up * 1.5f);
+                yield return null;
+                yield return null;
+                Check("WandPedestal_NoRangeWhenDevMenuOff", !pedestal.PlayerInRange, "inRange=" + pedestal.PlayerInRange);
+                Check("WandPedestal_NoPromptWhenDevMenuOff", offPrompt.Length == 0 && !WandPedestal.PromptActive, "prompt='" + offPrompt + "'");
+                Check("WandPedestal_InteractRefusedWhenDevMenuOff", !pedestal.TryInteract() && !menu.IsOpen);
+                pedestal.Open(wandCtl);
+                yield return null;
+                Check("WandPedestal_OpenRefusedWhenDevMenuOff", !menu.IsOpen);
+                GameEvents.PromptChanged -= onOffPrompt;
+            }
+
+            // Everything below exercises the altar as it behaves ONCE ENABLED.
+            WandPedestal.DevMenuEnabled = true;
+            yield return null;
+            if (pedestal != null)
+            {
+                Check("WandPedestal_ShownWhenDevMenuOn", !pedestal.IsHidden && pedestal.GetComponent<Collider>().enabled);
+                // Teleport again: the trigger came back this frame and OnTriggerEnter needs a fresh overlap.
+                motor.Teleport(pedestal.transform.position - Vector3.forward * 6f + Vector3.up * 1.2f, 0f);
+                yield return null;
+            }
 
             // ---- walking into range must not open anything, but must offer the prompt ----------
             if (pedestal == null) Skip("WandPedestal_ProximityDoesNotOpen", "no pedestal in this scene");
@@ -2103,6 +2540,7 @@ namespace VibeGame1
             if (wandCtl == null || wandCtl.loadout == null || wandCtl.loadout.Length < 2)
             {
                 Skip("WandPedestal_EquipsSelectedWand", "player has fewer than 2 wands in the loadout");
+                WandPedestal.DevMenuEnabled = devMenuWas;
                 yield break;
             }
 
@@ -2163,6 +2601,10 @@ namespace VibeGame1
                     cycled && wandsForCycle.Index != idxBefore,
                     "index " + idxBefore + " -> " + wandsForCycle.Index + " of " + wandCount);
             }
+
+            // Leave the altar the way we found it (off, unless the user had switched it on).
+            WandPedestal.DevMenuEnabled = devMenuWas;
+            yield return null;
         }
 
         // ================================================================ 6c. WAND READABILITY
@@ -2804,10 +3246,10 @@ namespace VibeGame1
             yield return null;
 
             // ---- capacity + FIFO --------------------------------------------------------------
-            var a = MakeItem(ItemEffect.SoulLantern, 0f, 0f, 0f, 0f);
-            var b = MakeItem(ItemEffect.SoulLantern, 0f, 0f, 0f, 0f);
-            var c = MakeItem(ItemEffect.SoulLantern, 0f, 0f, 0f, 0f);
-            var d = MakeItem(ItemEffect.SoulLantern, 0f, 0f, 0f, 0f);
+            var a = MakeItem(ItemEffect.WallSurge);
+            var b = MakeItem(ItemEffect.WallSurge);
+            var c = MakeItem(ItemEffect.WallSurge);
+            var d = MakeItem(ItemEffect.WallSurge);
             a.displayName = "A"; b.displayName = "B"; c.displayName = "C"; d.displayName = "D";
 
             Check("Items_Pickup1", items.TryPickup(a));
@@ -2821,6 +3263,7 @@ namespace VibeGame1
             yield return null;
             Check("Items_UseConsumesFront", items.Current == b, "current=" + (items.Current != null ? items.Current.displayName : "null"));
             Check("Items_UseReducesCount", items.Held.Count == 2, "held=" + items.Held.Count);
+            motor.wallSurgeUntil = -99f;   // the spent WallSurge started a real surge; end it here
             ClearItems();
             yield return null;
 
@@ -2933,7 +3376,7 @@ namespace VibeGame1
                     // Count deltas, not absolutes: a real pickup sits AT the spawn point and the harness
                     // teleports here between tests, so the player can legitimately be carrying one already.
                     int heldBefore = items.Held.Count;
-                    var probe = MakeItem(ItemEffect.SoulLantern, 0f, 0f, 0f, 0f);
+                    var probe = MakeItem(ItemEffect.WallSurge);
                     items.TryPickup(probe);
                     yield return null;
                     Check("Items_PickupDoesNotChangeWand", wandCtrl.Current == wandBefore && wandCtrl.Index == indexBefore,
@@ -2942,7 +3385,7 @@ namespace VibeGame1
                     Check("Items_HeldAfterPickup", items.Held.Count == heldBefore + 1, $"held {heldBefore} -> {items.Held.Count}");
 
                     // Usable directly, with no swap step.
-                    health.SetCurrent(10f);
+                    motor.wallSurgeUntil = -99f;
                     // UseCurrent() refuses while posture-broken. A previous section can leave the player
                     // staggered, which would look like "items don't work" when the gate is what fired.
                     if (posture != null) posture.ResetFull();
@@ -2954,7 +3397,8 @@ namespace VibeGame1
                     yield return null;
                     Check("Items_UsableDirectly", items.Held.Count == beforeUse - 1,
                         $"held {beforeUse} -> {items.Held.Count} (E must spend one with no swap step)");
-                    Check("Items_EffectApplied", health.Current > 10f, "hp=" + health.Current.ToString("0"));
+                    Check("Items_EffectApplied", motor.IsWallSurging, "surging=" + motor.IsWallSurging);
+                    motor.wallSurgeUntil = -99f;
                     Check("Wands_StillEquippedAfterItemUse", wandCtrl.Current == wandBefore,
                         "wand=" + (wandCtrl.Current != null ? wandCtrl.Current.displayName : "null"));
 
@@ -2971,39 +3415,142 @@ namespace VibeGame1
             yield return SettleTimeScale();
             ClearItems();
 
-            // ---- Updraft ----------------------------------------------------------------------
-            var lift = MakeItem(ItemEffect.Updraft, 0f, 0f, 20f, 0f);
-            items.TryPickup(lift);
+            // ---- Grapple: hook, pull, deathblow ---------------------------------------------------
+            // Driven through UseCurrent, the very entry the E key uses, so a refusal that keeps the
+            // item and a spend that fires are both the real code path.
+            yield return ResetPlayerState();
+            EnemyController prey = null;
+            yield return SpawnDummy(combat.transform.position + combat.transform.forward * 15f, e => prey = e);
+            if (prey == null) Skip("Items_Grapple", "no enemy prefab to hook");
+            else
+            {
+                if (lockOn != null) lockOn.Release();   // exercise the crosshair search, not the lock
+                FacePoint(prey.transform.position);
+                yield return null;
+                var hook = MakeItem(ItemEffect.Grapple);
+                items.TryPickup(hook);
+                var found = items.FindGrappleTarget(hook);
+                Check("Items_GrappleFindsTarget", found == prey,
+                    "found=" + (found != null ? found.name : "null") + " dist=" +
+                    Vector3.Distance(combat.transform.position, prey.transform.position).ToString("0.0"));
+
+                int heldBefore = items.Held.Count;
+                items.UseCurrent();
+                yield return null;
+                Check("Items_GrappleConsumed", items.Held.Count == heldBefore - 1, $"held {heldBefore} -> {items.Held.Count}");
+                Check("Items_GrapplePulls", motor.IsPulling || exec.IsExecuting, "pulling=" + motor.IsPulling);
+                yield return WaitUntilOrTimeout(() => !motor.IsPulling, 2f);
+                Check("Items_GrapplePullEnds", !waitTimedOut, "pulling=" + motor.IsPulling);
+
+                float standoff = exec.stabStandoff * (prey != null && prey.data != null ? Mathf.Max(0.6f, prey.data.scale) : 1f);
+                if (prey != null)
+                {
+                    Vector3 flat = prey.transform.position - combat.transform.position; flat.y = 0f;
+                    Check("Items_GrappleArrivesAtStandoff", flat.magnitude <= standoff + 1f,
+                        $"dist={flat.magnitude:0.00} standoff={standoff:0.00}");
+                }
+                // The arrival runs ExecuteInteractor's own coroutine (wand riposte or melee execute);
+                // the victim is dead once it finishes. A Unity-null prey means the corpse was cleaned up.
+                yield return WaitUntilOrTimeout(() => !exec.IsExecuting && (prey == null || !prey.IsAlive || prey.Health.IsDead), 4f);
+                Check("Items_GrappleExecutes", prey == null || !prey.IsAlive || prey.Health.IsDead,
+                    "alive=" + (prey != null && prey.IsAlive) + " executing=" + exec.IsExecuting);
+                yield return SettleTimeScale();
+                if (prey != null) Destroy(prey.gameObject);
+                yield return null;
+            }
+
+            // ---- Grapple onto a big enemy that is not open: posture, not a kill --------------------
+            yield return ResetPlayerState();
+            EnemyController big = null;
+            yield return SpawnDummy(combat.transform.position + combat.transform.forward * 12f, e => big = e);
+            if (big == null) Skip("Items_GrappleBig", "no enemy prefab to hook");
+            else
+            {
+                // PlayerItems.IsBig keys off the Legendary_ prefix (as LockOnMarker does), so a renamed
+                // grunt walks the mini-boss path without needing a Legendary prefab in the scene.
+                big.name = "Legendary_~TestDummy";
+                if (lockOn != null) lockOn.Release();
+                FacePoint(big.transform.position);
+                yield return null;
+                float postureBefore = big.Posture.Current;
+                var hookBig = MakeItem(ItemEffect.Grapple);
+                items.TryPickup(hookBig);
+                items.UseCurrent();
+                yield return null;
+                yield return WaitUntilOrTimeout(() => !motor.IsPulling, 2f);
+                yield return null;
+                Check("Items_GrappleBigSurvives", big != null && big.IsAlive && !exec.IsExecuting,
+                    "alive=" + (big != null && big.IsAlive) + " executing=" + exec.IsExecuting);
+                if (big != null)
+                {
+                    CheckApprox("Items_GrappleBigTakesPosture", big.Posture.Current - postureBefore,
+                        big.Posture.Max * hookBig.grappleBigPostureFraction, big.Posture.Max * 0.05f);
+                    Check("Items_GrappleBigNotStaggered", !big.IsStaggered, "state=" + big.Current);
+                    float standoff = exec.stabStandoff * (big.data != null ? Mathf.Max(0.6f, big.data.scale) : 1f);
+                    Vector3 flat = big.transform.position - combat.transform.position; flat.y = 0f;
+                    Check("Items_GrappleBigLandsAtStandoff", flat.magnitude <= standoff + 1f,
+                        $"dist={flat.magnitude:0.00} standoff={standoff:0.00}");
+                    Destroy(big.gameObject);
+                }
+                yield return null;
+            }
+
+            // ---- Grapple with nothing to hook: refused and KEPT ------------------------------------
+            yield return ResetPlayerState();
+            if (lockOn != null) lockOn.Release();
+            var noHook = MakeItem(ItemEffect.Grapple);
+            // A 1 m reach: nothing can be inside it, so this exercises the refusal, not the search.
+            noHook.grappleRange = 1f;
+            items.TryPickup(noHook);
+            Check("Items_GrappleNoTargetFound", items.FindGrappleTarget(noHook) == null);
             items.UseCurrent();
             yield return null;
-            Check("Items_UpdraftLaunches", motor.Velocity.y > 10f, "velY=" + motor.Velocity.y.ToString("0.0"));
-            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 5f);
+            Check("Items_GrappleNoTargetNotConsumed", items.Held.Count == 1 && items.Current == noHook, "held=" + items.Held.Count);
+            Check("Items_GrappleNoTargetNoPull", !motor.IsPulling);
             ClearItems();
 
-            // ---- Soul Lantern -----------------------------------------------------------------
-            health.SetCurrent(health.Max * 0.3f);
-            posture.Add(posture.Max * 0.5f);
-            res.UseFlask();
-            int flaskBefore = res.FlaskCharges;
-            var lantern = MakeItem(ItemEffect.SoulLantern, 0f, 0f, 0f, 0f);
-            items.TryPickup(lantern);
+            // ---- Wall Surge -----------------------------------------------------------------------
+            yield return ResetPlayerState();
+            var st = motor.GetComponent<PlayerStamina>();
+            float topBefore = motor.WallRunSettings.topSpeed;
+            float accelBefore = motor.WallRunSettings.accel;
+            float minEntryBefore = motor.WallRunSettings.minEntrySpeed;
+            var surge = MakeItem(ItemEffect.WallSurge);
+            items.TryPickup(surge);
             items.UseCurrent();
             yield return null;
-            CheckApprox("Items_LanternFullHeals", health.Current, health.Max, 0.01f);
-            CheckApprox("Items_LanternClearsPosture", posture.Current, 0f, 0.01f);
-            Check("Items_LanternRefillsFlask", res.FlaskCharges >= flaskBefore, $"{flaskBefore} -> {res.FlaskCharges}");
-            ClearItems();
-
-            // ---- Phantom Step -----------------------------------------------------------------
-            var phantom = MakeItem(ItemEffect.PhantomStep, 0f, 0f, 1.35f, 0.6f);
-            items.TryPickup(phantom);
+            Check("Items_SurgeConsumed", items.Held.Count == 0, "held=" + items.Held.Count);
+            Check("Items_SurgeActive", motor.IsWallSurging);
+            Check("Items_SurgeLastsEightSeconds", motor.WallSurgeRemaining > 7.5f && motor.WallSurgeRemaining <= surge.surgeSeconds + 0.01f,
+                "remaining=" + motor.WallSurgeRemaining.ToString("0.00"));
+            CheckApprox("Items_SurgeScalesTopSpeed", motor.WallRunSettings.topSpeed, topBefore * FirstPersonMotor.WallSurgeSpeedScale, 0.01f);
+            CheckApprox("Items_SurgeScalesAccel", motor.WallRunSettings.accel, accelBefore * FirstPersonMotor.WallSurgeSpeedScale, 0.01f);
+            CheckApprox("Items_SurgeZeroesMinEntry", motor.WallRunSettings.minEntrySpeed, 0f, 0.001f);
+            // State, not a tuning mutation: the Inspector field itself must not have moved.
+            Check("Items_SurgeLeavesInspectorFields", motor.wallRunMinEntrySpeed > 0f
+                                                      && Mathf.Approximately(motor.wallRunTopSpeed * motor.SpeedMultiplier, topBefore),
+                "field minEntry=" + motor.wallRunMinEntrySpeed.ToString("0.0") + " top=" + motor.wallRunTopSpeed.ToString("0.00"));
+            if (st != null)
+            {
+                // An empty bar is no obstacle while surging: the gate that reads stamina says yes.
+                st.Drain(st.max * 10f, 1f);
+                Check("Items_SurgeIgnoresStamina", motor.CanWallRunNow, "stamina=" + st.Current.ToString("0") + " canWallRun=" + motor.CanWallRunNow);
+                st.ResetFull();
+            }
+            // Expiry: end the long one by hand, then watch a short one run out on the motor clock.
+            motor.wallSurgeUntil = -99f;
+            yield return null;
+            Check("Items_SurgeEndsClean", !motor.IsWallSurging && Mathf.Approximately(motor.WallRunSettings.topSpeed, topBefore)
+                                          && Mathf.Approximately(motor.WallRunSettings.minEntrySpeed, minEntryBefore),
+                "top=" + motor.WallRunSettings.topSpeed.ToString("0.00") + " minEntry=" + motor.WallRunSettings.minEntrySpeed.ToString("0.0"));
+            var surgeShort = MakeItem(ItemEffect.WallSurge);
+            surgeShort.surgeSeconds = 0.5f;
+            items.TryPickup(surgeShort);
             items.UseCurrent();
             yield return null;
-            Check("Items_PhantomGrantsInvulnerability", health.Invulnerable);
-            Check("Items_PhantomBoostsSpeed", motor.SpeedMultiplier > 1f, "mult=" + motor.SpeedMultiplier.ToString("0.00"));
-            yield return WaitUntilOrTimeout(() => !health.Invulnerable, 4f);
-            Check("Items_PhantomExpires", !waitTimedOut, "invulnerable=" + health.Invulnerable);
-            CheckApprox("Items_PhantomRestoresSpeed", motor.SpeedMultiplier, 1f, 0.001f);
+            Check("Items_SurgeShortActive", motor.IsWallSurging);
+            yield return WaitUntilOrTimeout(() => !motor.IsWallSurging, 3f);
+            Check("Items_SurgeExpires", !waitTimedOut, "remaining=" + motor.WallSurgeRemaining.ToString("0.00"));
             ClearItems();
         }
 
@@ -3265,7 +3812,13 @@ namespace VibeGame1
 
             if (checkpoints.Length > 0)
             {
+                // Not blindly checkpoints[0]: SetCheckpoint is a no-op on the checkpoint that is already
+                // current, and FindObjectsByType has no order. When the first one found was the one the
+                // player had already touched (or an earlier test had set), the heal and refill never
+                // ran and both checks went red for a reason that had nothing to do with checkpoints.
                 var cp = checkpoints[0];
+                foreach (var candidate in checkpoints)
+                    if (candidate != LevelManager.I.Current) { cp = candidate; break; }
                 health.SetCurrent(health.Max * 0.3f);
                 while (res.FlaskCharges > 0) res.UseFlask();
 
@@ -3487,6 +4040,74 @@ namespace VibeGame1
             Check("HUD_DeathblowBannerWired", hud.deathblowText != null);
             Check("HUD_TextWidgetsWired",
                 hud.healthText != null && hud.flaskText != null && hud.soulsText != null && hud.timerText != null);
+
+            // ---- top-left status strip: held items + active effects ------------------------------
+            // One row per carried item (front one marked), one per running effect with a countdown,
+            // and NOTHING while idle. The strip reads the live motor for the countdown, so a surge
+            // ended by hand on the motor clock must clear the row on the next frame.
+            var strip = hud.statusStrip;
+            Check("HUD_StatusStripWired", strip != null && strip.text != null,
+                "HudBuilder must build StatusStrip and assign HUDController.statusStrip");
+            if (strip != null)
+            {
+                ClearItems();
+                motor.wallSurgeUntil = -99f;
+                motor.SpeedMultiplier = 1f;
+                bool godWas = health.Invulnerable;
+                health.Invulnerable = false;
+                yield return null;
+                yield return null;
+                Check("HUD_StatusStripEmptyWhenIdle", strip.IsEmpty, "rows=" + strip.RowCount + " text='" + strip.Text + "'");
+
+                var hook = MakeItem(ItemEffect.Grapple);
+                hook.displayName = "Test Hook";
+                var surge = MakeItem(ItemEffect.WallSurge);
+                surge.displayName = "Test Surge";
+                items.TryPickup(hook);
+                items.TryPickup(surge);
+                yield return null;
+                Check("HUD_StatusStripShowsHeldItem", strip.Text.Contains("TEST HOOK"), "text='" + strip.Text + "'");
+                Check("HUD_StatusStripOneRowPerItem", strip.RowCount == 2, "rows=" + strip.RowCount);
+                Check("HUD_StatusStripMarksCurrentFirst",
+                    strip.Text.IndexOf("> TEST HOOK", StringComparison.Ordinal) >= 0
+                    && strip.Text.IndexOf("TEST HOOK", StringComparison.Ordinal) < strip.Text.IndexOf("TEST SURGE", StringComparison.Ordinal),
+                    "text='" + strip.Text + "'");
+
+                // Spend the surge (the hook is in front, so pull it out of the way first).
+                ClearItems();
+                items.TryPickup(surge);
+                if (posture != null) posture.ResetFull();
+                items.UseCurrent();
+                yield return null;
+                yield return null;
+                Check("HUD_StatusStripShowsSurgeCountdown",
+                    motor.IsWallSurging && strip.Text.Contains("WALL SURGE") && strip.Text.Contains("s"),
+                    "surging=" + motor.IsWallSurging + " remaining=" + motor.WallSurgeRemaining.ToString("0.0") + " text='" + strip.Text + "'");
+                Check("HUD_StatusStripSurgeRowNotAnItemRow", !strip.Text.Contains("TEST SURGE"), "text='" + strip.Text + "'");
+
+                motor.wallSurgeUntil = -99f;
+                yield return null;
+                yield return null;
+                Check("HUD_StatusStripClearsWhenSurgeEnds", !strip.Text.Contains("WALL SURGE") && strip.IsEmpty,
+                    "rows=" + strip.RowCount + " text='" + strip.Text + "'");
+
+                health.Invulnerable = true;
+                yield return null;
+                yield return null;
+                Check("HUD_StatusStripShowsGodMode", strip.Text.Contains("GOD MODE"), "text='" + strip.Text + "'");
+                health.Invulnerable = false;
+                motor.SpeedMultiplier = 1.5f;
+                yield return null;
+                yield return null;
+                Check("HUD_StatusStripShowsSpeedMultiplier", strip.Text.Contains("SPEED x1.5") && !strip.Text.Contains("GOD MODE"),
+                    "text='" + strip.Text + "'");
+                motor.SpeedMultiplier = 1f;
+                health.Invulnerable = godWas;
+                yield return null;
+                yield return null;
+                Check("HUD_StatusStripEmptyAfterEffects", godWas || strip.IsEmpty, "rows=" + strip.RowCount + " text='" + strip.Text + "'");
+                ClearItems();
+            }
         }
 
         // ================================================================ MAIN MENU

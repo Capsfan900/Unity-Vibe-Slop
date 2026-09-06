@@ -25,6 +25,7 @@ namespace VibeGame1.Tests
     /// has run either wall. The analyser models fixed inputs — one aim, one speed, one leave time — and
     /// cannot say how forgiving or how fun a run is.</para>
     /// </summary>
+    [Category("LevelLines")]  // slow: simulates the motor along the level lines; excluded by VibeGame1/Run Quick EditMode Tests
     public class LevelSpan1Tests
     {
         static LevelDefinition def;
@@ -66,9 +67,12 @@ namespace VibeGame1.Tests
             var w = Box(wall);
             Assert.GreaterOrEqual(w.max.z - w.min.z, R.MinWallLength,
                 wall + " is " + (w.max.z - w.min.z).ToString("0.0") + " m; size walls to the run, not to the gap");
-            var held = A.MeasureWallRun(profile, profile.groundSpeed, true);
-            Assert.GreaterOrEqual(w.max.z - w.min.z, held.distance * 0.75f,
-                "a held sprint run (" + held.distance.ToString("0.0") + " m) overruns most of " + wall);
+            // The contract is the RELEASED run (stick off: 14.4 m at 1.75 s). Holding forward now tops up
+            // toward wallRunTopSpeed 13.75 and covers ~24 m — that is the payoff for committing, and a
+            // wall does not have to be sized to the payoff, only to the loan.
+            var released = A.MeasureWallRun(profile, profile.groundSpeed, false);
+            Assert.GreaterOrEqual(w.max.z - w.min.z, released.distance * 0.9f,
+                "a released sprint run (" + released.distance.ToString("0.0") + " m) overruns most of " + wall);
         }
 
         /// <summary>The face has to exist at running height: the wall must top out well above the
@@ -235,13 +239,28 @@ namespace VibeGame1.Tests
             yield return new TestCaseData("T1_Fast_1", "T1_Stone_4", 8).SetName("Hop_T1_Fast_1_to_T1_Stone_4");
         }
 
+        /// <summary>The level with every wall-run wall and landing removed: the hop as it was before the walls.</summary>
+        static List<A.Box> WithoutWalls(List<A.Box> all)
+        {
+            var list = new List<A.Box>();
+            foreach (var b in all) if (b.name.IndexOf("_Wall", System.StringComparison.Ordinal) < 0) list.Add(b);
+            return list;
+        }
+
         [Test, TestCaseSource(nameof(NeighbouringHops))]
         public void TheWallsDoNotNarrowTheBaseHopsBesideThem(string from, string to, int minLaunchPoints)
         {
             var v = A.AnalyzeHop(boxes, from, to, profile, profile.groundSpeed, floorY);
+            var bare = A.AnalyzeHop(WithoutWalls(boxes), from, to, profile, profile.groundSpeed, floorY);
             TestContext.Out.WriteLine(v.Summary());
             Assert.IsTrue(v.exists, v.Summary());
-            Assert.GreaterOrEqual(v.cleanLaunchPoints, minLaunchPoints, v.Summary());
+            // The floor is the same hop WITHOUT its walls under the shipped physics: the walls may not cost
+            // a single launch point. The literal is what the hop was worth under the 2026-09-03 morning
+            // physics and is kept as a ceiling on the demand, because the evening's heavier fall
+            // (fallGravityMultiplier 1.5, AirFeelTests) shrinks every hop in the level, walls or not.
+            Assert.GreaterOrEqual(v.cleanLaunchPoints, Mathf.Min(minLaunchPoints, bare.cleanLaunchPoints),
+                "the walls narrowed the hop: with " + v.cleanLaunchPoints + ", without " + bare.cleanLaunchPoints + " -- " + v.Summary());
+            Assert.GreaterOrEqual(v.cleanLaunchPoints, 3, "under three launch points the hop is a trick, not a hop: " + v.Summary());
             // chiefObstruction is deliberately NOT asserted: it names whatever the over-thrown arcs hit
             // most often, and a wall standing a metre past a stone is always that thing. The launch-point
             // floor above is the assertion that says whether the hop is still a hop.

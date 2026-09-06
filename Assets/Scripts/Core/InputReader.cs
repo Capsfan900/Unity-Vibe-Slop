@@ -13,8 +13,13 @@ namespace VibeGame1
 
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
-                    debugWarpBoss, debugRestore, debugSouls, debugGodMode;
+                    debugWarpBoss, debugRestore, debugSouls, debugGodMode, debugWallRunDiag;
         InputAction useItem, testMenu, wandCycle, interact, lockOn, slide;
+        // The in-game level editor (LevelEditor). Optional: a map without them must not crash startup.
+        InputAction levelEditor, editorPlace, editorDelete, editorGrab, editorRotate, editorGrow, editorShrink,
+                    editorPrev, editorNext, editorVariant, editorCursor, editorFree, editorFast, editorDown,
+                    editorWheelUp, editorWheelDown, editorUndo, editorRedo, editorDuplicate, editorCancel, editorPlaceHere, editorPick;
+        int pauseSuppressedFrame = -1;
 
         void Awake()
         {
@@ -55,6 +60,29 @@ namespace VibeGame1
             debugRestore = map.FindAction("DebugRestore", false);
             debugSouls = map.FindAction("DebugSouls", false);
             debugGodMode = map.FindAction("DebugGodMode", false);
+            debugWallRunDiag = map.FindAction("DebugWallRunDiag", false);
+            levelEditor = map.FindAction("LevelEditor", false);
+            editorPlace = map.FindAction("EditorPlace", false);
+            editorDelete = map.FindAction("EditorDelete", false);
+            editorGrab = map.FindAction("EditorGrab", false);
+            editorRotate = map.FindAction("EditorRotate", false);
+            editorGrow = map.FindAction("EditorGrow", false);
+            editorShrink = map.FindAction("EditorShrink", false);
+            editorPrev = map.FindAction("EditorPrev", false);
+            editorNext = map.FindAction("EditorNext", false);
+            editorVariant = map.FindAction("EditorVariant", false);
+            editorCursor = map.FindAction("EditorCursor", false);
+            editorFree = map.FindAction("EditorFree", false);
+            editorFast = map.FindAction("EditorFast", false);
+            editorDown = map.FindAction("EditorDown", false);
+            editorWheelUp = map.FindAction("EditorWheelUp", false);
+            editorWheelDown = map.FindAction("EditorWheelDown", false);
+            editorUndo = map.FindAction("EditorUndo", false);
+            editorRedo = map.FindAction("EditorRedo", false);
+            editorDuplicate = map.FindAction("EditorDuplicate", false);
+            editorCancel = map.FindAction("EditorCancel", false);
+            editorPlaceHere = map.FindAction("EditorPlaceHere", false);
+            editorPick = map.FindAction("EditorPick", false);
             map.Enable();
             asset.FindActionMap("UI")?.Enable();
         }
@@ -66,6 +94,8 @@ namespace VibeGame1
         /// PlayerLook can re-lock the cursor inside a user gesture (WebGL) without touching the Input
         /// System itself — this class is the only one that does (hard rule 2).</summary>
         public bool MouseClickedThisFrame => Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+        /// <summary>Screen-space pointer position, for a free cursor's aim (the level editor).</summary>
+        public Vector2 PointerPosition => Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
 
         public bool JumpPressed => jump != null && jump.WasPressedThisFrame();
         public bool JumpHeld => jump != null && jump.IsPressed();
@@ -85,7 +115,10 @@ namespace VibeGame1
         public bool PrevPressed => previous != null && previous.WasPressedThisFrame();
         public bool NextPressed => next != null && next.WasPressedThisFrame();
         public bool LevelUpPressed => levelUp != null && levelUp.WasPressedThisFrame();
-        public bool PausePressed => pause != null && pause.WasPressedThisFrame();
+        public bool PausePressed => pause != null && pause.WasPressedThisFrame() && pauseSuppressedFrame != Time.frameCount;
+        /// <summary>The level editor spent Escape on a cancel this frame (a grab, a press): the pause menu must not
+        /// also open on it. The editor runs before the menu (DefaultExecutionOrder), so the flag is seen in time.</summary>
+        public void SuppressPauseThisFrame() { pauseSuppressedFrame = Time.frameCount; }
         public bool UseItemPressed => useItem != null && useItem.WasPressedThisFrame();
         public bool TestMenuPressed => testMenu != null && testMenu.WasPressedThisFrame();
         public bool WandCyclePressed => wandCycle != null && wandCycle.WasPressedThisFrame();
@@ -111,11 +144,63 @@ namespace VibeGame1
         /// <summary>F (or gamepad north): deliberate world interaction, e.g. the wand pedestal.</summary>
         public bool InteractPressed => interact != null && interact.WasPressedThisFrame();
 
-        // Debug keys (F5-F8). Consumed by DebugKeys in editor / development builds only.
+        // Debug keys (F5-F9). Consumed by DebugKeys in editor / development builds only.
         public bool DebugWarpBossPressed => debugWarpBoss != null && debugWarpBoss.WasPressedThisFrame();
         public bool DebugRestorePressed => debugRestore != null && debugRestore.WasPressedThisFrame();
         public bool DebugSoulsPressed => debugSouls != null && debugSouls.WasPressedThisFrame();
         public bool DebugGodModePressed => debugGodMode != null && debugGodMode.WasPressedThisFrame();
+        public bool DebugWallRunDiagPressed => debugWallRunDiag != null && debugWallRunDiag.WasPressedThisFrame();
+
+        // ---- the in-game level editor (F10 toggles; the rest only mean anything while it is open) ----
+        public bool LevelEditorPressed => levelEditor != null && levelEditor.WasPressedThisFrame();
+        public bool EditorPlacePressed => editorPlace != null && editorPlace.WasPressedThisFrame();
+        /// <summary>Left button held: past a short hold on a placed piece this is a GRAB, released = drop.</summary>
+        public bool EditorPlaceHeld => editorPlace != null && editorPlace.IsPressed();
+        /// <summary>Mouse wheel notches. Plain = size, Shift (EditorFast) = piece kind, Ctrl (EditorDown) = variant.</summary>
+        public bool EditorWheelUpPressed => editorWheelUp != null && editorWheelUp.WasPressedThisFrame();
+        public bool EditorWheelDownPressed => editorWheelDown != null && editorWheelDown.WasPressedThisFrame();
+        public bool EditorDeletePressed => editorDelete != null && editorDelete.WasPressedThisFrame();
+        public bool EditorGrabHeld => editorGrab != null && editorGrab.IsPressed();
+        public bool EditorRotatePressed => editorRotate != null && editorRotate.WasPressedThisFrame();
+        public bool EditorGrowPressed => editorGrow != null && editorGrow.WasPressedThisFrame();
+        public bool EditorShrinkPressed => editorShrink != null && editorShrink.WasPressedThisFrame();
+        public bool EditorPrevPressed => editorPrev != null && editorPrev.WasPressedThisFrame();
+        public bool EditorNextPressed => editorNext != null && editorNext.WasPressedThisFrame();
+        public bool EditorVariantPressed => editorVariant != null && editorVariant.WasPressedThisFrame();
+        public bool EditorCursorPressed => editorCursor != null && editorCursor.WasPressedThisFrame();
+        public bool EditorFreeHeld => editorFree != null && editorFree.IsPressed();
+        public bool EditorFastHeld => editorFast != null && editorFast.IsPressed();
+        public bool EditorDownHeld => editorDown != null && editorDown.IsPressed();
+        public bool EditorUndoPressed => editorUndo != null && editorUndo.WasPressedThisFrame();
+        public bool EditorRedoPressed => editorRedo != null && editorRedo.WasPressedThisFrame();
+        public bool EditorDuplicatePressed => editorDuplicate != null && editorDuplicate.WasPressedThisFrame();
+        public bool EditorCancelPressed => editorCancel != null && editorCancel.WasPressedThisFrame();
+        public bool EditorPlaceHerePressed => editorPlaceHere != null && editorPlaceHere.WasPressedThisFrame();
+        /// <summary>`I` (eyedropper): the aimed piece's kind, variant and size become the pending selection.</summary>
+        public bool EditorPickPressed => editorPick != null && editorPick.WasPressedThisFrame();
+        /// <summary>The arrow keys as a nudge, pressed THIS frame (each axis −1 / 0 / +1). Read off the keyboard
+        /// directly because the arrows are also part of the Move composite; the editor subtracts
+        /// <see cref="ArrowAxis"/> from its fly so a nudge never also flies.</summary>
+        public Vector2 EditorNudgePressed
+        {
+            get
+            {
+                var k = Keyboard.current; if (k == null) return Vector2.zero;
+                float x = (k.rightArrowKey.wasPressedThisFrame ? 1f : 0f) - (k.leftArrowKey.wasPressedThisFrame ? 1f : 0f);
+                float y = (k.upArrowKey.wasPressedThisFrame ? 1f : 0f) - (k.downArrowKey.wasPressedThisFrame ? 1f : 0f);
+                return new Vector2(x, y);
+            }
+        }
+        /// <summary>The arrow keys' current contribution to Move (held), so the editor can fly on WASD alone.</summary>
+        public Vector2 ArrowAxis
+        {
+            get
+            {
+                var k = Keyboard.current; if (k == null) return Vector2.zero;
+                return new Vector2((k.rightArrowKey.isPressed ? 1f : 0f) - (k.leftArrowKey.isPressed ? 1f : 0f),
+                                   (k.upArrowKey.isPressed ? 1f : 0f) - (k.downArrowKey.isPressed ? 1f : 0f));
+            }
+        }
 
         /// <summary>0..3 for slot keys pressed this frame, -1 otherwise.</summary>
         public int WeaponSlotPressed

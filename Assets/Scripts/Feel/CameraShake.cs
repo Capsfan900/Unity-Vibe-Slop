@@ -15,7 +15,10 @@ namespace VibeGame1
     ///   a deflect uses, and it is the difference between an event and a blow.</item>
     /// </list>
     ///
-    /// <para>The two sum. ShakeRoot sits between the look pivot and the camera, so everything written
+    /// <para>Plus two HELD channels, for sustained moves an impulse cannot describe: a roll
+    /// (<see cref="SetRoll"/>) and a rumble (<see cref="SetRumble"/>), each with one writer at a time.</para>
+    ///
+    /// <para>They all sum. ShakeRoot sits between the look pivot and the camera, so everything written
     /// here is a local delta that returns to zero and can never accumulate into the player's aim.</para>
     /// </summary>
     public class CameraShake : MonoBehaviour
@@ -80,6 +83,29 @@ namespace VibeGame1
         /// <summary>The held roll actually being rendered this frame, in degrees. For tests.</summary>
         public float Roll { get { return roll; } }
 
+        // ---- sustained rumble ----------------------------------------------------------------------
+        float rumbleTarget, rumble, rumbleVel;
+        /// <summary>Hz of the rumble noise. Faster than a hit's 25 Hz shake: a floor going past under
+        /// you is a rattle, not a blow.</summary>
+        const float RumbleFreq = 28f;
+
+        /// <summary>
+        /// A FOURTH channel, held like the roll: a small Perlin rattle on the lens for as long as its
+        /// owner says so. Added for the slide's middle — the roll says which way you are steering and
+        /// the FOV says how fast, but nothing on the camera said "you are dragging a body along a
+        /// floor" — and it is the difference between gliding and sliding.
+        ///
+        /// <para>Amplitude in METRES of lens offset (plus a small roll component, as the impulse
+        /// shakes have). One writer at a time (<see cref="SlideFx"/>, every frame, 0 when not
+        /// sliding). Eased in and out here and snapped to exactly zero when released and small, for the
+        /// same reason the roll is: ShakeRoot sits between the look pivot and the lens, and a residue is
+        /// a permanently jittering view.</para>
+        /// </summary>
+        public void SetRumble(float metres) { rumbleTarget = Mathf.Max(0f, metres); }
+
+        /// <summary>The rumble amplitude actually being rendered this frame, metres. For tests.</summary>
+        public float Rumble { get { return rumble; } }
+
         public void Small() { var f = GameManager.I ? GameManager.I.feel : null; Add(f ? f.shakeSmallAmp : 0.06f, f ? f.shakeSmallTime : 0.12f); }
         public void Medium() { var f = GameManager.I ? GameManager.I.feel : null; Add(f ? f.shakeMedAmp : 0.14f, f ? f.shakeMedTime : 0.2f); }
         public void Big() { var f = GameManager.I ? GameManager.I.feel : null; Add(f ? f.shakeBigAmp : 0.3f, f ? f.shakeBigTime : 0.35f); }
@@ -118,6 +144,17 @@ namespace VibeGame1
             // seconds at a time, so it eases in and out instead of stepping.
             roll = Mathf.SmoothDamp(roll, rollTarget, ref rollVel, 0.11f, Mathf.Infinity, Time.unscaledDeltaTime);
             if (rollTarget == 0f && Mathf.Abs(roll) < 0.005f) { roll = 0f; rollVel = 0f; }
+
+            // Held rumble: a noise shake with no lifetime, whose amplitude its owner writes every frame.
+            rumble = Mathf.SmoothDamp(rumble, rumbleTarget, ref rumbleVel, 0.08f, Mathf.Infinity, Time.unscaledDeltaTime);
+            if (rumbleTarget == 0f && rumble < 0.0002f) { rumble = 0f; rumbleVel = 0f; }
+            if (rumble > 0f)
+            {
+                float k = now * RumbleFreq;
+                offset.x += (Mathf.PerlinNoise(31.7f, k) - 0.5f) * 2f * rumble;
+                offset.y += (Mathf.PerlinNoise(41.3f, k) - 0.5f) * 2f * rumble;
+                rot += (Mathf.PerlinNoise(51.9f, k) - 0.5f) * 2f * rumble * 8f;
+            }
 
             transform.localPosition = offset;
             transform.localRotation = Quaternion.Euler(kickEuler.x, kickEuler.y, kickEuler.z + rot + roll);

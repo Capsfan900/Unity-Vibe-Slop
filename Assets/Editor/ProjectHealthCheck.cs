@@ -105,6 +105,10 @@ namespace VibeGame1.EditorTools
                     Err($"{path} has no shader.");
                     continue;
                 }
+                // UGUI shaders (the fluid bars, the Pyre fire) draw on a Screen Space Overlay canvas,
+                // outside the render pipeline: URP has no say in them and they cannot render magenta
+                // for the pipeline's reason. They live under VibeGame1/UI/.
+                if (mat.shader.name.StartsWith("VibeGame1/UI/", StringComparison.Ordinal)) continue;
                 if (!mat.shader.name.StartsWith("Universal Render Pipeline/", StringComparison.Ordinal))
                     Err($"{path} uses '{mat.shader.name}' — non-URP shaders render magenta. Use Universal Render Pipeline/Lit.");
             }

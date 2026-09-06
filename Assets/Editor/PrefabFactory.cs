@@ -37,6 +37,7 @@ namespace VibeGame1.EditorTools
             GameObject bloodstain = BuildBloodstain();
             BuildCheckpoint();
             BuildItemPickup();
+            BuildBalloon();
             BuildPlayer();
             BuildManagers(bloodstain);
             BuildEnemy("Enemy_Grunt", "Assets/Data/Enemies/Grunt.asset", false);
@@ -392,58 +393,60 @@ namespace VibeGame1.EditorTools
             Material core = Mat("M_WeaponCore") != null ? Mat("M_WeaponCore") : Mat("M_Ground");
             Material energy = Mat("M_Energy") != null ? Mat("M_Energy") : Mat("M_Item");
 
-            // Updraft — stacked open rings with motes rising through them. Reads as lift.
+            // Grapple — a short shaft with a curved tine off the top, neon cyan. A HOOK at a glance:
+            // the one silhouette in the hand that is not symmetric about its axis.
             {
-                var root = new GameObject("VM_Item_Updraft");
+                var root = new GameObject("VM_Item_Grapple");
+                // Shaft: three stacked segments so the flow band climbs toward the tine (the charge
+                // runs OUT to the point that bites).
+                for (int i = 0; i < 3; i++)
+                    Prim(PrimitiveType.Cube, $"Seg{i}", root.transform, new Vector3(0f, 0.04f + i * 0.07f, 0f), new Vector3(0.024f, 0.066f, 0.024f), energy);
+                Prim(PrimitiveType.Cube, "Ferrule", root.transform, new Vector3(0f, 0.005f, 0f), new Vector3(0.04f, 0.018f, 0.04f), core);
+                // Tine: five short bars stepping around a quarter circle from the shaft top, forward
+                // and over, thinning toward the point. Rotated so each reads as a chord of the curve.
+                for (int i = 0; i < 5; i++)
+                {
+                    float a = (i + 0.5f) / 5f * 100f;                     // degrees around the bend
+                    float rad = 0.075f;
+                    float ar = a * Mathf.Deg2Rad;
+                    Vector3 p = new Vector3(0f, 0.245f + Mathf.Sin(ar) * rad, (1f - Mathf.Cos(ar)) * rad);
+                    float w = Mathf.Lerp(0.022f, 0.012f, i / 4f);
+                    var seg = Prim(PrimitiveType.Cube, $"Tine{i}", root.transform, p, new Vector3(w, 0.036f, w), core);
+                    seg.transform.localRotation = Quaternion.Euler(a, 0f, 0f);
+                }
+                // The point, named Tip so the tip light and the beam originate where the hook bites.
+                var tip = Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.245f + 0.075f * 0.985f + 0.02f, 0.075f * 1.17f), new Vector3(0.028f, 0.045f, 0.028f), energy);
+                tip.transform.localRotation = Quaternion.Euler(110f, 0f, 0f);
+                Prim(PrimitiveType.Cube, "FloatMote", root.transform, new Vector3(0.05f, 0.15f, -0.03f), new Vector3(0.018f, 0.018f, 0.018f), energy);
+                // Brisk upward flow: the charge climbing the shaft to the point is the "it wants to go" tell.
+                Energise(root, Color.white, 1.6f, 2.2f, 0.12f, 2.6f, 70f);
+                AssignItem("Grapple", Save(root, $"{ItemDir}/VM_Item_Grapple.prefab"));
+            }
+            // Wall Surge — a small blade-fan on a hub that spins, neon yellow. Speed, held in the hand.
+            {
+                var root = new GameObject("VM_Item_WallSurge");
+                Prim(PrimitiveType.Cube, "Stem", root.transform, new Vector3(0f, 0.06f, 0f), new Vector3(0.02f, 0.12f, 0.02f), core);
+                // Hub: the bright centre the blades spin about, named Tip so the tip light sits on it.
+                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.16f, 0f), new Vector3(0.045f, 0.045f, 0.045f), energy);
+                // Four swept blades around Y as Seg* parts so the flow band chases around the fan.
+                // Parented under a Float* node sitting ON the axis: EnergyGlow orbits Float* parts at
+                // their authored radius (zero here, so it stays put) and counter-rotates them about Y,
+                // which is exactly a spinning fan for free - see EnergyGlow.AnimateFloats.
+                var spinner = new GameObject("FloatFan");
+                spinner.transform.SetParent(root.transform, false);
+                spinner.transform.localPosition = new Vector3(0f, 0.16f, 0f);
                 for (int i = 0; i < 4; i++)
                 {
-                    // Rings widen as they climb, so the silhouette opens upward like a draught.
-                    float y = 0.02f + i * 0.075f;
-                    float w = 0.10f + i * 0.022f;
-                    Prim(PrimitiveType.Cube, $"Seg{i}", root.transform, new Vector3(0f, y, 0f), new Vector3(w, 0.014f, w), energy);
+                    var blade = Prim(PrimitiveType.Cube, $"Seg{i}", spinner.transform, Vector3.zero, new Vector3(0.11f, 0.008f, 0.03f), energy);
+                    // Offset along the blade's own X so it sticks out from the hub, then rake it.
+                    blade.transform.localRotation = Quaternion.Euler(0f, i * 90f, 0f) * Quaternion.Euler(0f, 0f, 14f);
+                    blade.transform.localPosition = blade.transform.localRotation * new Vector3(0.07f, 0f, 0f);
                 }
-                Prim(PrimitiveType.Cube, "Spindle", root.transform, new Vector3(0f, 0.13f, 0f), new Vector3(0.018f, 0.28f, 0.018f), core);
-                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.30f, 0f), new Vector3(0.05f, 0.05f, 0.05f), energy);
-                Prim(PrimitiveType.Cube, "FloatMoteA", root.transform, new Vector3(0.07f, 0.10f, 0f), new Vector3(0.022f, 0.022f, 0.022f), energy);
-                Prim(PrimitiveType.Cube, "FloatMoteB", root.transform, new Vector3(-0.06f, 0.20f, 0f), new Vector3(0.018f, 0.018f, 0.018f), energy);
-                // Fast upward flow is the whole read: the band climbing the rings IS the lift.
-                Energise(root, Color.white, 1.5f, 2.0f, 0.14f, 2.4f, 60f);
-                AssignItem("Updraft", Save(root, $"{ItemDir}/VM_Item_Updraft.prefab"));
-            }
-            // Soul Lantern — a caged frame around a bright core, with a hanging ring. Warm and steady.
-            {
-                var root = new GameObject("VM_Item_SoulLantern");
-                Prim(PrimitiveType.Cube, "Hanger", root.transform, new Vector3(0f, 0.30f, 0f), new Vector3(0.055f, 0.014f, 0.055f), core);
-                Prim(PrimitiveType.Cube, "CapTop", root.transform, new Vector3(0f, 0.24f, 0f), new Vector3(0.14f, 0.03f, 0.14f), core);
-                Prim(PrimitiveType.Cube, "CapBottom", root.transform, new Vector3(0f, 0.02f, 0f), new Vector3(0.14f, 0.03f, 0.14f), core);
-                // Four corner bars form the cage.
-                Prim(PrimitiveType.Cube, "BarA", root.transform, new Vector3(0.055f, 0.13f, 0.055f), new Vector3(0.014f, 0.22f, 0.014f), core);
-                Prim(PrimitiveType.Cube, "BarB", root.transform, new Vector3(-0.055f, 0.13f, 0.055f), new Vector3(0.014f, 0.22f, 0.014f), core);
-                Prim(PrimitiveType.Cube, "BarC", root.transform, new Vector3(0.055f, 0.13f, -0.055f), new Vector3(0.014f, 0.22f, 0.014f), core);
-                Prim(PrimitiveType.Cube, "BarD", root.transform, new Vector3(-0.055f, 0.13f, -0.055f), new Vector3(0.014f, 0.22f, 0.014f), core);
-                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.13f, 0f), new Vector3(0.075f, 0.09f, 0.075f), energy);
-                Prim(PrimitiveType.Cube, "FloatEmber", root.transform, new Vector3(0.045f, 0.13f, 0f), new Vector3(0.018f, 0.018f, 0.018f), energy);
-                // No Seg* parts: a lantern should sit and glow, not have energy racing through it.
-                Energise(root, Color.white, 0.55f, 0f, 0.2f, 2.6f, 26f);
-                AssignItem("SoulLantern", Save(root, $"{ItemDir}/VM_Item_SoulLantern.prefab"));
-            }
-            // Phantom Step — a shard split into offset pieces that drift and rejoin. Reads as displacement.
-            {
-                var root = new GameObject("VM_Item_PhantomStep");
-                // Three offset slices along the axis; the flow band jumping between them looks like a
-                // fracture rather than a smooth sweep.
-                var s0 = Prim(PrimitiveType.Cube, "Seg0", root.transform, new Vector3(-0.02f, 0.03f, 0f), new Vector3(0.07f, 0.10f, 0.05f), energy);
-                s0.transform.localRotation = Quaternion.Euler(0f, 0f, 9f);
-                var s1 = Prim(PrimitiveType.Cube, "Seg1", root.transform, new Vector3(0.015f, 0.14f, 0.012f), new Vector3(0.06f, 0.11f, 0.045f), energy);
-                s1.transform.localRotation = Quaternion.Euler(4f, 0f, -12f);
-                var s2 = Prim(PrimitiveType.Cube, "Seg2", root.transform, new Vector3(-0.01f, 0.25f, -0.01f), new Vector3(0.045f, 0.09f, 0.04f), energy);
-                s2.transform.localRotation = Quaternion.Euler(-5f, 0f, 16f);
-                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.33f, 0f), new Vector3(0.035f, 0.05f, 0.035f), energy);
-                Prim(PrimitiveType.Cube, "FloatGhostA", root.transform, new Vector3(0.075f, 0.16f, 0f), new Vector3(0.022f, 0.05f, 0.016f), energy);
-                Prim(PrimitiveType.Cube, "FloatGhostB", root.transform, new Vector3(-0.085f, 0.09f, 0f), new Vector3(0.018f, 0.04f, 0.014f), energy);
-                // Fast, tight, erratic-feeling: unstable.
-                Energise(root, Color.white, 3.2f, 2.6f, 0.07f, 2.8f, 150f);
-                AssignItem("PhantomStep", Save(root, $"{ItemDir}/VM_Item_PhantomStep.prefab"));
+                Prim(PrimitiveType.Cube, "FloatSparkA", root.transform, new Vector3(0.07f, 0.22f, 0f), new Vector3(0.016f, 0.016f, 0.016f), energy);
+                Prim(PrimitiveType.Cube, "FloatSparkB", root.transform, new Vector3(-0.06f, 0.11f, 0.02f), new Vector3(0.014f, 0.014f, 0.014f), energy);
+                // Fast, tight: the fan is spinning before you have used it.
+                Energise(root, Color.white, 2.8f, 3.0f, 0.10f, 2.4f, 140f);
+                AssignItem("WallSurge", Save(root, $"{ItemDir}/VM_Item_WallSurge.prefab"));
             }
         }
 
@@ -587,25 +590,82 @@ namespace VibeGame1.EditorTools
             // so a rebuild is authoritative and editing the field initialisers in FirstPersonMotor can
             // never silently diverge from the prefab LevelArcAnalyzer reads its constants off.
             // WallRunTunablesTests asserts this list against the shipped asset.
-            motor.wallRunMinEntrySpeed = 7f;
+            // 2026-09-03 retune after play: "the wall run only works sometimes". Entry is now judged on
+            // total speed (6 m/s, a jog), 53 deg off the face instead of 33, any look that is not
+            // backwards, and no coyote wait. The wall is FASTER than the floor (13.75 top) and the run
+            // is bounded by stamina rather than a per-airtime count. See ENGINEERING-LOG.
+            motor.wallRunMinEntrySpeed = 6f;
             motor.wallRunMaxEntryFallSpeed = 9f;
-            motor.wallRunMaxApproachCos = 0.55f;
-            motor.wallRunMinLookAlongCos = 0.30f;
-            motor.wallRunMaxDuration = 1.6f;
+            motor.wallRunMaxApproachCos = 0.80f;
+            motor.wallRunMinLookAlongCos = -0.05f;
+            motor.wallRunMaxDuration = 1.75f;
             motor.wallRunGravityStartScale = 0.10f;
             motor.wallRunGravityEndScale = 0.60f;
             motor.wallRunEntryUpSpeed = 3f;
-            motor.wallRunSpeedDecay = 0.35f;   // 0.20 put the sustain floor out of reach; see WallRunTunablesTests
-            motor.wallRunMinSustainSpeed = 5f;
+            motor.wallRunSpeedDecay = 0.35f;   // window is (ln(6/4), ln(11/4))/1.75 = (0.23, 0.58); a 6 m/s entry bleeds out at 1.16 s; see WallRunTunablesTests
+            motor.wallRunMinSustainSpeed = 4f;
             motor.wallRunAccel = 14f;
+            motor.wallRunTopSpeed = 13.75f;
             motor.wallRunStickSpeed = 2.5f;
             motor.wallRunExitUpSpeed = 10f;
             motor.wallRunExitPushSpeed = 7f;
             motor.wallRunExitTangentBoost = 4f;
-            motor.maxWallRuns = 3;
-            motor.wallRunCooldown = 0.25f;
+            motor.maxWallRuns = 6;
+            motor.wallRunCooldown = 0.20f;
+            motor.wallRunLostGrace = 0.15f;
+            motor.wallRunExitGrace = 0.15f;
             motor.wallRunCameraRoll = 13f;
             motor.wallRunExitRollKick = 7f;
+            // Momentum: a soft cap with exponential drag on the excess, never a flat ceiling.
+            motor.airSoftCap = 17.6f;
+            motor.airDrag = 3f;
+            motor.groundOverspeedDecay = 4f;
+            motor.maxHorizontalSpeed = 27.5f;
+            motor.slideChainWindow = 1.2f;
+            motor.slideChainFalloff = 0.6f;
+            // Weight and air control (2026-09-03 evening, after play: "I can still just shoot off a wall or
+            // ledge", "more control in the air like CS:GO surfing", "you need to be able to slide-jump").
+            // Fall heavier than you rise, bleed the carry, pay for hard landings, steer where you fly,
+            // and press the controller into the floor hard enough that isGrounded stops flickering at
+            // 500 fps (the slide-jump was dying at coyote time). Asserted by AirFeelTests.
+            motor.fallGravityMultiplier = 1.5f;
+            motor.airCarryDecay = 0.8f;
+            motor.airSteerDegPerSec = 120f;
+            motor.landingSoftSpeed = 16f;
+            motor.landingHardSpeed = 26f;
+            motor.landingSpeedLoss = 0.35f;
+            motor.groundSnapDistance = 0.12f;
+            // The pivot's traversal pieces (2026-09-04). Water: a skating floor 1.35x a sprint, turned at a
+            // third of groundAccel; the grapple burst: a free 0.30 s dash at 1.25x after a pull ARRIVES
+            // and control is back. Asserted by PivotMovementTests.
+            motor.waterSpeedScale = 1.35f;
+            motor.waterAccel = 30f;
+            motor.waterGrace = 0.15f;
+            motor.pullBurstWindow = 0.30f;
+            motor.pullBurstMultiplier = 1.25f;
+            motor.pullBurstHold = 3f;
+            // The balloon FLOAT (2026-09-05, from play: "slightly slower and controlled"). For 0.45 s
+            // after a launch gravity is scaled to 0.55 and air steer turns 1.6x faster, so the pop
+            // hangs long enough to aim the re-armed dash at the next orb. Zero-gravity would read as a
+            // glitch; 0.55 reads as a lift.
+            motor.launchFloatSeconds = 0.45f;
+            motor.launchGravityScale = 0.55f;
+            motor.launchSteerBoost = 1.6f;
+            motor.launchCarryCap = 9f;   // pop → aim → dash: the carry is steerable, the dash is the reach
+            // Perfect timing (rule 9; PerfectTimingTests reads these back). Windows of 0.12-0.14 s around
+            // a physical moment -- see PerfectMath for why that band and not frame-perfect or free.
+            motor.perfectWallJumpWindow = 0.14f;
+            motor.perfectWallJumpRefund = 20f;
+            motor.perfectDashJumpMinDelay = 0.04f;
+            motor.perfectDashJumpWindow = 0.12f;
+            motor.perfectDashJumpRefund = 30f;
+            motor.perfectBurstWindow = 0.12f;
+            motor.perfectBurstBonus = 30f;
+            // Forgiveness (MOVEMENT-PRINCIPLES rule 4). Bounded, intent-honouring, adds no reach.
+            motor.cornerCorrectionMetres = 0.18f;
+            motor.ledgeCatchMetres = 0.22f;
+            motor.ledgeCatchLiftSpeed = 6f;
+            motor.ledgeCatchMinSpeed = 1.5f;
 
             var look = root.AddComponent<PlayerLook>();
             look.rollBiasLerp = 9f;
@@ -613,6 +673,16 @@ namespace VibeGame1.EditorTools
             var stats = root.AddComponent<PlayerStats>();
             stats.data = Load<PlayerStatsData>("Assets/Data/PlayerStats.asset");
             root.AddComponent<PlayerResources>();
+            // The movement budget. Rule 9: written here, asserted by StaminaTunablesTests.
+            var stamina = root.AddComponent<PlayerStamina>();
+            stamina.max = 100f;
+            stamina.regenPerSecondGrounded = 45f;
+            stamina.regenPerSecondAirborne = 18f;
+            stamina.regenDelay = 0.45f;
+            stamina.dashCost = 30f;
+            stamina.wallRunEntryCost = 12f;
+            stamina.wallRunDrainPerSecond = 22f;
+            stamina.wallJumpCost = 12f;
             root.AddComponent<PlayerPosture>();
             root.AddComponent<ParryController>();
             root.AddComponent<PlayerCombat>();
@@ -648,6 +718,11 @@ namespace VibeGame1.EditorTools
             root.AddComponent<PlayerDeath>();
             root.AddComponent<PlayerFeedback>();
             root.AddComponent<PlayerItems>();
+            // The sentry dash (2026-09-06): DASH at a staggered span shooter pulls you to it and executes.
+            // Rule 9: written here, not left to the initialiser.
+            var sentryDash = root.AddComponent<SentryDash>();
+            sentryDash.range = 30f; sentryDash.coneDeg = 18f; sentryDash.pullSeconds = 0.35f;
+            sentryDash.hue = new Color(0.85f, 0.75f, 1f);
 
             // Camera rig
             var pivot = Empty("CameraPivot", root.transform, new Vector3(0f, 1.6f, 0f));
@@ -743,9 +818,122 @@ namespace VibeGame1.EditorTools
             look.pivot = pivot.transform;
             look.cam = camGo.transform;
 
+            // The body: hips, chest and legs under the ROOT, so looking down shows them and a slide
+            // throws the boots out in front of the lens. See PlayerBody.
+            BuildPlayerBody(root, glove, gloveTrim);
+
             BuildLockOn(root);
 
             Save(root, $"{PrefabDir}/Player.prefab");
+        }
+
+        /// <summary>
+        /// The player's body — hips, chest, two three-segment legs — as primitives under the Player ROOT
+        /// (never the camera: the root yaws with the look and the pivot pitches, so a body here turns
+        /// with you and stays level when you look down at it). Built for two things: looking down and
+        /// seeing legs walking, and the SLIDE, whose whole read is the boots out in front of the lens.
+        ///
+        /// <para>Geometry rules. Nothing above y 1.35 — the lens is at 1.60 with a 0.03 near clip, and at
+        /// −89° pitch anything higher sits inside the camera; the chest tops out at 1.34. Everything
+        /// inside the 0.40 m capsule radius so no pose pokes through a wall the collider is touching.
+        /// Hip joints at 0.92, thigh 0.46, shin 0.44: the boot's sole lands on y 0.00. No colliders.
+        /// Layer Player. Casts shadows (the backlog's "shadow proxy": the player used to cast none) but
+        /// receives none, like the arms, so a floor shadow cannot paint the boots black.</para>
+        ///
+        /// <para>Rule 9: every number on <see cref="PlayerBody"/> is written here. The slide pose numbers
+        /// are chosen against the FRAME — eye at 1.05 m during a slide, 47.5° half-FOV — and
+        /// <c>SlideFeelTests</c> checks the leading boot lands inside it.</para>
+        /// </summary>
+        static void BuildPlayerBody(GameObject root, Material glove, Material trim)
+        {
+            const float hipY = 0.92f, thigh = 0.46f, shin = 0.44f;
+
+            var bodyGo = Empty("Body", root.transform, Vector3.zero);
+            var body = bodyGo.AddComponent<PlayerBody>();
+
+            // Torso pivot AT the hip joint height, so the slide's lean-back rotates hips and chest
+            // about the hips rather than about the floor.
+            var torso = Empty("Torso", bodyGo.transform, new Vector3(0f, hipY, 0f));
+            Prim(PrimitiveType.Cube, "Hips", torso.transform, new Vector3(0f, 0.05f, 0f), new Vector3(0.40f, 0.20f, 0.26f), glove);
+            Prim(PrimitiveType.Cube, "Chest", torso.transform, new Vector3(0f, 0.29f, 0.01f), new Vector3(0.44f, 0.26f, 0.28f), trim);   // top 1.34
+
+            Transform legL, legR, kneeL, kneeR;
+            BuildLeg(bodyGo.transform, "Leg_L", -0.13f, hipY, thigh, shin, glove, trim, out legL, out kneeL);
+            BuildLeg(bodyGo.transform, "Leg_R", 0.13f, hipY, thigh, shin, glove, trim, out legR, out kneeR);
+
+            foreach (var r in bodyGo.GetComponentsInChildren<Renderer>(true))
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                r.receiveShadows = false;
+            }
+            // The TORSO is a shadow proxy only. From play (2026-09-04): a chest block 0.26 m under a
+            // 1.6 m lens fills the bottom of the frame the moment you look down, and during a slide
+            // (eye at 1.05 m, hips pushed 0.25 m forward and leaning back) it sat straight in front of
+            // the legs you are meant to see. Apex and Titanfall draw no first-person torso either: the
+            // legs are the body awareness, the torso only has to cast a shadow.
+            foreach (var r in torso.GetComponentsInChildren<Renderer>(true))
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+            SetLayerRecursively(bodyGo, Layers.Player);
+
+            body.torso = torso.transform;
+            body.legL = legL; body.legR = legR;
+            body.kneeL = kneeL; body.kneeR = kneeR;
+            body.thighLength = thigh;
+            body.shinLength = shin;
+            body.hipHeight = hipY;
+
+            // Gait: ±30° at groundSpeed, phase per metre matching the viewmodel bob (1.3) so hands and
+            // feet stride together; a 2 cm hip bob at the mid-stride.
+            body.gaitSwingDegrees = 30f;
+            body.gaitKneeDegrees = 42f;
+            body.gaitFullSpeed = 11f;
+            body.gaitPhasePerMetre = 1.3f;
+            body.gaitHipBob = 0.02f;
+            // Air: a slight tuck, boots trailing.
+            body.airHipDegrees = 14f;
+            body.airKneeDegrees = 40f;
+            // SLIDE. Chosen against the frame: eye at 1.05 m (1.60 − PlayerFeedback.slideCameraDrop
+            // 0.55), vertical half-FOV 47.5°. Hips sink 0.52 (joint at 0.40) and lead the head by
+            // 0.25 m; the leading leg at 70°/12° puts its ankle ~0.83 m ahead and 0.02 m up, so with the
+            // forward shift the boot sits at z ≈ 1.15 — 41° below the horizon, in frame — while the
+            // knee at z ≈ 0.68 / y 0.24 sits right on the frame's bottom edge. The trailing leg is 10°
+            // tighter so the pair reads as two legs and not a slab.
+            body.slideHipSink = 0.52f;
+            body.slideHipForward = 0.25f;
+            body.slideTorsoLean = 22f;
+            body.slideLeadHip = 70f;
+            body.slideLeadKnee = 12f;
+            body.slideTrailHip = 60f;
+            body.slideTrailKnee = 26f;
+            // The throw: 6 Hz / ζ 0.6 reaches the pose in ~0.10 s and overshoots ~9% (SlideImpulse.
+            // OvershootFraction) before settling — thrown, not placed. Capped at 1.15 of the pose.
+            body.slideBlendHz = 6f;
+            body.slideBlendDamping = 0.6f;
+            body.slideBlendMax = 1.15f;
+            // Wall run: boots 14° into the face, torso 6° off it.
+            body.wallRunLegLean = 14f;
+            body.wallRunTorsoLean = 6f;
+            // Landing: up to 34° of knee at a 22 m/s landing, springing back at the camera dip's 9/s.
+            body.landingKneeDegrees = 34f;
+            body.landingFullSpeed = 22f;
+            body.landingRecoverySpeed = 9f;
+            body.standUpKneeDegrees = 12f;
+            body.poseLerp = 14f;
+        }
+
+        /// <summary>One leg: hip pivot → thigh, knee pivot → shin + boot. Names are stable (tests and
+        /// captures find them by name).</summary>
+        static void BuildLeg(Transform parent, string name, float x, float hipY, float thigh, float shin,
+                             Material glove, Material trim, out Transform hip, out Transform knee)
+        {
+            var leg = Empty(name, parent, new Vector3(x, hipY, 0f));
+            Prim(PrimitiveType.Cube, "Thigh", leg.transform, new Vector3(0f, -thigh * 0.5f, 0f), new Vector3(0.15f, thigh, 0.17f), trim);
+            var kneeGo = Empty("Knee", leg.transform, new Vector3(0f, -thigh, 0f));
+            Prim(PrimitiveType.Cube, "Shin", kneeGo.transform, new Vector3(0f, -shin * 0.5f, 0f), new Vector3(0.12f, shin, 0.14f), trim);
+            // Boot centre 0.05 above the ankle's floor line: sole on y 0.00 in the rest pose.
+            Prim(PrimitiveType.Cube, "Boot", kneeGo.transform, new Vector3(0f, -shin + 0.03f, 0.05f), new Vector3(0.14f, 0.10f, 0.28f), glove);
+            hip = leg.transform;
+            knee = kneeGo.transform;
         }
 
         /// <summary>
@@ -873,6 +1061,9 @@ namespace VibeGame1.EditorTools
             else
             {
                 ctrl = root.AddComponent<EnemyController>();
+                // Ranged presence on a span. Carries no numbers of its own -- everything is read off
+                // EnemyData, and an enemy whose data does not shoot never fires. See Projectile.cs.
+                root.AddComponent<ProjectileShooter>();
                 ctrl.data = Load<EnemyData>(dataPath);
             }
 
@@ -1109,6 +1300,52 @@ namespace VibeGame1.EditorTools
 
             SetLayerRecursively(root, Layers.Interactable);
             Save(root, $"{PrefabDir}/ItemPickup.prefab");
+        }
+
+        // ------------------------------------------------------------------ H. balloon
+
+        /// <summary>
+        /// The floating orb of the pivot: touch it and you are launched, dash through it and the dash is
+        /// re-armed. A soft gold sphere with a brighter core, both on M_Balloon, which sits UNDER the
+        /// 1.05 bloom threshold on purpose — it is a traversal marker, not a combat light; the pop's
+        /// sparks are the only bright thing about it and SlashFx caps those at 1.0.
+        /// Every number on the component is written here (rule 9); LevelDefinitionBuilder and the
+        /// sandbox rewrite launchSpeed / respawnSeconds / radius per placement.
+        /// </summary>
+        static void BuildBalloon()
+        {
+            var root = new GameObject("Balloon");
+            var sc = root.AddComponent<SphereCollider>();
+            // 1.1 m: from play (2026-09-05) the 0.6 m orbs were "too small" — at 20 m/s a 1.2 m
+            // target is a coin flip. The visual below is authored at this radius; LevelPieceFactory
+            // scales it by (def.radius / 1.1).
+            sc.radius = 1.1f;
+            sc.isTrigger = true;
+            var b = root.AddComponent<Balloon>();
+            // 11 m/s: a 2.0 m rise (v²/2g) instead of 14's 3.3 m. Slower and CONTROLLED: the pop is a
+            // hop you steer out of (FirstPersonMotor.launchFloatSeconds), not a punt, so a chain of
+            // orbs is dashed one to the next rather than ridden straight up.
+            b.launchSpeed = 11f;
+            b.respawnSeconds = 2.5f;
+            b.radius = 1.1f;
+            b.bobHeight = 0.15f;
+            b.bobHz = 0.8f;
+            b.popColor = new Color(1f, 0.76f, 0.29f, 1f);
+            b.respawnScaleSeconds = 0.25f;
+
+            var visual = Empty("Visual", root.transform, Vector3.zero);
+            b.visual = visual.transform;
+            Material orb = Mat("M_Balloon");
+            var shell = Prim(PrimitiveType.Sphere, "Shell", visual.transform, Vector3.zero, Vector3.one * 2.2f, orb);
+            var core = Prim(PrimitiveType.Sphere, "Core", visual.transform, Vector3.zero, Vector3.one * 0.9f, orb);
+            foreach (var r in visual.GetComponentsInChildren<Renderer>())
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+
+            SetLayerRecursively(root, Layers.Interactable);
+            Save(root, $"{PrefabDir}/Balloon.prefab");
         }
 
         // ------------------------------------------------------------------ misc

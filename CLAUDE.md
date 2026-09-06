@@ -15,9 +15,14 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | `docs/BACKLOG.md` | Requested but not yet built, with the intended shape. |
 | [docs/TOOLING.md](docs/TOOLING.md) | Before building any tool — it probably exists. Menus, tests, harness, debug keys, sandbox, configs. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Changing systems or combat. Module map, event bus, singletons, feel contracts, art direction, audio. |
+| [docs/MOVEMENT-PRINCIPLES.md](docs/MOVEMENT-PRINCIPLES.md) | **Touching the motor, a traversal piece, a level or the movement HUD.** What makes movement satisfying to pilot, mapped onto this project's systems. |
 | [docs/ANIMATION-VFX.md](docs/ANIMATION-VFX.md) | **Touching an animation, a viewmodel pose or any effect.** Craft principles, an audit of what this project gets right, and the open gaps. |
+| [docs/LEVEL-AUTHORING-TUTORIAL.md](docs/LEVEL-AUTHORING-TUTORIAL.md) | **Making a level.** Author it as a data asset in the Unity editor, prove it with the arc report and tests, use the in-game editor (F10) only to feel and tweak. |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | **Adding a level, enemy, moveset or item.** Content is data — ScriptableObjects plus a menu item, not new code. |
 | [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md) | Session start/end checklist and token discipline. |
+| `/dashboard` | **Seeing everything at once.** Builds `Tools/dashboard/out/index.html`: every doc, the change log, test results, systems map, search. |
+| [docs/LEVEL-EDITOR.md](docs/LEVEL-EDITOR.md) | **The in-game level editor** (F10): keys, files, PLAY, EXPORT, and how it shares the campaign's piece factory. |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | **Picking up where the last chat stopped.** Rewritten every session: what is in flight, uncommitted, and what to do first. |
 | [docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md) | What is proven vs unproven, current test results, and what still needs a human playtest. |
 | [docs/multiplayer-system-design.md](docs/multiplayer-system-design.md) | Networking or backend work. Design only, not implemented. |
 | [README.md](README.md) | Human-facing overview: controls, how to add content. |
@@ -33,6 +38,13 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 - `Library/` is gitignored — never commit it. Commit before large refactors.
 
 ## Hard rules
+- **Model boundary (the user's rule, 2026-09-03).** The game's systems were written by **Fable**. A session
+  running as **Opus** ADDS features - new files, new components, new content - and does **not** rewrite,
+  retune or refactor a system Fable wrote unless the user says so in that session. Bug fixes the user
+  explicitly reports ("you reversed the lean") are fixes, not overrides, and are in scope. When a feature
+  genuinely cannot be added without changing a Fable system, name the file and the line and ask first.
+  The user's words: *"don't touch any core system written by Fable ... only let Opus override Fable-made
+  game systems if I say."*
 - **Adding or changing a system means updating its map in `docs/DATAFLOW.md` in the same change.** A map that lies is worse than no map.
 - **New content is authored as data, not code.** New levels, enemies and movesets are assets built by a menu item — see `docs/AUTHORING.md` before writing another hardcoded builder.
 
@@ -49,6 +61,8 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 8. **Exit play mode before running any editor generator.**
 9. **A code default is not a shipped value.** Changing a field initialiser does nothing to a
    ScriptableObject that already exists — rewrite it in `DataFactory` and assert it in `FeatureTests`.
+10. **A traversal piece never writes a velocity.** Balloons, water and any future launcher call the
+   motor's entry points (`Launch`, `RearmDash`, `TouchWater`); `FirstPersonMotor` decides what the body does.
 
 ## Rebuild pipeline — `VibeGame1/…`
 
@@ -59,16 +73,17 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | 1. Project Setup | `ProjectSetup.Run()` | Layers (Player 6, Enemy 7, Interactable 8), physics matrix, HDR grading, volume profile, fog/light, `runInBackground` |
 | 2. Create Materials | `MaterialFactory.CreateAll()` | `Assets/Materials/M_*.mat` |
 | 3. Create Data | `DataFactory.CreateAll()` | ScriptableObjects — **overwrites Inspector tuning** |
-| 4. Build Prefabs | `PrefabFactory.BuildAll()` | Player, Managers, enemies, boss, weapons, pickups |
+| 4. Build Prefabs | `PrefabFactory.BuildAll()` | Player (with `PlayerBody` legs), Managers, enemies, boss, weapons, pickups |
 | 4a. Split Forge Animation Clips | `ForgeClipSplitter.SplitAll()` | Named `AnimationClip`s from each `Assets/Enemies/*.clips.json`. **Not in Rebuild Everything** — run after importing or re-exporting an animated forge FBX |
-| 4b. Build Mini-Bosses | `MiniBossFactory.CreateAll()` | The four `Legendary_*` prefabs, plus the generated Animator controller for any animated one. **Not in Rebuild Everything** |
+| 4b. Build Mini-Bosses | `MiniBossFactory.CreateAll()` | The six `Legendary_*` prefabs, plus the generated Animator controller and named-clip table for any animated one. **Not in Rebuild Everything** |
 | 5. Build HUD | `HudBuilder.Build()` | `Assets/Prefabs/HUD.prefab` |
 | 6. Build Level | `LevelGreyboxBuilder.Build()` | `Level` root, NavMesh bake, scene instances |
 | 7. Build Sandbox | `SandboxBuilder.Build()` | `Assets/Scenes/Sandbox.unity` |
 | 9. Build Main Menu | `MainMenuBuilder.Build()` | `Assets/Prefabs/MainMenu.prefab` + `Assets/Scenes/MainMenu.unity`, **build index 0**. Rows come from `LevelRegistry`. Not in Rebuild Everything. |
 
 Also: `Health Check` (read-only validator — run after any rebuild), `Run Feature Tests`,
-`Open Test Level`, `Open Sandbox Scene`, `Rebuild NavMesh`.
+`Run Quick EditMode Tests` (the EditMode suite minus the slow `[Category("LevelLines")]` fixtures — 400 tests in ~6 s
+against the full 538 in ~194 s) and `Run Full EditMode Tests`, `Open Test Level`, `Open Sandbox Scene`, `Rebuild NavMesh`.
 
 Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 
@@ -81,8 +96,7 @@ Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 | Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
 | Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
 
-Current: EditMode **382/382** (real Unity runner, batch mode), feature suite **667 passed / 0 failed /
-0 skipped** from a fresh play-mode session ([report](docs/VERIFICATION-REPORT.md)). The EditMode suite
+Current: EditMode **558/558** (full, 2026-09-05 10:5x; quick set 420/420), feature suite **747 / 747 / 0 skipped** (2026-09-05, fresh session on the reworked Level_01 with 32 m/s bolts) from a fresh play-mode session on Level_01 ([report](docs/VERIFICATION-REPORT.md)). The EditMode suite
 grew from 32 in one session and covers shipped-asset arithmetic for the Marionette, the Revenant and the
 wands, the lock-on control law, the parry impulse, the Pyre arc and level jump-arc clearance. **A session that has been recompiled under
 is not a fresh one** — a domain reload wipes every static without re-running `Awake`, so `GameManager.I`
@@ -94,12 +108,14 @@ They prove the state machine, **never** that the game feels good or is fair.
 ## Dev keys — editor / development builds only
 
 `4` dev blade · `F1` test menu · `F5` warp to boss · `F6` full restore · `F7` +1000 souls ·
-`F8` god mode · `E` use item
+`F8` god mode · `F10` level editor · `E` use item
 
 ## MCP workflow
 
 - **The Unity Editor must be open on this project** or no MCP tool works. If tools error, time out or
-  return `no_unity_session`, check that before debugging anything else.
+  return `no_unity_session`, check that before debugging anything else. If the editor IS open and still
+  says `no_unity_session`, the bridge lost its startup handshake: save any script (a domain reload
+  re-arms it via `McpReconnect`) or run **Tools → MCP Bootstrap → Reconnect Bridge**.
 - Prefer MCP tools over blind file writes for scenes, prefabs and component wiring — hand-editing
   `.unity` / `.prefab` YAML or `.meta` GUIDs corrupts references.
 - Scripts may be written as files, but expect a **domain reload**; the next call can time out while Unity

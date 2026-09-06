@@ -12,8 +12,92 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 | Suite | Scope | Result |
 |---|---|---|
-| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests`, `LockOnTrackingTests`, `ParryImpactTests`, `PyreArcTests` — plus `MarionetteDataTests` and `RevenantDataTests` (shipped-asset arithmetic) | **382 / 382 pass**, real Unity runner in batch mode (2026-09-03, live editor via the MCP bridge) |
-| `FeatureTests` | Behavioural, real systems in play mode | **667 passed · 0 failed · 0 skipped** (42.5 s), fresh play-mode session on `Level_01.unity`, 2026-09-03 |
+| EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests`, `LockOnTrackingTests`, `ParryImpulseTests`, `PyreArcTests` — plus `MarionetteDataTests`, `RevenantDataTests`, **`HalberdierDataTests`** (13: the generated-clip table, the lunge held to each clip's sampled Hips travel, the TravelRoot keeping the mesh over the collider, the Generic/no-root-node import), `WandDataTests`, the `LevelSpan1-3` wall-run lines, `WallRunTunables` / `WallRunImpulse`, `StaminaTunables`, `AirFeelTests`, `MovementYardTests` and the new `SlideFeelTests` | **552 / 552 pass, 0 skipped** (2026-09-05 09:40, 213 s; the 549/552 run before it was the rework's own perch pins, closed by moving the perches — see HANDOFF) |
+| `FeatureTests` | Behavioural, real systems in play mode | **747 passed · 0 failed · 0 skipped** (57.2 s, 2026-09-05 09:45; the 746/1 run before it had the forgiveness rig's approach too long), fresh play-mode session on the REWORKED `Level_01.unity`, 2026-09-05 09:22 — the one red is `Forgive_NearMissLandsOnTheLedge` (feet at y −57.66 against a −57.5 top, the rig's 0.5 m approach at 6 m/s drops below the 0.22 m band before the edge; the forgiveness lane predicted exactly this and the fix is a shorter approach in the rig). The Level Arc Report on the reworked level: VERDICT clean, T3 balloon CHAIN ok (4.5–5.0 m across, +2.1/+3.0 m per orb), all three water sheets ok, six shooter perches of which T1_Perch_E covers only one deck. Earlier: **744 / 744 / 0** at 01:24 on the pre-rework level |
+
+**The Argent Halberdier (2026-09-04) — what is proven and what is not.** The third `ai_skelly_tool`
+body went through `4a → 3 → 4b → 7 → Health Check` in the live editor with no console errors. Measured in
+the editor, not assumed: the FBX imports 24 named clips (none empty), `hipsRestLocal (−0.01, 0.93, 0)`, and
+the generated clips walk the Hips forward inside the pose by **Thrust 1.21 m, OverheadSlam 0.82, ShoulderCharge
+4.70 (and 1.54 sideways), Kick 0.32, LeapSlam 2.40, HeavyWindup −0.33** — the shipped `lungeDistance` values,
+which `HalberdierDataTests.EveryLungeIsTheClipsOwnTravel` re-samples. Unity's own Generic root-node
+extraction was tried and **rejected by measurement in play mode**: with `Hips` as the avatar root the whole
+Hips transform (lift and yaw included) moves onto the model root and the bake flags keep none of it, so the
+mesh stays whole and `PuppetVisuals.CompensateTravel` cancels the Hips' XZ drift on a `TravelRoot`
+(`TheTravelRoot_KeepsTheMeshOverItsCollider`: < 0.05 m at 50 % and 100 % of the three biggest clips, leap
+lift still ≥ 0.3 m). Portraits (`EnemyPortrait.Shoot`) show the textured silver body facing +Z with the tail
+behind and the eye marker at the brow between the horns. **Not proven:** nobody has played it; no wind-up
+pose is authored (the clip is the silhouette); the 4.7 m shoulder-charge lunge over a 0.34 s cue-to-impact
+window is ~14 m/s and may need the far band widened or the wind-up lengthened once it is felt.
+
+**The movement retune is now run, not pending**, and so is the evening's second pass (weight, air steer,
+the slide-jump fix, the sandbox yard, the status strip and the pedestal gate). EditMode rose 382 → 408 → 434;
+the feature suite 667 → 698 → 721. **The slide is fixed and measured**: `4.07 m in 0.35 s, 155/193 frames
+grounded` against the `1.66 m, 0/80` the suite had been reporting for days (ENGINEERING-LOG, "The slide-jump
+that fast machines refused"). The wall-jump chain still makes **5 pushes, +3.91 m** under the heavier fall; the
+slide-jump measures 6.16 m against 7.24 m before it (the fall is 1.5× heavier; the run-jump shrank the same
+way, and the analyser's reach contract still holds: `AirFeelTests.AFlatRunJumpStillClearsTheReachContract`).
+
+**Feature (play-mode) suite, 2026-09-05 early morning: 744 passed / 0 failed / 0 skipped (56.5 s)**, one fresh session on `Level_01.unity` after the level editor landed — the 734 of 2026-09-04 plus the 10 `LevelEditor` checks (enter, place, tag, trim, save, new, load, JSON, exit), which also passed 10/10 when run alone first. The six flaky reds of the previous evening's two runs did not recur. (Earlier on 2026-09-04: 731 / 3 at 21:58 with the perfect dash-jump red — a real bug, since fixed — then 728 / 6 twice with differing flaky sets; `LockOn_AssistHasDeadzoneInYaw` was red in both of those and green here.)
+
+**HUD, seen (2026-09-04, one screenshot in play, paused):** the three smoked-glass panes render (vitals bottom-left, loadout top-left, clock pill top-centre), pills on the pause card, nothing magenta anywhere. Not judgeable from that frame: whether the health/stamina fill reads as liquid (at 40/100 it looked like a plain fill in the still), and the Pyre fire (the meter was empty, so no flames were due). One layout defect: the developer help text at the top overlaps the clock pill. The main menu's glass pills render correctly.
+
+**Halberdier follow-up, 2026-09-04 ~21:25 local, after the user played it.** Two reports, both measured in
+the live editor before anything was changed:
+
+- *"He makes me lag when I am near him."* **Not reproduced.** `PerfProbe`, 300 frames each, Sandbox, editor play
+  mode: baseline p50 1.69 ms / p95 2.07; standing 3 m from the woken Halberdier idle p50 1.81 / p95 2.45;
+  while he attacks p50 1.70 / p95 2.34; next to the Revenant (control) p50 1.68 / p95 2.00; baseline again
+  p50 1.65 / p95 2.11. No console spam during the attack sample (3 entries, two of them the parry log). The
+  one ~1.1 s frame in every sample is the `execute_code` compile that starts the sample, present with no enemy
+  at all. The mesh is 24 013 triangles / 23 941 vertices at 8 bone weights — 14-25x the Revenant (974) and the
+  Marionette (1 680) — which the GPU does not notice here; a one-time shader-variant compile the first time
+  the textured body is seen is the likeliest thing the user felt. Nothing was changed for this; if it recurs,
+  measure with `PerfProbe` on the user's machine rather than guessing.
+- *"The animations don't line up with the attack hitboxes."* **Reproduced, and the cause is the art.** The
+  weapon tip (the RightHand-weighted vertex farthest from the joint, 0.80 m out) was sampled through every
+  attack clip. The four AUTHORED strikes whip the tip from −1.4 m to +1.2..1.4 m at 36-86 m/s with the
+  strike exactly at the manifest's contact (0.55 / 0.60 / 0.55 / 0.55). The nine GENERATED clips move the
+  tip at 1-8 m/s: `HalberdSweep` drifts +0.91 → +0.16 m, `Thrust` −0.23 → +0.34, `OverheadSlam` and
+  `HeavyWindup` end with the blade BEHIND the body (−0.84 / −0.68 m). Only the kick (foot 0.71 m forward at
+  0.50), the leap, the spin and the charge have any body action. So the blade never visibly connects on the
+  five strike attacks, whatever the anchor. `4b` now measures every generated clip's contact by tip speed
+  (`MiniBossFactory.MeasureContactFraction`, guards for airborne clips and no-strike clips) and prints one
+  line per clip; on this body every generated clip keeps its manifest anchor, with "NO STRIKE" logged on five.
+  Also fixed: the wind-up's playback scale (x0.55-0.7 here) used to carry through the whole clip and the loop
+  cut to idle 0.25 s after the blow — `PuppetVisuals.recoverySpeed` (1.0) now takes over at the impact and
+  `followThroughSeconds` (0.45) lets the recovery play. **Recommendation for the data (not done here):** play
+  the authored `AttackSwing` / `AttackStab` / `AttackOverhead` for the sweep, thrust and slam/heavy, keep the
+  generated clips for the kick, leap, spin and charge; and shorten the ranges — the tip reaches at most
+  1.4-1.5 m from the hips (x1.15 scale ≈ 1.7 m) while attacks land at 3.8-4.7 m (+0.5 slack).
+
+EditMode after this pass: **513 run, 501 passed, 0 failed, 12 skipped** (2026-09-04 21:26) — all 13
+`HalberdierDataTests` (now 15) and the 8 `HalberdierBehaviourTests` pass; the 12 skips are other agents' new
+HUD (`FireBar`, `FluidBar`, `HudGlass`) and `PerfectTiming` asset checks that `Ignore` until `5. Build HUD` /
+`4. Build Prefabs` have run for them.
+
+**Provenance of the 2026-09-03 numbers, exactly (2026-09-03 handoff).** The EditMode **436 / 436** ran after
+the wall-run particles landed and **before** the one-line wall-run lean sign flip in `FirstPersonMotor`; no
+EditMode test asserts a roll sign, so it stands, but it has not been re-run since. The feature **727 / 0 / 0**
+was a full run **before** `WallRunLive_LeansAwayFromTheWall` was added, so a full run today would report
+**728 checks**. After the lean fix the `WallRunLive` section was run alone and passed **7 / 7**, the new check
+reporting `roll=13.0 deg with the face on the RIGHT`. The full re-run did not happen because the editor went
+behind a modal save dialog (ENGINEERING-LOG, "The EditMode runner hangs Unity behind a save dialog"). **First
+thing next session: dismiss that dialog, save the scene, then re-run both suites** - expect 436 and 728.
+
+**The suite now performs a live wall run** (`WallRunLive`, 6 checks): a rig face beside a rig floor, a
+9 m/s launch along it, and it measures the catch, the grit (peak 10 motes of a 40 pool over a 1.38 s run),
+18 sparks over six foot-ticks, and the grit clearing 0.63 s after the wall let go. Before this every wall-run
+assertion in the project was `WallRunMath` in EditMode.
+
+**Run-to-run flakiness, stated plainly.** Across four full runs after the change the reds were, in order:
+{`WallJump_ChainsBetweenFacingWalls`, `Stamina_RefillsToFull`, `Stamina_InfiniteNeverRefuses`} — staging,
+fixed (the chimney now starts from a full bar, the stamina test goes home before it times the regen);
+{`Trail_LiveDuringStrike`, `Deathblow_StaggerPoseStaysFramed_BossScale`, `Flask_DrinkCoroutineAndInterruptOnHit`}
+— gone on the next run, the editor had gained focus and frame time went 4 → 17 ms; {`Items_GrappleBigTakesPosture`}
+— `actual=0`, and 21/21 when the `Items` section runs alone. The suite is a regression net whose staging
+is sensitive to what the previous test left behind and to frame pacing. No red survived a rerun. **Still
+nobody has played it.**
 
 The count rose from 633 with the **33 new `WindupPoses` checks** (below). The run immediately before it
 failed three — `Items_PhysicsPickup`, `Level_CheckpointHeals`, `Level_CheckpointRefillsFlask` — which
@@ -254,7 +338,7 @@ written (WandPedestal, WandReadability) are covered by the live report.
 | 6 | EnemyExecute | Enemy posture configured from data, accumulates, breaks, enters Staggered; `ExecuteInteractor` acquires, executes, kills, awards souls, restores control | — |
 | 6b | Deathblow | The posture break raises the marker **on the enemy**; recovery and committing the blow both clear it; an attack press with **no** marked target swings normally while a press against a marked one executes; `M_DeathblowMark` exists, blooms at ≥2× the threshold, is quieter than `M_AlertTell` and is hue-separated from it | — |
 | 7 | Weapons | All four equip; combo lengths and multipliers align; damage scales with stats; per-weapon parry window multiplier applies; a swing damages and builds posture; **a repeated press advances the combo** | — |
-| 8 | Items | Pickup, capacity 3, FIFO order, **real-physics trigger pickup**, restore on respawn, and all four effects incl. the Stormcall arm→riposte flow | — |
+| 8 | Items | Pickup, capacity 3, FIFO order, **real-physics trigger pickup**, restore on respawn, wand independence; **Grapple** finds the enemy ahead, is consumed, pulls, lands within `stabStandoff` + 1 m and deathblows it, a legendary-scale unstaggered target survives and takes ~35% posture, and no target keeps the item; **Wall Surge** is active for 8 s, scales `WallRunSettings.topSpeed`/`accel` ×1.5 with `minEntrySpeed` 0 while leaving the Inspector fields alone, ignores stamina, and expires cleanly | — |
 | 9 | Flask | Refill, consume, refuse when empty, heal amount matches stats, **the real drink heals and a hit interrupts it (charge lost)** | — |
 | 10 | Pyre + super | Refused below full, full-bar gate, consumption, clamping, the weapon carries shipped super data (rule 9), slow-mo does not slow the player, **the real super fires, damages a nearby enemy and spends the bar** | — |
 | 11 | Progression | Souls on kill, spend/afford rules, cost curve, Vitality raises max HP **and** max posture, death empties the wallet and drops a stain carrying every soul, recovery by real physics | — |
@@ -329,8 +413,8 @@ the player.
 **Root cause.** `OnParried` routes the enemy into `State.Recover`, and `Recover` transitioned to `Chase`
 **without checking `aggroLocked`**. Any locked enemy that was parried or damaged woke up and began
 attacking. This reaches live gameplay: the boss is aggro-locked until its arena trigger fires, and the
-Stormcall discharge calls `OnParried` on the boss directly — so a boss could start fighting with no boss
-bar, no music cue and no gate.
+(since-removed) Stormcall discharge called `OnParried` on the boss directly — so a boss could start
+fighting with no boss bar, no music cue and no gate.
 
 **Fix.** Leaving `Recover` now honours `aggroLocked`, falling back to `Idle` instead of `Chase`.
 
@@ -435,8 +519,10 @@ perfectly-timed press. It says nothing about whether a human can time that press
 3. **Is the arm telegraph legible?** The rig rears back through the wind-up, hitches past extension on the
    cue, and whips through on the strike. Whether that silhouette reads in first person — especially with
    the boss parked ~2.1 m from the camera (a known standoff-distance issue) — is a visual judgement.
-4. **Do the Stormcall arm→riposte stakes land?** Arming and *then* having to earn the discharge is a
-   deliberate tension. Only play tells you whether it is exciting or just a delay.
+4. **Does the Grapple kill feel earned, and does the Wall Surge change a route?** The hook is a
+   0.35 s pull into a deathblow and the surge is eight seconds of free, faster walls. The suite proves
+   the states; only play tells you whether the hook reads as a move you plan around and whether eight
+   seconds is a window or a wait.
 
 Do not report a green suite as "feel verified".
 

@@ -211,7 +211,7 @@ namespace VibeGame1
             running = false;
             SpeedFraction = 0f;
             if (CameraFX.I != null) CameraFX.I.FovHold(0f);
-            if (CameraShake.I != null) CameraShake.I.SetRoll(0f);
+            if (CameraShake.I != null) { CameraShake.I.SetRoll(0f); CameraShake.I.SetRumble(0f); }
         }
 
         void OnDisable()
@@ -236,7 +236,8 @@ namespace VibeGame1
         /// but a respawn or a disabled player can lose an end event, and a slide effect that never
         /// released the FOV hold would be a permanently wrong lens.
         /// </summary>
-        public void Tick(float feelFovHold, float feelRoll, float sparkRate, float dustRate, float scrapeVolume)
+        public void Tick(float feelFovHold, float feelRoll, float sparkRate, float dustRate, float scrapeVolume,
+                         float feelRumble = 0f)
         {
             float dt = Time.unscaledDeltaTime;
             if (dt <= 0f) return;
@@ -265,6 +266,10 @@ namespace VibeGame1
                     roll = SlideImpulse.Roll(SlideImpulse.LateralSteer(flat, wish), SpeedFraction, feelRoll);
                 }
                 CameraShake.I.SetRoll(roll);
+                // The rattle of a body on a floor. Quadratic in speed (SlideImpulse.RumbleAmplitude), so
+                // it is gone well before the scrape is: the last third of a slide is a glide, not a
+                // shudder. One writer, every frame, zero when not sliding — like the roll above.
+                CameraShake.I.SetRumble(sliding ? SlideImpulse.RumbleAmplitude(SpeedFraction, feelRumble) : 0f);
             }
 
             // ---- scrape: gain and pitch both ride the speed. Level alone reads as distance; it is

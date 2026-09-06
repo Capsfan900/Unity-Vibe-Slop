@@ -11,6 +11,42 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## A pane's glass is not its root, so hiding the glass leaves a black frame
+
+**2026-09-06.** Play: "a random black menu below the best runs menu that does nothing." `HudBuilder.Pane()`
+returns the GLASS transform (content parents under it), not the group root that holds the shadow, sheen and
+edge-light layers. `BuildLevelEditor` wired `ed.panel = pane.gameObject`, so `LevelEditor.Awake` hid the
+glass and its buttons while the shadow and sheen stayed on screen as an empty black pane. The BEST RUNS
+pane already did it right (`best.parent.gameObject`). Same pass: that pane was 196 tall for a 200-tall
+eight-row table, so the board spilled out of its glass; it is now sized from `Leaderboard.DisplayCount`
+(`HudBuilder.BestRunsHeight`) and the hint and editor panel hang off `BestRunsBottom`.
+
+**Invariant.** Anything that toggles a pane toggles `Pane(...).parent`. A pane that holds a list is sized
+from the list's count, never a literal.
+
+## A span shooter that chases is a melee enemy with a gun it forgets to use
+
+**2026-09-06.** Play: "the parkour enemies stop shooting too early, the rhythm is bad, the detection is bad."
+Three causes, all in the wiring rather than the numbers. (1) The shooter only fired while the brain was
+awake, and the brain woke at `aggroRange` (14 m) with a single chest-to-chest linecast -- so a perch
+30 m up the span sat idle through half its band, and a runner whose chest passed behind a rail was
+invisible. (2) The band's near edge was 10 m so the cue lead held; once inside it the shooter went
+quiet and the brain walked off the perch to melee, which is the "stops shooting" the player felt.
+(3) The interval carried a ±15% jitter and every fire reset the clock from `Time.time`, so a held
+shot shifted the beat: there was no rhythm to learn.
+
+**Fix.** `EnemyData.rangedOnly` makes a SENTRY: Chase is Stop + FaceTarget, no commit, no sleep.
+Wake range for a shooter is `max(aggroRange, projectileMaxRange)` and sight is the best of three
+lines (head, chest, feet), shared with the shooter through the static `EnemyController.HasLineOfSight`.
+The near edge drops to 3 m and `ProjectileMath.LaunchSpeed` slows the launch inside 11.5 m so the
+flight is always cue lead + 0.08 s. The beat is `ProjectileMath.NextBeat` -- previous beat plus
+interval, re-anchored only after a silence longer than a beat -- and `LeadTarget` aims 80% of the
+player's flat velocity ahead.
+
+**Invariant.** A bolt is never owed its cue before it exists: assert `TimeToImpact(minRange,
+LaunchSpeed(minRange, ...)) > CueLead` on the shipped data, not `minRange / speed`. A shooter's
+rhythm is a grid, never `now + interval`.
+
 ## A wind-up pose cannot be computed, only photographed
 
 **Symptom.** Eleven per-attack wind-up poses were authored into `EnemyAttackData.windupPose`, each with a
@@ -2448,6 +2484,466 @@ space. Measure the tip.
 
 ---
 
+## Movement retune: the wall run that only worked sometimes, and speed with no ceiling
+
+**Symptom (from play, 2026-09-03).** "Wall running, jumping and sliding don't feel that good. The wall run
+only works sometimes. It's not clear when I have an ability or how much stamina is left. I can dash and
+move endlessly at a constant speed — there needs to be momentum, so you don't just fly off the map."
+
+**Root causes, each one a rule that was silently refusing the player.**
+- Entry waited out coyote time (0.12 s after leaving the ground): the same approach attached or not
+  depending on where the ledge was.
+- Speed was judged on the *tangential projection*: a sprint-jump at 45° toward a wall is 7.8 m/s along it
+  and 7.8 m/s into it, and the 0.55 approach gate (33°) refused it anyway. Both refusals looked like nothing.
+- The look gate (0.30, ~72°) refused a run while the head was turned to line up the next jump.
+- A slide still "sliding" through coyote after leaving the ground blocked entry outright.
+- Every seam between two wall boxes ended the run (`LostWall`) — most of what read as glitching.
+- A jump pressed a few frames after the loan expired was a whiff, so the player learned to bail early.
+- A dash set 22 m/s and the air kept it forever; a slide minted +5 on every press, so slide-jump-slide-jump
+  was a free constant 16 m/s. There was no budget and no UI, so "can I dash" was a hidden cooldown.
+
+**Fix.** Research first (Source `gamemovement.cpp`, Titanfall 2 wall-run, Apex slide cap and slide-hop
+fatigue, Doom Eternal's dash pips), then: entry on *total* speed (6) with the whole velocity redirected down
+the run; 53° approach; only looking backwards refuses; no coyote wait; a slide yields to the wall;
+`wallRunLostGrace` 0.15 s and `wallRunExitGrace` 0.15 s; the wall's top speed 13.75 (1.25× sprint — the
+wall is faster than the floor); 1.75 s, sustain 4, decay kept at 0.35 (0.30 failed
+`ASlowEntryLosesRealTimeAndASprintDoesNot`: a 6 m/s entry has to lose a quarter of the clock to read as
+shorter). Momentum: `DecayExcess` — exponential drag on the excess over `airSoftCap` 17.6 in the air and
+over a sprint on the ground, hard clamp 27.5; slide boost fades with carried speed and with chained slides.
+Stamina: `PlayerStamina` (dash 30, wall-run 12 + 22/s, wall jump 12; 45/s grounded, 18/s airborne, 0.45 s
+delay), `StaminaView` (segmented bar, DASH/AIR/WALL pips, named red refusal), F8 = infinite.
+
+**Invariants.** Entry gates judge intent, never geometry-luck. A burst is a decay, not a cruise. Every
+refusal is named on screen. A full bar always affords a full run, because the analyser assumes it.
+
+**UNPLAYED as of writing.** Every number above is from arithmetic, the test suites and the research brief.
+The next human session is the verification.
+
+---
+
+## Build Sandbox leaves the sandbox open, and the feature suite runs wherever it is pointed
+
+**Symptom.** 52 feature failures in one run: every `LevelStructure` platform "missing", zero checkpoints,
+zero arenas, four `LockOn_*` and one slide check red. Nothing in the diff touched any of them.
+
+**Root cause.** `7. Build Sandbox Scene` opens and saves `Sandbox.unity` and leaves it as the active
+scene. `FeatureTestRunner.Start()` runs on whatever scene is open. Reopening `Level_01.unity` and
+rerunning gave 695 / 2, and the two were a test bug and the known pickup flake.
+
+**Invariant.** After any generator that opens a scene, load `Assets/Scenes/Level_01.unity` before
+entering play mode for the suite, and read `active_scene` off `editor/state` first. A green suite on
+the wrong scene is not a green suite; a red one is not a regression.
+
+---
+
+## Launch lost a frame of ground friction, and the checkpoint test picked the one already lit
+
+**Symptom (2026-09-03, first suite run after the movement retune).** Three reds, none in the retune:
+`Slide_EndsWhenAirborneButKeepsSpeed` (`before=15.9 after=14.3`, tolerance 1.5), and
+`Level_CheckpointHeals` / `Level_CheckpointRefillsFlask` (`actual=30 expected=100`, flask `0/3`). The
+previous run had two different reds (`Stamina_RegenWaitsItsDelay`, `Items_PhysicsPickup`) and this one
+had neither — order- and framerate-dependent, which is the signature of staging, not of the game.
+
+**Root cause 1 — the motor.** `Launch()` clears `IsGrounded` and sets `vel.y` upward *between* frames, but
+the movement step opens with `IsGrounded = cc.isGrounded`, which is still last frame's answer because the
+controller has not moved yet. So the frame after a launch ran the *grounded* branch with no stick input:
+`groundFriction` 14/s on 15.9 m/s. At 60 fps that is 3.7 m/s (the test had always been marginal); on an
+unfocused editor running 140 fps frames it was 1.6, just over the tolerance. The in-game jump never hit
+this because it sets `vel.y` inside the step, before `cc.Move`.
+
+**Fix 1.** `IsGrounded = cc.isGrounded && !(!wasGrounded && vel.y > 0f)` — a body that was already
+airborne and is rising is not grounded, whatever the controller remembers.
+
+**Root cause 2 — the test.** `LevelManager.SetCheckpoint` is deliberately a no-op on the checkpoint that
+is already current (a trigger you stand in must not heal you every re-entry). The test took
+`FindObjectsByType<Checkpoint>()[0]` — no defined order — and when that happened to be the current one,
+nothing healed. **Fix 2.** The test picks the first checkpoint that is *not* current.
+
+**Invariants.** Anything that sets the player airborne from outside the step sets `vel.y > 0` and
+`IsGrounded = false` together, and the step trusts that pair over `cc.isGrounded`. A test that calls a
+guarded setter stages the state the guard checks.
+
+Also that day: **the headless `-batchmode` copy of the project was retired** at the user's request. The
+skill is now `.claude/skills/unity-editor` and drives only the open editor; if none is running, ask.
+One trap from the removal: a Bash shell left `cd`'d inside the skill folder locked it, so `git mv`
+failed with *Permission denied* until the shell moved out. Run `mcp_call.py` from the project root.
+
+---
+
+## The slide-jump that fast machines refused, and weight for a movement that had none
+
+**Symptom (from play, 2026-09-03 evening).** "The wall running and movement feels better but the movement
+needs more weight — I can still just shoot off a wall or ledge." "There needs to be more control in the
+air, like CS:GO surfing." "You need to be able to slide-jump."
+
+**Root cause of the slide-jump.** The suite had been reporting it for a while without anyone reading it as a
+bug: the first slide measured `1.66 m in 0.12 s, 0/80 frames grounded` against a documented 4.0 m in 0.35 s,
+and the verification report filed it under "only after a scripted teleport, unexplained". 0.12 s is the
+coyote window. The grounded branch pins `vel.y = -2` and the final `cc.Move(vel * dt)` therefore moves the
+controller **0.004 m down per frame at 500 fps** — inside its 0.05 m skin width — so PhysX reports no
+contact, `CharacterController.isGrounded` flickers off, the slide runs on coyote tolerance, dies when it
+expires, and a jump pressed more than 0.12 s into a slide is refused *on a player standing on the floor*.
+It was never a teleport quirk: the hand-driven probe that measured 3.97 m had the Game view focused and
+vsync'd at 60–144 fps, where the pin moves 0.014–0.033 m and clears the skin. The user's greybox scene
+runs hundreds of fps unfocused, so for them the slide-jump was simply broken.
+
+**Fix.** `groundSnapDistance` 0.12: while grounded and not rising, the final Move's vertical displacement is
+at least that far down — **displacement only**, the sweep stops at the floor, so on flat ground it costs
+nothing, on a step down it follows the step, and at a ledge it is one frame of extra drop. Twice the skin
+width and under `stepOffset` 0.4, both asserted in `AirFeelTests`.
+
+**Weight and air control, in the same pass.** Three new pure laws on the motor, all written by
+`PrefabFactory` and pinned by `AirFeelTests` (rule 9), all read by `LevelArcAnalyzer` off the prefab so every
+route is re-judged: `fallGravityMultiplier` 1.5 (rise at −30, fall at −45: `jumpHeight` still means 2.4 m,
+the way down is heavy); `airCarryDecay` 0.8/s on the airborne excess over a sprint, applied *before* the
+soft cap (a 17.6 wall exit is 15.4 at 0.5 s and 13.9 at 1 s — spent, not glided); `LandingSpeedFactor`
+(soft 16, hard 26, loss 0.35: a flat jump lands at ~14.7 and is free, a 7.5 m drop costs 35%, applied
+before that frame's slide press so the landing-slide still keeps a run alive). And `AirSteer` at
+120°/s: the airborne velocity *turns* toward the stick with its speed untouched while the stick is within
+90° of travel; Source's `AirAccelerate` then adds up to a run's worth along the stick, which is what a stick
+held back brakes with. Steer, accelerate, carry decay, soft cap, in that order.
+
+**Invariants.** Anything that must register ground contact moves the controller by a *distance* that clears
+the skin, never by a speed times a frame. A test that reports "0/N frames grounded" is a bug report, not a
+flake. Gravity asymmetry lives in one pure function that the motor and the analyser both call.
+
+**UNPLAYED as of writing.** Every number is a starting value chosen by arithmetic. The first things to
+feel: does a wall exit now arc and land rather than sail, can you carve a 17 m/s exit onto a landing with
+the stick, and does the slide-jump fire every time on the user's machine.
+
+---
+
+## The wall-run lean shipped toward the wall
+
+**Symptom (from play, 2026-09-03 evening).** "It seems like you accidentally reversed the way you lean when
+wall running."
+
+**Root cause.** Two sign conventions met without a test between them. `WallSide(n)` returns +1 for a face on
+the player's RIGHT; `PlayerLook.SetRollBias` documents positive as "rolls the camera's up vector to the
+LEFT". The motor called `SetRollBias(-WallSide(n) * wallRunCameraRoll)`, so a right-hand wall tilted the head
+right — into the face. Every number was right and every test passed, because no test ever asked which way
+13° pointed. Titanfall's convention, and what the inner ear expects when a wall is holding you up, is the
+head tilting **off** the wall.
+
+**Fix.** `SetRollBias(WallSide(n) * wallRunCameraRoll)`. The exit kick keeps its sign, so it is now a snap
+back through level toward the face as the bias releases — a "let go", not more of the lean.
+`WallRunLive_LeansAwayFromTheWall` stages a face on the right and asserts the roll is positive.
+
+**Invariant.** A camera effect with a side has a live test that names the side. "13°" is not a spec; "13°
+away from a face on the right" is.
+
+---
+
+## The EditMode runner hangs Unity behind a save dialog when the open scene is dirty
+
+**Symptom (2026-09-03, twice).** `run_tests` over the MCP bridge returns a job that never starts:
+`"status":"failed", "error":"Test job failed to initialize (tests did not start within timeout)"`, and from
+that moment every bridge call answers `Unity did not respond to 'get_editor_state' within 2.0s`. The editor
+window title reads **`vibegame1 - Untitled`** and Windows reports the process as **not responding**. It looks
+exactly like a crash and is not one.
+
+**Root cause.** The EditMode runner opens a NEW, untitled scene to run the tests in. If the currently open
+scene has unsaved changes, Unity raises a modal *"Save changes before opening a new scene?"* dialog. A modal
+dialog blocks Unity's main thread, so the bridge stops answering and the test job never starts. Nothing can
+dismiss it from a session - it needs a human click. The scene gets dirtied by ordinary work: a prefab
+rebuild, a generator, or `manage_scene load` after either.
+
+**Fix.** Save the open scene before calling `run_tests`: `manage_scene` with `{"action":"save"}` - and note
+that it FAILS with *"Cannot save an untitled scene"* once you are already stuck, which is itself the
+diagnostic. Better, check `editor/state` first: if `active_scene.path` is empty you are already behind the
+dialog.
+
+**Invariant.** **Save the scene before running EditMode tests over the bridge.** A test job that "failed to
+initialize" plus a bridge that stops answering is a modal dialog, not a dead editor - check the window title
+for `Untitled` before assuming anything worse.
+
+---
+
+## The forge's sidecar travel is source travel, not rig travel
+
+**Symptom.** The Argent Halberdier's manifest says its `Thrust` travels `forward_m: 0.898` and its
+`ShoulderCharge` `3.546`. Sampling the Hips bone across the same clips on the shipped FBX gave **1.17 m**
+and **4.5 m** — every travelling clip about 1.3× the sidecar, consistently (slam 0.78 vs 0.63, leap 2.33
+vs 1.88, kick 0.32 vs 0.25).
+
+**Root cause.** The `root` block records the motion model's SOURCE path; the tool scales it onto the rig
+at export and never rewrites the sidecar. Its own README says as much in passing — "a Lunge with 1.05 m
+of source travel moves the Animator 1.30 m on a 1.86 m rig" — and the field's comment ("metres at the
+character's scale") is simply wrong. A `lungeDistance` copied from the sidecar would have shipped every
+lunge 25 % short of the animation the player watches.
+
+**Fix.** The lunges were written from the measured rig travel, and `HalberdierDataTests.
+EveryLungeIsTheClipsOwnTravel` holds them to the IMPORTED clip — the Hips bone's forward travel,
+sampled on the FBX at the clip's start and end — within 0.15 m, with a non-travelling clip required to
+ship a lunge of 0. The measurement itself is a tool now: `Tools/measure_forge_fbx.py` runs in
+the forge's own Blender venv with no editor at all.
+
+**Invariant.** **A distance the art carries is read off the clip, never off a sidecar.** The manifest is
+authoritative for frame ranges and event fractions; for anything metric, measure the asset that ships.
+
+---
+
+## Generated clips broke the "canonical four" premise — the clip name moved onto the attack
+
+**Symptom.** Nine generated attack clips imported, split, and listed in the Halberdier's animator, and
+none of them could ever play: `PuppetVisuals.ClipFor` maps an attack onto the forge's four canonical
+clips (swing, heavy, `_Stab`, `_Kick`) and a `HalberdSweep` matches none of them, so every attack would
+have played `AttackSwing`. The same silent failure the Revenant had, from the opposite direction.
+
+**Root cause.** The Revenant fix chose an asset-name suffix over a field on `EnemyAttackData` on the
+grounds that "the forge exports the same four attack clips for every model, so the mapping is a property
+of the pipeline". That was true of authored clips and stopped being true the day `forge.py --motion`
+shipped a clip that exists for one character alone. A per-character clip is content, and content is data.
+
+**Fix.** `EnemyAttackData.clip`, resolved before every heuristic, against a table `4b` bakes onto the
+prefab from every manifest clip carrying `OnAttackHit` — each with its own length and contact frame, so
+the clip still bends to the attack's clock. `MiniBossFactory` errors at build time on an attack whose
+clip the model does not ship, and the test forbids two attacks sharing one clip on this body.
+
+**The root-motion decision made at the same time — and the design that did not survive the editor.**
+Six of the clips TRAVEL; the tool's own contract applies that as root motion through a component that
+moves the agent. This project does not let a clip own the transform — the NavMeshAgent moves the enemy
+and the parry contract's reach is `range + lungeDistance` — so the first design had `4a` set Hips as the
+motion node, leave XZ un-baked on the travelling clips, and let the Animator discard the extracted travel
+(`applyRootMotion = false`). Measured in the live editor it did not do that, three ways: with only
+`motionNodeName` set the clips reported an `averageSpeed` but `hasRootMotion` was false and the Hips
+still walked 1.24 m in the pose; with the avatar's root bone set to a path (`EnemyRig/Hips`) the avatar
+failed and **the model imported with zero clips**, silently; with the root bone set to `Hips` and root
+motion applied, Unity moved the Hips' WHOLE transform onto the model root — XZ, the leap's 0.3 m lift and
+the sweep's 16° of yaw — and the bake flags kept none of it in the pose. Discarding that would have
+discarded the leap and the body turn with it. So NO root node is set, the Hips travel stays in the clip
+like every other bone, `4b` inserts a `TravelRoot` between `SpinRoot` and the model, and
+`PuppetVisuals.CompensateTravel` moves it by minus the Hips' XZ drift from its bind position in
+`LateUpdate`. The mesh stays over its collider (drift under 5 cm at 50 % and 100 % of the thrust, the
+charge and the leap, and the leap still lifts 0.3 m), and the distance ships as data. Legacy models with
+no `root` block keep exactly their old import flags and get no `TravelRoot`.
+
+**Invariant.** **When a lookup's premise is about what a tool exports, re-check it when the tool changes.**
+And: a clip never moves an enemy — the art's travel is data, held to the art by a test. And: **on a
+Generic forge rig, never set a root node**; a wrong path imports no clips and a right one moves the
+whole pelvis. Cancel travel in a transform of your own.
+
+---
+
+## The MCP bridge lost a race at startup and nothing retried
+
+**Symptom.** The editor was open and responsive, port 8090 was listening, and every bridge call answered
+`no_unity_session`; the instances resource reported zero. `Editor.log` showed the HTTP transport failing
+to connect ~40 s before the uvx server finished starting, then silence.
+
+**Root cause.** `McpBootstrap` runs once per editor session (a `SessionState` flag) and the package's own
+auto-start handler does not retry after a failed handshake. One lost race left the bridge down for the
+whole session, with the only remedy a human click on the Tools menu.
+
+**Fix.** `Assets/Editor/McpReconnect.cs`: `[InitializeOnLoad]`, retries `Bridge.StartAsync()` on every
+domain reload when the bridge is down and the server is reachable, and exposes **Tools → MCP Bootstrap →
+Reconnect Bridge**. Since the editor reloads its domain on every script save, the next compile heals it.
+Meanwhile the work went ahead without the bridge: the model was measured in Blender
+(`Tools/measure_forge_fbx.py`) and the C# was compiled offline with `dotnet build` on the Unity-generated
+csproj files, which catch the same errors the editor's console would.
+
+**Invariant.** **A bridge failure is not a stop.** Check `instance_count`, save a script or use the menu,
+and if it stays down fall back to Blender for measurement and `dotnet build` for compile errors.
+
+---
+
+## A slide you could not see yourself in — and an eye that crouched instead of arriving
+
+**Symptom (from play, 2026-09-04).** *"Make it so I can see my feet when sliding, and make the slide feel more
+satisfying."* Looking down mid-slide showed floor. The rest of the package (FOV hold, roll, grit, scrape) was
+all there and all correct, and the move still read as a fast crouch.
+
+**Root cause.** Two absences. There was **no player body at all** — the prefab's only renderers were the arm
+rigs under the camera — so the one thing every slide in every game is read by, the boots out in front, did not
+exist. And the eye's drop was a `MoveTowards` at 6 m/s: it descended and stopped. A body dropping onto a floor
+*arrives* — it goes a little past and settles — and a lens that never overshoots never says "weight".
+
+**Fix.** `PlayerBody` (under the root, so it yaws with you and stays level when you look down): a gait on the
+player's own clock, an air tuck, a wall-run lean, a landing dip, and a slide pose built from the FRAME rather than
+from anatomy — eye at 1.05 m, half-FOV 47.5°, so the hips sink to 0.40 and lead the head by 0.25 m and the
+leading boot lands at z 1.15, 41° below the horizon, in frame. The legs are THROWN there on a closed-form spring
+(6 Hz, ζ 0.6: ~0.10 s, 9% past the pose) and yawed to the velocity, so steering the slide shows the legs going
+where you go. The eye now arrives on the same kind of spring (4.5 Hz, ζ 0.55: ~12% below the slide height, then
+up past neutral on stand-up), the lens carries a held 6 mm rattle that is quadratic in speed, the commit dip went
+1.2° → 1.8° to answer the legs, and stand-up plants with a knee bend and a quiet Land.
+
+**What was measured vs. what was not.** The geometry is arithmetic and `SlideFeelTests` holds it (bounds under
+1.35, boot inside the frame, spring frame-rate independence at 20/60/240 fps). Whether it *feels* satisfying is a
+human sliding in the sandbox looking down — nothing here can prove that.
+
+**Invariants.** A sustained camera effect gets a HELD channel with one writer (`FovHold`, `SetRoll`, now
+`SetRumble`); an arrival gets a spring, not a ramp, and the spring is closed-form so it cannot become
+frame-rate-dependent; and the body writes only its own transforms — never the pivot, the ShakeRoot, the collider
+or the motor.
+
+---
+
+## An offline `dotnet build` cannot see a new file, and the editor csproj hides that behind a project reference
+
+**Symptom (2026-09-04).** With the editor owned by another agent, code was verified with
+`dotnet build Assembly-CSharp.csproj`. A new runtime file (`WaterVolume.cs`) compiled fine in the runtime
+build, then the EDITOR build failed with `CS0246: WaterVolume could not be found` — in `FirstPersonMotor.cs`, a
+file that had not been touched by that build.
+
+**Root cause.** Unity regenerates the csproj files only on its own asset refresh, so a file written from outside
+is not a `<Compile Include>` yet. The runtime build was passing only because the check script added the
+unlisted files to a temporary copy; the editor csproj carries `<ProjectReference Include="Assembly-CSharp.csproj">`
+BY NAME, so it rebuilt the runtime assembly from the ORIGINAL csproj, without the new file.
+
+**Fix.** The offline check (scratchpad `offline_build.py`) writes a patched temp copy of BOTH csproj files, points
+the editor copy's project reference at the runtime temp copy, keeps the runtime temp alive until the editor build
+finishes, then deletes both. Worth keeping as a tool if the editor is ever shared again.
+
+**Invariant.** An offline compile of the editor assembly is only valid if the runtime csproj it references also
+carries every new file. "Build succeeded" on the runtime alone proves nothing about the editor build.
+
+---
+
+## Water is a stay-refreshed touch, not an Enter/Exit pair
+
+**Symptom / avoided.** The obvious water volume keeps a bool on Enter and clears it on Exit.
+
+**Root cause.** `FirstPersonMotor.Teleport` disables the CharacterController to move it; a disabled
+collider sends no `OnTriggerExit`. A player warped out of the yard's water lane (F1 → MOVEMENT YARD, a respawn,
+a checkpoint warp) would still be "in water" — no friction, a 14.85 m/s floor — on the next staircase, with
+nothing in the console.
+
+**Fix.** `WaterVolume.OnTriggerStay` → `motor.TouchWater(volume)` refreshes `waterUntil = now + waterGrace`
+(0.15 s) on the motor clock; `InWater` is `now < waterUntil`; `Teleport` clears it besides.
+
+**Invariant.** **Any state a trigger grants the player expires on its own.** Never rely on `OnTriggerExit`
+from a CharacterController.
+
+---
+
+---
+
+## Aggression scaling turned the punish window into a beat
+
+**Symptom (from play, 2026-09-04).** *"He needs to use his charge when you get too far and then combo his
+attacks on you and be aggressive."* The Halberdier held at 4 m, threw its charge no more often than a
+sweep, and a player who backed off got a breath.
+
+**Root cause.** Two data facts. The charge shared its weight with the leap and a plain sweep across the
+far band, and its range (3.6) whiffed from the far half of its own band once the lunge stopped
+`lungeMinDistance` short. And `aggression` was 0.55 — but raising it alone would have quietly halved every
+opening: `EnemyController` plays recovery × lerp(1, 0.35, A), so at 0.85 the heavy's 1.6 s "biggest punish"
+becomes 0.72 s, and the test that called it the biggest punish only ever compared raw numbers.
+
+**Fix.** Charge entries at 5 m to the aggro edge weighing 11 against 1.2, two of them chaining into the
+sweep pair or the thrust; three-hit strings as the close-band default; aggression 0.85 with the raw
+recoveries rewritten for it (heavy 2.4 → 1.08 s in play) and the charge's range raised to 4.4 so it lands
+from anywhere its band can pick it. `HalberdierBehaviourTests` asserts the *effective* opening, the
+charge's weight share, the openers, and that no tell got shorter.
+
+**Invariant.** **Assert what the controller plays, not what the asset says.** Any number `EnemyController`
+scales by aggression is asserted after the scaling. And: raising aggression is a retune of every recovery in
+the moveset, not one field.
+
+---
+
+## A sprite made during a build is not an asset, so the prefab keeps nothing
+
+**Symptom / avoided.** The obvious way to give a code-built HUD rounded panes is `Sprite.Create` on a
+`Texture2D` painted at build time. It works in the editor session that built it and ships a prefab whose
+every `Image.sprite` is a missing reference: the sprite was never saved, so the panes come back as flat
+quads the next time the prefab loads.
+
+**Fix.** `UiSprites` writes each generated sprite as a PNG under `Assets/UI/Generated/`, imports it
+synchronously as a single 9-sliced Sprite (uncompressed, no mips, border set from the corner radius plus
+the feather) and hands the ASSET back to the builder. The PNG is rewritten only when its bytes change, so
+a rebuild with unchanged generators leaves the asset (and its GUID) alone.
+
+**Invariant.** **Anything a built prefab references must be an asset on disk before the prefab is saved.**
+A generator that creates textures, sprites, meshes or materials in memory has to `CreateAsset` / write and
+import them first, or the prefab silently references nothing.
+
+---
+
+## Generated strike clips do not strike — and a hit at 4 m with a 1.7 m blade is the same bug twice
+
+**Symptom (from play, 2026-09-04).** *"The animations don't line up with the attack hitboxes."* THE ARGENT
+HALBERDIER's sweeps, thrust, slam and heavy played their generated clips with the contact frame timed
+exactly on the data's impact — and still nothing visibly connected.
+
+**Root cause, measured.** The halberd TIP (the RightHand-weighted vertex 0.80 m from the joint), sampled
+through every attack clip at 5 % steps: the four AUTHORED strikes whip it from −1.4 m to +1.3 m at 36–86 m/s
+with the strike on the manifest's contact frame; the GENERATED "strike" clips move it at 1–8 m/s —
+`HalberdSweep` drifts, `HalberdBackswing` and `Thrust` barely stir, `OverheadSlam` and `HeavyWindup` END
+with the blade behind the body. The motion model was asked for a halberd sweep and produced a body that
+shifts its weight. Compounding it, the attacks landed at 3.8–4.7 m (+0.5 slack) while the tip's whole reach
+from the hips is ~1.7 m at scale 1.15 — so even a striking clip would have hit with the blade two metres
+short. And `EnemyController` only ever attacked inside `preferredRange + commitTolerance`, so the far-band
+charge entries (5 m+) could never be selected at all: he walked in and threw a sweep.
+
+**Fix.** Sweep / thrust / slam map to the authored `AttackSwing` / `AttackStab` / `AttackOverhead`; the
+backswing and the heavy, with no striking clip left, are removed rather than doubled onto a shared one
+(MOVEMENT-PRINCIPLES rule 2 — a tell with no blow behind it is exactly the bug); the slam inherits the punish
+window. Ranges came down to the blade (2.7–2.9 m for the cuts + a 1.0–1.3 m step from the cue, kick 3.3,
+spin 3.6, charge 3.0 after its 4.7 m), the commit band to 3.2 + 0.4. `MiniBossFactory.MeasureContactFraction`
+measures every generated clip's tip at `4b` and logs "NO STRIKE" for one under 10 m/s. `PuppetVisuals`
+returns the Animator to ×1 at the impact (`recoverySpeed`) and holds the follow-through, instead of running
+the ×0.55 wind-up scale through the whole swing and snapping to idle 0.25 s after the blow.
+`EnemyController` gained a FAR-BAND COMMIT: outside the band it attacks if and only if
+`EnemyMoveset.HasEligible(dist)` — an entry whose band contains the distance — so the charge fires from 5 m
+to the aggro edge and nothing without a closer is ever thrown from range.
+
+**Invariants.** **A clip is an attack only if the weapon moves like one — measure the tip, do not trust the
+prompt that generated it.** **An attack's range is the weapon's reach plus the step the data gives it**, never
+"where he stands plus a bit"; a hit that lands with nothing touching the player is a mismatch, whatever the
+timing says. **A moveset entry authored for a distance the controller never commits from is a lie** — the
+far-band commit exists so the bands mean what they say.
+
+---
+
+## A jump thrown out of a dash was a dud, so the perfect dash-jump could never fire
+
+**Symptom (2026-09-04, feature suite).** `Perfect_DashJumpInsideTheWindowIsPerfect` and its two siblings red: a
+jump 0.10 s into a ground dash registered no perfect, refunded nothing, and `LastPerfectKind` read None.
+
+**Root cause — three, stacked.** The whole ground/air section of `FirstPersonMotor.Update`, the jump block
+included, lives in the `else` of `if (IsDashing)`: a jump pressed inside a dash was not examined until the
+dash ended. By then the 22 m/s sweep had lifted the CharacterController off a flat floor on the dash's first
+frame (the same fast-sweep trap the slide hit), so coyote had lapsed and the buffered press died. And had it
+fired, the dash branch's `vel.y = 0` would have undone it on the next frame. A dud, silently, and nobody had
+noticed because a dud jump mid-dash looks like "the dash is committed". The window's maths was right; the
+move it judged did not exist. (The first fix tried — making coyote accept a grounded dash — changed nothing,
+because the block it lived in never ran during a dash.)
+
+**Fix.** The jump-out is fired FROM the dash branch: a dash that began on the ground (`dashFromGround`) fires a
+buffered jump at any point in its flight, the jump ENDS the dash (`dashUntil = now`) so its vertical speed
+survives, and the dash's horizontal speed is already in `hv` that frame and settles as carried momentum like
+every other burst. The perfect judgement is unchanged and happens there.
+
+**Invariant.** **Judge a timing window on a move that can actually happen.** A window test must be preceded by
+a plain "the move fires at all" check (`Perfect_DashFired` exists; the jump-out needed its own). And: a branch
+that overwrites a velocity component every frame owns that component — anything else that writes it inside
+that branch's lifetime must end the branch first.
+
+---
+
+## A balloon chain laid to the yard's spacing sails clean over the second orb
+
+**Symptom (2026-09-05, caught in simulation before it shipped).** The T3 balloon arc was first laid to the
+sandbox yard's proven chain — 5.5 m per link, 1.2 m of rise. Flown with the motor's own laws, every
+orb-to-orb link MISSED by 2.1 m: the player went over the next orb, not through it.
+
+**Root cause.** The yard chain was laid before the pop gained its float (0.45 s at 0.55 gravity) and the
+carry cap (9 m/s). A pop with the float apexes ~3.5 m above the orb about 5 m out, so an orb only 1.2 m
+higher is a metre and a half under the player's feet at the crossing. "Proven in the yard" was proven for a
+different pop.
+
+**Fix.** Orbs ~5 m across and ~3 m UP; `LevelTraversalAnalyzer.AnalyzeChain` flies every link with the
+shipped `launchCarryCap` / `launchFloatSeconds` / `launchGravityScale` read off `Player.prefab`, and
+`LevelTraversalTests` holds both the geometry band (2.4–3.3 m rise) and the flown chain. The yard's own
+chain (`SandboxBuilder.BalloonChain*`, `MovementYardTests`) is outside this lane and still carries the old
+1.2 m rise — it should be re-flown with the same analyser.
+
+**Invariant.** **A traversal piece's spacing is derived from the flown pop, never copied from another
+level.** Any change to a pop's numbers on the prefab re-judges every chain through the analyser.
+
+---
+
 ## Smaller traps worth knowing
 
 | Trap | Detail |
@@ -2459,7 +2955,13 @@ space. Measure the tip.
 | Volume overrides need persisting | `VolumeProfile.Add<T>()` components must also be `AssetDatabase.AddObjectToAsset`'d or they do not survive a reload. |
 | Scene file may serialize binary | `SampleScene.unity` (now `Level_01.unity`) has been observed written as binary despite `serializationMode = ForceText`. It loads correctly; it just is not diffable. Verify content with `strings`, or by reopening and counting roots — not with `grep`. |
 | MCP `execute_code` is C# 6 | The dynamic-code compiler is stricter/older than the project's C# 9. Avoid local functions, `$"{x:F0}"` inside lambdas, and interpolation edge cases; keep snippets plain. |
+| The first-person torso blocks the view | From play, 2026-09-04: `PlayerBody`'s chest cube 0.26 m under the 1.6 m lens filled the bottom of the frame on any look-down, and on a slide (eye 1.05 m, hips pushed forward) it sat in front of the legs. Fix: the torso renderers are `ShadowCastingMode.ShadowsOnly` — the player still casts a whole-body shadow, only the legs are drawn. Apex and Titanfall draw no first-person torso either. `SlideFeelTests` pins torso = shadow-only, legs = drawn. |
+| A magenta Pyre bar | The fire is a hand-written UGUI shader (`Assets/Shaders/UI/FireBar.shader`). Magenta on the bar means the shader failed to compile in THIS Unity/URP — read the console's "Shader error in 'VibeGame1/UI/FireBar'" line; the C# builds cannot catch it. `HudExtensions.ApplyPyreFire` logs an error and leaves the plain bar if `Shader.Find` returns null. |
+| A dash carried through a balloon overshot the next orb by a storey | Measured 2026-09-05 with the yard chain: a 22 m/s air dash through `Yard_Balloon_1` re-armed the dash but kept its speed, and the float window carried the player 16 m past orb 2. The chain is meant to be pop → aim → dash. Fix: `RearmDash` now ENDS the dash at the orb and both paths trim the carry to `launchCarryCap` (9 m/s, `TraversalMath.Launch(vel, up, cap)`), so the re-armed dash is the reach and the carry is only ever steerable. `PivotMovementTests.APopTrimsTheCarryToTheCap_SoTheNextOrbIsAimable`. |
+| A white disc under the player's feet | The lock-on marker. `LockOnMarker.Show` cached "what I last set" starting from `false`, so Awake's `Show(false)` returned early and the metre-wide `DotCore` sphere stayed enabled at the player's origin until a target was acquired. Invisible for the whole project because nothing gave a reason to look down until `PlayerBody` (2026-09-04). Fixed with an `applied` flag; `LockOnMarkerTests.TheFirstHideActuallyHides` pins it. Lesson: a "skip if unchanged" cache is only valid after the first write. |
+| A rebuilt animator controller reads NULL on the prefab in the same session | `PuppetAnimatorFactory.Build` deletes and recreates the `.controller`; until `AssetDatabase.ImportAsset(path, ForceUpdate)` runs on the controller and the prefab, `runtimeAnimatorController` on the freshly built prefab resolves to null in that editor session and a test reading it fails for no real reason. Force-import both after `4b` before testing. |
 | Naive brace-balance checks lie | A regex `{`/`}` counter reports imbalance on *every* file here (interpolated strings, chars). Do not use it as a compile proxy — it produced 78 false positives once. |
 | Do not `SetActive(false)` the viewmodel | `WeaponController.Awake` caches `GetComponentInChildren<WeaponViewmodel>()` — **active-only**. Hiding the viewmodel root for a screenshot and then reloading the scene leaves that cache null, and every `Equip()` silently stops swapping the weapon model. Hide `Renderer.enabled` instead. |
 | Enemy standoff distance | `agent.stoppingDistance = attackRange * 0.7` parks the 2.2×-scale boss ~2.1 m from the camera, too close to read in first person. Known, not yet changed. |
+| Blender measures a forge FBX when the bridge is down | `Tools/measure_forge_fbx.py`, run with the forge tool's own venv (`ai_skelly_tool/.venv/Scripts/python.exe`), prints bounds, bone heads, facing slices, per-clip arm span and per-clip Hips travel in **Unity axes**: `unity = (-bl.x, bl.z, -bl.y)`. Import with `ignore_leaf_bones=False` or Blender drops the hands, toes and head. The forge places every bone on the drawing's z = 0 plane, so read facing off the mesh (feet, head, extremities), never the skeleton. |
 | `Sword.parryPostureDamage = 25` is arithmetic, not tuning | 25 × 1.4 (`Marionette_SpinPass.parryPostureMultiplier`) × 6 = 210, exactly the Pale Marionette's `maxPosture`, and FeatureTests' Knight beat counts it at ×1.3. `MarionetteDataTests.SixCleanDeflects_BreakIt` asserts the six-deflect break against `Sword.asset`; `WeaponSilhouetteTests.SixDeflectEconomy_TheSwordStaysAt25` guards it from the weapon side. A weapon pass that touches this number silently re-tunes two boss fights — keep the arithmetic landing on 6 or move `maxPosture` in the same edit. |

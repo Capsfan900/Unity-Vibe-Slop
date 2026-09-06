@@ -24,8 +24,14 @@ namespace VibeGame1
     ///   tracks actual speed instead of firing once.</item>
     /// </list>
     ///
-    /// <para>Both effect objects are created HERE at runtime rather than authored on the prefab, so
-    /// nothing about this change needs a prefab rebuild or a new serialised reference.</para>
+    /// <para><b>The wall run pass.</b> Same story a third time: <c>OnWallRunStarted</c> /
+    /// <c>OnWallRunEnded</c> were raised and unsubscribed. The lean in <c>PlayerLook</c> was never the
+    /// gap; the catch, the feet and the LET-GO were, and the let-go is the one that matters — four of
+    /// the six endings are the wall giving up, which is the cue the exit-grace jump is learned
+    /// against. See <see cref="WallRunImpulse"/> / <see cref="WallRunFx"/>.</para>
+    ///
+    /// <para>All three effect objects are created HERE at runtime rather than authored on the prefab,
+    /// so nothing about these changes needs a prefab rebuild or a new serialised reference.</para>
     /// </summary>
     public class PlayerFeedback : MonoBehaviour
     {
@@ -47,8 +53,10 @@ namespace VibeGame1
         [Tooltip("How far the eye drops while sliding. Not the full collider drop - a camera on the " +
                  "floor reads as a bug, and you still have to see the thing you are sliding under.")]
         public float slideCameraDrop = 0.55f;
-        [Tooltip("How fast the eye follows the slide, in metres per second. Fast enough to feel like a " +
-                 "drop, slow enough not to snap.")]
+        [Tooltip("Fallback ramp for the eye when there is no GameFeelSettings to read a spring from. " +
+                 "Shipped: the eye follows the slide on a SPRING (GameFeelSettings.slideCrouchHz / " +
+                 "slideCrouchDamping) so it plops onto the floor and rises past neutral on stand-up; " +
+                 "this ramp is only what a missing asset gets.")]
         public float slideCameraSpeed = 6f;
         [Tooltip("One-shot kick on ENTRY only. SlideFx separately HOLDS a speed-tracked FOV offset for " +
                  "the whole slide (GameFeelSettings.slideFovHold), and this is just the commit punch on " +
@@ -60,10 +68,13 @@ namespace VibeGame1
         FirstPersonMotor motor;
         DashFx dashFx;
         SlideFx slideFx;
+        WallRunFx wallRunFx;
+        WaterFx waterFx;
+        bool wasInWater;
         Transform pivot;
         Vector3 pivotBase;
         float dip, dipVel;
-        float crouch;
+        float crouch, crouchVel;
         float stepAccum;
         Vector3 lastPos;
 
@@ -85,6 +96,10 @@ namespace VibeGame1
             motor.OnSlideStarted += OnSlideStarted;
             motor.OnSlideEnded += OnSlideEnded;
             motor.OnWallJumped += OnWallJumped;
+            motor.OnWallRunStarted += OnWallRunStarted;
+            motor.OnWallRunEnded += OnWallRunEnded;
+            motor.OnPerfect += OnPerfect;
+            motor.OnLaunched += OnLaunched;
         }
 
         void OnDisable()
@@ -96,6 +111,29 @@ namespace VibeGame1
             motor.OnSlideStarted -= OnSlideStarted;
             motor.OnSlideEnded -= OnSlideEnded;
             motor.OnWallJumped -= OnWallJumped;
+            motor.OnWallRunStarted -= OnWallRunStarted;
+            motor.OnWallRunEnded -= OnWallRunEnded;
+            motor.OnPerfect -= OnPerfect;
+            motor.OnLaunched -= OnLaunched;
+        }
+
+        /// <summary>
+        /// A balloon launch. The orb itself made the pop (sparks, ring, the two-voice Jump/Land); this
+        /// is the LENS answering the body going up: an FOV widen between a jump's and a dash's, and a
+        /// nose-up pitch kick with the lens left a hair behind, the same shape as the dash kick turned
+        /// vertical. Frontal, no roll, no yaw — you are going UP, and nothing about that has a side.
+        /// </summary>
+        void OnLaunched()
+        {
+            var feel = GameManager.I != null ? GameManager.I.feel : null;
+            EnsureFx();
+            if (CameraFX.I != null) CameraFX.I.FovKick(feel != null ? feel.balloonFovKick : 5f);
+            if (CameraShake.I != null)
+            {
+                float p = feel != null ? feel.balloonKickPitch : 1.5f;
+                CameraShake.I.Kick(new Vector3(-p, 0f, 0f), new Vector3(0f, -0.03f, 0f), 0.14f, DashImpulse.KickAttackFraction);
+            }
+            dip -= jumpHopMeters * 1.5f;
         }
 
         void OnJumped()
@@ -152,8 +190,13 @@ namespace VibeGame1
 
             if (CameraFX.I != null)
             {
-                CameraFX.I.FovKick(feel != null ? feel.dashFovKick : 8f);
-                CameraFX.I.ChromaticPulse(feel != null ? feel.dashChromatic : 0.35f, 0.18f);
+                // A grapple-exit BURST is the dash package plus the biggest lens the kit has: the
+                // burst is the fastest thing in the game (dashSpeed x pullBurstMultiplier), and the
+                // FOV is what says "faster than a dash" when the speed lines already say "dash".
+                bool burst = motor != null && motor.LastDashWasBurst;
+                float extra = burst ? (feel != null ? feel.burstFovKick : 6f) : 0f;
+                CameraFX.I.FovKick((feel != null ? feel.dashFovKick : 8f) + extra);
+                CameraFX.I.ChromaticPulse((feel != null ? feel.dashChromatic : 0.35f) * (burst ? 1.6f : 1f), burst ? 0.26f : 0.18f);
             }
             if (CameraShake.I != null)
             {
@@ -209,6 +252,9 @@ namespace VibeGame1
         {
             var feel = GameManager.I != null ? GameManager.I.feel : null;
             AudioManager.Play(Sfx.Footstep, 0.55f, 0.72f, 0.08f);
+            // Weight arriving back on the feet as the legs fold under you (PlayerBody plants them with
+            // a knee bend on this same event). Quiet and a touch high: a plant, not a fall. Rule 7.
+            AudioManager.Play(Sfx.Land, 0.30f, 1.05f, 0.05f);
             if (CameraFX.I != null) CameraFX.I.FovKick(feel != null ? feel.slideEndFovPunch : -2.5f);
             if (CameraShake.I != null) CameraShake.I.Add(0.045f, 0.12f);
             if (slideFx != null) slideFx.End();
@@ -244,7 +290,109 @@ namespace VibeGame1
                 slideFx = go.AddComponent<SlideFx>();
                 slideFx.Build(motor);
             }
+            if (wallRunFx == null && motor != null)
+            {
+                var go = new GameObject("WallRunFx");
+                go.transform.SetParent(transform, false);
+                wallRunFx = go.AddComponent<WallRunFx>();
+                wallRunFx.Build(motor);
+            }
+            if (waterFx == null && motor != null)
+            {
+                var go = new GameObject("WaterFx");
+                go.transform.SetParent(transform, false);
+                waterFx = go.AddComponent<WaterFx>();
+                waterFx.Build(motor);
+            }
         }
+
+        /// <summary>
+        /// The CATCH. <c>OnWallRunStarted</c> existed on the motor from the start and nothing subscribed;
+        /// the lean in <c>PlayerLook</c> was the only thing that said a run had begun, and a lean is a
+        /// state, not a contact. Two voices, both under the grounded footstep's 0.55: Footstep pitched
+        /// up (a wall is struck shorter and harder than a floor) for the foot, Land quietly under it for
+        /// the body meeting the face. Rule 7: no new Sfx entry.
+        ///
+        /// <para>The kick is translation only, TOWARD the wall — <see cref="WallRunImpulse.AttachKick"/>.
+        /// The rotation is PlayerLook's lean and a second one here would fight it. The normal is read
+        /// inside the event, while the motor still reports it, and handed to <see cref="WallRunFx"/> in
+        /// camera space because the motor zeroes it before raising the end event.</para>
+        /// </summary>
+        void OnWallRunStarted()
+        {
+            var feel = GameManager.I != null ? GameManager.I.feel : null;
+            EnsureFx();
+
+            AudioManager.Play(Sfx.Footstep, 0.50f, 1.12f, 0.08f);
+            AudioManager.Play(Sfx.Land, 0.28f, 1.15f, 0.06f);
+
+            // Camera space: PlayerLook yaws the body and only pitches the pivot, so the body's inverse
+            // is the camera's yaw frame — the same reasoning OnDashed uses for the move axis.
+            Vector3 nLocal = transform.InverseTransformDirection(motor.WallRunNormal);
+
+            if (CameraShake.I != null)
+            {
+                var k = WallRunImpulse.AttachKick(nLocal, feel != null ? feel.wallRunAttachOffset : 0.03f);
+                CameraShake.I.Kick(k.euler, k.offset,
+                    feel != null ? feel.wallRunAttachTime : 0.12f, WallRunImpulse.KickAttackFraction);
+            }
+            if (wallRunFx != null) wallRunFx.Begin(nLocal);
+        }
+
+        /// <summary>
+        /// The LET-GO — or not. A run ends six ways and this is the one place they are told apart:
+        /// <list type="bullet">
+        ///   <item><b>Jumped</b>: nothing extra. The exit roll kick in PlayerLook and <see cref="OnWallJumped"/>
+        ///   already own it, and stacking on the loudest cue blurs it.</item>
+        ///   <item><b>Expired / Decayed / Exhausted</b>: a short DOWNWARD sag, the floor going out from
+        ///   under you, with a slower attack than a blow (<see cref="WallRunImpulse.DropAttackFraction"/>).
+        ///   Exhausted additionally gets a quieter, lower thud — stamina ran out ON the wall, and the
+        ///   fix is a different line, so the player has to be able to hear that one.</item>
+        ///   <item><b>LostWall</b>: a lateral drift AWAY from where the face was. It did not drop you,
+        ///   it went away.</item>
+        ///   <item><b>Landed / Cancelled</b>: nothing — <see cref="OnLanded"/> or the dash that
+        ///   cancelled it owns the frame.</item>
+        /// </list>
+        /// <c>LastWallRunEnd</c> is written before the motor raises this event, so it is read here.
+        /// </summary>
+        void OnWallRunEnded()
+        {
+            var feel = GameManager.I != null ? GameManager.I.feel : null;
+            WallRunEnd why = motor.LastWallRunEnd;
+            Vector3 nLocal = wallRunFx != null ? wallRunFx.NormalLocal : Vector3.zero;
+
+            ParryImpulse.Kick k;
+            if (CameraShake.I != null && WallRunImpulse.EndKick(why, nLocal,
+                    feel != null ? feel.wallRunDropPitch : 1.4f,
+                    feel != null ? feel.wallRunDropOffset : 0.03f,
+                    feel != null ? feel.wallRunLostDrift : 0.02f, out k))
+            {
+                CameraShake.I.Kick(k.euler, k.offset,
+                    feel != null ? feel.wallRunDropTime : 0.16f, WallRunImpulse.DropAttackFraction);
+            }
+            if (WallRunImpulse.EndsWithThud(why)) AudioManager.Play(Sfx.Land, 0.30f, 0.70f, 0.06f);
+            if (wallRunFx != null) wallRunFx.End();
+        }
+
+        /// <summary>
+        /// A PERFECT. The move's own package has already played (this fires after OnDashed / OnJumped /
+        /// OnWallJumped), so this is the "yes" on top of it: a chime built from two existing voices
+        /// (rule 7 -- no new Sfx: the parry cue pitched up a fifth carries the ring, a high Swing the
+        /// transient), a small extra widen, and a PERFECT stamp on the prompt line. Nothing brightens.
+        /// A miss reaches no code here at all -- there is nothing to say about an ordinary move.
+        /// </summary>
+        void OnPerfect(PerfectKind kind, float refunded)
+        {
+            var feel = GameManager.I != null ? GameManager.I.feel : null;
+            AudioManager.Play(Sfx.ParryCue, 0.55f, 1.5f, 0.02f);
+            AudioManager.Play(Sfx.Swing, 0.28f, 1.9f, 0.04f);
+            if (CameraFX.I != null) CameraFX.I.FovKick(feel != null ? feel.perfectFovKick : 3f);
+            float hold = feel != null ? feel.perfectPromptSeconds : 0.6f;
+            GameEvents.RaisePromptChanged("PERFECT");
+            perfectPromptUntil = Time.unscaledTime + hold;
+        }
+
+        float perfectPromptUntil = -1f;
 
         /// <summary>The jump sound, pitched up and harder: it must read as a DIFFERENT jump, or a player
         /// cannot tell a wall jump fired from a jump that silently did not.</summary>
@@ -259,6 +407,14 @@ namespace VibeGame1
         void Update()
         {
             float udt = Time.unscaledDeltaTime;
+
+            // The PERFECT stamp clears itself. Only the prompt line's most recent owner sees its text, so
+            // a surge countdown that re-raises every second simply takes the line back.
+            if (perfectPromptUntil > 0f && Time.unscaledTime >= perfectPromptUntil)
+            {
+                perfectPromptUntil = -1f;
+                GameEvents.RaisePromptChanged("");
+            }
 
             // footsteps by distance travelled, so they stay in step with actual speed
             if (motor != null && motor.IsGrounded && GameManager.IsPlaying)
@@ -284,8 +440,25 @@ namespace VibeGame1
 
             // The eye follows the slide separately from the landing dip, so the two never fight: dip is
             // a spring back to zero, crouch is a held offset for as long as the slide lasts.
+            //
+            // A SPRING, not a ramp. The 6 m/s MoveTowards read as a crouch: the eye descended and
+            // stopped. A body dropping onto a floor arrives — it goes a little past the height and
+            // settles up — and on stand-up it rises past neutral before it settles down. Closed-form
+            // (SlideImpulse.Spring), so the plop is identical at 20 and 240 fps. The overshoot is the
+            // damping ratio's business (SlideImpulse.OvershootFraction), ~12% at the shipped 0.55.
             float wantCrouch = (motor != null && motor.IsSliding) ? slideCameraDrop : 0f;
-            crouch = Mathf.MoveTowards(crouch, wantCrouch, slideCameraSpeed * udt);
+            var feelCrouch = GameManager.I != null ? GameManager.I.feel : null;
+            if (feelCrouch != null)
+            {
+                float nc, nv;
+                SlideImpulse.Spring(crouch, crouchVel, wantCrouch,
+                                    2f * Mathf.PI * Mathf.Max(0.1f, feelCrouch.slideCrouchHz),
+                                    feelCrouch.slideCrouchDamping, udt, out nc, out nv);
+                crouch = nc; crouchVel = nv;
+                if (wantCrouch == 0f && Mathf.Abs(crouch) < 0.0005f && Mathf.Abs(crouchVel) < 0.01f)
+                { crouch = 0f; crouchVel = 0f; }
+            }
+            else crouch = Mathf.MoveTowards(crouch, wantCrouch, slideCameraSpeed * udt);
 
             if (pivot != null) pivot.localPosition = pivotBase + Vector3.down * (dip + crouch);
 
@@ -293,15 +466,56 @@ namespace VibeGame1
             // from the start/end events alone: the events do the one-shots, but a respawn or a disabled
             // player can swallow an end event and a slide that never released the FOV hold or the camera
             // roll would leave the lens permanently wrong for the rest of the run.
+            var feelNow = GameManager.I != null ? GameManager.I.feel : null;
             if (slideFx != null)
             {
-                var feel = GameManager.I != null ? GameManager.I.feel : null;
                 slideFx.Tick(
-                    feel != null ? feel.slideFovHold : 8f,
-                    feel != null ? feel.slideRollDegrees : 3.5f,
-                    feel != null ? feel.slideSparkRate : 5f,
-                    feel != null ? feel.slideDustRate : 34f,
-                    feel != null ? feel.slideScrapeVolume : 0.22f);
+                    feelNow != null ? feelNow.slideFovHold : 8f,
+                    feelNow != null ? feelNow.slideRollDegrees : 3.5f,
+                    feelNow != null ? feelNow.slideSparkRate : 5f,
+                    feelNow != null ? feelNow.slideDustRate : 34f,
+                    feelNow != null ? feelNow.slideScrapeVolume : 0.22f,
+                    feelNow != null ? feelNow.slideRumble : 0.006f);
+            }
+
+            // WATER. Entry is an event the motor does not raise (it is a stay-refreshed touch), so it is
+            // read as an edge here: one FOV kick and a soft Land on the first frame in, nothing held.
+            // The spray and the hiss are textures that track speed, owned by WaterFx.
+            if (motor != null)
+            {
+                bool inWater = motor.InWater;
+                if (inWater && !wasInWater)
+                {
+                    EnsureFx();
+                    if (CameraFX.I != null) CameraFX.I.FovKick(feelNow != null ? feelNow.waterEnterFovKick : 3f);
+                    AudioManager.Play(Sfx.Land, 0.35f, 1.4f, 0.08f);
+                }
+                wasInWater = inWater;
+            }
+            if (waterFx != null)
+                waterFx.Tick(feelNow != null ? feelNow.waterSprayRate : 26f,
+                             feelNow != null ? feelNow.waterHissVolume : 0.14f);
+
+            // The wall run's sustained layers. ORDER MATTERS: SlideFx.Tick above writes CameraFX.FovHold
+            // every frame (0 when not sliding), and the hold has one writer at a time. WallRunFx ticks
+            // after it and overrides only while a run is live, so the slide's zero never clobbers a live
+            // wall-run hold and the wall run's release never lingers over a slide. The two moves are
+            // mutually exclusive in the motor; this is the ordering that keeps them so on the lens.
+            if (wallRunFx != null)
+            {
+                if (wallRunFx.Tick(
+                        feelNow != null ? feelNow.wallRunFovHold : 3.5f,
+                        feelNow != null ? feelNow.wallRunStepDistance : 1.6f,
+                        feelNow != null ? feelNow.wallRunGritRate : 44f,
+                        feelNow != null ? feelNow.wallRunStepSparks : 3))
+                {
+                    // A foot on the wall: the grounded footstep pitched up, quieter, falling as the run
+                    // ages (WallRunImpulse.StepPitch), and a smaller bob than a ground stride.
+                    AudioManager.Play(Sfx.Footstep,
+                        feelNow != null ? feelNow.wallRunStepVolume : 0.40f,
+                        WallRunImpulse.StepPitch(wallRunFx.ElapsedFraction), 0.10f);
+                    dip += 0.008f;
+                }
             }
         }
     }

@@ -66,7 +66,7 @@ namespace VibeGame1.EditorTools
         };
 
         /// <summary>The wall lengths the lines are sized to. A sprint run covers 13.5–17.6 m of wall.</summary>
-        public const float MinWallLength = 14f;
+        public const float MinWallLength = 14.5f;   // a released 11 m/s entry covers 14.4 m at 1.75 s
 
         [MenuItem("VibeGame1/Span 1 Wall-Run Report", priority = 302)]
         public static void Menu() { Run(); }

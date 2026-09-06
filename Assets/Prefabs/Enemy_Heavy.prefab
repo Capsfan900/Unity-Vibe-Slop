@@ -105,6 +105,7 @@ GameObject:
   - component: {fileID: 8224695626312177863}
   - component: {fileID: 5513380019117533944}
   - component: {fileID: 4188182940645462283}
+  - component: {fileID: 1932945888292229859}
   m_Layer: 7
   m_Name: Enemy_Heavy
   m_TagString: Untagged
@@ -232,6 +233,18 @@ MonoBehaviour:
   data: {fileID: 11400000, guid: 5c1dad703463eeb44831299200cbcca9, type: 2}
   aggroLocked: 0
   cueLead: 0.28
+--- !u!114 &1932945888292229859
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 840928048487626951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd422e9ce2ad6fd42ab2c3909ba1c48f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ProjectileShooter
 --- !u!1 &1230941783568729431
 GameObject:
   m_ObjectHideFlags: 0

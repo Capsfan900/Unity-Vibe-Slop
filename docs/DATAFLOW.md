@@ -137,10 +137,30 @@ InputReader → FirstPersonMotor.Update()
     dt = TimeScaleController.PlayerDelta      ← NOT Time.deltaTime
     staggered? (PlayerCombat.IsStaggered) → wish *= 0.4, no jump/dash/slide/wall jump
     ground/air acceleration, coyote time, jump buffer, variable jump, dash
-    SLIDE      capsule 1.8 → 1.0 m, speed +5 (cap 22), bleeds at 2/s to a floor of 8, ~4.0 m
-    WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal
+    STAMINA    dash / wall run / wall jump ask PlayerStamina.TrySpend first — see "Stamina" below
+    MOMENTUM   DecayExcess(hv, cap, k, dt): speed over a cap bleeds on exp(-k dt), never a flat ceiling
+                 air:    excess over groundSpeed 11 at airCarryDecay 0.8/s (the carry is spent, not kept),
+                         THEN excess over airSoftCap 17.6 (1.6x run) at airDrag 3/s (a dash settles in ~0.5 s)
+                 ground: excess over groundSpeed 11 at groundOverspeedDecay 4/s
+                 hard clamp maxHorizontalSpeed 27.5 outside a dash
+    WEIGHT     gravity -30 rising, x fallGravityMultiplier 1.5 while airborne and descending (FallGravity)
+                 landing: LandingSpeedFactor(fallSpeed, soft 16, hard 26, loss 0.35) scales hv on the landing
+                 frame, BEFORE this frame's TrySlide — a flat jump (lands ~14.7) is free, a 7.5 m drop costs 35%
+    AIR STEER  AirSteer(hv, wish, 120 deg/s, dt): velocity TURNS toward the stick, speed preserved, only while
+                 the stick is within 90 deg of travel; then AirAccelerate (Source: add along wish up to a run)
+                 which is what a stick held back brakes with
+    GROUND SNAP final cc.Move displacement.y = min(vel.y dt, -groundSnapDistance 0.12) while grounded and not
+                 rising — displacement only, the sweep stops at the floor. Without it the -2 pin moved 0.004 m
+                 at 500 fps, inside skinWidth 0.05, isGrounded flickered off and every slide died at coyote time
+    SLIDE      capsule 1.8 → 0.9 m, boost +5 x fade x 0.6^chain (cap 22), bleeds at 2/s to a floor of 8
+                 fade = (22 - speed)/(22 - 11): full at a sprint, nothing at the cap
+                 chain = slides started within 1.2 s of the last one ENDING: 5, 3, 1.8, 1.1 ...
+    WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal; costs 12 stamina
     WALL RUN   no binding; entered by arriving — see "Movement — wall run" below
     now += dt                                 ← the motor's OWN clock; every timer reads it
+    PULL       `if (pulling) { AdvancePull(dt); return; }` right after the clock: the Grapple item owns
+                 the whole frame (position curve + one cc.Move). See "Items".
+    WALL SURGE IsWallSurging (now < wallSurgeUntil) scales WallRunSettings and skips both stamina calls
   → CharacterController.Move()
   ⇢ OnJumped / OnLanded / OnDashed / OnSlideStarted / OnSlideEnded / OnWallJumped / OnWallRunStarted / OnWallRunEnded
       → PlayerFeedback  → AudioManager (footstep/jump/land/dash/slide/wall jump)
@@ -172,6 +192,11 @@ InputReader → FirstPersonMotor.Update()
   a free ladder; `maxWallJumps` bounds a chimney to one airtime's worth of climb.
 - **Jump-cancelling a slide keeps the slide's speed.** `EndSlide` runs before the jump and never touches `hv`.
   That is the whole speedrun tech, and every optional fast line in `Level_01` is authored to it.
+- **A burst is a decay, not a cruise.** Nothing sets a speed the air then keeps forever: a dash, a slide-jump
+  or a run exit lands you above `airSoftCap` and the surplus bleeds on `exp(-airDrag t)`. You keep 17.6 of a
+  22 m/s dash; you do not keep 22. `DecayExcess` is pure and framerate-independent (`StaminaTunablesTests`).
+- **Speed is earned once, then preserved.** The slide boost fades with the speed you already carry and with
+  every chained slide, so slide-jump-slide-jump is a rhythm that costs, not a free constant 16 m/s.
 
 ---
 
@@ -416,7 +441,8 @@ fade 0.11 s, peak channel **1.15**.
 Two independent implementations with the same idea — do not merge them, they have different rules.
 
 ```
-ENEMY   Posture           built by: player parries (big), player hits (small), Stormcall/Ultimate (huge)
+ENEMY   Posture           built by: player parries (big), player hits (small), Ultimate (huge),
+                                    Grapple onto an unstaggered Legendary_* / boss (35% of max)
         regen after delay, scaled by health fraction (hurt enemies recover posture slower)
         full → Break() → State.Staggered → deathblow window
                           EnemyVisuals.Slump(true)
@@ -526,7 +552,7 @@ InputReader.AttackPressed → WeaponController.TryAttack()
           OffhandViewmodel.PlayThrust(windup, hold, recover)   COCK → STAB → HOLD → WITHDRAW
               tip light ramps tipLightIdle → tipLightCharged over the cock; glints on an
               accelerating cadence at OffhandViewmodel.TipWorldPosition
-          ⇢ RiposteLanded(target)        ← raised BEFORE damage, so armed Stormcall can read the victim
+          ⇢ RiposteLanded(target)        ← raised BEFORE damage, so listeners can read the victim
           THE BLAST IS DRAWN FROM THE TIP, NOT ON THE VICTIM — and CONTACT is the surface of
           the chest, e.DeathblowPoint(eye), not its centre. `origin + up*0.95` was the middle of
           the body: every flare drawn there rendered INSIDE the enemy and was never seen.
@@ -549,7 +575,7 @@ InputReader.AttackPressed → WeaponController.TryAttack()
 **Invariants**
 - Only the ripostee takes `isExecute` damage. Splash/chain/pierce is ordinary damage, so an AoE can never
   deathblow a bystander boss.
-- `RiposteLanded` fires before the damage — the armed Stormcall depends on reading the victim while alive.
+- `RiposteLanded` fires before the damage — listeners depend on reading the victim while alive.
 - Wand `windup`/`recover` set the riposte's cadence; that is what makes wands feel different.
 - Falls back to the original melee deathblow when no wand is equipped **or while the wand is cooling**.
 - **The deathblow is a PRESS, and the press must announce itself.** `TryExecute` returns false whenever
@@ -668,15 +694,64 @@ ItemPickup (trigger, layer Interactable)
   → PlayerItems.TryPickup(ItemData)     capacity 3, FIFO
   ⇢ ItemPickedUp → HUD toast     ⇢ ItemsChanged → HUD slot row
 
-OffhandController owns the use input (NOT PlayerItems — two readers would double-spend)
-  R cycles the offhand: wand → each carried item → wand
-  E uses it → PlayerItems.Use(item) → ⇢ ItemUsed
-    Updraft        → FirstPersonMotor.Launch()
-    SoulLantern    → health/posture/flask restored
-    PhantomStep    → temporary invulnerability + SpeedMultiplier
+  ⇢ ItemsChanged → StatusStripView (top-left strip: held list, front item marked)
+
+E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
+  → Apply(item) FIRST — returns false to REFUSE, and a refused item is kept and nothing is announced
+  → held.Remove → ⇢ ItemsChanged, ⇢ ItemUsed, Sfx.ItemUse
+
+  Grapple  → FindGrappleTarget: LockOnController.Target if in range + LOS,
+                                else OverlapSphereNonAlloc(EnemyMask, 28 m) → nearest to the crosshair
+                                inside 12° with Physics.Raycast(motor.WorldMask) clear
+             none → prompt "NO TARGET" (0.6 s), Sfx.Click, return false (NOT consumed)
+           → ItemVfx.GrappleLine(offhand tip → e.DeathblowPoint), OffhandViewmodel.PlayUse, FOV kick
+           → FirstPersonMotor.BeginPull(StandoffPoint(e), 0.35 s)
+                StandoffPoint = enemy feet + (player side, flat) × ExecuteInteractor.stabStandoff × data.scale
+                motor.Update: `if (pulling) { AdvancePull(dt); return; }` — the item OWNS velocity:
+                  position curve start→target, sine arc (0.35..2.2 m), ease-out, on the motor clock;
+                  one cc.Move per frame; ends on arrival, on a Sides/Above collision, or CancelPull
+                  (Teleport calls it). ⇢ OnPullEnded(arrived). Slide/wall run/dash cancelled on entry.
+           → on arrival (e alive):
+                PlayerItems.IsBig(e)  = BossController, or name / data.name starts "Legendary"
+                big && !IsStaggered   → e.Posture.Add(0.35 × Posture.Max); flare + sparks; DONE
+                otherwise             → if (!IsStaggered) e.Posture.Break()   → HandleBroken → State.Staggered (sync)
+                                        → ExecuteInteractor.ExecuteNow(e)     → the SAME ExecuteCo as a pressed
+                                          deathblow: wand riposte (WandController raises RiposteLanded) or
+                                          melee execute (interactor raises it), isExecute damage, hitstop
+  WallSurge → FirstPersonMotor.StartWallSurge(8 s)   wallSurgeUntil on the motor clock `now`
+              IsWallSurging → WallRunSettings: topSpeed ×1.5, accel ×1.5, minEntrySpeed 0
+                            → TryWallRun: TooSlow gate and stamina.TrySpend skipped
+                            → AdvanceWallRun: stamina.Drain skipped
+                            → CanWallRunNow ignores stamina
+            → ItemVfx.Surge (feet ring + SurgeTrail: arcs off the wall while surging AND running)
+            → prompt "SURGE Ns" once a second (SurgePromptCo), "" on expiry
+            → StatusStripView reads IsWallSurging / WallSurgeRemaining per frame → "WALL SURGE  N.Ns" row
 
 GameEvents.PlayerRespawned → every ItemPickup re-enables; PlayerItems clears
+
+SENTRY DASH (2026-09-06; SentryDash on the Player prefab, DefaultExecutionOrder -50 so it runs BEFORE the motor)
+  every frame while GameManager.IsPlaying, not pulling, not executing:
+    Target = FindTarget(): staggered enemy whose data.rangedOnly (Grunt / Heavy on the spans; never the boss),
+             within range 30 m and coneDeg 18 of the aim, world ray clear (motor.WorldMask)
+    prompt "DASH  [DASH]" when Target != null AND ExecuteInteractor.Target == null (at stab range ATTACK wins)
+  DASH pressed (InputReader.DashPressed) with a Target
+    → PlayerItems.DashTo(e, 0.35 s, violet)  → the SAME PullCo the Grapple runs: line + FovKick + Sfx.Teleport,
+      motor.BeginPull(StandoffPoint) → arrive → ExecuteInteractor.ExecuteNow(e)   (one pull-and-execute path)
+    the motor's own Update returns early while IsPulling, so the press never doubles as an ordinary dash
 ```
+
+**Invariants**
+- **`Apply` runs before the item is removed, and `false` means kept.** A Grapple with nothing to hook
+  costs nothing. Both `Use` and `UseCurrent` honour this; there is no third spend path.
+- **The grapple kill is the deathblow.** `ExecuteInteractor.ExecuteNow` is the pressed deathblow's
+  coroutine with the look-cone gate skipped — it still refuses a dead or unstaggered enemy, so
+  `PlayerItems` opens the victim with `Posture.Break()` first. Player-side damage is untouched
+  (rule 3); enemy death is the existing `isExecute` path.
+- **The surge mutates no tuning field.** `wallRunTopSpeed`, `wallRunAccel`, `wallRunMinEntrySpeed`
+  never move; `WallRunSettings` derives the scaled values while `IsWallSurging`. `FeatureTests`
+  `Items_SurgeLeavesInspectorFields` holds this.
+- **The pull is motor state on the motor clock.** Hitstop can neither freeze nor stretch it (rule 1),
+  it allocates nothing, and every write is a `cc.Move`, so walls still stop it.
 
 ### Offhand slot
 
@@ -695,7 +770,6 @@ OffhandController  = the player's left hand, ALWAYS visible (OffhandViewmodel)
   blast read as an explosion with no visible source.
 - `Physics.IgnoreLayerCollision(Interactable, Player)` must stay **false** — it suppresses trigger callbacks,
   not just contacts, and silently kills every pickup, checkpoint and bloodstain.
-- Stormcall arms rather than fires: the payoff is earned through a deflect-to-deathblow exchange.
 
 ---
 
@@ -854,6 +928,15 @@ EnemyController.BeginWindup(atk, gap)
         → PlayAttackClip(atk, seconds + impactDelay)
              Animator.speed = clipContactTime / secondsToImpact      ← clip bends to data
              ClipFor(atk) picks the clip AND its own contact anchor:
+                 atk.clip set       → namedClips[i]   EXPLICIT DATA FIRST. A generated,
+                                                      per-character clip (HalberdSweep,
+                                                      ShoulderCharge) has no canonical name
+                                                      the mapping below could know; the
+                                                      attack names it, and 4b bakes every
+                                                      manifest clip with OnAttackHit onto
+                                                      the prefab with its own length + anchor
+                                                      (namedClipLengths / namedClipHits).
+                                                      Unknown name → one warning, fall through.
                  spin prefix        → clipSpin
                  name ends "_Stab"  → clipStab      NAME BEFORE HEURISTIC. A kick is
                  name ends "_Kick"  → clipKick      the unblockable, so an unblockable
@@ -889,6 +972,72 @@ EnemyController.BeginWindup(atk, gap)
                    the punish read, and it works because nothing else is moving.
 ```
 
+#### The blade trail — `EnemyWeaponTrail`
+
+```
+EnemyWeaponTrail.LateUpdate()          (MiniBossFactory.WireBladeTrail, ModelSpec.bladeTrail)
+   → animator.GetCurrentAnimatorStateInfo(0).shortNameHash ∈ attackClips (= pv.namedClips)
+   → live = WindowContains(normalizedTime, namedClipHits[i], leadIn 0.22, tail 0.12)
+        live: Sample() base = RightHand.TransformPoint(bladeBaseLocal), tip = ...(bladeTipLocal)
+              first frame past the contact: SlashFx.Sparks(tip, tip velocity, hue, 4)
+        else: the strip collapses from its oldest edge over fadeSeconds (0.12)
+   → mesh.vertices rewritten in place (28 verts); renderer disabled when nothing is live
+```
+
+**Invariants**
+- **The trail reads the clip, never the brain.** Its window is a fraction of the clip around the baked
+  contact frame, so it draws the cut at whatever speed the clip is playing and never the wind-up.
+- **A swing may not glow.** The strip's material peaks at 1.0, under the 1.05 bloom cap; `CueFlash` and
+  the parry keep the light budget. The contact sparks (4) stay under the parry's ten.
+- **Scaled time.** The strip freezes in hitstop with the puppet.
+- **Aggression is asserted as EFFECTIVE values.** A recovery that looks like an opening in DataFactory is
+  played at ×0.45 at aggression 0.85; `HalberdierBehaviourTests.TheHeavyIsStillAPunishAfterTheAggressionScaling`
+  holds the number the player actually gets.
+
+### Projectiles — the parkour enemies shoot, and a deflect is a boost
+
+```
+EnemyController.Update()  Idle → Chase when dist ≤ WakeRange (= max(aggroRange, projectileMaxRange) for a shooter: 32 m)
+                          AND HasLineOfSight (any of three lines clear: head 1.5, chest 0.8, feet 0.2 -- a runner
+                          behind a rail is still seen). A SENTRY (EnemyData.rangedOnly: Grunt, Heavy) in Chase
+                          only locomotion.Stop() + FaceTarget: it holds its perch, never commits a combo, and
+                          never goes back to sleep. A test may still call BeginCombo on it directly.
+ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData.shootsProjectiles)
+   gate: awake (Current != Idle), alive, not staggered, not committed (no bolt during a melee wind-up),
+         not aggroLocked, player inside [projectileMinRange 3, projectileMaxRange 32], HasLineOfSight (same three lines)
+   → on the METRONOME (ProjectileMath.NextBeat: Grunt 1.6 s, Heavy 2.4 s, no jitter; a held beat stays on the
+     grid, a silence longer than one beat re-anchors instead of bursting):
+     speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed, CueLead 0.28, CueMargin 0.08) -- inside 11.5 m the
+             launch slows so every flight is ≥ 0.36 s and the cue is never owed before the bolt exists
+     target = ProjectileMath.LeadTarget(muzzle, chest, motor.Velocity (flat), speed, projectileLead 0.8) -- a runner
+              meets the bolt; 80% lead so a sidestep still leaves the line
+     a 0.36 m Bolt sphere at the chest --
+     SlashFx additive ember with Projectile.HotCore (peak 1.6) written OVER the normalised colour: THE ONE
+     GLOW IN TRAVERSAL, because the bolt is the tell -- plus a 2-point additive trail 0.12 s long,
+     Projectile.Fire(shooter, data, dir = toward the LED target AT FIRE TIME, the launch speed above (Grunt 32, Heavy 28 m/s
+     beyond 11.5 m; a mid-band shot flies 0.47 s -- answered at a run, never waited for)
+Projectile.Update()  (scaled time: hitstop freezes it)
+   straight line; remaining = ProjectileMath.TimeToImpact(dist, speed)
+   → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×1.9 and its core goes white-hot (CueCore)
+                                                                        (the same lead every attack gives)
+   → within hitRadius of the chest → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
+        Perfect → the bolt REFLECTS at ×1.4 toward the shooter's chest,
+                  motor.AddImpulse(ProjectileMath.SpeedGain(look.AimForward, parrySpeedGain 9))   (rule 10: motor entry point;
+                  a run at 11 becomes 20 and bleeds toward the 17.6 air soft cap -- a boost, not a new cruise)
+                  CameraFX.FovKick(4); ReceiveAttack already did the deflect sparks / hitstop / OnParried
+        Blocked / Hit / None → spent (the chip / damage / posture landed in ReceiveAttack as usual)
+   reflected bolt reaches the shooter → Health.TakeDamage(parriedProjectileDamage) + Posture.Add(parriedProjectilePosture),
+                                        sparks, Sfx.Hit, spent
+```
+
+**Invariants**
+- **A bolt is an attack** and resolves only through `PlayerCombat.ReceiveAttack` (rule 3). Nothing here writes health or posture on the player.
+- **The flight is the tell, and it is cued at 0.28 s like every attack.** `projectileMinRange / projectileSpeed` must exceed the lead (`ProjectileTests`); at 32 m/s the cue is 9 m out, which is why the band starts at 10 m.
+- **The bolt is the one glow in traversal.** Every other effect stays under the 1.05 bloom cap; the bolt's core ships at 1.6 (`Projectile.HotCore`, pinned by `TheBoltIsTheOneGlowInTraversal`) because it is the ATTACK'S tell, and the shooter itself still never glows until it is deflected.
+- **A deflect buys speed through the motor** (`AddImpulse`), flattened along the LOOK — aim at the next ledge and deflect (rule 10; MOVEMENT-PRINCIPLES 5 and 6).
+- **One attack at a time**: the shooter never fires inside a melee wind-up or strike, so a tell is never two things.
+- **The data decides** (rule 9): every number is on `EnemyData`; the component carries none. The Warden and the legendaries do not shoot.
+
 ### Burning enemies — `EmberAura`
 
 ```
@@ -911,6 +1060,46 @@ EmberAura.Update()                       (Legendary_Revenant; bolt onto any enem
 - **The floor stays far under the parry spike** (0.22 vs 3.2). A deflect must remain the brightest thing
   an enemy ever does, or "light means you deflected" stops being true for burning enemies.
 - Unscaled time throughout, so hitstop does not freeze the fire. A frozen flame reads as a dropped frame.
+
+### Generated clips and root motion — `Legendary_Halberdier`
+
+The Argent Halberdier's attacks are nine clips generated for this body alone (`forge.py --motion`), six
+of which TRAVEL: the tool bakes the pelvis path onto the Hips bone and marks the clip `root.motion` in
+the manifest. Nothing here lets a clip move the enemy; the travel becomes data.
+
+```
+ArgentHalberdier.clips.json      "root": {"motion": true, "forward_m": 0.898, ...}   (SOURCE travel)
+        │
+   4a. Split Forge Animation Clips
+        │   NO root node, on purpose (motionNodeName and the avatar's root bone both empty): on a
+        │   Generic rig a root node moves the Hips' WHOLE transform — XZ, the leap's lift, the sweep's
+        │   yaw — onto the model root, and a mis-spelled path imports zero clips. The Hips travel stays
+        │   in the clip like every other bone. Skin: Custom weights, 8 bones per vertex (the tool's contract).
+        ▼
+   4b. Build Mini-Bosses (MiniBossFactory.WireAnimatedBody)   manifest has a root.motion clip ⇒
+        │   LungeRoot ─ SpinRoot ─ TravelRoot ─ Model      one more transform, one more single writer
+        │   pv.travelRoot / pv.hipsBone / pv.hipsRestLocal (the Hips' bind position in model space)
+        ▼
+   PuppetVisuals.CompensateTravel()  (LateUpdate, after the Animator poses the rig)
+        │   TravelRoot.localPosition = −(Hips.position − rest).xz     lift and yaw are left alone
+        │   → the mesh stays over its collider while a thrust walks the pelvis 1.2 m or a charge 4.7 m
+        ▼
+   EnemyAttackData.lungeDistance  (DataFactory, rule 9)  → the SAME distance, run cue→impact by
+        │                                                  EnemyController.ApplyLunge like every lunge
+        ▼
+   HalberdierDataTests.EveryLungeIsTheClipsOwnTravel     samples the clip on the FBX: forward Hips
+   HalberdierDataTests.TheTravelRoot_KeepsTheMeshOverItsCollider   travel == lungeDistance (±0.15 m),
+                                                         a non-travelling clip ⇒ lunge 0; drift < 0.05 m
+```
+
+**Invariants**
+- **A clip never moves an enemy. The art's travel is data.** The NavMeshAgent owns the transform and the
+  parry contract's reach is `range + lungeDistance`; a clip that displaced the body would make the reach
+  a function of playback speed. The tool's `EnemyForgeRootMotion` is deliberately not in the project.
+- **An attack that plays a generated clip names it** (`EnemyAttackData.clip`). The pipeline mapping
+  knows only the four canonical clips; a generated one is otherwise unreachable, silently.
+- **Measure the travel on the imported clip, never on the sidecar.** `forward_m` is source motion,
+  scaled ~×1.3 onto this rig at export. The test reads the clip, so the data cannot drift from the art.
 
 **Invariants specific to this path**
 - **On an IMPORTED body the wind-up silhouette is carried entirely by `bodyOffset` / `bodyEuler`.**
@@ -936,7 +1125,9 @@ EmberAura.Update()                       (Legendary_Revenant; bolt onto any enem
 - Playback runs on SCALED time (`Animator.updateMode = Normal`), so hitstop freezes the puppet with
   everything else. `PlayerDelta` is for player-driven motion only (rule 1).
 - A clip name the component asks for and the FBX does not have fails **silently** at runtime —
-  `CrossFade` to a missing state is a no-op. `MiniBossFactory` validates all nine names at build time.
+  `CrossFade` to a missing state is a no-op. `MiniBossFactory` validates the nine slot names AND every
+  `EnemyAttackData.clip` in the enemy's moveset at build time, against the imported clips and the
+  baked table both.
 
 **Invariants**
 - `EnemyController` never names `NavMeshAgent` or `EnemyVisuals`. All movement goes through
@@ -948,6 +1139,11 @@ EmberAura.Update()                       (Legendary_Revenant; bolt onto any enem
 - The brain owns facing: `NavMeshAgent.updateRotation` is false, so nothing else rotates the transform.
 - Leaving `Recover` honours `aggroLocked`, or a parried boss wakes before its arena trigger.
 - Every attack's `range` must cover `preferredRange + commitTolerance`, or committed attacks whiff.
+- **The far-band commit (2026-09-04).** Outside the commit band the enemy attacks IF AND ONLY IF
+  `EnemyMoveset.HasEligible(dist)` — an entry whose range band contains the distance (the charge, the
+  leap); the selector's fallback-to-anything is not consulted there, so nothing without a closer is thrown
+  from range, and the facing gate is 25° rather than 50° because a lunge is aimed where the body faces
+  at the cue. The chosen combo's own `lungeDistance` does the closing.
 
 ## Settings
 
@@ -977,23 +1173,122 @@ SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on ever
 - Bloom writes the runtime clone. Writing `sharedProfile` from play mode dirties the asset on disk.
 - Sliders are stock UGUI `Slider`s driven by anchors — never `Image.fillAmount` (rule 5).
 
+### Stamina
+
+```
+FirstPersonMotor (dash, wall run entry, wall jump)
+  → PlayerStamina.TrySpend(cost, StaminaAction)   whole or nothing; never partial
+       dash 30 | wall-run entry 12 | wall jump 12          (a run exit / exit-grace jump is FREE)
+  → PlayerStamina.Drain(22/s, used)  every wall-run step → false at 0 → EndWallRun(Exhausted)
+  (both wall-run calls are skipped while FirstPersonMotor.IsWallSurging — the Wall Surge item)
+  PlayerStamina.Update   dt = PlayerDelta (rule 1); regenDelay 0.45 s after any spend, then
+                         +45/s grounded, +18/s airborne, to max 100. Infinite (F8 god mode) never spends.
+  ⇢ GameEvents.StaminaChanged(cur, max)  → StaminaView.bar (BarView, 3 ticks at 30/60/90)
+  ⇢ GameEvents.StaminaRefused(action)    → StaminaView: bar.Flash(red), label names the ability 0.8 s
+  StaminaView.Update  pips DASH / AIR / WALL ← FirstPersonMotor.CanDashNow / !AirDashUsed / CanWallRunNow
+                      (stamina AND cooldown AND the air charge: "can I, this frame")
+                      CanvasGroup alpha 0.45 when full and idle, 1.0 within 1.2 s of a spend or refusal
+  Tuning: PrefabFactory.BuildPlayer → Player.prefab → PlayerStamina; asserted by StaminaTunablesTests.
+  HUD:    HudBuilder.StaminaBlock → HUD.prefab (y 104, between health and posture).
+```
+
+**Invariants**
+- **A full bar always affords a full wall run** (12 + 22 x 1.75 = 50.5 < 100). `LevelArcAnalyzer` models
+  every run at full duration; if this ever fails, every wall line is authored against a run nobody can take.
+- **Every refusal is named on screen.** `TrySpend` raises before returning false. A silent refusal reads as
+  a dropped input, which is the exact complaint this system exists to answer.
+- Regen and delay run on `PlayerDelta`, unscaled UI on `Time.unscaledTime`.
+
+### Forgiveness — corner correction and the near-miss landing (MOVEMENT-PRINCIPLES rule 4)
+
+```
+FirstPersonMotor.Update, the final cc.Move                       (laws: ForgivenessMath, pure)
+  before the sweep, airborne && falling && !sliding && !wallRunning && !IsDashing && hs ≥ ledgeCatchMinSpeed
+     → raycast DOWN from (feet + velocity dir × (radius + 0.12), + ledgeCatchMetres + 0.05)
+     → ForgivenessMath.LedgeCatches(feetY, hit.y, ledgeCatchMetres 0.22, vel.y, hit.normal.y ≥ 0.7, hs)
+        → disp.y += NudgeStep(top − feet + 0.02, ledgeCatchLiftSpeed 6, dt)   bounded lift, no velocity added
+  after the sweep, CollisionFlags.Above && vel.y > 0
+     → Physics.CheckCapsule at ±right / ±forward × cornerCorrectionMetres (0.18)
+        clear ⇒ cc.Move(offset), vel.y KEPT (a corner)        blocked everywhere ⇒ vel.y = 0 (a ceiling)
+  Tuning: PrefabFactory.BuildPlayer (four fields, rule 9). Tests: ForgivenessTests (laws, 20/60/240 fps),
+          FeatureTests Movement: Forgive_NearMissLandsOnTheLedge / AHalfMetreMissIsAMiss / AWallSideNeverCatches.
+```
+
+**Invariants**
+- **Forgiveness never adds reach.** The corner nudge is capped at its margin and only fires when a capsule
+  inside that margin is clear; the catch only lifts from within `ledgeCatchMetres` and adds no velocity.
+  The level's reach contract (`LevelArcAnalyzer`) is unchanged by either.
+- **A wall side never catches.** The probe's hit must be a floor (normal.y ≥ 0.7); falling past a face is a fall.
+- **Only the honest cases.** Never while rising, sliding, wall running or dashing; never from a standing drop.
+
+### Perfect timing — stamina back for a move landed on its moment
+
+```
+FirstPersonMotor                                      (laws: PerfectMath, pure; windows on the motor clock)
+  TryWallJump, run in progress
+     → PerfectMath.WallJumpFromRunIsPerfect(wallRunElapsed, wallRunMaxDuration 1.75, perfectWallJumpWindow 0.14)
+       the loan has ≤ 0.14 s left: the wall is about to give up            → Perfect(WallJump, 20)
+  TryWallJump, exit grace (the run ended on its own: Expired / Decayed / LostWall / Exhausted)
+     → PerfectMath.GraceJumpIsPerfect(now − wallRunLeftAt, 0.14)           → Perfect(WallJump, 20)
+  ground jump fires while IsDashing && !LastDashWasBurst   (a grounded dash is jump-eligible for its whole
+     length -- dashFromGround -- and the jump ENDS the dash so vel.y survives; see ENGINEERING-LOG)
+     → PerfectMath.DashJumpIsPerfect(now − dashStartedAt, minDelay 0.04, window 0.12)
+       [0.04, 0.16] s after the dash fired — never the same frame           → Perfect(DashJump, 30 = the dash)
+  the grapple burst fires
+     → PerfectMath.BurstIsPerfect(now − pullBurstOpenedAt, 0.12)  first 0.12 s of the 0.30 s window
+                                                                            → Perfect(GrappleBurst, +30)
+  Perfect(kind, amount)
+     → PlayerStamina.Refund(amount)   PerfectMath.Refund: clamped to max, never a debit, regen delay untouched
+          ⇢ PlayerStamina.Refunded(got), GameEvents.StaminaChanged        (the bar visibly refills — rule 6)
+     → LastPerfectKind / LastPerfectTime
+     ⇢ OnPerfect(kind, got)  → PlayerFeedback.OnPerfect: Sfx.ParryCue ×1.5 + Sfx.Swing ×1.9 (rule 7: no new
+                                Sfx), FovKick(feel.perfectFovKick 3), prompt "PERFECT" for feel.perfectPromptSeconds 0.6
+  A MISS reaches none of this: the ordinary move, at its ordinary cost, with nothing said.
+  Tuning: PrefabFactory.BuildPlayer → Player.prefab (seven motor fields); DataFactory → GameFeel.asset (two).
+  Tests:  PerfectTimingTests (laws, edges, the 20/60/240 fps width check, shipped values);
+          FeatureTests "PerfectTiming" (a same-frame dash+jump is ordinary and costs; a jump 0.10 s into
+          the dash is perfect and refunds the dash).
+```
+
+**Invariants**
+- **A perfect is anchored to a physical moment, never a frame** (MOVEMENT-PRINCIPLES rule 4): the wall
+  letting go, the dash's launch, the pull landing. Windows are seconds on the motor clock, 0.12–0.14 s —
+  inside the learnable band between Celeste's 0.08 s coyote and Sekiro's 0.20 s deflect — and
+  `PerfectTimingTests.EveryWindowIsTheSameWidthAt20_60_240Fps` holds their width to one frame at each rate (rule 8).
+- **A miss is the ordinary move.** No penalty, no message, no branch. The dash-jump's minimum delay is what
+  keeps a mashed dash+jump from being the perfect.
+- **The refund never overfills and never debits**, and it does not reset the regen delay: a refund is not a spend.
+- **No new button** (rule 5). Every perfect is an expression of the controls the player already has.
+- **The refund is felt on the body AND the bar** (rule 6): `OnPerfect` and `PlayerStamina.Refunded` both fire;
+  the HUD is expected to subscribe to one of them.
+
 ### Movement — wall run
 
 ```
 InputReader (jump/dash only; wall running has NO binding -- entry is by arriving correctly)
   → FirstPersonMotor.Update      dt = TimeScaleController.PlayerDelta   (rule 1)
-     → TryWallRun()               cheap gates: airborne, budget <= maxWallRuns 3, off cooldown,
-                                   fall speed < 9, speed >= 7
+     → TryWallRun()               cheap gates: airborne (NO coyote wait), budget <= maxWallRuns 6,
+                                   off a 0.20 s cooldown, fall speed < 9, horizontal speed >= 6
         → FindRunnableWall         2 spherecasts; refuses lastWallNormal via sameWallCosineLimit
-        → WallRunMath.CanEnter     tangential >= 7, approach cos <= 0.55, look-along cos >= 0.30
-        → Enter                    drop the normal component, floor vy at +3
+        → a slide yields           sliding through coyote → EndSlide (refused only under a ceiling)
+        → WallRunMath.CanEnter     approach cos <= 0.80 (53 deg off the face), TOTAL flat speed >= 6,
+                                   look-along cos >= -0.05 (only looking backwards refuses)
+        → PlayerStamina.TrySpend(12, WallRun)   last, so a refusal means "you would have run";
+                                   SKIPPED while IsWallSurging (so is the TooSlow gate: minEntry 0)
+        → Enter                    ALL horizontal speed redirected down the run (cap 22), floor vy at +3
                                    → OnWallRunStarted; PlayerLook.SetRollBias(+/-13 deg)
-     → AdvanceWallRun(dt)         ProbeWall → WallRunMath.Advance: 2 ms substeps, gravity
-                                   x0.10 → x0.60 on t^2, tangential x exp(-0.35 h), top-up 14 m/s^2
-                                   toward groundSpeed while holding forward
+     → AdvanceWallRun(dt)         ProbeWall (lost? ride wallRunLostGrace 0.15 s on the last normal)
+                                   → WallRunMath.Advance: 2 ms substeps, gravity x0.10 → x0.60 on t^2,
+                                   tangential x exp(-0.35 h), top-up 14 m/s^2 toward wallRunTopSpeed
+                                   13.75 (1.25x a sprint: the wall is FASTER than the floor) while
+                                   holding forward
                                    → cc.Move(disp - n * 2.5 * used)    (pressed to the face)
-        → ShouldEnd                Expired (1.6 s) | Decayed (< 5 m/s) | LostWall | Landed |
-                                   Cancelled (stagger, dash).  Unspent dt returns to the air branch.
+                                   → PlayerStamina.Drain(22/s)  → Exhausted at 0; SKIPPED while surging
+                                   (surge: topSpeed and accel ×1.5, from WallRunSettings, never the fields)
+        → ShouldEnd                Expired (1.75 s) | Decayed (< 4 m/s) | LostWall | Landed |
+                                   Exhausted | Cancelled (stagger, dash). Unspent dt → the air branch.
+                                   A natural end opens wallRunExitGrace 0.15 s: a jump inside it is
+                                   still the run exit below, not a whiff.
      → jump while running         WallRunMath.Exit: +4 along, +7 out, vy 10, clamped to dashSpeed
                                    → EndWallRun(Jumped) → PlayerLook.AddRollKick(7 deg, 0.28 s)
   Camera: PlayerLook sums rollBias + rollKick as pivot local Z. Unscaled time. Aim-invariant.
@@ -1007,7 +1302,11 @@ InputReader (jump/dash only; wall running has NO binding -- entry is by arriving
   produced the framerate-dependent slide is structurally absent; `TheRunIsIdenticalAtEveryFramerate`
   integrates at 500/144/90/60/30/12 fps and holds duration to ±5 ms, distance to ±1 cm.
 - `wallRunSpeedDecay` must sit inside `(ln(minEntry/minSustain), ln(top/minSustain)) / maxDuration`
-  or one end condition is unreachable. Asserted.
+  or one end condition is unreachable. Asserted. Shipped: (0.23, 0.71), decay 0.35; a 6 m/s entry bleeds
+  out at 1.16 s, a sprint rides the 1.75 s clock.
+- **Entry judges intent, never geometry-luck.** Total speed (not the tangential projection), 53° of
+  approach, any look that is not backwards, no coyote wait, a slide yields. The 2026-09-03 log entry
+  lists what each of the old gates was silently refusing.
 
 ### Movement — slide and dash feel
 
@@ -1028,7 +1327,32 @@ PlayerFeedback.Update (every frame, unscaled)
      reads motor.IsSliding + HorizontalSpeed → SlideImpulse.FovForSpeed / Normalised speed band
         → CameraFX.FovHold(...)   HELD, proportional to speed still carried; exactly 0 at slideEndSpeed
         → scrape gain/pitch, grit rate ride the same fraction; grit shed into a SCENE root (a trail)
-Tuning: GameFeelSettings.dash* / slide* — written by DataFactory (rule 9), defaults in PlayerFeedback are fallbacks only.
+FirstPersonMotor ⇢ OnWallRunStarted / OnWallRunEnded          (PlayerLook's 13° lean AWAY from the face + 7° exit roll kick back toward it are separate)
+  → PlayerFeedback.OnWallRunStarted   Sfx.Footstep 0.50 @1.12 + Sfx.Land 0.28 @1.15 (the catch; rule 7: no new entry)
+     nLocal = InverseTransformDirection(motor.WallRunNormal) INSIDE the event — the motor zeroes it before the end event
+     → WallRunImpulse.AttachKick(nLocal, wallRunAttachOffset 0.03)   translation TOWARD the wall, no rotation
+        → CameraShake.Kick(…, wallRunAttachTime 0.12, KickAttackFraction)
+     → WallRunFx.Begin(nLocal)         caches the normal for the end handler
+  → PlayerFeedback.OnWallRunEnded     reads motor.LastWallRunEnd (written before the raise)
+     → WallRunImpulse.EndKick(why, nLocal, dropPitch 1.4, dropOffset 0.03, lostDrift 0.02)   pure, per-ending:
+          Jumped / Landed / Cancelled → false (exit roll kick, OnLanded, or the dash own it)
+          Expired / Decayed / Exhausted → DOWNWARD sag (pitch +1.4°, head −0.03 m), DropAttackFraction 0.30 (a give, not a hit)
+          LostWall → drift 0.02 m AWAY along the normal
+        → CameraShake.Kick(…, wallRunDropTime 0.16)
+     Exhausted only → Sfx.Land 0.30 @0.70 (the quieter, lower thud)
+     → WallRunFx.End()                 arms a one-frame FovHold(0) release
+PlayerFeedback.Update (every frame, unscaled) — AFTER SlideFx.Tick, deliberately
+  → WallRunFx.Tick(wallRunFovHold 3.5, wallRunStepDistance 1.6, wallRunGritRate 44, wallRunStepSparks 3)
+     live = running && motor.IsWallRunning && IsPlaying (ends from live state if the event was swallowed)
+        → CameraFX.FovHold(3.5) while live, FovHold(0) once on release; otherwise leaves the channel to SlideFx
+        → distance along the wall (3D path) ≥ 1.6 m → returns true
+        → GRIT off the FOOT CONTACT (feet + 0.28 up − normal × capsule radius): pooled additive cubes (40, 0.05 m,
+          0.38 s, peak channel 0.55 = no bloom) in a scene-level WallRunGrit root, thrown back down the run and a
+          little off the face, at WallRunImpulse.GritRate(speed/topSpeed, elapsed/maxDuration, 44/s) — linear in
+          speed, falling to 40% by the end of the loan, the same shape as StepPitch
+        → on each foot-tick: SlashFx.Sparks(contact, 3) — the grit is the contact, the sparks are the step
+           → PlayerFeedback: Sfx.Footstep wallRunStepVolume 0.40 @ WallRunImpulse.StepPitch(elapsed/maxDuration: 1.30→1.12), dip += 0.008
+Tuning: GameFeelSettings.dash* / slide* / wallRun* — written by DataFactory (rule 9), defaults in PlayerFeedback are fallbacks only.
 ```
 
 **Invariants**
@@ -1038,7 +1362,178 @@ Tuning: GameFeelSettings.dash* / slide* — written by DataFactory (rule 9), def
   "you deflected" and traversal never speaks that language.
 - The slide's sustained layers are driven from the motor's **live state** every frame, not from the events
   alone: a respawn or a disabled player can swallow `OnSlideEnded`, and a held FOV that never released would be
-  wrong for the rest of the run.
+  wrong for the rest of the run. `WallRunFx` follows the same rule.
+- **`CameraFX.FovHold` has one writer at a time, kept so by ORDER.** `SlideFx.Tick` writes it every frame
+  (0 when not sliding); `WallRunFx.Tick` runs after it in `PlayerFeedback.Update` and writes only while a run is
+  live plus one release frame. A slide is grounded and a wall run is airborne, so the motor never has both; do
+  not reorder the two ticks, and do not add a third holder without a real arbitration.
+- **A wall run's rotation belongs to `PlayerLook`** (the 13° lean, the 7° exit roll kick). The feel package adds
+  translation, a small FOV hold, feet and the let-go — never a second roll or any yaw.
+- **The wall-run end is told apart by `WallRunEnd`, and `Jumped` gets nothing extra.** The exit roll kick is the
+  loudest cue a run can produce; stacking a sag on it would blur the one ending that is the player's own doing.
+  The sag is reserved for the wall letting go, because that is the ending the exit-grace jump has to be learned
+  against.
+
+### The player body and the slide's weight — `PlayerBody` + the held rumble + the eye spring
+
+```
+Player.prefab (PrefabFactory.BuildPlayerBody — one call in BuildPlayer)
+  Body (PlayerBody)                         under the ROOT: yaws with the look, level under a pitched lens
+    Torso ─ Hips, Chest                     pivot AT the hip joint (0.92); chest tops out at 1.34 (< 1.35 lens rule)
+    Leg_L ─ Thigh ─ Knee ─ Shin, Boot       hip 0.92, thigh 0.46, shin 0.44: sole on y 0.00
+    Leg_R ─ ...                              layer Player, no colliders, casts shadows, receives none
+
+PlayerBody.Update()  (reads FirstPersonMotor's public state only; subscribes OnLanded / OnSlideEnded)
+   → blend  = SlideImpulse.Spring(…, target = IsSliding ? 1 : 0, 6 Hz, ζ 0.6)   the THROW, closed form
+   → phase += TimeScaleController.PlayerDelta * HorizontalSpeed * 1.3           gait, rule 1, in step with the hand bob
+   → base pose: ground/wall = gait swing ±30° / knee 42° on the forward swing; air = 14° / 40° tuck
+   → wall run: legs roll 14° INTO the face (WallRunNormal), torso 6° off it
+   → kneeDip += 34° × LastLandingSpeed/22 on OnLanded, +12° on OnSlideEnded; springs back at 9/s
+   → slide pose (lerped by blend, may overshoot to 1.15): hips −0.52 / +0.25 z, torso −22°,
+     lead leg 70°/12°, trail 60°/26°; leg root yaws to the VELOCITY, not the look
+   → writes: Body.localPosition/rotation, Torso, Leg_L/R, Knee_L/R localRotation   (its own transforms only)
+
+PlayerFeedback.Update()
+   → crouch = SlideImpulse.Spring(…, target = IsSliding ? 0.55 : 0, feel.slideCrouchHz 4.5, feel.slideCrouchDamping 0.55)
+        the eye PLOPS ~0.065 m below the slide height and settles up; rises past neutral on stand-up
+   → SlideFx.Tick(…, feel.slideRumble)
+        → CameraShake.SetRumble(SlideImpulse.RumbleAmplitude(SpeedFraction, 0.006))   FOURTH held channel
+PlayerFeedback.OnSlideEnded()  → + Sfx.Land at 0.30 / 1.05: weight arriving on the feet (rule 7: no new Sfx)
+```
+
+**Invariants**
+- **`PlayerBody` owns only its own transforms** (Body, Torso, the leg and knee pivots). It never writes the camera pivot, ShakeRoot, the collider or the motor; a second writer on any of those would fight the existing owners.
+- **The body never rises above y 1.35** in any pose the rest-pose factory builds; `SlideFeelTests` measures the prefab's renderer bounds. The slide pose only ever LOWERS it.
+- **The slide throw and the eye plop are closed-form springs** (`SlideImpulse.Spring`), never explicit integration: the same shape at 20 and 240 fps. `SlideFeelTests.TheSpringIsFrameRateIndependent` holds it.
+- **`CameraShake.SetRumble` has one writer** (`SlideFx.Tick`, every frame, 0 when not sliding), exactly like `SetRoll` and `CameraFX.FovHold`. Zero at `slideEndSpeed` by construction (quadratic in speed fraction).
+- **The gait phase advances on `PlayerDelta`** (rule 1) at the same 1.3 rad/m as the viewmodel bob, so the hands and feet stride together.
+- **The motor's slide numbers are untouched** (boost, friction, duration, end speed, steer). Everything in this pass is presentation.
+
+
+### Traversal pieces — balloons, water, the grapple burst (2026-09-04 pivot)
+
+Three additions to the movement kit. None of them writes a velocity: each one calls a motor entry point
+(`Launch`, `RearmDash`, `TouchWater`) or arms a window the motor itself opens, and the arithmetic lives in
+`TraversalMath` as pure functions (no scene) so `PivotMovementTests` can drive it and the motor cannot drift
+from the tests.
+
+```
+BALLOON  (Assets/Prefabs/Balloon.prefab, PrefabFactory.BuildBalloon; placed by LevelDefinitionBuilder from
+          LevelDefinition.balloons[] or by SandboxBuilder's yard column, both through TraversalBuilders.BuildBalloon)
+  player's CharacterController enters the SphereCollider trigger (Interactable layer)
+    → Balloon.Pop(motor)
+        motor.IsDashing ?  motor.RearmDash()          dashReadyAt = now, airDashUsed = false; the dash in flight ENDS
+                                                       and its carry is trimmed to launchCarryCap (pop → aim → dash;
+                                                       carries on untouched (TraversalMath.DashesThrough)
+                        :  motor.Launch(launchSpeed)  vel = TraversalMath.Launch(vel, up, launchCarryCap 9): vertical REPLACED (a
+                                                       capped jump), horizontal kept; air dash, wall-jump and
+                                                       wall-run budgets reset; slide / wall run / dash end;
+                                                       then the FLOAT: for launchFloatSeconds (0.45) gravity
+                                                       x launchGravityScale (0.55), air steer x launchSteerBoost
+                                                       (1.6) -- the pop hangs and is aimed at the next orb
+                                                       ⇢ OnLaunched → PlayerFeedback: FovKick(feel.balloonFovKick),
+                                                         nose-up pitch kick, small hop dip
+        orb hidden, collider off; SlashFx.Sparks + Ring (peak 1.0, no bloom); Sfx.Jump ×1.3 + Sfx.Land soft
+        respawn after respawnSeconds with a scale-in (unscaled time); GameEvents.PlayerRespawned restores it
+
+WATER    (no prefab: TraversalBuilders.BuildWater from LevelDefinition.waters[] / the yard lane)
+  WaterVolume (BoxCollider trigger = sheet + boostHeight 0.35 above it, Interactable layer; the sheet mesh
+  has NO collider — the floor under it is what you stand on)
+    OnTriggerEnter / OnTriggerStay → motor.TouchWater(volume)   waterUntil = now + waterGrace (0.15) — a
+                                                                 stay-refresh on the motor clock, never an Exit
+  FirstPersonMotor.Update
+    inWater = now < waterUntil;  flow = volume.Flow (TraversalMath.Flow: normalised × flowSpeed)
+    ground branch, in water:   rel = TraversalMath.WaterStep(hv − flow, wish, WaterFloorSpeed, waterAccel, dt)
+                               hv  = rel + flow
+                               WaterFloorSpeed = groundSpeed × waterSpeedScale (1.35 → 14.85 m/s)
+                               no groundFriction, no groundOverspeedDecay, turned at 30 m/s² not 90
+    slide branch, in water:    the SAME step; slideEndsAt is pushed every frame (no decay end, no cap):
+                               a slide on water ends only off the water or on a jump
+    air branch, in water:      the boost zone: airCarryDecay is skipped (the carry is kept); airSoftCap still bleeds
+    Teleport clears it.  PlayerFeedback reads motor.InWater as an EDGE: FovKick(waterEnterFovKick) + soft Land
+    on entry; WaterFx.Tick every frame: spray (SlashFx.Sparks, cold blue) + a synthesised hiss loop on its own
+    AudioSource, both riding speed / WaterFloorSpeed
+
+GRAPPLE BURST
+  FirstPersonMotor.EndPull(arrived = true)  →  pullBurstPending, pullBurstPendingUntil = now + pullBurstHold (3 s)
+  Update: pending && CanMove → pullBurstUntil = now + pullBurstWindow (0.30 s)      opens only once control is
+                                                                                    back: ExecuteInteractor holds
+                                                                                    CanMove false for the deathblow
+  dash gate: canAct && dashRequested && (burst || the ordinary gate)   burst short-circuits cooldown, air charge
+                                                                       AND the stamina spend
+  burst: dashSpeedNow = TraversalMath.BurstSpeed(dashSpeed, pullBurstMultiplier) = 27.5 (= maxHorizontalSpeed)
+         dashReadyAt / airDashUsed UNTOUCHED (the dash you had is still yours); LastDashWasBurst = true
+         ⇢ OnDashed → the dash package + FovKick(+feel.burstFovKick) and a longer chromatic pulse
+```
+
+**Invariants**
+- **A traversal piece never writes a velocity.** Balloon and WaterVolume call `Launch` / `RearmDash` / `TouchWater`;
+  the motor decides. A second writer on `vel` would be the slide-vs-agent fight in a new costume.
+- **A launch REPLACES the vertical speed** (`TraversalMath.Launch`). The height a balloon buys is the same every
+  time, which is what lets a level be authored against it (3.27 m at 14 m/s / −30).
+- **Water never slows anyone** (`WaterStep` targets `max(floor, carried)`), and **still water never starts a
+  stationary body moving**. The only way off the water floor is off the water or a jump.
+- **Water is a stay-refreshed touch, never an Enter/Exit pair.** A CharacterController disabled for a teleport
+  sends no Exit; a grace on the motor clock cannot be left on.
+- **The burst window opens when control returns, not when the pull lands**, and it is forfeited after
+  `pullBurstHold` rather than fired stale.
+- **No held lens channel for water.** `FovHold`, `SetRoll`, `SetRumble` each keep one writer (SlideFx); water
+  gets a one-shot kick on entry and textures (spray, hiss) only — a slide crossing water must not have two
+  writers on the lens.
+- **The motor's existing numbers are untouched.** Six new fields, all written by `PrefabFactory.BuildPlayer`
+  and asserted by `PivotMovementTests`.
+
+### The in-game level editor — `LevelEditor` + the one piece factory
+
+```
+LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocument (JSON mirror: platforms, spawns,
+        ▲                                                   pickups, checkpoints, torches, balloons, waters,
+        │ doc.CopyTo(def)  (EXPORT ASSET, editor only)      playerStart)  ◄──ToJson / FromJson──►  <persistentDataPath>/levels/<name>.json
+        │
+   8. Build Level From Definition (Editor/LevelDefinitionBuilder)      LevelEditor (on the HUD prefab; HudBuilder.BuildLevelEditor)
+        │  EditorContext: AssetDatabase / PrefabUtility / static flags   RuntimeContext: the serialised library (materials, prefabs, items)
+        └───────────────► LevelPieceFactory.BuildDocument(doc, root, ctx) ◄───────────────┘
+                              Platform (+Trim) · PlayerStart "StartSpawn" · Spawner · Checkpoint
+                              Torch (under "Torches") · Pickup (under "Pickups") · Balloon · Water
+                              every object gets a LevelPiece tag (kind, index)
+   arenas / pedestals / sky / kill zone / NavMesh / Player / Managers / HUD   stay in the builder (campaign only)
+
+LevelEditor.Update  (GameState.Editing; InputReader is the only input reader — 15 optional Editor* actions)
+   F10 ─► Enter(): returnPosition, fly camera on PlayerLook, cursor locked, panel shown
+   Aim(): ray from the lens → grid snap (1 m platforms/water, 0.5 m else; Alt = free) → preview cube
+   [ ] kind · V variant · = − size ladder · T rotate (axis swap / flow turn), Shift+T the reverse turn
+   LMB Place(point, normal) ─► doc.<list>.Add(def) → LevelPieceFactory.<Piece>(def, customRoot, ctx)
+   X / Delete   DeletePiece(LevelPiece under the crosshair) ─► doc list remove + rebuild indices
+   G   grab: the tagged piece follows the aim, dropped on the grid on release
+   I / middle mouse   PickPiece(LevelPiece under the crosshair): kind/variant/size become the pending selection
+   Tab cursor free ↔ locked (panel: name field, NEW, SAVE, ‹ ›, LOAD, PLAY, EXPORT ASSET, EXIT)
+   SAVE ─► doc.ToJson() → levels/<safe name>.json     LOAD ─► FromJson → Rebuild()
+   PLAY ─► Rebuild() → NavMeshSurface.BuildNavMesh() (try/catch: enemies stand still on failure)
+           → Teleport to playerStart → spawners spawn → GameState.Playing; F10 / EDIT → BackToEditing()
+   EXIT ─► Exit(): destroy customRoot, restore returnPosition, GameState.Playing
+MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json → LevelEditor.PendingLoadPath → load Sandbox → Play
+```
+
+**Invariants**
+- **Level_01's parkour-first layout is CODE that writes the asset** (`LevelDefinitionAuthoring.Apply`, menu
+  `8a`): perches + spawn moves + the balloon arc + the water lines, idempotent. `LevelTraversalAnalyzer`
+  flies the arc (pop = carry trimmed to `launchCarryCap`, `launchFloatSeconds` at `launchGravityScale`, the
+  re-armed dash allowed only on the final fall) and casts the shooters' bolt lines (muzzle → deck chest,
+  inside the shooter's band, crossing no box); `Level Arc Report` prints all three; `LevelTraversalTests`
+  holds them off a copy of the asset. A pop's spacing is DERIVED from the flown pop, never copied from
+  another level (ENGINEERING-LOG, "A balloon chain laid to the yard's spacing").
+- **The runtime editor and `8. Build Level From Definition` share ONE piece factory.** A piece that renders
+  differently in the two is a bug in the factory, not in either caller. `LevelEditorTests.RuntimeAndEditorFactoriesAgree`
+  builds a small document both ways and compares names and positions.
+- **Custom levels are data, never scene state.** The editor edits a `LevelDocument`; the scene objects are
+  a rebuildable view of it. Nothing is read back off the scene except the `LevelPiece` tag.
+- **The campaign hierarchy is unchanged**: platforms, spawners and checkpoints as direct children of `Level`,
+  torches under `Torches`, pickups under `Pickups`, the start as `StartSpawn`. `LevelDefinitionExporter`
+  reads those names; flattening them exports torches as platforms.
+- **Every editor number is written by `HudBuilder`** (rule 9): grid sizes, the size ladder, fly speeds,
+  the library.
+- **Input through `InputReader` only** (rule 2); every editor action is optional, so a map without them
+  still runs.
 
 ## Boss
 
@@ -1159,13 +1654,98 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
    PyreChanged        → PyreBar (bottom-left) + "<SUPER NAME> READY [Q]" banner at full
    WandCooldownChanged→ WandCooldownBar (top-left, under the wand name)
    item slots → ItemSlotView          deathblow banner, toasts, popups → TMP
+   GhostHud (its own runtime canvas) → writes the PB table INTO HUD.BestRunsPane (glass, top-right,
+                                       300×196 at (−32,−32); shown only once there is a board) — falls
+                                       back to its own text when the pane is absent
+   HintText (top-right, one line)     contextual hints ONLY — the static bind list is gone from play:
+                                       ControlsInfo.Text → the settings INFO card (SettingsPanelKit, one
+                                       emitter for the pause path AND the title path) and F1 → INFO
+   ItemsChanged → StatusStripView (top-left, under SOULS)   one line per HELD item, FIFO,
+                                                            "> GRAPPLE" front / dimmed queue
+                  + per-frame read of the player (the StaminaView idiom, not an event):
+                    motor.IsWallSurging   → "WALL SURGE  6.4s"  (WallSurgeRemaining, tenths)
+                    motor.SpeedMultiplier → "SPEED x1.5"        when ≠ 1
+                    Health.Invulnerable   → "GOD MODE"
+                  blank when idle; the label is rewritten only when a shown value changes
 ```
+
+#### The Pyre fire — `FireBarView` + `VibeGame1/UI/FireBar`
+
+```
+   PyreBar (BarView)  + FireBarView (sibling; HudExtensions.ApplyPyreFire adds it at 5. Build HUD)
+        BarView.Set(ratio)          → the EXTENT: anchor-driven fill (rule 5), dark ember, no white pulse
+        FireBarView.LateUpdate()    → Flames image (full width, bar height + 0.9× headroom above)
+              value > last + 0.005  → kick = 1        a parry stoked it; decays at 4/s (FireBarMath.DecayKick)
+              heat = fill^0.8 (+ a 0.15 breath at full)                          (FireBarMath.Heat)
+              mat.SetFloat(_Fill, _Heat, _Kick, _Full, _T = unscaled time)   per-instance clone, never sharedMaterial
+        VibeGame1/UI/FireBar.shader  → 3-octave value noise scrolling up; fire only where x < _Fill (+ a licking front),
+                                       tongues reach into the headroom by heat × noise (FireBarMath.Reach, ≤ the rect),
+                                       ember → flame → core ramp, min(col, 1.0)
+```
+
+**Invariants**
+- **The fire is presentation on top of `BarView`, never a second extent.** The meter's width is still the
+  anchor-driven fill; the shader only reads `_Fill` to know where to stop. Rule 5 stands.
+- **The HUD never blooms.** The three ramp colours ship ≤ 1.0 per channel and the shader clamps the result;
+  `FireBarTests.TheRamp_NeverCrossesTheBloomCap` sweeps it. Light means "you deflected".
+- **Flames stay inside the loading bar's silhouette.** The overshoot is the Flames quad's own headroom
+  (0.9 × bar height) and `reach ≤ 1` of it; the fire cannot be drawn outside that rect.
+- **Unscaled time.** `_T` is handed in by the component, not read from the shader's scaled `_Time`, so
+  hitstop and the pause menu do not freeze the fire.
+- **One per-instance material, disposed in OnDestroy.** The prefab references `Assets/Materials/UI/M_PyreFire.mat`.
+
+### The fluid bars — `FluidBarView` + `VibeGame1/UI/FluidBar`
+
+```
+5. Build HUD → HudExtensions.ApplyAll(root) → ApplyFluidBars(root)     (Editor/HudExtensions.FluidBars.cs)
+     finds BarView "HealthBar" / "StaminaBar" BY NAME, adds FluidBarView, writes every number (rule 9),
+     sets fill/ghost to null-sprite Simple images (the shader's UV contract), aspect = rect width / height
+
+BarView.Set(ratio)           unchanged: the fill's EXTENT is still the RectTransform anchors (never fillAmount)
+BarView.Flash / SetColor     unchanged: Image.color is the shader's tint, so the refusal flash reads through
+
+FluidBarView.Awake           one Material clone per Image (fill, ghost), never sharedMaterial
+FluidBarView.Update (unscaled)
+   → motor found lazily (FindAnyObjectByType, retried every 0.5 s; the player respawns) — OnLanded subscribed
+   → a = Δvelocity / dt, ignored above maxAccel (120: a teleport, not movement)
+        lateral (camera right)  → FluidSlosh.TiltTarget(a, 0.012, cap 0.15) → FluidSlosh.Step: spring 2.5 Hz / ζ 0.35
+        forward                 → wave phase rate kick (0.05 per m/s², cap 6, decays at 4/s): a dash ripples the bar
+        OnLanded                → level dip FluidSlosh.LandingDip(speed, 22, 0.10), springs back 3.5 Hz / ζ 0.5
+   → bar.Value fell            → meniscus pulse 0.6, decaying over 0.35 s
+   → shader: _Fill = bar.Value, _Level = level − dip, _Slosh = tilt, _SloshPhase, _Pulse
+             (ghost: same liquid, its own _Fill read back off its anchors, no wave, no glow)
+FluidBar.shader (fragment)   bar-space x = uv.x × _Fill; surface = level + wave(2 harmonics, flows) + tilt × (x − 0.5)
+                             inside = below the surface; meniscus at the surface and at the leading edge
+                             (edge distance × _Aspect, so both are the same thickness on screen);
+                             body darkens toward the bottom; brightening is toward white, min(col, 1)
+```
+
+**Invariants**
+- **BarView still owns the bar.** Extent through the anchors, colour through `Image.color`; `FluidBarView`
+  only decides which pixels INSIDE the fill are liquid. Nothing that reads `BarView.Value` changed.
+- **The liquid never blooms.** The shader brightens toward white and clamps at 1.0 per channel; the canvas is
+  Screen Space Overlay, outside post-processing anyway. Light on screen still means "you deflected".
+- **"Not too much, just enough" is a clamp, not a taste.** Tilt is capped at 0.15 of the bar height across
+  the width (~2.7 px on the 18 px health bar) on the target AND the state; the dip at 0.10; the phase rate at 6.
+  `FluidBarTests` holds the cap and the ring-down (< 10% of the cap 0.5 s after release, identical at 20/60/240 fps).
+- **Closed-form springs** (`SlideImpulse.Spring`), so the picture does not depend on the frame rate.
+- **Unscaled time.** Hitstop and pause must not freeze a liquid; a frozen wave reads as a dropped frame.
+- **One material clone per Image, set once.** Never `sharedMaterial`; never a per-frame allocation.
+
 
 **Invariants**
 - Gameplay never references the HUD. One-way: gameplay raises, HUD listens.
 - `BarView` drives the fill RectTransform's **anchors**, not `Image.fillAmount` — a UGUI `Image` with a null
   sprite silently ignores `fillAmount` and renders permanently full. That bug made the boss look invulnerable.
 - All HUD animation uses unscaled time.
+- **The playing HUD carries no bind dump.** `ControlsInfo` is the one source of the key reference; it is
+  shown on the settings INFO card (both prefabs, one emitter) and reached from F1. `HudGlassTests.
+  ThePlayingHudCarriesNoBindDump` and `SettingsPrefabTests.BothPrefabs_CarryTheSameInfoTab` hold it.
+- **BEST RUNS is a glass pane, and it clears the clock and the level-editor panel** by rect; the pane
+  ships hidden and `GhostHud` owns showing it.
+- **The status strip is one multi-line TMP label, rebuilt on change.** `StatusStripView.RowCount` /
+  `IsEmpty` / `Text` are the test surface (`FeatureTests > HUD_StatusStrip*`); rows are rich-text
+  lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.
 
 ---
 
@@ -1245,11 +1825,25 @@ The pre-run loadout choice. The altar stands on the level's spawn point, so the 
 "which wand?" — a commitment made before the clock matters, not a key cycled mid-fight. It is **deliberate**:
 aim at the altar and press **F**. Proximity alone never opens it.
 
+**It is a dev fixture unless switched on.** `WandPedestal.DevMenuEnabled` (static, default `false`) gates
+every pedestal: off, the altar does not draw, cannot register range, never prompts, and `TryInteract()` /
+`Open()` refuse. The F1 test menu's **WAND PEDESTAL: OFF/ON** button is the only switch. Without it the
+player simply keeps the Player prefab's loadout — all four wands, Emberlance equipped, `R` cycles.
+
 ```
 LevelGreyboxBuilder / SandboxBuilder  (build time)
    plinth box (layer Default, walkable, bakes into the NavMesh)
    + trigger root (layer Interactable, SphereCollider r=3 centred 1.2 m up) → WandPedestal
      placed so the trigger already covers StartSpawn: the offer is there from the first frame
+
+WandPedestal.DevMenuEnabled  (static bool, default false)
+   TestMenu.ToggleWandPedestal()  ← "WAND PEDESTAL: OFF/ON" button (HudBuilder.BuildTestMenu)
+   WandPedestal.Awake + Update    → ApplyEnabled(flag) whenever it differs from what was applied:
+        renderers + lights enabled = flag, trigger collider enabled = flag,
+        sibling "<name>_Plinth" SetActive(flag)  (found by the builders' naming convention),
+        off → Clear() (a disabled collider fires no OnTriggerExit)
+   off → Update returns before the spin/prompt/interact block; TryInteract() and Open() return false
+   IsHidden  = the applied state, for tests
 
 WandPedestal.OnTriggerEnter / OnTriggerExit ← player CharacterController   (the ItemPickup idiom)
    sets/clears inRange ONLY — the trigger is a range check, never an opener
@@ -1297,6 +1891,10 @@ pedestal is the intended, deliberate choice; R is the fast one for testing.
   too) and a per-frame re-raise would fight it.
 - `F` is bound to **both** `Interact` and `Heal`. `WandPedestal.PromptActive` gives the altar priority and
   `FlaskAbility.Update` stands down on it — the tie is broken explicitly, never by script execution order.
+- **Off means invisible AND inert, from `Awake`.** The flag is checked before anything else in `Update`,
+  `TryInteract` and `Open`, so a hidden altar can never pause the game; the collider is disabled so it
+  cannot even record range. `FeatureTests > WandPedestal_*DevMenuOff` hold this, and the suite enables
+  the flag only for the duration of `TestWandPedestal`, restoring whatever it found.
 - `WandSelectMenu.ForceClose()` stays the belt-and-braces guard for scripted runs (`FeatureTests`,
   `DebugHarness`): nothing opens the menu without input now, but a driver must never inherit one.
 - The plinth stays on layer Default (it is walkable geometry); only the trigger and its visuals are on

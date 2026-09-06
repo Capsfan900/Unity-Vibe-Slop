@@ -39,25 +39,34 @@ namespace VibeGame1.Tests
             var m = Motor();
             // The same list WallRunMechanicTests.Shipped() writes as literals. One assert per field so a
             // drift names the field that moved rather than "some number changed".
-            Assert.AreEqual(7f, m.wallRunMinEntrySpeed, 1e-4f, "wallRunMinEntrySpeed");
+            Assert.AreEqual(6f, m.wallRunMinEntrySpeed, 1e-4f, "wallRunMinEntrySpeed");
             Assert.AreEqual(9f, m.wallRunMaxEntryFallSpeed, 1e-4f, "wallRunMaxEntryFallSpeed");
-            Assert.AreEqual(0.55f, m.wallRunMaxApproachCos, 1e-4f, "wallRunMaxApproachCos");
-            Assert.AreEqual(0.30f, m.wallRunMinLookAlongCos, 1e-4f, "wallRunMinLookAlongCos");
-            Assert.AreEqual(1.6f, m.wallRunMaxDuration, 1e-4f, "wallRunMaxDuration");
+            Assert.AreEqual(0.80f, m.wallRunMaxApproachCos, 1e-4f, "wallRunMaxApproachCos");
+            Assert.AreEqual(-0.05f, m.wallRunMinLookAlongCos, 1e-4f, "wallRunMinLookAlongCos");
+            Assert.AreEqual(1.75f, m.wallRunMaxDuration, 1e-4f, "wallRunMaxDuration");
             Assert.AreEqual(0.10f, m.wallRunGravityStartScale, 1e-4f, "wallRunGravityStartScale");
             Assert.AreEqual(0.60f, m.wallRunGravityEndScale, 1e-4f, "wallRunGravityEndScale");
             Assert.AreEqual(3f, m.wallRunEntryUpSpeed, 1e-4f, "wallRunEntryUpSpeed");
             Assert.AreEqual(0.35f, m.wallRunSpeedDecay, 1e-4f,
                 "wallRunSpeedDecay — 0.20 shipped once and made the sustain floor unreachable; " +
                 "if this is a deliberate retune, prove the window test below still passes");
-            Assert.AreEqual(5f, m.wallRunMinSustainSpeed, 1e-4f, "wallRunMinSustainSpeed");
+            Assert.AreEqual(4f, m.wallRunMinSustainSpeed, 1e-4f, "wallRunMinSustainSpeed");
             Assert.AreEqual(14f, m.wallRunAccel, 1e-4f, "wallRunAccel");
+            Assert.AreEqual(13.75f, m.wallRunTopSpeed, 1e-4f, "wallRunTopSpeed (1.25x groundSpeed: the wall is faster than the floor)");
+            Assert.AreEqual(0.15f, m.wallRunLostGrace, 1e-4f, "wallRunLostGrace");
+            Assert.AreEqual(0.15f, m.wallRunExitGrace, 1e-4f, "wallRunExitGrace");
+            Assert.AreEqual(17.6f, m.airSoftCap, 1e-4f, "airSoftCap (1.6x groundSpeed)");
+            Assert.AreEqual(3f, m.airDrag, 1e-4f, "airDrag");
+            Assert.AreEqual(4f, m.groundOverspeedDecay, 1e-4f, "groundOverspeedDecay");
+            Assert.AreEqual(27.5f, m.maxHorizontalSpeed, 1e-4f, "maxHorizontalSpeed (2.5x groundSpeed)");
+            Assert.AreEqual(1.2f, m.slideChainWindow, 1e-4f, "slideChainWindow");
+            Assert.AreEqual(0.6f, m.slideChainFalloff, 1e-4f, "slideChainFalloff");
             Assert.AreEqual(2.5f, m.wallRunStickSpeed, 1e-4f, "wallRunStickSpeed");
             Assert.AreEqual(10f, m.wallRunExitUpSpeed, 1e-4f, "wallRunExitUpSpeed");
             Assert.AreEqual(7f, m.wallRunExitPushSpeed, 1e-4f, "wallRunExitPushSpeed");
             Assert.AreEqual(4f, m.wallRunExitTangentBoost, 1e-4f, "wallRunExitTangentBoost");
-            Assert.AreEqual(3, m.maxWallRuns, "maxWallRuns");
-            Assert.AreEqual(0.25f, m.wallRunCooldown, 1e-4f, "wallRunCooldown");
+            Assert.AreEqual(6, m.maxWallRuns, "maxWallRuns (stamina is the real bound now)");
+            Assert.AreEqual(0.20f, m.wallRunCooldown, 1e-4f, "wallRunCooldown");
             Assert.AreEqual(13f, m.wallRunCameraRoll, 1e-4f, "wallRunCameraRoll");
             Assert.AreEqual(7f, m.wallRunExitRollKick, 1e-4f, "wallRunExitRollKick");
         }

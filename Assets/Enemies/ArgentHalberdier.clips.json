@@ -1,0 +1,433 @@
+[
+ {
+  "name": "Idle",
+  "start": 1,
+  "end": 32,
+  "loop": true,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "IdleCombat",
+  "start": 37,
+  "end": 63,
+  "loop": true,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Walk",
+  "start": 68,
+  "end": 89,
+  "loop": true,
+  "events": [
+   {
+    "time": 0.0,
+    "function": "OnFootstep"
+   },
+   {
+    "time": 0.5,
+    "function": "OnFootstep"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Run",
+  "start": 94,
+  "end": 110,
+  "loop": true,
+  "events": [
+   {
+    "time": 0.0,
+    "function": "OnFootstep"
+   },
+   {
+    "time": 0.5,
+    "function": "OnFootstep"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Jump",
+  "start": 115,
+  "end": 137,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.28,
+    "function": "OnJumpTakeoff"
+   },
+   {
+    "time": 0.85,
+    "function": "OnJumpLand"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackSwing",
+  "start": 142,
+  "end": 160,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackOverhead",
+  "start": 165,
+  "end": 187,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.6,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackStab",
+  "start": 192,
+  "end": 206,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackKick",
+  "start": 211,
+  "end": 228,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Hit",
+  "start": 233,
+  "end": 245,
+  "loop": false,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Stagger",
+  "start": 250,
+  "end": 270,
+  "loop": false,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Roar",
+  "start": 275,
+  "end": 304,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.4,
+    "function": "OnRoar"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Block",
+  "start": 309,
+  "end": 329,
+  "loop": true,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Spawn",
+  "start": 334,
+  "end": 360,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.9,
+    "function": "OnSpawnFinished"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Death",
+  "start": 365,
+  "end": 391,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.95,
+    "function": "OnDeathFinished"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "HalberdSweep",
+  "start": 396,
+  "end": 415,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.5,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": false,
+   "forward_m": 0.062,
+   "right_m": 0.114,
+   "distance_m": 0.13,
+   "duration_s": 0.75,
+   "peak_lift_m": 0.014,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "HalberdBackswing",
+  "start": 420,
+  "end": 439,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.45,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": false,
+   "forward_m": 0.041,
+   "right_m": 0.097,
+   "distance_m": 0.106,
+   "duration_s": 0.75,
+   "peak_lift_m": 0.02,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "OverheadSlam",
+  "start": 444,
+  "end": 468,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.6,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.628,
+   "right_m": -0.065,
+   "distance_m": 0.631,
+   "duration_s": 0.95,
+   "peak_lift_m": 0.047,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Thrust",
+  "start": 473,
+  "end": 492,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.898,
+   "right_m": 0.198,
+   "distance_m": 0.92,
+   "duration_s": 0.75,
+   "peak_lift_m": 0.02,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "ShoulderCharge",
+  "start": 497,
+  "end": 526,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.7,
+    "function": "OnAttackHit"
+   },
+   {
+    "time": 0.739,
+    "function": "OnJumpTakeoff"
+   },
+   {
+    "time": 0.957,
+    "function": "OnJumpLand"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 3.546,
+   "right_m": -1.16,
+   "distance_m": 3.731,
+   "duration_s": 1.15,
+   "peak_lift_m": 0.098,
+   "crouch_m": 0.015,
+   "airborne": [
+    0.739,
+    0.957
+   ]
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Kick",
+  "start": 531,
+  "end": 560,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.6,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.254,
+   "right_m": -0.187,
+   "distance_m": 0.316,
+   "duration_s": 1.15,
+   "peak_lift_m": 0.035,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "SpinSweep",
+  "start": 565,
+  "end": 599,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.481,
+    "function": "OnJumpTakeoff"
+   },
+   {
+    "time": 0.65,
+    "function": "OnAttackHit"
+   },
+   {
+    "time": 0.963,
+    "function": "OnJumpLand"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": false,
+   "forward_m": 0.108,
+   "right_m": -0.037,
+   "distance_m": 0.114,
+   "duration_s": 1.35,
+   "peak_lift_m": 0.458,
+   "crouch_m": 0.029,
+   "airborne": [
+    0.481,
+    0.963
+   ]
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "LeapSlam",
+  "start": 604,
+  "end": 647,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.571,
+    "function": "OnJumpTakeoff"
+   },
+   {
+    "time": 0.7,
+    "function": "OnAttackHit"
+   },
+   {
+    "time": 0.771,
+    "function": "OnJumpLand"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 1.88,
+   "right_m": 0.11,
+   "distance_m": 1.883,
+   "duration_s": 1.75,
+   "peak_lift_m": 0.268,
+   "crouch_m": 0.153,
+   "airborne": [
+    0.571,
+    0.771
+   ]
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "HeavyWindup",
+  "start": 652,
+  "end": 705,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.78,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": -0.257,
+   "right_m": 0.069,
+   "distance_m": 0.266,
+   "duration_s": 2.15,
+   "peak_lift_m": 0.016,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ }
+]

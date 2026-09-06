@@ -60,13 +60,25 @@ namespace VibeGame1.EditorTools
             BuildMiniBoss("Legendary_Marionette", EnemyDataDir + "/Legendary_Marionette.asset", Silhouette.Marionette);
             // PROTOTYPE. Sandbox pad only. The ai_skelly_tool test body, and the first BURNING enemy.
             BuildMiniBoss("Legendary_Revenant", EnemyDataDir + "/Legendary_Revenant.asset", Silhouette.Revenant);
+            // PROTOTYPE. Sandbox pad only. The first body whose attacks are GENERATED per-character clips
+            // (forge.py --motion), named on the attack data, with the art's own travel held in
+            // lungeDistance. See docs/ARCHITECTURE.md -> The Argent Halberdier.
+            BuildMiniBoss("Legendary_Halberdier", EnemyDataDir + "/Legendary_Halberdier.asset", Silhouette.Halberdier);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[MiniBossFactory] Built 5 legendary mini-boss prefabs under " + PrefabDir);
+            // A controller PuppetAnimatorFactory deleted and recreated resolves to NULL on the freshly
+            // built prefab for the rest of this editor session (ENGINEERING-LOG, "A rebuilt animator
+            // controller reads NULL on the prefab in the same session") until both are force-imported.
+            // Done here so a test run straight after 4b reads the real reference.
+            foreach (var guid in AssetDatabase.FindAssets("t:AnimatorController", new[] { PuppetAnimatorFactory.ControllerDir }))
+                AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
+            foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
+                AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
+            Debug.Log("[MiniBossFactory] Built 6 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier }
 
         // ------------------------------------------------------------------ the rig
 
@@ -167,7 +179,7 @@ namespace VibeGame1.EditorTools
             visuals.deathblowMarker = PrefabFactory.BuildDeathblowMarker(visual.transform, markHeight, markOffset);
             flash.renderers = new[] { visuals.body, visuals.weapon };
 
-            if (animated) WireAnimatedBody((PuppetVisuals)visuals, spec, modelRoot, name);
+            if (animated) WireAnimatedBody((PuppetVisuals)visuals, spec, modelRoot, name, data);
 
             // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
             // shows up as a missing telegraph mid-fight, which is the worst possible place to find it.
@@ -262,6 +274,29 @@ namespace VibeGame1.EditorTools
             public string idleClip;
             /// <summary>Attacks whose asset name starts with this drive the whirl. Empty = never whirl.</summary>
             public string spinPrefix;
+
+            // ---- optional, per model ----------------------------------------------------------------
+            /// <summary>
+            /// Forward shift of the mesh under the collider, metres. The forge places its skeleton on the
+            /// z = 0 plane of the source drawing, and a body whose mass sits ahead of that plane (the
+            /// Halberdier's torso is centred 0.25 m in front of its bones) would otherwise stand with
+            /// its chest a quarter-metre ahead of the capsule that gets hit. Measured, never guessed.
+            /// </summary>
+            public float zShift;
+            /// <summary>
+            /// File under <see cref="ModelDir"/> holding the model's albedo texture, or empty for the
+            /// shared M_Boss. A textured body gets its own URP/Lit material (cloned from M_Boss so the
+            /// emission keyword and the matte settings match); EnemyVisuals still tints it through
+            /// _BaseColor every frame, so the sink-and-snap and the parry flash read exactly as they do
+            /// on every other enemy. The EnemyData bodyColor should then be near-white.
+            /// </summary>
+            public string albedo;
+            /// <summary>
+            /// Give the body an <see cref="EnemyWeaponTrail"/>: a strip swept from the weapon hand to
+            /// <see cref="weaponFxPos"/> while an attack clip is in its contact window, normalised under
+            /// the bloom cap. Only for a model whose weaponFxPos is really a blade tip in the bind pose.
+            /// </summary>
+            public bool bladeTrail;
         }
 
         static ModelSpec ModelFor(Silhouette shape)
@@ -392,6 +427,55 @@ namespace VibeGame1.EditorTools
                         spinClip = "",
                         spinPrefix = ""
                     };
+
+                case Silhouette.Halberdier:
+                    return new ModelSpec
+                    {
+                        fbx = "ArgentHalberdier.fbx",
+                        // STANDS on armoured feet; feet on the collider base.
+                        yLift = 0f,
+                        // EVERY NUMBER BELOW WAS MEASURED, in Blender (the bridge was down) on the exact
+                        // FBX shipped here, in Unity axes -- see the ENGINEERING-LOG entry for the
+                        // script. Bounds x -0.56..0.52, y 0..1.86, z -0.69..0.93. The skeleton lies on
+                        // the z = 0 plane (every bone at z 0.00) while the torso spans z 0.02..0.43 and
+                        // the halberd sits at z 0.20..0.65 IN FRONT of it: the tail is the only thing
+                        // behind (a thin ground-level strip out to z -0.69), so it faces +Z like every
+                        // forge export, and the body mass is a quarter-metre ahead of its bones.
+                        yaw = 0f,
+                        zShift = -0.22f,
+                        // The head bone is at y 1.70 (Unity probe; Blender's rest pose said 1.73) and the
+                        // front of the helm at z ~0.41: the eye is a thin visor slit on the face, well
+                        // under the horns (crown to 2.00).
+                        eyePos = new Vector3(0f, 1.72f, 0.40f),
+                        eyeSize = new Vector3(0.18f, 0.05f, 0.08f),
+                        // From VibeGame1/Probe Forge Models on the imported model (its default pose is the
+                        // take's first frame, the Idle, not Blender's rest pose): RightUpperArm
+                        // (0.06, 1.54, 0.08), RightHand (0.25, 0.79, 0.18) -- the halberd hand hangs low
+                        // and close. handPos is hand minus shoulder.
+                        armPos = new Vector3(0.06f, 1.54f, 0.08f),
+                        handPos = new Vector3(0.19f, -0.75f, 0.10f),
+                        // The axe head: the far-right slice of the mesh (x 0.40..0.92) sits at y 0.81..1.56,
+                        // z 0.20..0.65 -- out, up and forward of the idle hand. Cue sparks throw from there.
+                        weaponFxPos = new Vector3(0.35f, 0.25f, 0.15f),
+                        // The CHEST bone (1.54 in Unity), clear of the head at 1.70.
+                        markHeight = 1.54f,
+                        albedo = "ArgentHalberdier_albedo.png",
+                        // The axe head really is at weaponFxPos in the bind pose, so a hand-to-head strip
+                        // follows the halberd through every generated clip. From play: "make his attacks
+                        // more visually appealing" -- see EnemyWeaponTrail for the budget.
+                        bladeTrail = true,
+                        note = "towering armoured halberdier with a tail; 1.86 m to the horns, bones on z = 0 with the body 0.25 m ahead",
+
+                        animated = true,
+                        // The canonical four still back the pipeline mapping, but every attack this
+                        // enemy has NAMES its own generated clip (EnemyAttackData.clip), so these are
+                        // only the fallback for an attack that forgets to.
+                        attackClip = "AttackSwing",
+                        heavyClip = "AttackOverhead",
+                        idleClip = "IdleCombat",
+                        spinClip = "",
+                        spinPrefix = ""
+                    };
             }
             return null;   // Ninja keeps the primitive silhouette
         }
@@ -406,7 +490,8 @@ namespace VibeGame1.EditorTools
         /// means the value is visible in the Inspector, which is the difference between a timing you can
         /// check and one you have to trust.</para>
         /// </summary>
-        static void WireAnimatedBody(PuppetVisuals pv, ModelSpec spec, Transform modelRoot, string name)
+        static void WireAnimatedBody(PuppetVisuals pv, ModelSpec spec, Transform modelRoot, string name,
+                                     EnemyData data)
         {
             string fbx = ModelDir + "/" + spec.fbx;
 
@@ -451,6 +536,32 @@ namespace VibeGame1.EditorTools
             modelRoot.SetParent(spin.transform, false);
             pv.spinRoot = spin.transform;
 
+            // ---- a DEDICATED transform for cancelling clip travel -------------------------------
+            // Only for models whose manifest has travelling clips. Same rule as SpinRoot: one
+            // transform, one writer. PuppetVisuals.CompensateTravel is the writer.
+            if (ForgeClipSplitter.AnyClipTravels(fbx))
+            {
+                Transform hips = null;
+                foreach (var t in modelRoot.GetComponentsInChildren<Transform>(true))
+                    if (t.name == "Hips") { hips = t; break; }
+                if (hips == null)
+                {
+                    Debug.LogError("[MiniBossFactory] " + name + " has travelling clips but no 'Hips' bone; the " +
+                                   "mesh will walk off its collider on every thrust and charge.");
+                }
+                else
+                {
+                    var travel = new GameObject("TravelRoot");
+                    travel.transform.SetParent(spin.transform, false);
+                    travel.transform.localPosition = Vector3.zero;
+                    travel.transform.localRotation = Quaternion.identity;
+                    modelRoot.SetParent(travel.transform, false);
+                    pv.travelRoot = travel.transform;
+                    pv.hipsBone = hips;
+                    pv.hipsRestLocal = modelRoot.InverseTransformPoint(hips.position);
+                }
+            }
+
             pv.clipIdle = spec.idleClip;
             pv.clipAttack = spec.attackClip;
             pv.clipHeavy = spec.heavyClip;
@@ -474,6 +585,13 @@ namespace VibeGame1.EditorTools
             // PULSE — blur, slow, blur, slow — not as a spinning body. Constant is the brief.
             pv.spinDegPerSec = 2087f;
             pv.maxRateCorrection = 0.12f;
+            // After the impact the clip runs at its AUTHORED rate for the follow-through, whatever
+            // scale the wind-up needed to land the contact frame on the data's impact. Before this the
+            // wind-up scale (x0.55-0.7 on most of the Halberdier's attacks) carried through the whole
+            // clip and the loop cut back to idle 0.25 s after the blow: a slow-motion swing that
+            // snapped straight to standing. Rule 9: written here.
+            pv.recoverySpeed = 1f;
+            pv.followThroughSeconds = 0.45f;
             // 75 deg/frame: the alias guard. Never binds above ~55 fps at these values; below that it
             // trades blur for legibility rather than letting the body strobe. See PuppetVisuals.
             pv.maxDegPerFrame = 75f;
@@ -490,6 +608,33 @@ namespace VibeGame1.EditorTools
             pv.kickClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipKick, 1f);
             pv.kickHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, pv.clipKick, 0.55f);
 
+            // ---- the NAMED clip table: every attack clip the model ships -------------------------
+            // An EnemyAttackData may name its clip outright (EnemyAttackData.clip) -- the only way a
+            // GENERATED, per-character clip is ever reached, since the pipeline mapping only knows
+            // the four canonical names. Each entry carries its own length and contact anchor, read
+            // from the manifest here at build time, so the clip still bends to the attack's clock.
+            var withHit = ForgeClipSplitter.ClipsWithEvent(fbx, "OnAttackHit");
+            pv.namedClips = withHit.ToArray();
+            pv.namedClipLengths = new float[withHit.Count];
+            pv.namedClipHits = new float[withHit.Count];
+            for (int i = 0; i < withHit.Count; i++)
+            {
+                pv.namedClipLengths[i] = PuppetAnimatorFactory.ClipLength(fbx, withHit[i], 1f);
+                // The manifest's OnAttackHit is authored for the 15 canonical clips and a GUESS for a
+                // generated one (the tool's "#hit" fraction). From play (2026-09-04): "the animations
+                // don't line up with the attack hitboxes". So a generated clip's anchor is MEASURED on
+                // the imported clip -- the frame where a hand or a foot reaches furthest forward of the
+                // pelvis -- and the manifest is kept only when the art reaches no further anywhere else.
+                float manifest = ForgeClipSplitter.ReadHitNormalizedTime(fbx, withHit[i], 0.55f);
+                string why = "manifest (authored clip)";
+                float anchor = ForgeClipSplitter.ClipIsGenerated(fbx, withHit[i])
+                    ? MeasureContactFraction(fbx, withHit[i], manifest, out why)
+                    : manifest;
+                pv.namedClipHits[i] = anchor;
+                Debug.Log("[MiniBossFactory] " + name + " clip '" + withHit[i] + "': contact anchor " +
+                          anchor.ToString("F2") + " -- " + why);
+            }
+
             // Validate the clips the component names actually exist. A missing clip is SILENT at
             // runtime — CrossFade to a state that is not there simply does nothing and the puppet
             // keeps playing whatever it was playing, which reads as "the animation is broken" with
@@ -497,6 +642,29 @@ namespace VibeGame1.EditorTools
             var have = PuppetAnimatorFactory.ClipsIn(fbx);
             var names = new System.Collections.Generic.HashSet<string>();
             for (int i = 0; i < have.Count; i++) names.Add(have[i].name);
+
+            // ...and the same for every clip the enemy's ATTACKS name. Checked against the imported
+            // clips AND the baked table: a name in the manifest that did not import would pass the
+            // first and fail at runtime.
+            if (data != null)
+            {
+                var combos = data.ResolveCombos();
+                if (combos != null)
+                    foreach (var combo in combos)
+                    {
+                        if (combo == null || combo.hits == null) continue;
+                        foreach (var atk in combo.hits)
+                        {
+                            if (atk == null || string.IsNullOrEmpty(atk.clip)) continue;
+                            if (!names.Contains(atk.clip) || pv.IndexOfNamedClip(atk.clip) < 0)
+                                Debug.LogError("[MiniBossFactory] " + name + ": attack " + atk.name +
+                                    " names clip '" + atk.clip + "' but " + fbx + (names.Contains(atk.clip)
+                                    ? " ships it with no OnAttackHit event, so no contact frame can be baked."
+                                    : " has no such clip. It has: " + string.Join(", ", names) + ".") +
+                                    " The attack will fall back to the pipeline mapping at runtime.");
+                        }
+                    }
+            }
             foreach (var wanted in new[] { pv.clipIdle, pv.clipWalk, pv.clipRun, pv.clipAttack,
                                            pv.clipHeavy, pv.clipSpin, pv.clipStab, pv.clipKick,
                                            pv.clipHit, pv.clipStagger, pv.clipDeath, pv.clipRoar })
@@ -514,6 +682,56 @@ namespace VibeGame1.EditorTools
                       pv.clipSpin + "' len " + pv.spinClipLength.ToString("F3") + "s anchor " +
                       pv.spinHitNormalized.ToString("F2") + " (" +
                       (pv.spinClipLength * pv.spinHitNormalized).ToString("F3") + "s in).");
+
+            if (spec.bladeTrail) WireBladeTrail(pv, spec, modelRoot, name, data);
+        }
+
+        /// <summary>
+        /// The blade trail (<see cref="EnemyWeaponTrail"/>). The two ends of the strip are the weapon
+        /// HAND and the ModelSpec's weaponFxPos, both converted from model space into the hand bone's
+        /// local space while the prefab stands in its bind pose -- so at build time they are the same
+        /// points the cue sparks throw from, and at runtime they ride the bone through every clip. The
+        /// attack table is the one PuppetVisuals bakes, so the strip's window is keyed to the SAME contact
+        /// frame the blow is timed to. Rule 9: every number written here.
+        /// </summary>
+        static void WireBladeTrail(PuppetVisuals pv, ModelSpec spec, Transform modelRoot, string name, EnemyData data)
+        {
+            Transform hand = null;
+            foreach (var t in modelRoot.GetComponentsInChildren<Transform>(true))
+                if (t.name == "RightHand") { hand = t; break; }
+            if (hand == null)
+            {
+                Debug.LogError("[MiniBossFactory] " + name + ": bladeTrail requested but the rig has no " +
+                               "'RightHand' bone; no trail wired.");
+                return;
+            }
+
+            var trail = pv.gameObject.AddComponent<EnemyWeaponTrail>();
+            trail.bladeBone = hand;
+            trail.animator = pv.animator;
+            Vector3 handModel = spec.armPos + spec.handPos;
+            Vector3 tipModel = handModel + spec.weaponFxPos;
+            trail.bladeBaseLocal = hand.InverseTransformPoint(modelRoot.TransformPoint(handModel));
+            trail.bladeTipLocal = hand.InverseTransformPoint(modelRoot.TransformPoint(tipModel));
+            trail.attackClips = (string[])pv.namedClips.Clone();
+            trail.attackHits = (float[])pv.namedClipHits.Clone();
+            // The contact window: the last ~22% of the clip before the contact and 12% after. On the
+            // 0.75 s sweep that is 0.17 s of cut and 0.09 s of follow-through -- the swing, not the tell.
+            trail.leadIn = 0.22f;
+            trail.tail = 0.12f;
+            trail.samples = 14;
+            trail.subdivisions = 2;
+            trail.fadeSeconds = 0.12f;
+            // Four sparks at the contact frame: an accent. The parry throws ten; it must stay the event.
+            trail.contactSparks = 4;
+            trail.contactSparkSpeed = 5f;
+            // The enemy's accent, normalised to a peak channel of 1.0 by SlashFx at Awake -- under the
+            // 1.05 bloom threshold. Light on an enemy means "you deflected"; a swing may not glow.
+            trail.hue = data != null ? SlashFx.NormaliseColor(data.emission) : Color.white;
+
+            Debug.Log("[MiniBossFactory] " + name + " blade trail: bone '" + hand.name + "', base " +
+                      trail.bladeBaseLocal.ToString("F2") + " tip " + trail.bladeTipLocal.ToString("F2") +
+                      " (hand space), " + trail.attackClips.Length + " attack clips.");
         }
 
         /// <summary>
@@ -547,7 +765,7 @@ namespace VibeGame1.EditorTools
             PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
             model.name = "Model";
             model.transform.SetParent(lungeRoot, false);
-            model.transform.localPosition = new Vector3(0f, spec.yLift, 0f);
+            model.transform.localPosition = new Vector3(0f, spec.yLift, spec.zShift);
             model.transform.localRotation = Quaternion.Euler(0f, spec.yaw, 0f);
             model.transform.localScale = Vector3.one;
             modelRoot = model.transform;
@@ -559,10 +777,11 @@ namespace VibeGame1.EditorTools
                 Object.DestroyImmediate(model);
                 return false;
             }
-            // URP or magenta. The FBX carries vertex colours and no texture, and EnemyVisuals overwrites
-            // _BaseColor from EnemyData every frame anyway, so the shared enemy body material is exactly
-            // right here: same shader, same palette, no new material and no MaterialFactory edit.
-            skin.sharedMaterial = bodyMat;
+            // URP or magenta. The older forge FBXs carry vertex colours and no texture, and EnemyVisuals
+            // overwrites _BaseColor from EnemyData every frame anyway, so the shared enemy body material
+            // is exactly right for them. A model that ships an albedo (ModelSpec.albedo) gets its own
+            // material, cloned from the same one so nothing but the base map differs.
+            skin.sharedMaterial = BodyMaterialFor(spec, bodyMat);
             body = skin.gameObject;
 
             // The glowing slot / grate. A separate renderer because EnemyVisuals.SetPostureRatio writes
@@ -592,6 +811,163 @@ namespace VibeGame1.EditorTools
             wr.receiveShadows = false;
 
             return true;
+        }
+
+        /// <summary>
+        /// Where a clip's art actually STRIKES, as a 0..1 fraction: the sample at which the weapon's tip
+        /// is moving fastest while out in front of the pelvis. The tip is found from the skin -- the
+        /// vertex most weighted to <c>RightHand</c> and farthest from it, i.e. the end of whatever the
+        /// hand holds -- so a halberd head 0.8 m from the fist is measured, not the fist. Sampled at 5 %
+        /// steps on an instance of the FBX: deterministic, nothing at runtime.
+        ///
+        /// <para>Three guards, each from a clip that fooled a simpler rule (2026-09-04): a clip with a
+        /// sidecar airborne window keeps its manifest outright (a leap's blow is the landing body, and
+        /// its fastest tip moment is the raise before take-off); the tip must be moving at least
+        /// <see cref="ContactMinTipSpeed"/> (a generated clip whose blade merely drifts has no strike to
+        /// find, and its manifest guess is as good as any frame); and the manifest is kept when the
+        /// measured frame is within one sample of it. Public so <c>HalberdierDataTests</c> can hold the
+        /// baked anchors to the same measurement, and so the console can say which clips have no
+        /// strike at all -- the actual finding on the Halberdier's generated clips.</para>
+        /// </summary>
+        public static float MeasureContactFraction(string fbxPath, string clipName, float manifestFraction, out string why)
+        {
+            why = "manifest";
+            var source = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+            AnimationClip clip = null;
+            foreach (var c in PuppetAnimatorFactory.ClipsIn(fbxPath))
+                if (c.name == clipName) { clip = c; break; }
+            if (source == null || clip == null || clip.length <= 0.01f) return manifestFraction;
+
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(source);
+            try
+            {
+                var smr = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
+                Transform hips = null, hand = null;
+                int handIdx = -1;
+                if (smr != null && smr.sharedMesh != null)
+                    for (int b = 0; b < smr.bones.Length; b++)
+                    {
+                        if (smr.bones[b] == null) continue;
+                        if (smr.bones[b].name == "RightHand") { handIdx = b; hand = smr.bones[b]; }
+                        if (smr.bones[b].name == "Hips") hips = smr.bones[b];
+                    }
+                if (hips == null || hand == null || handIdx < 0)
+                {
+                    why = "manifest (no Hips / RightHand bone to measure)";
+                    return manifestFraction;
+                }
+
+                // The weapon tip in the hand's bind space: the hand-weighted vertex farthest from the joint.
+                var mesh = smr.sharedMesh;
+                var verts = mesh.vertices; var weights = mesh.boneWeights; var bind = mesh.bindposes;
+                float farthest = -1f; Vector3 tipLocal = Vector3.zero;
+                for (int v = 0; v < verts.Length && v < weights.Length; v++)
+                {
+                    var w = weights[v]; float hw = 0f;
+                    if (w.boneIndex0 == handIdx) hw += w.weight0;
+                    if (w.boneIndex1 == handIdx) hw += w.weight1;
+                    if (w.boneIndex2 == handIdx) hw += w.weight2;
+                    if (w.boneIndex3 == handIdx) hw += w.weight3;
+                    if (hw < 0.5f) continue;
+                    var local = bind[handIdx].MultiplyPoint3x4(verts[v]);
+                    if (local.magnitude > farthest) { farthest = local.magnitude; tipLocal = local; }
+                }
+                if (farthest < 0.05f) { why = "manifest (nothing skinned to RightHand)"; return manifestFraction; }
+
+                // A clip whose body leaves the ground (the sidecar's airborne window: a leap, a spin, a
+                // charge) keeps the tool's contact: its blow is the BODY landing, not the blade, and the
+                // tip's fastest moment is the pre-launch raise -- LeapSlam measured 15 m/s at 0.40 of
+                // the clip, in the crouch before take-off, against a landing slam at 0.77+.
+                var root = ForgeClipSplitter.ReadRoot(fbxPath, clipName);
+                if (root != null && root.airborne != null && root.airborne.Length >= 2)
+                {
+                    why = "manifest " + manifestFraction.ToString("F2") + " kept: airborne clip (" +
+                          root.airborne[0].ToString("F2") + "-" + root.airborne[1].ToString("F2") +
+                          "), the body is the blow";
+                    return manifestFraction;
+                }
+
+                Vector3 fwd = go.transform.forward;
+                Vector3 prev = Vector3.zero;
+                float bestSpeed = 0f, bestT = manifestFraction, bestReach = 0f, peakAny = 0f;
+                for (int i = 1; i <= 19; i++)
+                {
+                    float t = i * 0.05f;
+                    clip.SampleAnimation(go, clip.length * t);
+                    Vector3 tip = hand.TransformPoint(tipLocal);
+                    float reach = Vector3.Dot(tip - hips.position, fwd);
+                    float speed = i > 1 ? (tip - prev).magnitude / (clip.length * 0.05f) : 0f;
+                    prev = tip;
+                    if (speed > peakAny) peakAny = speed;
+                    if (reach <= 0f) continue;
+                    if (speed > bestSpeed) { bestSpeed = speed; bestT = t; bestReach = reach; }
+                }
+
+                if (bestSpeed < ContactMinTipSpeed)
+                {
+                    why = "manifest " + manifestFraction.ToString("F2") + " kept: NO STRIKE in this clip (weapon tip " +
+                          "peaks at " + peakAny.ToString("F0") + " m/s, needs " + ContactMinTipSpeed.ToString("F0") +
+                          "); the blade never visibly connects -- prefer an authored strike clip";
+                    return manifestFraction;
+                }
+                if (Mathf.Abs(bestT - manifestFraction) <= 0.051f)
+                {
+                    why = "manifest " + manifestFraction.ToString("F2") + " confirmed (tip " +
+                          bestSpeed.ToString("F0") + " m/s, " + bestReach.ToString("F2") + " m out at " + bestT.ToString("F2") + ")";
+                    return manifestFraction;
+                }
+                why = "MEASURED " + bestT.ToString("F2") + ": tip " + bestSpeed.ToString("F0") + " m/s, " +
+                      bestReach.ToString("F2") + " m out (manifest said " + manifestFraction.ToString("F2") + ")";
+                return bestT;
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        /// <summary>Weapon-tip speed (m/s) below which a clip is judged to have no strike in it. The
+        /// authored forge strikes peak at 36-86; the Halberdier's generated clips at 1-8.</summary>
+        public const float ContactMinTipSpeed = 10f;
+
+        /// <summary>
+        /// The body material for an imported model: the shared <paramref name="fallback"/> (M_Boss)
+        /// unless the spec names an albedo, in which case a per-model URP/Lit clone of it carrying that
+        /// texture, regenerated every build at <c>Assets/Materials/M_&lt;model&gt;.mat</c>. Cloning
+        /// rather than authoring keeps the emission keyword, the matte settings and the shader
+        /// identical, so the parry flash and the wind-up sink read the same on a textured body.
+        /// </summary>
+        static Material BodyMaterialFor(ModelSpec spec, Material fallback)
+        {
+            if (spec == null || string.IsNullOrEmpty(spec.albedo) || fallback == null) return fallback;
+
+            string texPath = ModelDir + "/" + spec.albedo;
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            if (tex == null)
+            {
+                Debug.LogError("[MiniBossFactory] MISSING ALBEDO: " + texPath + " (named by the ModelSpec for " +
+                               spec.fbx + "). Copy it in beside the FBX. Falling back to " + fallback.name +
+                               " so the body is not magenta, but it will be the wrong colour.");
+                return fallback;
+            }
+
+            string matName = "M_" + System.IO.Path.GetFileNameWithoutExtension(spec.fbx);
+            string matPath = MaterialDir + "/" + matName + ".mat";
+            var fresh = new Material(fallback) { name = matName };
+            fresh.SetTexture("_BaseMap", tex);
+            fresh.SetColor("_BaseColor", Color.white);   // EnemyVisuals tints from EnemyData every frame
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (existing == null)
+            {
+                DataFactory.EnsureFolder(MaterialDir);
+                AssetDatabase.CreateAsset(fresh, matPath);
+                existing = fresh;
+            }
+            else
+            {
+                existing.CopyPropertiesFromMaterial(fresh);
+                existing.shader = fresh.shader;
+                Object.DestroyImmediate(fresh);
+                EditorUtility.SetDirty(existing);
+            }
+            return existing;
         }
 
         /// <summary>The original primitive silhouettes. Still the path for the Ninja, and still the

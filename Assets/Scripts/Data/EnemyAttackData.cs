@@ -23,6 +23,16 @@ namespace VibeGame1
         public float parryPostureMultiplier = 1f;
         public bool unblockable;
 
+        [Header("Animation")]
+        [Tooltip("The clip an ANIMATED body (PuppetVisuals) plays for this attack, by name — e.g. " +
+                 "'HalberdSweep'. Empty = the pipeline mapping (swing / heavy / '_Stab' / '_Kick' suffix / " +
+                 "spin prefix), which is right for the four canonical forge attack clips every model ships. " +
+                 "Set it for an attack whose art is a GENERATED, per-character clip: that clip exists for " +
+                 "this attack alone, so its name is content and lives here rather than on the pipeline. " +
+                 "Timing is untouched: the clip's own contact frame is baked at build time and the clip is " +
+                 "stretched onto THIS attack's impact, never the reverse.")]
+        public string clip = "";
+
         [Header("Wind-up silhouette")]
         [Tooltip("The shape this attack's anticipation makes. Leave 'authored' off and the enemy plays " +
                  "the generic cone-derived wind-up instead, so an attack never has to carry a pose.")]

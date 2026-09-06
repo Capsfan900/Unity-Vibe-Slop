@@ -34,6 +34,22 @@ namespace VibeGame1
         /// Weighted, range-filtered pick. Returns null when nothing is eligible, which callers should
         /// treat as "hold position this beat" rather than as an error.
         /// </summary>
+        /// <summary>
+        /// Is there an entry whose band contains this distance? The far-band commit in
+        /// <c>EnemyController</c> asks this before attacking from OUTSIDE the commit band, so an enemy
+        /// with a charge authored for 5-18 m throws it from there, while one with nothing authored for
+        /// range keeps walking in. <see cref="Select"/>'s fallback-to-anything is deliberately not
+        /// consulted for that decision: a sweep thrown from 7 m is the whiff this exists to prevent.
+        /// </summary>
+        public bool HasEligible(float distanceToTarget)
+        {
+            if (entries == null) return false;
+            for (int i = 0; i < entries.Length; i++)
+                if (entries[i] != null && entries[i].IsEligible(distanceToTarget) && entries[i].weight > 0f)
+                    return true;
+            return false;
+        }
+
         public AttackCombo Select(float distanceToTarget)
         {
             if (entries == null || entries.Length == 0) return null;

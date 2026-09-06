@@ -61,6 +61,11 @@ namespace VibeGame1
         public Transform rowParent;
         public Row[] rows;
         public Row sandboxRow;
+        [Tooltip("Hidden template row for CUSTOM levels (saved by the in-game level editor); cloned per file on Refresh.")]
+        public Row customTemplate;
+        readonly System.Collections.Generic.List<Row> customRows = new System.Collections.Generic.List<Row>();
+        /// <summary>Custom rows shown on the last Refresh. For tests.</summary>
+        public int CustomRowCount { get; private set; }
 
         [Tooltip("Vertical spacing between rows, in canvas units. Used when cloning extra rows for a " +
                  "registry that has grown since the menu prefab was built.")]
@@ -183,6 +188,7 @@ namespace VibeGame1
             }
 
             VisibleRowCount = visible;
+            RefreshCustomRows();
 
             if (playSubtitle != null)
             {
@@ -256,6 +262,50 @@ namespace VibeGame1
             foreach (var c in clone.GetComponentsInChildren<T>(true))
                 if (c.gameObject.name == templateChild.gameObject.name) return c;
             return null;
+        }
+
+        /// <summary>
+        /// One row per level saved by the in-game editor (persistentDataPath/levels/*.json), cloned from
+        /// the hidden template under the sandbox row. Clicking one loads the sandbox scene with the file
+        /// queued on <see cref="LevelEditor.PendingLoadPath"/>; the editor there builds and plays it.
+        /// </summary>
+        void RefreshCustomRows()
+        {
+            foreach (var r in customRows) if (r != null && r.root != null) Destroy(r.root);
+            customRows.Clear();
+            CustomRowCount = 0;
+            if (customTemplate == null || customTemplate.root == null) return;
+            var names = LevelEditor.ListSaved();
+            var parent = customTemplate.root.transform.parent;
+            var templateRt = customTemplate.root.GetComponent<RectTransform>();
+            for (int i = 0; i < names.Count; i++)
+            {
+                var go = Instantiate(customTemplate.root, parent);
+                go.name = "CustomRow_" + i;
+                go.SetActive(true);
+                var rt = go.GetComponent<RectTransform>();
+                if (rt != null && templateRt != null) rt.anchoredPosition = templateRt.anchoredPosition - new Vector2(0f, rowStride * i);
+                var row = new Row
+                {
+                    root = go,
+                    title = Find<TMP_Text>(go, customTemplate.title),
+                    meta = Find<TMP_Text>(go, customTemplate.meta),
+                    status = Find<TMP_Text>(go, customTemplate.status),
+                    button = go.GetComponentInChildren<Button>(true),
+                };
+                string name = names[i];
+                if (row.title != null) row.title.text = "CUSTOM   " + name.ToUpperInvariant();
+                if (row.meta != null) row.meta.text = "made in the level editor  -  F10 in play to edit it";
+                if (row.status != null) row.status.text = "CUSTOM";
+                if (row.button != null)
+                {
+                    row.button.interactable = true;
+                    row.button.onClick.RemoveAllListeners();
+                    row.button.onClick.AddListener(() => { LevelEditor.PendingLoadPath = LevelEditor.PathFor(name); LoadScene(sandboxSceneName); });
+                }
+                customRows.Add(row);
+            }
+            CustomRowCount = customRows.Count;
         }
 
         static string Safe(string s) { return string.IsNullOrEmpty(s) ? "UNTITLED" : s; }

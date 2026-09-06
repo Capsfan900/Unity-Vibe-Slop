@@ -15,18 +15,21 @@ wiped scene is a rebuild, not a data-loss event.
 |---|---|---|
 | `0. Rebuild Everything` | `Editor/VibeGameMenu.cs` | Runs steps 1→6 (including `3b. Create Wands`) in the only order that works, behind a progress bar. Refuses in play mode. **Prefer this over calling steps by hand.** |
 | `1. Project Setup` | `Editor/ProjectSetup.cs` | Layers (Player=6, Enemy=7, Interactable=8), physics matrix, HDR colour grading, volume profile, fog/lighting, Always Included Shaders, `runInBackground`. |
-| `2. Create Materials` | `Editor/MaterialFactory.cs` | `Assets/Materials/M_*.mat`, all URP/Lit with `_EMISSION` enabled. |
+| `2. Create Materials` | `Editor/MaterialFactory.cs` | `Assets/Materials/M_*.mat`, all URP/Lit with `_EMISSION` enabled — plus `M_Balloon` (gold, under the bloom cap) and `M_Water`, the one transparent material (alpha blend set up in `Configure`, never by hand). |
 | `3. Create Data` | `Editor/DataFactory.cs` | All ScriptableObjects. ⚠️ **Overwrites Inspector tuning** — see [ENGINEERING-LOG](ENGINEERING-LOG.md). |
 | `3b. Create Wands` | `Editor/WandFactory.cs` | The four riposte wands in `Assets/Data/Wands/`. **Must run before `4. Build Prefabs`**, which assigns the viewmodels back onto these assets. Included in `0. Rebuild Everything` between Data and Prefabs. Skip it and every riposte silently falls back to the melee deathblow. |
-| `4. Build Prefabs` | `Editor/PrefabFactory.cs` | Player, Managers, enemies, boss, weapon and wand viewmodels, checkpoint, bloodstain, item pickup. |
-| `4a. Split Forge Animation Clips` | `Editor/ForgeClipSplitter.cs` | For every `Assets/Enemies/*.clips.json`, writes `ModelImporter.clipAnimations` from the manifest and forces the rig to `Generic`. An animated forge FBX imports as ONE take (`Take 001`) until this runs. **Not** in `0. Rebuild Everything`: run it after copying in or re-exporting an animated model, then `4b`. |
-| `4b. Build Mini-Bosses` | `Editor/MiniBossFactory.cs` | The four `Legendary_*` prefabs. A sibling of step 4, not part of it, so re-tuning a duellist never rebuilds the player rig. For an animated model it also calls `PuppetAnimatorFactory` to generate `Assets/Animation/<Prefab>_Animator.controller`. |
-| `5. Build HUD` | `Editor/HudBuilder.cs` | `Assets/Prefabs/HUD.prefab` — bars, item slots, menus, test menu, EventSystem (`InputSystemUIInputModule`). |
+| `4. Build Prefabs` | `Editor/PrefabFactory.cs` | Player (with `PlayerBody` legs and the motor's six traversal numbers: water floor / accel / grace, burst window / multiplier / hold), Managers, enemies, boss, weapon and wand viewmodels, checkpoint, bloodstain, item pickup, and `Balloon.prefab` (`BuildBalloon`). |
+| `4a. Split Forge Animation Clips` | `Editor/ForgeClipSplitter.cs` | For every `Assets/Enemies/*.clips.json`, writes `ModelImporter.clipAnimations` from the manifest and forces the rig to `Generic`. An animated forge FBX imports as ONE take (`Take 001`) until this runs. Also applies the forge's skin contract (custom weights, 8 bones per vertex) and reads the manifest's `root.motion` flags — deliberately setting NO root node (a Generic rig's root node moves the whole Hips transform, lift and yaw included); a travelling clip keeps its Hips travel in the pose and `4b` gives the model a `TravelRoot` that `PuppetVisuals` cancels it on, with the distance shipped as `lungeDistance` (AUTHORING.md §2b). **Not** in `0. Rebuild Everything`: run it after copying in or re-exporting an animated model, then `4b`. |
+| `4b. Build Mini-Bosses` | `Editor/MiniBossFactory.cs` | The six `Legendary_*` prefabs. A sibling of step 4, not part of it, so re-tuning a duellist never rebuilds the player rig. For an animated model it also calls `PuppetAnimatorFactory` to generate `Assets/Animation/<Prefab>_Animator.controller`, bakes every attack clip's length and contact frame onto `PuppetVisuals` (the named-clip table `EnemyAttackData.clip` resolves against), validates every attack's clip against the FBX, and for a `ModelSpec` with an `albedo` writes the per-model body material (`Assets/Materials/M_<model>.mat`). A `ModelSpec` with `bladeTrail` also gets an `EnemyWeaponTrail` (hand → weaponFxPos, in the hand bone's space, from the bind pose). |
+| `5. Build HUD` | `Editor/HudBuilder.cs` | `Assets/Prefabs/HUD.prefab` — bars, item slots, menus, test menu, EventSystem (`InputSystemUIInputModule`). Regenerates the glass sprites under `Assets/UI/Generated/` (`Editor/UiSprites.cs`: pane, tile, pill, track, shadow, edge light, sheen — 9-sliced PNGs, uncompressed, committed), then runs the styling passes in `Editor/HudExtensions.cs`: `ApplyFluidBars` (health + stamina → `FluidBarView` with `VibeGame1/UI/FluidBar`) and `ApplyPyreFire` (`PyreBar` → `FireBarView`, creating `Assets/Materials/UI/M_PyreFire.mat` from `Assets/Shaders/UI/FireBar.shader` on first run). Every number written in the passes. `HudGlassTests`, `FluidBarTests` and `FireBarTests` pin the shipped values. Also the BEST RUNS glass pane (top-right, hidden until `GhostHud` has a board), the settings INFO card built by `SettingsPanelKit` from `ControlsInfo.Text` (the key reference, off the playing HUD), and the F1 menu's INFO button. |
 | `6. Build Level` | `Editor/LevelGreyboxBuilder.cs` | Rebuilds the `Level` root in the open scene, bakes NavMesh, places Player/Managers/HUD. Never touches a `Level_Manual` sibling root. |
 | `7. Build Sandbox Scene` | `Editor/SandboxBuilder.cs` | Builds `Assets/Scenes/Sandbox.unity`. Preserves a `Sandbox_Manual` root. See [README_Sandbox](../Assets/Scenes/README_Sandbox.md). |
 | `9. Build Main Menu` | `Editor/MainMenuBuilder.cs` | `Assets/Prefabs/MainMenu.prefab` + `Assets/Scenes/MainMenu.unity`, and puts that scene at **build index 0**. One level-select row per `LevelRegistry` entry plus a `SANDBOX` row. Preserves a `MainMenu_Manual` root. NOT part of `0. Rebuild Everything` — re-run it after adding a level to the registry. |
+| `8a. Rework Level_01 (parkour first)` | `Editor/LevelDefinitionAuthoring.cs` | Rewrites `Level_01_Level.asset` deterministically for the parkour-first direction: the six Grunt/Heavy spawns onto `T*_Perch_*` shooter shelves beside the route, a three-orb balloon arc west of the T3 pillars, water on the T1 fast deck and the T3 span. Idempotent; run it, then `8` with the asset selected, then `Level Arc Report` (its SHOOTER PERCHES / BALLOON ARC / WATER LINES sections come from `Editor/LevelTraversalAnalyzer.cs`). `LevelTraversalTests` proves the same on a copy. |
+| `8. Build Level From Definition` + the in-game editor | `Editor/LevelDefinitionBuilder.cs`, `Scripts/Level/LevelPieceFactory.cs`, `Scripts/Level/LevelEditor.cs` | Menu 8 builds every piece through `LevelPieceFactory.BuildDocument`, the SAME factory the runtime editor (F10) uses; the editor saves `LevelDocument` JSON under `persistentDataPath/levels/`, PLAY rebuilds + bakes a runtime NavMesh, EXPORT ASSET writes `Assets/Data/Levels/Custom/<name>_Level.asset`. See [LEVEL-EDITOR.md](LEVEL-EDITOR.md). |
 | `Health Check` | `Editor/ProjectHealthCheck.cs` | Read-only validator. |
 | `Run Feature Tests` | `Editor/FeatureTestRunner.cs` | Starts the play-mode suite (must already be in play mode). |
+| `Run Quick EditMode Tests` / `Run Full EditMode Tests` | `Editor/QuickTestRunner.cs` | Runs the EditMode NUnit suite in the editor via `TestRunnerApi`. **Quick** skips the four level-line fixtures (`LevelSpan1/2/3Tests`, `LevelArcClearanceTests`), which carry `[Category("LevelLines")]` and simulate the motor along every wall-run line. Measured 2026-09-05: quick **400 tests in 5.9 s**, full **538 in 194.1 s**. The Test Framework `Filter` can only INCLUDE categories, so the quick run retrieves the EditMode test tree, drops the leaves whose `Categories` contain `LevelLines`, and runs the rest by `testNames`. Both log one line — `[QuickTests] ... DONE run=N passed=N failed=N skipped=N ... in Ns` — which is the completion signal, and write NUnit XML to `TestResults/EditMode-<stamp>.xml`. Callable as `VibeGame1.EditorTools.QuickTestRunner.RunQuick()` / `.RunFull()`. Cannot run in play mode. |
 | `Open Test Level` / `Open Sandbox Scene` / `Open Main Menu Scene` | `VibeGameMenu` / `SandboxBuilder` / `MainMenuBuilder` | Scene shortcuts, prompt to save first. |
 | `Rebuild NavMesh` | `LevelGreyboxBuilder` | Re-bakes without a full level rebuild. |
 | `Level Arc Report` | `Editor/LevelArcReport.cs` | Flies `LevelArcAnalyzer` over every authored traversal in the `LevelDefinition` and prints what it finds; writes `LevelArcReport.txt` beside the project. Headless: `-executeMethod VibeGame1.EditorTools.LevelArcReport.Run`. |
@@ -224,6 +227,16 @@ on both prefabs, 6). Adding a setting: a `SettingsData` field + key, a `Settings
 `AllKinds` + cases in `ValueLabel`/`Step`/`LabelFor`, an applier branch, and the kit emits the row
 automatically.
 
+### The development dashboard — `/dashboard`
+
+`Tools/dashboard/build_dashboard.py` (Python 3, no dependencies; the `/dashboard` skill runs it with
+`--open`) writes `Tools/dashboard/out/index.html`: status tiles (EditMode from the runner's
+`TestResults.xml`, the feature suite from VERIFICATION-REPORT, uncommitted files, last commit), the handoff,
+the change log (commits + every engineering-log entry), a Tests view (per suite, failures, skips, slowest), a
+Systems view (DATAFLOW's maps, backlog sections), every doc rendered, and a search across all of them.
+`--serve` keeps it on `http://127.0.0.1:8765/`. Read-only and editor-free; re-run to refresh. The output
+folder is gitignored.
+
 ### Measuring an imported forge model — `ForgeModelProbe`
 
 `Assets/Editor/ForgeModelProbe.cs`, menu **VibeGame1 → Probe Forge Models**, and headless via
@@ -234,6 +247,13 @@ reports mesh bounds and facing, the full bone list, the bind-pose position of ev
 Run it before writing a `ModelSpec`, and trust it over the bounding box. On the Ember Revenant the two
 disagree by 0.76 m — see ENGINEERING-LOG.md. The per-clip arm span is how the Marionette's spin clip was
 chosen: `AttackSwing` tucks the arms to 0.76 m, `Roar` holds 2.0 m throughout.
+
+**Without the editor: `Tools/measure_forge_fbx.py`.** Run with the forge tool's own Blender-carrying
+venv (`C:\Users\tyler\Main Storage\ai_skelly_tool\.venv\Scripts\python.exe Tools/measure_forge_fbx.py --
+<fbx> <clips.json>`). Same numbers in Unity axes — bounds, every bone head, facing slices of the mesh,
+per-clip arm span, and per-clip Hips travel and lift — with no bridge and no play mode. It is what
+measured the Argent Halberdier when the bridge was down, and the Hips-travel column is the one
+`lungeDistance` has to match (the sidecar's `forward_m` is source motion, ~×1.3 smaller).
 
 ### Photographing an enemy — `EnemyPortrait`
 
@@ -276,10 +296,14 @@ supposed to start earning its keep, so the report shows the guard engaging rathe
 would. Past roughly **90°/frame** a 2-fold-symmetric silhouette (a humanoid with its arms out) aliases
 into apparent random orientation; the report states the fastest step and whether it clears that.
 
-**Copying the project to run Unity headless is a general escape hatch worth remembering.** `Assets` +
-`Packages` + `ProjectSettings` is ~19 MB; Unity rebuilds its own `Library` in the copy. That gives you
-the EditMode suite (`-runTests -testPlatform EditMode -testResults <xml>`) and any `-executeMethod`
-while the real editor stays untouched — including while someone is mid-playtest in it.
+**The headless copy of the project is retired (2026-09-03).** It once gave the EditMode suite and any
+`-executeMethod` on a `-batchmode` copy while the real editor stayed untouched, but a second import
+competed with the user's session and the copy's `.meta` GUIDs diverged from the real ones. Everything
+now goes through the open editor over the MCP bridge — see `.claude/skills/unity-editor/SKILL.md`. An
+editor that is open but answers `no_unity_session` (the instances resource reports zero) lost the bridge
+handshake at startup; `Assets/Editor/McpReconnect.cs` re-arms it on every domain reload, so saving any
+script — or **Tools → MCP Bootstrap → Reconnect Bridge** — brings it back without a restart. If
+no editor is running, ask the user to open it.
 
 ⚠️ **Restart play mode before judging a VFX frame.** A domain reload (any script edit anywhere,
 including another agent's) wipes non-serialized fields but leaves pooled `GameObject`s in the scene, so
@@ -327,12 +351,12 @@ only. Pauses via `TimeScaleController` and unlocks the cursor.
 | Column | Buttons |
 |---|---|
 | **WARP** | Start · Checkpoint 1 · Checkpoint 2 · Boss Arena |
-| **GIVE ITEM** | Stormcall · Updraft · SoulLantern · PhantomStep |
+| **GIVE ITEM** | Grapple · WallSurge |
 | **WEAPON** | Slot 1–4 |
-| **PLAYER** | Full restore · Toggle god mode · +1000 souls · Break my posture |
+| **PLAYER** | Full restore · Toggle god mode · +1000 souls · Break my posture · **Wand pedestal: OFF/ON** (shows / hides the spawn altar — `WandPedestal.DevMenuEnabled`, off by default; without it the player keeps the prefab loadout, Emberlance equipped) |
 | **ENEMIES** | Kill nearby · Stagger nearby · Reset enemies |
 
-Plus a live readout: FPS, HP, posture, pyre, flask, weapon, held items, position, souls, deaths, timer,
+Plus a live readout: FPS, HP, posture, pyre, flask, weapon, held items, position, souls, wand altar on/off, deaths, timer,
 boss segment/phase/HP/posture/state, and `Time.timeScale` vs `WorldScale`/`PlayerScale`.
 
 ---
@@ -349,24 +373,35 @@ boss segment/phase/HP/posture/state, and `Time.timeScale` vs `WorldScale`/`Playe
 | `F6` | Full heal + flasks + Pyre + wand cooldown |
 | `F7` | +1000 souls |
 | `F8` | Toggle god mode |
+| `F9` | Toggle the **wall-run diagnostic**: a live one-line prompt readout of why the last wall run did or did not start (reason, flat speed, approach cos, look cos, wall found, stamina), plus a console line each time the reason changes |
 | `E` | Use current item |
 | `R` | Cycle riposte wand (Emberlance → Gravecall → Stormneedle → Voidspine) |
-| `F` | At a wand pedestal (aim at it, prompt showing): open the wand selection menu. Otherwise drinks a flask. |
+| `F` | At a wand pedestal (aim at it, prompt showing): open the wand selection menu. Otherwise drinks a flask. The pedestal only exists once **WAND PEDESTAL: ON** is set in the F1 test menu. |
 
 ---
 
 ## 7. Sandbox scene
 
-`Assets/Scenes/Sandbox.unity`, built by `VibeGame1/7. Build Sandbox Scene`. A flat 60×60 arena for
-trying combat without running the course: six enemy spawn pads along the south wall
-(Grunt / Heavy / Boss / Legendary_Ninja / Legendary_Knight / Legendary_Spellsword), a `WandPedestal`
-altar at the spawn point, item pedestals enumerated from `Assets/Data/Items`, a jump/dash platforming
-corner, and a weapon rack.
+`Assets/Scenes/Sandbox.unity`, built by `VibeGame1/7. Build Sandbox Scene`. Two rooms:
+
+- **The arena** — a flat 60×60 walled room for trying combat without running the course: eight enemy
+  spawn pads along the south wall (Grunt / Heavy / Boss / the five legendaries), each behind a wake
+  switch so nothing charges you on load; a `WandPedestal` altar at the spawn point; item pedestals
+  enumerated from `Assets/Data/Items`; a jump/dash platforming corner; the wall-run gauntlet
+  (`WallRunGauntletTests` flies it); and a weapon rack.
+- **The movement yard** — a 120×60 annex through a 6 m doorway in the arena's east wall, for tuning wall
+  running, jumping, sliding, wall exits, landings and air control with room to run: distance stripes
+  every 10 m, a 30 m raised runway with 30 m of nothing after it, two 40×8 m parallel wall-run walls
+  with a 5.5 m corridor, a gap ladder (4/6/8/10/12 m), and a drop tower with tops at 3/6/9/12 m whose
+  east faces all drop onto flat floor. The yard is a literal list — `SandboxBuilder.YardLayout()` —
+  that the builder renders and `MovementYardTests` (EditMode) checks without the scene. Change the
+  list, not the scene.
 
 `SandboxController` (`Assets/Scripts/Debug/SandboxController.cs`) adds, all `[ContextMenu]`-exposed:
-`SpawnEnemyInFront(int)` (0 Grunt, 1 Heavy, 2 Boss, 3-5 the legendaries — append-only), `SpawnDummy()` (aggro-locked, ~1M HP practice target), `ActivateBoss()` (the
-boss spawns inert — there is no arena trigger), `ClearAllEnemies()`, `ToggleInfiniteFlask()`,
-`ToggleInfiniteItems()`, `ResetSandbox()`.
+`SpawnEnemyInFront(int)` (0 Grunt, 1 Heavy, 2 Boss, 3-7 the legendaries — append-only), `SpawnDummy()`
+(aggro-locked, ~1M HP practice target), `ActivateBoss()` (the boss spawns inert — there is no arena
+trigger), `ClearAllEnemies()`, `ToggleInfiniteFlask()`, `ToggleInfiniteItems()`, `ResetSandbox()`, and
+`WarpToMovementYard()` (teleport to the yard doorway, facing down the yard). The same warp is on the F1 test menu as **MOVEMENT YARD** (Warp column; a no-op outside the sandbox).
 
 Full layout: [README_Sandbox.md](../Assets/Scenes/README_Sandbox.md).
 

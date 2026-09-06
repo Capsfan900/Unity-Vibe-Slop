@@ -150,6 +150,142 @@ namespace VibeGame1
                  "channel in PlayerLook, summed with the sustained lean.")]
         public float wallRunExitRollKick = 7f;
 
+        [Header("Wall run - feel")]
+        [Tooltip("Speed the wall accelerates you TOWARD while holding forward, m/s. Above a sprint on " +
+                 "purpose (Titanfall: the wall is faster than the floor) - 1.25x groundSpeed. This is " +
+                 "the payoff that makes a wall worth taking over the ground beside it.")]
+        public float wallRunTopSpeed = 13.75f;
+        [Tooltip("Seconds a run survives losing contact (a seam between two wall boxes, a slight bulge) " +
+                 "before it ends. Without it a run glitched off at every joint in a greybox.")]
+        public float wallRunLostGrace = 0.15f;
+        [Tooltip("Seconds after a run ends on its own (expired, decayed, exhausted, lost) during which a " +
+                 "jump press is still the RUN EXIT - thrown down the line - rather than nothing. The " +
+                 "wall-run version of coyote time. Titanfall's players never trusted the wall until it " +
+                 "rewarded an early or late press.")]
+        public float wallRunExitGrace = 0.15f;
+
+        [Header("Momentum")]
+        [Tooltip("Horizontal speed in the air above which drag applies to the EXCESS. 1.6x groundSpeed. " +
+                 "Below it the air keeps every m/s you bring; above it the surplus bleeds on " +
+                 "exp(-airDrag t), so a dash or a slide-jump is a burst that settles, not a new cruise.")]
+        public float airSoftCap = 17.6f;
+        [Tooltip("Per-second decay of the excess over airSoftCap. 3 = the surplus halves every 0.23 s.")]
+        public float airDrag = 3f;
+        [Tooltip("Per-second decay of ground speed in excess of groundSpeed (dash landings, slide " +
+                 "exits). Exponential, so it is the same at every framerate. 4 = halves every 0.17 s.")]
+        public float groundOverspeedDecay = 4f;
+        [Tooltip("Absolute ceiling on horizontal speed outside a dash. 2.5x groundSpeed. Nothing legal " +
+                 "reaches it; it exists so nothing illegal can either.")]
+        public float maxHorizontalSpeed = 27.5f;
+        [Tooltip("A slide started within this many seconds of the previous slide ENDING is a chain. " +
+                 "Chained slides earn less boost each (slideChainFalloff), which is what stops " +
+                 "slide-jump-slide-jump being a free constant 16 m/s across the whole map.")]
+        public float slideChainWindow = 1.2f;
+        [Tooltip("Boost multiplier per consecutive chained slide: 5, 3, 1.8, 1.1 ... A short break on " +
+                 "the ground resets it, so the tech still exists, it just costs rhythm instead of nothing.")]
+        public float slideChainFalloff = 0.6f;
+
+        [Header("Weight & air control")]
+        [Tooltip("Gravity multiplier while FALLING (airborne, vel.y < 0, not on a wall). Rising is untouched so " +
+                 "jumpHeight still means what it says; the way DOWN is heavier, which is where weight is read. " +
+                 "1 = symmetric (the old feel: floaty). 1.5 = a held flat jump lands at ~14.7 m/s instead of 12.")]
+        public float fallGravityMultiplier = 1.5f;
+        [Tooltip("Per-second exponential decay of airborne speed in excess of groundSpeed. 0 = the air keeps " +
+                 "every m/s you bring for as long as you fly (a cruise). 0.8 = a 17.6 m/s wall exit is 15.4 " +
+                 "half a second later and 13.9 after a full second: a burst that settles, never a glide.")]
+        public float airCarryDecay = 0.8f;
+        [Tooltip("Degrees per second the airborne velocity TURNS toward the stick, speed preserved. The surf " +
+                 "feel: you steer where you fly, you do not pump speed. Acts only while the stick is within " +
+                 "90 deg of travel; braking (stick back) is AirAccelerate's job and stays a bleed.")]
+        public float airSteerDegPerSec = 120f;
+        [Tooltip("Landing speed (m/s, downward) below which a landing costs no horizontal speed. A held flat " +
+                 "jump lands at ~14.7 with fallGravityMultiplier 1.5, so 16 leaves bunny-hopping free.")]
+        public float landingSoftSpeed = 16f;
+        [Tooltip("Landing speed at which the full landingSpeedLoss is taken. 26 = a 7.5 m drop.")]
+        public float landingHardSpeed = 26f;
+        [Tooltip("Fraction of horizontal speed lost on a landing at landingHardSpeed or above, scaling from 0 " +
+                 "at landingSoftSpeed. Applied BEFORE this frame's slide press, so a landing-slide still " +
+                 "recovers the run: you can shoot off a wall, you cannot land a 7 m drop at full tilt.")]
+        public float landingSpeedLoss = 0.35f;
+        [Tooltip("How far the controller is pressed DOWN per frame while grounded and not rising, as displacement " +
+                 "only (the sweep stops at the floor). Must exceed the skin width: a -2 m/s pin moves 0.004 m at " +
+                 "500 fps, inside the skin, so isGrounded flickered off and a slide died at coyote time on " +
+                 "any fast machine. Zero disables (the old behaviour).")]
+        public float groundSnapDistance = 0.12f;
+
+        [Header("Balloon launch — the FLOAT")]
+        [Tooltip("Seconds after a balloon launch during which gravity is scaled by launchGravityScale and " +
+                 "air steer by launchSteerBoost: the pop hangs and can be aimed at the next orb. From play " +
+                 "(2026-09-05): a 14 m/s punt was too fast to steer; this is the 'slower and controlled'.")]
+        public float launchFloatSeconds = 0.45f;
+        [Tooltip("Gravity multiplier inside the float window. 0.55 reads as a lift; 0 would read as a glitch.")]
+        [Range(0.2f, 1f)] public float launchGravityScale = 0.55f;
+        [Tooltip("Air steer rate multiplier inside the float window.")]
+        public float launchSteerBoost = 1.6f;
+        [Tooltip("Horizontal speed a pop trims the player to, m/s. A 22 m/s dash carried through an orb overshoots the next one by a storey; the re-armed dash is what closes the gap, so the carry only needs to be steerable.")]
+        public float launchCarryCap = 9f;
+
+        [Header("Traversal - water, balloons, grapple burst (2026-09-04 pivot)")]
+        [Tooltip("Skating floor as a multiple of groundSpeed while on water. 1.35 x 11 = 14.85 m/s: faster " +
+                 "than a sprint, under a dash, so water is the fastest FLOOR without out-running the air kit.")]
+        public float waterSpeedScale = 1.35f;
+        [Tooltip("m/s^2 the skated velocity turns and lifts at on water. A third of groundAccel: turning " +
+                 "on water is a skate, not a snap. Also how fast a walker is lifted to the floor speed.")]
+        public float waterAccel = 30f;
+        [Tooltip("Seconds a water touch keeps counting after the trigger last refreshed it. Covers the gap " +
+                 "between physics steps; short enough that stepping off is immediate.")]
+        public float waterGrace = 0.15f;
+        [Tooltip("Seconds after a grapple pull ARRIVES (and control is back) in which a dash press is a free " +
+                 "BURST: no cooldown, no air charge, no stamina.")]
+        public float pullBurstWindow = 0.30f;
+        [Tooltip("Burst speed as a multiple of dashSpeed. 1.25 x 22 = 27.5, exactly maxHorizontalSpeed.")]
+        public float pullBurstMultiplier = 1.25f;
+        [Tooltip("Longest the burst will wait for control to return after an arrival (the deathblow " +
+                 "cinematic holds CanMove false). Past this the window is forfeited rather than fired stale.")]
+        public float pullBurstHold = 3f;
+
+        [Header("Perfect timing — a move pressed on its moment gives stamina BACK")]
+        // Three PERFECTs, each a short window around a physical moment the player can learn to feel
+        // (PerfectMath explains the sizes: Sekiro's 0.20 s deflect and Celeste's 0.08 s coyote bracket
+        // them). A miss is simply the ordinary move -- nothing taken, nothing said.
+        [Tooltip("Seconds before the wall-run loan runs out in which a wall jump is PERFECT (the wall is " +
+                 "about to give up). Also the seconds after a natural let-go in which the exit-grace jump " +
+                 "is perfect. The exit grace itself is 0.15 s.")]
+        public float perfectWallJumpWindow = 0.14f;
+        [Tooltip("Stamina given back for a perfect wall jump. The run cost 12 to enter and 22/s to hold; " +
+                 "20 is the entry plus a third of a second of it, so a perfect chain sustains itself.")]
+        public float perfectWallJumpRefund = 20f;
+        [Tooltip("A jump pressed sooner than this after a dash does NOT count: the dash has to be felt " +
+                 "before the jump is thrown, or mashing both keys together would be the perfect.")]
+        public float perfectDashJumpMinDelay = 0.04f;
+        [Tooltip("Width of the perfect dash-jump window after the minimum delay. The dash lasts 0.16 s; " +
+                 "0.04 + 0.12 reaches its end, so the perfect is 'jump out of the dash', not 'jump before it'.")]
+        public float perfectDashJumpWindow = 0.12f;
+        [Tooltip("Stamina given back for a perfect dash-jump: the dash's own cost (30), so a perfect chain " +
+                 "of dash-jumps is free and an ordinary one costs what it always did.")]
+        public float perfectDashJumpRefund = 30f;
+        [Tooltip("First seconds of the 0.30 s grapple burst window in which the burst is PERFECT -- timed " +
+                 "to the landing rather than fished for.")]
+        public float perfectBurstWindow = 0.12f;
+        [Tooltip("Stamina granted for a perfect burst. The burst is already free; this is the reward for " +
+                 "landing the kill and leaving it on the beat.")]
+        public float perfectBurstBonus = 30f;
+
+        [Header("Forgiveness (MOVEMENT-PRINCIPLES rule 4: fudge toward intent)")]
+        [Tooltip("A rising jump whose head clips the CORNER of a ledge is nudged sideways up to this many " +
+                 "metres so the jump continues instead of stopping dead. Bounded: it honours intent, it never adds reach.")]
+        public float cornerCorrectionMetres = 0.18f;
+        [Tooltip("A falling player whose feet pass within this many metres UNDER a ledge top they are moving " +
+                 "toward is lifted onto it. No velocity is added; never on a wall being fallen past, never while rising.")]
+        public float ledgeCatchMetres = 0.22f;
+        [Tooltip("How fast the near-miss lift moves the body, m/s. Bounded per frame so it is the same at any frame rate.")]
+        public float ledgeCatchLiftSpeed = 6f;
+        [Tooltip("Minimum horizontal speed for a near-miss catch: standing still and dropping past a ledge is a drop.")]
+        public float ledgeCatchMinSpeed = 1.5f;
+
+        /// <summary>Fraction of horizontal speed the last landing cost (0 = none). For FX and tests.</summary>
+        public float LastLandingLoss { get; private set; }
+
         public bool CanMove = true;
         /// <summary>Temporary speed scalar (item effects). 1 = normal.</summary>
         public float SpeedMultiplier = 1f;
@@ -163,6 +299,18 @@ namespace VibeGame1
         public bool IsWallRunning => wallRunning;
         /// <summary>Wall runs spent since the last landing. Resets on ground contact.</summary>
         public int WallRunsUsed => wallRunsUsed;
+        /// <summary>The single air dash has been spent since the last landing.</summary>
+        public bool AirDashUsed => airDashUsed;
+        /// <summary>Consecutive chained slides so far (0 = the first). Drives the boost falloff.</summary>
+        public int SlideChain => slideChain;
+        /// <summary>Would a dash press fire THIS frame: gate, cooldown, air charge and stamina all
+        /// together. The HUD pip reads this; it is the only honest answer to "can I dash".</summary>
+        public bool CanDashNow => CanAct && now >= dashReadyAt && (IsGrounded || !airDashUsed)
+                                  && (stamina == null || stamina.CanAfford(stamina.dashCost));
+        /// <summary>Would a wall run be allowed to start if a wall were beside you now (budget, cooldown,
+        /// stamina - not geometry).</summary>
+        public bool CanWallRunNow => CanAct && wallRunsUsed < maxWallRuns && now >= wallRunReadyAt
+                                     && (IsWallSurging || stamina == null || stamina.CanAfford(stamina.wallRunEntryCost));
         /// <summary>Seconds into the current run. 0 when not running.</summary>
         public float WallRunElapsed => wallRunning ? wallRunElapsed : 0f;
         /// <summary>Outward normal of the face currently being run. Zero when not running.</summary>
@@ -173,12 +321,30 @@ namespace VibeGame1
         /// <summary>Downward speed at the moment of the last landing (for camera dip / land sfx).</summary>
         public float LastLandingSpeed { get; private set; }
         public float HorizontalSpeed => new Vector2(vel.x, vel.z).magnitude;
+        /// <summary>Standing in (or hopping just above) a <see cref="WaterVolume"/> this frame.</summary>
+        public bool InWater => now < waterUntil;
+        /// <summary>The water's conveyor velocity, or zero.</summary>
+        public Vector3 WaterFlow => InWater && waterVolume != null ? waterVolume.Flow : Vector3.zero;
+        /// <summary>The speed water skates you up to: groundSpeed x waterSpeedScale (x any item multiplier).</summary>
+        public float WaterFloorSpeed => groundSpeed * SpeedMultiplier * waterSpeedScale;
+        /// <summary>A dash press right now would be a free grapple-exit burst.</summary>
+        public bool IsBurstOpen => TraversalMath.BurstOpen(now, pullBurstUntil);
+        /// <summary>The dash in flight (or the last one) was a grapple-exit burst. PlayerFeedback reads it inside OnDashed.</summary>
+        public bool LastDashWasBurst { get; private set; }
         /// <summary>Collider height the player stands at, sampled from the prefab at Awake.</summary>
         public float StandHeight => standHeight;
 
         public event Action OnLanded, OnJumped, OnDashed;
+        /// <summary>Raised by <see cref="Launch(float)"/> - a balloon pop. PlayerFeedback listens.</summary>
+        public event Action OnLaunched;
         /// <summary>Raised when a slide starts / ends, and when a wall jump fires. PlayerFeedback listens.</summary>
         public event Action OnSlideStarted, OnSlideEnded, OnWallJumped;
+        /// <summary>A PERFECT fired: which move, and how much stamina actually came back (already clamped
+        /// to the bar). PlayerFeedback and the HUD listen. Never raised for an ordinary move.</summary>
+        public event Action<PerfectKind, float> OnPerfect;
+        /// <summary>The last perfect's kind and motor-clock time. <c>None</c> / -99 until one fires.</summary>
+        public PerfectKind LastPerfectKind { get; private set; }
+        public float LastPerfectTime { get; private set; }
         /// <summary>Raised when a wall run starts / ends. Nothing subscribes yet; the events exist so the
         /// feel layer can be wired without reopening the motor.</summary>
         public event Action OnWallRunStarted, OnWallRunEnded;
@@ -233,7 +399,16 @@ namespace VibeGame1
             float sp = Mathf.Sqrt(sx * sx + sz * sz);
             if (sp < slideMinEntrySpeed) return false;
 
-            float entry = Mathf.Min(Mathf.Max(sp, groundSpeed * SpeedMultiplier) + slideBoost, slideMaxSpeed);
+            // The boost DIMINISHES with the speed you already carry (full at a sprint, nothing at
+            // slideMaxSpeed) and with every slide chained inside slideChainWindow. A slide entered at a
+            // run still buys its full 5 m/s; a fourth back-to-back slide-hop buys ~1. That is the whole
+            // momentum contract: speed is EARNED once, then preserved, never minted on every press.
+            float run = groundSpeed * SpeedMultiplier;
+            float fade = Mathf.Clamp01((slideMaxSpeed - sp) / Mathf.Max(0.01f, slideMaxSpeed - run));
+            slideChain = now - lastSlideEndedAt <= slideChainWindow ? slideChain + 1 : 0;
+            float boost = slideBoost * fade * Mathf.Pow(Mathf.Clamp01(slideChainFalloff), slideChain);
+            float entry = Mathf.Min(Mathf.Max(sp, run) + boost, slideMaxSpeed);
+            if (entry < sp) entry = sp;    // never slower for having pressed the button
             float k = entry / sp;
             vel.x = sx * k;
             vel.z = sz * k;
@@ -266,6 +441,7 @@ namespace VibeGame1
             sliding = false;
             SetHeight(standHeight);
             slideReadyAt = now + slideCooldown;
+            lastSlideEndedAt = now;
             if (OnSlideEnded != null) OnSlideEnded();
             return true;
         }
@@ -288,6 +464,9 @@ namespace VibeGame1
             if (wallRunning)
             {
                 Vector3 rn = wallRunNormal, rd = wallRunDir;
+                // PERFECT: left the wall on its last breath (the loan about to run out). Judged before
+                // EndWallRun, which resets the run's clock.
+                bool perfect = PerfectMath.WallJumpFromRunIsPerfect(wallRunElapsed, wallRunMaxDuration, perfectWallJumpWindow);
                 vel = WallRunMath.Exit(vel, rn, rd, WallRunSettings, dashSpeed);
                 lastWallNormal = rn;
                 hasLastWall = true;
@@ -295,14 +474,40 @@ namespace VibeGame1
                 if (look != null) look.AddRollKick(Mathf.Sign(WallSide(rn)) * -wallRunExitRollKick, 0.28f);
                 EndWallRun(WallRunEnd.Jumped);
                 if (OnWallJumped != null) OnWallJumped();
+                if (perfect) Perfect(PerfectKind.WallJump, perfectWallJumpRefund);
                 return true;
             }
 
             if (IsGrounded || now - lastGroundedTime <= coyoteTime) return false;
+
+            // EXIT GRACE. A run that just ended by itself (expired, decayed, exhausted, lost the face)
+            // still answers a press for wallRunExitGrace seconds with the RUN EXIT, thrown down the
+            // line. Without this, a jump pressed a few frames after the loan ran out was a whiff, and the
+            // player learned to bail early instead of riding the wall - the opposite of the design.
+            if (hasLastWall && now - wallRunLeftAt <= wallRunExitGrace)
+            {
+                Vector3 rn = wallRunLastNormal.sqrMagnitude > 0.5f ? wallRunLastNormal : lastWallNormal;
+                Vector3 rd = wallRunLastDir;
+                if (rd.sqrMagnitude > 0.5f)
+                {
+                    // PERFECT: the wall let go and the press came within the window of it. Reaching this
+                    // branch at all means the run was ridden to its end rather than bailed early.
+                    bool perfect = PerfectMath.GraceJumpIsPerfect(now - wallRunLeftAt, perfectWallJumpWindow);
+                    vel = WallRunMath.Exit(vel, rn, rd, WallRunSettings, dashSpeed);
+                    wallRunLeftAt = -99f;
+                    jumpPressedAt = -99f;
+                    if (look != null) look.AddRollKick(Mathf.Sign(WallSide(rn)) * -wallRunExitRollKick, 0.28f);
+                    if (OnWallJumped != null) OnWallJumped();
+                    if (perfect) Perfect(PerfectKind.WallJump, perfectWallJumpRefund);
+                    return true;
+                }
+            }
+
             if (wallJumpsUsed >= maxWallJumps) return false;
 
             Vector3 n;
             if (!FindWall(out n)) return false;
+            if (stamina != null && !stamina.TrySpend(stamina.wallJumpCost, StaminaAction.WallJump)) return false;
 
             // Keep what runs ALONG the wall, drop only what runs into it, then push off. Preserving the
             // tangential component is what makes a chimney feel like flow instead of a reset.
@@ -339,7 +544,7 @@ namespace VibeGame1
             {
                 var pr = new WallRunMath.Params();
                 pr.gravity = gravity;
-                pr.minEntrySpeed = wallRunMinEntrySpeed;
+                pr.minEntrySpeed = IsWallSurging ? 0f : wallRunMinEntrySpeed;   // surge: any touch attaches
                 pr.maxEntryFallSpeed = wallRunMaxEntryFallSpeed;
                 pr.maxApproachCos = wallRunMaxApproachCos;
                 pr.minLookAlongCos = wallRunMinLookAlongCos;
@@ -349,8 +554,8 @@ namespace VibeGame1
                 pr.entryUpSpeed = wallRunEntryUpSpeed;
                 pr.speedDecay = wallRunSpeedDecay;
                 pr.minSustainSpeed = wallRunMinSustainSpeed;
-                pr.accel = wallRunAccel;
-                pr.topSpeed = groundSpeed * SpeedMultiplier;
+                pr.accel = wallRunAccel * WallSurgeScale;
+                pr.topSpeed = wallRunTopSpeed * SpeedMultiplier * WallSurgeScale;
                 pr.maxSpeed = dashSpeed;
                 pr.exitUpSpeed = wallRunExitUpSpeed;
                 pr.exitPushSpeed = wallRunExitPushSpeed;
@@ -372,15 +577,25 @@ namespace VibeGame1
         /// </summary>
         public bool TryWallRun()
         {
-            if (!CanAct || wallRunning || sliding) return false;
-            if (IsGrounded || now - lastGroundedTime <= coyoteTime) return false;
-            if (wallRunsUsed >= maxWallRuns) return false;
-            if (now < wallRunReadyAt) return false;
-            if (vel.y < -Mathf.Abs(wallRunMaxEntryFallSpeed)) return false;
-            if (vel.x * vel.x + vel.z * vel.z < wallRunMinEntrySpeed * wallRunMinEntrySpeed) return false;
+            if (wallRunning) return false;
+            if (!CanAct) return WallRunRefused(WallRunReject.CannotAct, false, Vector3.zero);
+            // Airborne is the whole gate - no coyote exclusion. Running off a ledge along a wall and
+            // attaching on the very next frame is the move; waiting 0.12 s for coyote to lapse made the
+            // same approach work or not depending on where the ledge was, which read as "sometimes".
+            if (IsGrounded) return WallRunRefused(WallRunReject.Grounded, false, Vector3.zero);
+            // ...but "airborne" must mean it. A CharacterController drops isGrounded for a frame when the
+            // capsule resizes for a slide or when a fast frame skims a seam (ENGINEERING-LOG), and on that
+            // frame a corridor wall beside you would attach, stand you up, charge stamina and Land. So
+            // inside coyote time you must be RISING (a jump) to count as airborne; past it, a fall counts.
+            if (vel.y <= 0f && now - lastGroundedTime <= coyoteTime) return WallRunRefused(WallRunReject.Grounded, false, Vector3.zero);
+            if (wallRunsUsed >= maxWallRuns) return WallRunRefused(WallRunReject.OverBudget, false, Vector3.zero);
+            if (now < wallRunReadyAt) return WallRunRefused(WallRunReject.Cooldown, false, Vector3.zero);
+            if (vel.y < -Mathf.Abs(wallRunMaxEntryFallSpeed)) return WallRunRefused(WallRunReject.FallingTooFast, false, Vector3.zero);
+            if (!IsWallSurging && vel.x * vel.x + vel.z * vel.z < wallRunMinEntrySpeed * wallRunMinEntrySpeed) return WallRunRefused(WallRunReject.TooSlow, false, Vector3.zero);
 
             Vector3 n;
-            if (!FindRunnableWall(out n)) return false;
+            if (!FindRunnableWall(out n)) return WallRunRefused(WallRunReject.NoWallInReach, false, Vector3.zero);
+
 
             Vector3 lookFlat = look != null
                 ? new Vector3(look.AimForward.x, 0f, look.AimForward.z)
@@ -388,9 +603,25 @@ namespace VibeGame1
 
             Vector3 runDir;
             WallRunReject why;
-            if (!WallRunMath.CanEnter(vel, n, lookFlat, WallRunSettings, out runDir, out why)) return false;
+            if (!WallRunMath.CanEnter(vel, n, lookFlat, WallRunSettings, out runDir, out why)) return WallRunRefused(why, true, n);
+            // Last, so a refusal means "you would have run, and could not afford it" - the HUD flashes
+            // the bar and names the ability.
+            // A slide that left the ground (still true through coyote) yields to the wall — the
+            // slide-jump-into-wall-run is the chain the level spans are built on — unless a ceiling keeps
+            // us crouched. Checked here, before the spend, so a refusal never costs stamina.
+            if (sliding && CeilingBlocked()) return WallRunRefused(WallRunReject.Sliding, true, n);
+            if (!IsWallSurging && stamina != null && !stamina.TrySpend(stamina.wallRunEntryCost, StaminaAction.WallRun))
+            {
+                // Throttle: this runs every airborne frame beside a runnable wall, and a refusal per frame
+                // is a solid red bar. One named refusal, then the cooldown before the next.
+                wallRunReadyAt = now + wallRunCooldown;
+                return WallRunRefused(WallRunReject.NoStamina, true, n);
+            }
+            if (sliding) EndSlide(true);   // headroom was checked before the spend; force is safe here
 
+            RecordWallRunDiag(WallRunReject.None, true, n);
             vel = WallRunMath.Enter(vel, runDir, WallRunSettings);
+            wallLostTime = 0f;
             wallRunning = true;
             wallRunElapsed = 0f;
             wallRunNormal = n;
@@ -406,12 +637,33 @@ namespace VibeGame1
 
         /// <summary>Stop the current run. Never touches horizontal momentum — leaving a wall keeps what
         /// the wall gave you, which is the same promise the slide makes.</summary>
+        /// <summary>
+        /// A move landed on its moment: give stamina back and say so. The refund is clamped by
+        /// <see cref="PlayerStamina.Refund"/>, so the amount raised is what actually arrived (0 on a
+        /// full bar -- the event still fires, because the perfect is the skill, not the payout).
+        /// Never called for an ordinary move; a miss has no branch here at all.
+        /// </summary>
+        void Perfect(PerfectKind kind, float amount)
+        {
+            float got = stamina != null ? stamina.Refund(amount) : 0f;
+            LastPerfectKind = kind;
+            LastPerfectTime = now;
+            if (OnPerfect != null) OnPerfect(kind, got);
+        }
+
         public bool EndWallRun(WallRunEnd why)
         {
             if (!wallRunning) return false;
             wallRunning = false;
             wallRunEndReason = why;
             wallRunReadyAt = now + wallRunCooldown;
+            wallLostTime = 0f;
+            // Ended on its own: open the exit-grace window. A jump or a cancel closes it.
+            bool natural = why == WallRunEnd.Expired || why == WallRunEnd.Decayed
+                        || why == WallRunEnd.LostWall || why == WallRunEnd.Exhausted;
+            wallRunLeftAt = natural ? now : -99f;
+            wallRunLastDir = wallRunDir;
+            wallRunLastNormal = wallRunNormal;
             if (look != null) look.SetRollBias(0f);
             if (OnWallRunEnded != null) OnWallRunEnded();
             return true;
@@ -419,6 +671,72 @@ namespace VibeGame1
 
         /// <summary>Why the last run stopped. Diagnostic; the harness and tests read it.</summary>
         public WallRunEnd LastWallRunEnd => wallRunEndReason;
+
+        // ---- WALL RUN DIAGNOSTIC ------------------------------------------------------------------
+        // What the last TryWallRun decided and the numbers it decided on, so a play-tester can see WHY
+        // "the wall run only works sometimes" (DebugKeys F9). A struct assigned in place - no strings,
+        // no boxing - and the recording compiles away outside the editor / development builds, so the
+        // release movement path pays a single `return false` per gate, exactly as before.
+
+        /// <summary>One frame's wall-run entry verdict. Cosines are NaN where no wall was in reach to
+        /// measure against; stamina is -1 where there is no <see cref="PlayerStamina"/>.</summary>
+        public struct WallRunDiagnostic
+        {
+            public WallRunReject reason;   // None = a run started this frame
+            public float time;             // motor-local `now` when recorded; compare with MotorTime for staleness
+            public float flatSpeed;        // horizontal speed, m/s
+            public float approachCos;      // |dot(travel dir, wall normal)|: 0 = along the face, 1 = straight into it
+            public float lookCos;          // dot(flat look, run dir): 1 = looking down the run
+            public bool wallFound;         // a runnable face was in reach (the scan ran and hit)
+            public float stamina;          // PlayerStamina.Current at the time
+        }
+
+        WallRunDiagnostic wallRunDiag;
+
+        /// <summary>The verdict of the most recent <see cref="TryWallRun"/>. Editor / development builds
+        /// only; default (reason None, everything zero) in release.</summary>
+        public WallRunDiagnostic WallRunDiag => wallRunDiag;
+
+        /// <summary>Motor-local time, so a reader can tell how old <see cref="WallRunDiag"/> is.</summary>
+        public float MotorTime => now;
+
+        /// <summary>Record a refusal and return false, so each gate in <see cref="TryWallRun"/> stays a
+        /// one-liner. Never changes the verdict.</summary>
+        bool WallRunRefused(WallRunReject why, bool wallFound, Vector3 wallNormal)
+        {
+            RecordWallRunDiag(why, wallFound, wallNormal);
+            return false;
+        }
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+        void RecordWallRunDiag(WallRunReject why, bool wallFound, Vector3 wallNormal)
+        {
+            wallRunDiag.reason = why;
+            wallRunDiag.time = now;
+            wallRunDiag.wallFound = wallFound;
+            wallRunDiag.stamina = stamina != null ? stamina.Current : -1f;
+            Vector3 flat = new Vector3(vel.x, 0f, vel.z);
+            float flatSpeed = flat.magnitude;
+            wallRunDiag.flatSpeed = flatSpeed;
+            wallRunDiag.approachCos = float.NaN;
+            wallRunDiag.lookCos = float.NaN;
+            if (!wallFound) return;
+
+            // Same arithmetic as WallRunMath.CanEnter, so the numbers shown are the numbers judged.
+            Vector3 nf = new Vector3(wallNormal.x, 0f, wallNormal.z);
+            if (nf.sqrMagnitude < 1e-6f || flatSpeed < 1e-4f) return;
+            nf.Normalize();
+            wallRunDiag.approachCos = Mathf.Abs(Vector3.Dot(flat / flatSpeed, nf));
+
+            Vector3 runDir;
+            if (!WallRunMath.RunDirection(vel, nf, out runDir)) return;
+            Vector3 lf = look != null
+                ? new Vector3(look.AimForward.x, 0f, look.AimForward.z)
+                : new Vector3(transform.forward.x, 0f, transform.forward.z);
+            if (lf.sqrMagnitude < 1e-6f) return;
+            lf.Normalize();
+            wallRunDiag.lookCos = Vector3.Dot(lf, runDir);
+        }
 
         /// <summary>
         /// Advance a run by up to <paramref name="dt"/> seconds and move the controller. Returns the time
@@ -429,7 +747,16 @@ namespace VibeGame1
         float AdvanceWallRun(float dt, Vector3 wish)
         {
             Vector3 n = wallRunNormal;
-            if (!ProbeWall(ref n)) { EndWallRun(WallRunEnd.LostWall); return 0f; }
+            if (!ProbeWall(ref n))
+            {
+                // Contact lost. Ride it out for wallRunLostGrace on the last known face before giving
+                // up: a seam between two boxes, a doorway lintel or a 5 cm bulge is not the end of the
+                // wall, and ending the run there was most of what the player felt as glitching.
+                wallLostTime += dt;
+                if (wallLostTime > wallRunLostGrace) { EndWallRun(WallRunEnd.LostWall); return 0f; }
+                n = wallRunNormal;
+            }
+            else wallLostTime = 0f;
             wallRunNormal = n;
 
             Vector3 runDir;
@@ -454,9 +781,22 @@ namespace VibeGame1
             var flags = cc.Move(disp);
             if ((flags & CollisionFlags.Above) != 0 && vel.y > 0f) vel.y = 0f;
 
-            if (look != null) look.SetRollBias(-WallSide(n) * wallRunCameraRoll);
+            // Lean AWAY from the face (Titanfall's convention, and what the user's inner ear expects: your
+            // body is being held up by the wall, so your head tilts off it). WallSide is +1 for a wall on
+            // the right and PlayerLook's positive roll tilts the head LEFT, so the sign is +. It shipped
+            // negative for a day - toward the wall - and read as reversed the first time it was played.
+            if (look != null) look.SetRollBias(WallSide(n) * wallRunCameraRoll);
 
             if (cc.isGrounded) { IsGrounded = true; lastGroundedTime = now; EndWallRun(WallRunEnd.Landed); return used; }
+
+            // The wall costs stamina by the second. Empty bar: the wall lets go. From a full bar a whole
+            // run is always affordable (12 + 22 x 1.75 = 50.5 of 100), which is the assumption the
+            // analyser's "full run" model rests on.
+            if (!IsWallSurging && stamina != null && !stamina.Drain(stamina.wallRunDrainPerSecond, used))
+            {
+                EndWallRun(WallRunEnd.Exhausted);
+                return used;
+            }
 
             float along = Mathf.Abs(vel.x * runDir.x + vel.z * runDir.z);
             WallRunEnd why;
@@ -476,6 +816,7 @@ namespace VibeGame1
         public void RequestDash() { TryDash(); }
 
         CharacterController cc;
+        PlayerStamina stamina;
         Vector3 vel;
         // The motor's own clock. Every timer here (dash, slide, coyote, jump buffer, cooldowns) is
         // measured against THIS, never Time.time: Time.time is the world clock, which hitstop drives to
@@ -484,12 +825,29 @@ namespace VibeGame1
         float now;
         float lastGroundedTime = -99f, jumpPressedAt = -99f;
         float dashUntil, dashReadyAt;
+        /// <summary>The dash in flight began on the ground (or inside coyote): a jump may be thrown out of it.</summary>
+        bool dashFromGround;
         bool airDashUsed;
         Vector3 dashDir;
+        /// <summary>Speed of the dash in flight: dashSpeed, or dashSpeed x pullBurstMultiplier for a burst.</summary>
+        float dashSpeedNow;
+        // Water: refreshed by WaterVolume.OnTriggerStay through TouchWater; expires on the motor clock.
+        float waterUntil = -99f;
+        float launchedAt = -99f;
+        WaterVolume waterVolume;
+        // Grapple burst: armed on arrival, opened when control is back, closed by the window or a fire.
+        float pullBurstUntil = -99f;
+        bool pullBurstPending;
+        float pullBurstPendingUntil = -99f;
+        // Perfect timing: when the dash in flight started and when the burst window opened, on the motor clock.
+        float dashStartedAt = -99f;
+        float pullBurstOpenedAt = -99f;
         float groundedPosTimer;
 
         bool sliding;
         float slideEndsAt, slideReadyAt;
+        float lastSlideEndedAt = -99f;
+        int slideChain;
         float standHeight = 1.8f;
         Vector3 standCenter;
 
@@ -499,6 +857,10 @@ namespace VibeGame1
 
         bool wallRunning;
         float wallRunElapsed, wallRunReadyAt = -99f;
+        float wallLostTime;                 // seconds the probe has failed for, inside wallRunLostGrace
+        float wallRunLeftAt = -99f;         // motor clock when the last run ended on its own
+        Vector3 wallRunLastDir;             // run direction at that moment, for the exit-grace jump
+        Vector3 wallRunLastNormal;          // the LAST PROBED normal, not the entry one: curved faces
         int wallRunsUsed;
         Vector3 wallRunNormal, wallRunDir;
         WallRunEnd wallRunEndReason;
@@ -518,6 +880,7 @@ namespace VibeGame1
             cc = GetComponent<CharacterController>();
             combat = GetComponent<PlayerCombat>();
             look = GetComponent<PlayerLook>();
+            stamina = GetComponent<PlayerStamina>();
             LastGroundedPosition = transform.position;
             standHeight = cc.height;
             standCenter = cc.center;
@@ -534,10 +897,30 @@ namespace VibeGame1
             if (dt <= 0f) return;
             now += dt;
 
+            // Grapple pull: the item owns velocity outright until it arrives. See BeginPull.
+            if (pulling) { AdvancePull(dt); return; }
+
             // Posture broken: heavily slowed and unable to jump or dash, but NOT frozen — a full
             // lock-up over a pit would turn a stagger into a fall death.
             bool staggered = combat != null && combat.IsStaggered;
             bool canAct = CanMove && !staggered;
+
+            // WATER. A stay-refreshed touch on the motor clock: true for waterGrace past the last
+            // physics step that saw the volume, so a missed Exit (a teleport disables the controller)
+            // cannot leave the player skating up the next staircase.
+            bool inWater = now < waterUntil;
+            if (!inWater) waterVolume = null;
+            Vector3 flow = inWater && waterVolume != null ? waterVolume.Flow : Vector3.zero;
+
+            // GRAPPLE BURST. Armed by EndPull(arrived); the window only OPENS once control is back,
+            // because the deathblow cinematic holds CanMove false for its whole beat and a window that
+            // ran out under a cutscene would be a burst nobody could ever press.
+            if (pullBurstPending)
+            {
+                if (now > pullBurstPendingUntil) pullBurstPending = false;
+                else if (CanMove) { pullBurstPending = false; pullBurstUntil = now + pullBurstWindow; pullBurstOpenedAt = now; }
+            }
+            bool burst = TraversalMath.BurstOpen(now, pullBurstUntil);
 
             Vector2 m = CanMove ? input.MoveAxis : Vector2.zero;
             Vector3 wish = transform.right * m.x + transform.forward * m.y;
@@ -545,7 +928,11 @@ namespace VibeGame1
             if (staggered) wish *= 0.4f;
 
             bool wasGrounded = IsGrounded;
-            IsGrounded = cc.isGrounded;
+            // An explicit take-off (Launch, the grapple's first frame) clears IsGrounded and sets vel.y
+            // upward BEFORE the controller has moved, so cc.isGrounded is still last frame's answer.
+            // Trusting it here ran one grounded frame of friction on a body that was already leaving:
+            // 1.6 m/s gone at 140 fps, and Slide_EndsWhenAirborneButKeepsSpeed red on fast editor frames.
+            IsGrounded = cc.isGrounded && !(!wasGrounded && vel.y > 0f);
             if (IsGrounded)
             {
                 lastGroundedTime = now;
@@ -556,6 +943,12 @@ namespace VibeGame1
                 if (!wasGrounded)
                 {
                     LastLandingSpeed = Mathf.Abs(vel.y);   // captured before vel.y is clamped to -2
+                    // WEIGHT. A hard landing costs horizontal speed in proportion to how hard it was;
+                    // a flat jump's landing costs nothing. Before TrySlide below, so the landing-slide
+                    // stays the way to keep a run alive off a drop.
+                    float keep = LandingSpeedFactor(LastLandingSpeed, landingSoftSpeed, landingHardSpeed, landingSpeedLoss);
+                    LastLandingLoss = 1f - keep;
+                    if (keep < 1f) { vel.x *= keep; vel.z *= keep; }
                     if (OnLanded != null) OnLanded();
                 }
                 groundedPosTimer += dt;
@@ -586,7 +979,8 @@ namespace VibeGame1
                     // Left the wall with the run's momentum. The rest of the frame is ordinary air, so
                     // fall through with dt intact.
                 }
-                else if (canAct && dashRequested && now >= dashReadyAt && !airDashUsed)
+                else if (canAct && dashRequested && (burst || (now >= dashReadyAt && !airDashUsed
+                         && (stamina == null || stamina.CanAfford(stamina.dashCost)))))
                 {
                     // Same gate as the dash below (airborne, so the air dash must be unspent) — otherwise
                     // a spent dash press dropped you off the wall and no dash came.
@@ -606,8 +1000,29 @@ namespace VibeGame1
 
             if (IsDashing)
             {
-                hv = dashDir * dashSpeed;
+                hv = dashDir * dashSpeedNow;
                 vel.y = 0f;
+                // THE DASH-JUMP. Everything below this branch -- the ground and air logic, and with it
+                // the jump block -- is skipped while a dash is in flight, so a jump pressed inside a
+                // dash used to be examined only after it ended (and the 22 m/s sweep had lifted the
+                // controller off the floor by then, so coyote had lapsed too): a dud, silently. A dash
+                // that began on the ground is jump-eligible for its whole length; the jump ENDS the
+                // dash so vel.y survives the next frame, and the dash's speed is already in hv, so it
+                // becomes carried momentum that settles like every other burst. This is the move the
+                // PERFECT window rewards (MOVEMENT-PRINCIPLES rule 4: the moment, not the frame).
+                if (canAct && dashFromGround && now - jumpPressedAt <= jumpBuffer)
+                {
+                    bool perfect = !LastDashWasBurst
+                        && PerfectMath.DashJumpIsPerfect(now - dashStartedAt, perfectDashJumpMinDelay, perfectDashJumpWindow);
+                    EndSlide();
+                    vel.y = Mathf.Sqrt(2f * -gravity * jumpHeight);
+                    jumpPressedAt = -99f;
+                    lastGroundedTime = -99f;
+                    IsGrounded = false;
+                    dashUntil = now;
+                    if (OnJumped != null) OnJumped();
+                    if (perfect) Perfect(PerfectKind.DashJump, perfectDashJumpRefund);
+                }
             }
             else
             {
@@ -618,7 +1033,19 @@ namespace VibeGame1
                 // from the same press. Framerate-dependent movement is unshippable in a speedrun game.
                 bool slideOnGround = sliding && (IsGrounded || now - lastGroundedTime <= coyoteTime);
 
-                if (slideOnGround)
+                if (slideOnGround && inWater)
+                {
+                    // A SLIDE ON WATER IS A SKATE: no friction, no decay end, no duration cap. It holds
+                    // the water floor, turns at the skating rate and rides the conveyor, and it ends
+                    // only when you leave the water (the ordinary rules resume with a full tail) or
+                    // jump. The chain falloff is untouched - the boost you bought entering is spent
+                    // the same way; the water just refuses to take it back.
+                    Vector3 rel = TraversalMath.WaterStep(hv - flow, wish, WaterFloorSpeed, waterAccel, dt);
+                    hv = TraversalMath.WaterVelocity(rel, flow);
+                    slideEndsAt = now + slideMaxDuration;
+                    if (IsGrounded && vel.y < 0f) vel.y = -2f;
+                }
+                else if (slideOnGround)
                 {
                         // Steer slowly, bleed slowly. The slide is a committed line, and it is the
                         // ENTRY speed you are buying — jump-cancel it early and you keep all of it.
@@ -643,6 +1070,16 @@ namespace VibeGame1
                         // Only pinned to the floor when actually ON it — sliding off a ledge has to fall.
                         if (IsGrounded && vel.y < 0f) vel.y = -2f;
                 }
+                else if (IsGrounded && inWater)
+                {
+                    // SKATING. Velocity relative to the flow is held at or above the water floor with
+                    // no friction and no overspeed decay, turned at waterAccel, and the conveyor is
+                    // added back. Water never slows anyone: the only way off the floor speed is off
+                    // the water. See TraversalMath.WaterStep.
+                    Vector3 rel = TraversalMath.WaterStep(hv - flow, wish, WaterFloorSpeed, waterAccel, dt);
+                    hv = TraversalMath.WaterVelocity(rel, flow);
+                    if (vel.y < 0f) vel.y = -2f;
+                }
                 else if (IsGrounded)
                 {
                     if (wish.sqrMagnitude < 0.001f)
@@ -656,7 +1093,10 @@ namespace VibeGame1
                         // keep excess speed (dash landings) but steer toward wish direction
                         float target = Mathf.Max(groundSpeed * SpeedMultiplier, Mathf.Min(hv.magnitude, dashSpeed));
                         hv = Vector3.MoveTowards(hv, wish * target, groundAccel * dt);
-                        if (hv.magnitude > groundSpeed * SpeedMultiplier) hv = Vector3.MoveTowards(hv, hv.normalized * groundSpeed * SpeedMultiplier, groundFriction * 2f * dt);
+                        // Excess over a sprint decays EXPONENTIALLY toward the sprint: exp(-k dt) is the
+                        // same answer at every framerate, and a dash landing settles into a run in ~0.5 s
+                        // instead of holding 22 m/s for as long as you keep the stick forward.
+                        hv = DecayExcess(hv, groundSpeed * SpeedMultiplier, groundOverspeedDecay, dt);
                         if (vel.y < 0f) vel.y = -2f;
                     }
                 }
@@ -673,10 +1113,30 @@ namespace VibeGame1
                     // longer eats a slide, and sliding off a ledge still leaves the whole coyote window
                     // to jump-cancel with the speed intact.
                     if (sliding && now - lastGroundedTime > coyoteTime) EndSlide();
+                    // AIR CONTROL, two channels. STEER turns the velocity toward the stick at a fixed
+                    // angular rate with the speed untouched (the surf feel: you decide where 17 m/s goes);
+                    // ACCELERATE is Source's rule, adding along the stick only up to a run's worth, which
+                    // is what a stick held BACK uses to brake. Steer first, so the brake acts on the
+                    // direction you chose.
+                    // THE FLOAT: for launchFloatSeconds after a balloon pop the steer turns faster, so
+                    // the re-armed dash can be aimed at the next orb (the gravity half is below).
+                    bool floating = now - launchedAt <= launchFloatSeconds;
+                    hv = AirSteer(hv, wish, airSteerDegPerSec * (floating ? launchSteerBoost : 1f), dt);
                     hv = AirAccelerate(hv, wish, groundSpeed * SpeedMultiplier, airAccel, dt);
+                    // WEIGHT. Speed above a run bleeds slowly while airborne (airCarryDecay): a wall exit
+                    // or a slide-jump is a burst you spend, not a glide you keep. Then the SOFT CAP:
+                    // the surplus over airSoftCap (a dash) bleeds fast on exp(-airDrag t). Together:
+                    // momentum, never a cruise.
+                    // Inside the water's boost zone (a hop along the surface) the carry is kept -
+                    // "air resistance is very low" over water is the Neon White rule - but the soft cap
+                    // still bleeds a dash, so a hop cannot launder one into a cruise.
+                    if (!inWater) hv = DecayExcess(hv, groundSpeed * SpeedMultiplier, airCarryDecay, dt);
+                    hv = DecayExcess(hv, airSoftCap, airDrag, dt);
                 }
 
-                vel.y += gravity * dt;
+                // A balloon pop hangs: gravity is scaled inside the float window (see launchFloatSeconds).
+                float gNow = now - launchedAt <= launchFloatSeconds ? gravity * launchGravityScale : gravity;
+                vel.y += FallGravity(gNow, vel.y, IsGrounded, fallGravityMultiplier) * dt;
                 if (!IsGrounded && vel.y > 0f && !input.JumpHeld) vel.y += gravity * jumpCutGravityMultiplier * dt;
 
                 bool canJump = now - lastGroundedTime <= coyoteTime;
@@ -693,6 +1153,8 @@ namespace VibeGame1
                         lastGroundedTime = -99f;
                         IsGrounded = false;
                         if (OnJumped != null) OnJumped();
+                        // (The PERFECT dash-jump is judged in the dash branch above: this block never
+                        // runs while a dash is in flight.)
                     }
                     else
                     {
@@ -703,16 +1165,38 @@ namespace VibeGame1
                     }
                 }
 
-                if (canAct && dashRequested && now >= dashReadyAt && (IsGrounded || !airDashUsed))
+                // The burst short-circuits every gate INCLUDING the stamina spend: TrySpend has a side
+                // effect, so it must stay last and must not run for a burst.
+                if (canAct && dashRequested && (burst || (now >= dashReadyAt && (IsGrounded || !airDashUsed)
+                    && (stamina == null || stamina.TrySpend(stamina.dashCost, StaminaAction.Dash)))))
                 {
                     EndSlide();
                     dashDir = wish.sqrMagnitude > 0.01f ? wish.normalized : new Vector3(transform.forward.x, 0f, transform.forward.z).normalized;
                     dashUntil = now + dashDuration;
-                    dashReadyAt = now + dashCooldown;
-                    if (!IsGrounded) airDashUsed = true;
-                    hv = dashDir * dashSpeed;
+                    dashFromGround = IsGrounded || now - lastGroundedTime <= coyoteTime;
+                    bool perfectBurst = false;
+                    if (burst)
+                    {
+                        // The grapple exit burst: faster, free, and it leaves the ordinary dash exactly
+                        // as it was - cooldown untouched, air charge untouched - so exploding out of a
+                        // kill never costs the dash you had.
+                        perfectBurst = PerfectMath.BurstIsPerfect(now - pullBurstOpenedAt, perfectBurstWindow);
+                        pullBurstUntil = -99f;
+                        dashSpeedNow = TraversalMath.BurstSpeed(dashSpeed, pullBurstMultiplier);
+                        LastDashWasBurst = true;
+                    }
+                    else
+                    {
+                        dashReadyAt = now + dashCooldown;
+                        if (!IsGrounded) airDashUsed = true;
+                        dashSpeedNow = dashSpeed;
+                        LastDashWasBurst = false;
+                    }
+                    dashStartedAt = now;
+                    hv = dashDir * dashSpeedNow;
                     vel.y = 0f;
                     if (OnDashed != null) OnDashed();
+                    if (perfectBurst) Perfect(PerfectKind.GrappleBurst, perfectBurstBonus);
                 }
             }
 
@@ -720,10 +1204,111 @@ namespace VibeGame1
             // dashing (the branch above is skipped) would fire again the instant the dash ended.
             dashRequested = false;
 
+            // Absolute ceiling. Nothing above is designed; nothing above may survive a bug either.
+            if (!IsDashing)
+            {
+                float s2 = hv.x * hv.x + hv.z * hv.z;
+                if (s2 > maxHorizontalSpeed * maxHorizontalSpeed) hv *= maxHorizontalSpeed / Mathf.Sqrt(s2);
+            }
+
             vel.x = hv.x;
             vel.z = hv.z;
-            var flags = cc.Move(vel * dt);
-            if ((flags & CollisionFlags.Above) != 0 && vel.y > 0f) vel.y = 0f;
+            // GROUND SNAP, displacement only. While grounded and not rising the controller is pressed
+            // down at least groundSnapDistance: the sweep stops at the floor, so on flat ground it
+            // costs nothing, on a step down it follows, and at a ledge it is one frame of extra drop.
+            // Without it the -2 m/s pin moved 0.004 m at 500 fps - inside the skin width - and
+            // CharacterController.isGrounded flickered off, ending every slide at coyote time.
+            Vector3 disp = vel * dt;
+            if (IsGrounded && vel.y <= 0f && groundSnapDistance > 0f && disp.y > -groundSnapDistance)
+                disp.y = -groundSnapDistance;
+            // NEAR-MISS LANDING (forgiveness). Falling, not sliding or wall running, with the feet about
+            // to pass just under a ledge top that lies ahead along the carried velocity: lift the body so
+            // the next sweep lands on it. Bounded per frame, adds no velocity, ignores walls (a wall side
+            // has no upward normal), and never fires on a standing drop.
+            if (!IsGrounded && vel.y < 0f && !sliding && !wallRunning && !IsDashing && ledgeCatchMetres > 0f)
+            {
+                Vector3 hvNow = new Vector3(vel.x, 0f, vel.z);
+                float hs = hvNow.magnitude;
+                if (hs >= ledgeCatchMinSpeed)
+                {
+                    Vector3 ahead = transform.position + hvNow / hs * (cc.radius + 0.12f);
+                    Vector3 from = ahead + Vector3.up * (ledgeCatchMetres + 0.05f);
+                    if (Physics.Raycast(from, Vector3.down, out RaycastHit ledge, ledgeCatchMetres + 0.10f, worldMask, QueryTriggerInteraction.Ignore)
+                        && ForgivenessMath.LedgeCatches(transform.position.y, ledge.point.y, ledgeCatchMetres, vel.y,
+                                                        ledge.normal.y, 0.7f, hs, ledgeCatchMinSpeed))
+                    {
+                        float lift = ForgivenessMath.NudgeStep(ledge.point.y - transform.position.y + 0.02f, ledgeCatchLiftSpeed, dt);
+                        if (lift > 0f) { disp.y = Mathf.Max(disp.y, 0f) + lift; }
+                    }
+                }
+            }
+            var flags = cc.Move(disp);
+            if ((flags & CollisionFlags.Above) != 0 && vel.y > 0f)
+            {
+                // CORNER CORRECTION (forgiveness). The head met something while rising. If a capsule
+                // shifted sideways by no more than cornerCorrectionMetres is clear, the player clipped a
+                // ledge CORNER: nudge them across it and keep the jump. Otherwise it is a ceiling.
+                float nudged = 0f;
+                if (cornerCorrectionMetres > 0f)
+                {
+                    float r = cc.radius * 0.95f;
+                    Vector3 p0 = transform.position + cc.center + Vector3.up * (cc.height * 0.5f - r) + Vector3.up * 0.06f;
+                    Vector3 p1 = transform.position + cc.center - Vector3.up * (cc.height * 0.5f - r) + Vector3.up * 0.06f;
+                    Vector3[] dirs = { transform.right, -transform.right, transform.forward, -transform.forward };
+                    for (int i = 0; i < dirs.Length && nudged <= 0f; i++)
+                    {
+                        Vector3 off = dirs[i] * cornerCorrectionMetres;
+                        if (!Physics.CheckCapsule(p0 + off, p1 + off, r, worldMask, QueryTriggerInteraction.Ignore))
+                        {
+                            cc.Move(off);
+                            nudged = cornerCorrectionMetres;
+                        }
+                    }
+                }
+                if (!ForgivenessMath.CornerCorrects(nudged, cornerCorrectionMetres, vel.y)) vel.y = 0f;
+            }
+        }
+
+        /// <summary>Gravity for this frame: the base value while grounded or rising, scaled by
+        /// <paramref name="fallMultiplier"/> while airborne and descending. Pure.</summary>
+        public static float FallGravity(float gravity, float vy, bool grounded, float fallMultiplier)
+        {
+            return (!grounded && vy < 0f) ? gravity * fallMultiplier : gravity;
+        }
+
+        /// <summary>Turn the horizontal velocity toward <paramref name="wish"/> at <paramref name="degPerSec"/>
+        /// with its magnitude preserved. No-op when the stick is off, when the stick opposes travel
+        /// (that is a brake, AirAccelerate's job) or when barely moving. Pure.</summary>
+        public static Vector3 AirSteer(Vector3 hv, Vector3 wish, float degPerSec, float dt)
+        {
+            if (degPerSec <= 0f || wish.sqrMagnitude < 0.0001f) return hv;
+            float sp = hv.magnitude;
+            if (sp < 0.5f) return hv;
+            Vector3 w = new Vector3(wish.x, 0f, wish.z);
+            if (w.sqrMagnitude < 0.0001f) return hv;
+            w.Normalize();
+            if (Vector3.Dot(hv, w) < -1e-4f) return hv;   // a stick at 90 deg is a strafe, not a brake
+            return Vector3.RotateTowards(hv, w * sp, degPerSec * Mathf.Deg2Rad * dt, 0f);
+        }
+
+        /// <summary>Fraction of horizontal speed KEPT on a landing at <paramref name="fallSpeed"/>: 1 at or
+        /// below <paramref name="soft"/>, 1 - <paramref name="loss"/> at or above <paramref name="hard"/>,
+        /// linear between. Pure.</summary>
+        public static float LandingSpeedFactor(float fallSpeed, float soft, float hard, float loss)
+        {
+            if (hard <= soft || loss <= 0f) return 1f;
+            float t = Mathf.Clamp01((fallSpeed - soft) / (hard - soft));
+            return 1f - Mathf.Clamp01(loss) * t;
+        }
+
+        /// <summary>Speed above <paramref name="cap"/> decays on exp(-k dt) toward the cap; speed at or
+        /// below it is untouched. Direction is never changed. Pure, framerate-independent.</summary>
+        public static Vector3 DecayExcess(Vector3 hv, float cap, float k, float dt)
+        {
+            float sp = hv.magnitude;
+            if (sp <= cap || sp < 1e-5f) return hv;
+            float target = cap + (sp - cap) * Mathf.Exp(-k * dt);
+            return hv * (target / sp);
         }
 
         // ---------------------------------------------------------------- collider height
@@ -896,6 +1481,7 @@ namespace VibeGame1
         {
             EndSlide(true);
             EndWallRun(WallRunEnd.Cancelled);
+            CancelPull();
             cc.enabled = false;
             transform.position = position;
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
@@ -909,6 +1495,17 @@ namespace VibeGame1
             wallJumpsUsed = 0;
             wallRunsUsed = 0;
             hasLastWall = false;
+            slideChain = 0;
+            lastSlideEndedAt = -99f;
+            wallLostTime = 0f;
+            wallRunLeftAt = -99f;
+            waterUntil = -99f;
+            launchedAt = -99f;
+            waterVolume = null;
+            pullBurstUntil = -99f;
+            pullBurstPending = false;
+            dashStartedAt = -99f;
+            pullBurstOpenedAt = -99f;
             LastGroundedPosition = position;
             cc.enabled = true;
 
@@ -921,16 +1518,198 @@ namespace VibeGame1
 
         public void AddImpulse(Vector3 impulse) { vel += impulse; }
 
-        /// <summary>Launch straight up at a fixed speed (Updraft item). Cancels any dash.</summary>
-        public void Launch(float upSpeed)
+        /// <summary>
+        /// Launch straight up at a fixed speed - a balloon pop. The vertical component is REPLACED
+        /// (<see cref="TraversalMath.Launch"/>: a capped jump, the same height every time), the
+        /// horizontal is kept, any dash / slide / wall run ends, and the whole air kit is reset: the air
+        /// dash, the wall-jump and wall-run budgets, and the wall you last used. A balloon is a fresh
+        /// start in the air, which is what lets a level chain them. Raises <see cref="OnLaunched"/>.
+        /// </summary>
+        public void Launch(float upSpeed) { Launch(upSpeed, false); }
+
+        /// <summary>
+        /// <paramref name="trimCarry"/> is the balloon POP: the horizontal speed is trimmed to
+        /// <see cref="launchCarryCap"/> so the next orb is aimable (pop -> aim -> dash). The plain
+        /// overload keeps the carry untouched - it is the harness's and any future launcher's lift, and
+        /// the slide-jump test relies on a launch never eating the speed a slide earned.
+        /// </summary>
+        public void Launch(float upSpeed, bool trimCarry)
         {
             dashUntil = 0f;
             airDashUsed = false;
+            wallJumpsUsed = 0;
+            wallRunsUsed = 0;
+            hasLastWall = false;
+            jumpPressedAt = -99f;
             EndSlide(true);
             EndWallRun(WallRunEnd.Cancelled);
-            vel.y = upSpeed;
+            vel = TraversalMath.Launch(vel, upSpeed, trimCarry ? launchCarryCap : float.PositiveInfinity);
             IsGrounded = false;
             lastGroundedTime = -99f;
+            launchedAt = now;
+            if (OnLaunched != null) OnLaunched();
+        }
+
+        /// <summary>
+        /// Re-arm the dash without firing one: cooldown cleared, air charge restored. What a balloon
+        /// does to a player who DASHES through it - the dash in flight carries on untouched and the
+        /// next press is free again, so a line of orbs can be dashed one to the next.
+        /// </summary>
+        public void RearmDash()
+        {
+            dashReadyAt = now;
+            airDashUsed = false;
+            // The dash in flight ENDS at the orb and its carry is trimmed to the same cap a pop uses:
+            // measured 2026-09-05, a 22 m/s dash carried through orb 1 flew 16 m past orb 2. The chain
+            // is pop → aim → dash; the re-armed dash is the reach, the carry only has to be steerable.
+            if (IsDashing)
+            {
+                dashUntil = now;
+                Vector3 h = new Vector3(vel.x, 0f, vel.z);
+                float m = h.magnitude;
+                if (m > launchCarryCap && m > 0.0001f) { h *= launchCarryCap / m; vel.x = h.x; vel.z = h.z; }
+                launchedAt = now;   // the float window applies, so the aim has time
+            }
+        }
+
+        /// <summary>
+        /// A <see cref="WaterVolume"/> reports the player inside it. Refreshed every physics step it
+        /// stays true; expires waterGrace later on the motor clock. The LAST volume to touch wins, which
+        /// is fine - two overlapping sheets are an authoring error, not a case.
+        /// </summary>
+        public void TouchWater(WaterVolume volume)
+        {
+            waterVolume = volume;
+            waterUntil = now + waterGrace;
+        }
+
+        // ---------------------------------------------------------------- items: pull + wall surge
+        //
+        // Self-contained: everything the two traversal items need from the motor lives between here
+        // and the end of the class, plus one `if (pulling)` line at the top of Update and the three
+        // IsWallSurging reads in WallRunSettings / TryWallRun / AdvanceWallRun.
+
+        // ---- PULL (Grapple item) ----
+        // The item owns velocity outright for the length of the pull: gravity, drag, input and the
+        // slide/wall-run branches are all skipped. Driven as a POSITION curve (start → target with a
+        // sine bulge) sampled on the motor clock, so the arc is the same at every framerate and
+        // hitstop cannot stretch it (rule 1). Every write still goes through CharacterController.Move,
+        // so a wall or a lintel in the way ends the pull where the body actually stopped.
+        bool pulling;
+        Vector3 pullStart, pullTarget;
+        float pullStartedAt, pullSeconds, pullArcHeight;
+
+        /// <summary>True while a <see cref="BeginPull"/> is in flight.</summary>
+        public bool IsPulling => pulling;
+        /// <summary>Where the current pull is heading. Zero when not pulling.</summary>
+        public Vector3 PullTarget => pulling ? pullTarget : Vector3.zero;
+        /// <summary>Fired once when a pull ends, for any reason. The argument is true on arrival, false
+        /// when a collision or a cancel cut it short.</summary>
+        public event Action<bool> OnPullEnded;
+        /// <summary>Everything the player can stand on or push off - the mask the motor's own casts
+        /// use. Items use it for line-of-sight so "can I hook that" and "can I run on that" agree.</summary>
+        public int WorldMask => worldMask;
+
+        /// <summary>
+        /// Pull the body along a fast arc to <paramref name="target"/> (a TRANSFORM position - feet,
+        /// on this prefab) over <paramref name="seconds"/>. Cancels a slide, a wall run and a dash.
+        /// Ends on arrival, on a sideways/overhead collision, or via <see cref="CancelPull"/>; the
+        /// body keeps the arc's final velocity so a hooked enemy on a ledge is reached with momentum
+        /// still in hand.
+        /// </summary>
+        public void BeginPull(Vector3 target, float seconds)
+        {
+            EndSlide(true);
+            EndWallRun(WallRunEnd.Cancelled);
+            dashUntil = 0f;
+            dashRequested = false;
+            jumpPressedAt = -99f;
+            pullStart = transform.position;
+            pullTarget = target;
+            pullStartedAt = now;
+            pullSeconds = Mathf.Max(0.05f, seconds);
+            // A low arc: a hair of rise for a short hop, a couple of metres for a full-range pull, so
+            // the pull reads as a swing rather than a slide along a string.
+            pullArcHeight = Mathf.Clamp((target - pullStart).magnitude * 0.08f, 0.35f, 2.2f);
+            pulling = true;
+            IsGrounded = false;
+        }
+
+        /// <summary>Stop an in-flight pull where it is. Velocity is left as the arc's last sample.</summary>
+        public void CancelPull()
+        {
+            if (!pulling) return;
+            EndPull(false);
+        }
+
+        void EndPull(bool arrived)
+        {
+            pulling = false;
+            lastGroundedTime = -99f;    // no stale coyote from before the pull
+            airDashUsed = false;        // the arc counts as a fresh start for the air kit
+            if (arrived)
+            {
+                // The grapple EXIT BURST is armed here and opened in Update once control is back.
+                pullBurstPending = true;
+                pullBurstPendingUntil = now + pullBurstHold;
+            }
+            if (OnPullEnded != null) OnPullEnded(arrived);
+        }
+
+        /// <summary>One frame of the pull. Allocation-free; one <c>cc.Move</c>, no casts.</summary>
+        void AdvancePull(float dt)
+        {
+            if (cc == null || !cc.enabled) { EndPull(false); return; }
+
+            float k = Mathf.Clamp01((now - pullStartedAt) / pullSeconds);
+            // Ease-out so the arrival is a settle, not a slam; the sine bulge is the arc itself.
+            float e = 1f - (1f - k) * (1f - k);
+            Vector3 want = Vector3.LerpUnclamped(pullStart, pullTarget, e);
+            want.y += Mathf.Sin(e * Mathf.PI) * pullArcHeight;
+
+            Vector3 disp = want - transform.position;
+            vel = dt > 1e-5f ? disp / dt : Vector3.zero;
+
+            var flags = cc.Move(disp);
+
+            // A sideways or overhead hit is a wall in the way: stop here, keep what we had. Ground
+            // contact (Below) is not a stop - the last part of the arc descends onto the target's floor.
+            bool blocked = (flags & (CollisionFlags.Sides | CollisionFlags.Above)) != 0 && k > 0.08f;
+            Vector3 left = pullTarget - transform.position;
+            bool arrived = k >= 1f || left.sqrMagnitude < 0.04f;
+            if (arrived || blocked)
+            {
+                // Settle: a modest carry-through along the arc's tangent, never the raw sample (which at
+                // 20 fps is a single frame of 40 m/s). Clamped to a sprint so the landing is controllable.
+                Vector3 hv = new Vector3(vel.x, 0f, vel.z);
+                float sp = hv.magnitude;
+                if (sp > groundSpeed) hv *= groundSpeed / sp;
+                vel = new Vector3(hv.x, Mathf.Min(0f, vel.y), hv.z);
+                IsGrounded = cc.isGrounded;
+                if (IsGrounded) lastGroundedTime = now;
+                EndPull(arrived && !blocked);
+            }
+        }
+
+        // ---- WALL SURGE (WallSurge item) ----
+        // Motor STATE, not a tuning mutation: the Inspector fields never move, WallRunSettings reads the
+        // scale, and the two stamina calls in TryWallRun/AdvanceWallRun skip while it runs. On the motor
+        // clock, so hitstop neither shortens nor stretches the window (rule 1).
+
+        /// <summary>Multiplier on wallRunTopSpeed and wallRunAccel while surging.</summary>
+        public const float WallSurgeSpeedScale = 1.5f;
+        /// <summary>Motor-clock time the surge ends. -99 when none has ever run. Public so tests and
+        /// the debug harness can end one early.</summary>
+        public float wallSurgeUntil = -99f;
+        public bool IsWallSurging => now < wallSurgeUntil;
+        /// <summary>Seconds left on the surge; 0 when not surging.</summary>
+        public float WallSurgeRemaining => Mathf.Max(0f, wallSurgeUntil - now);
+        float WallSurgeScale => IsWallSurging ? WallSurgeSpeedScale : 1f;
+
+        /// <summary>Start (or extend to at least) <paramref name="seconds"/> of surge from now.</summary>
+        public void StartWallSurge(float seconds)
+        {
+            wallSurgeUntil = Mathf.Max(wallSurgeUntil, now + Mathf.Max(0f, seconds));
         }
     }
 
@@ -943,7 +1722,18 @@ namespace VibeGame1
         FallingTooFast,   // a plummet does not catch a wall
         WrongApproach,    // running INTO the face rather than along it
         LookingAway,      // no intent: the player is not looking down the run
-        NoTangent         // degenerate - velocity is entirely into or out of the wall
+        NoTangent,        // degenerate - velocity is entirely into or out of the wall
+
+        // The CHEAP gates in FirstPersonMotor.TryWallRun, checked before any physics query. CanEnter
+        // never returns these; they exist so FirstPersonMotor.WallRunDiag can name every refusal.
+        // Append only - the diagnostic readout indexes names by value.
+        CannotAct,        // staggered / cannot move
+        Grounded,         // a wall run starts in the air
+        OverBudget,       // maxWallRuns spent since the last landing
+        Cooldown,         // wallRunCooldown since the last run ended has not elapsed
+        NoWallInReach,    // the scan found no runnable face
+        Sliding,          // a slide could not end (ceiling) so cannot yield to the wall
+        NoStamina         // every other gate passed; could not afford wallRunEntryCost
     }
 
     /// <summary>Why a wall run stopped.</summary>
@@ -955,7 +1745,8 @@ namespace VibeGame1
         LostWall,     // the face went away, or turned a corner too sharply
         Landed,
         Jumped,
-        Cancelled     // dash, teleport, stagger
+        Cancelled,    // dash, teleport, stagger
+        Exhausted     // stamina hit zero on the wall
     }
 
     /// <summary>
@@ -1064,8 +1855,11 @@ namespace VibeGame1
 
             if (!RunDirection(vel, n, out runDir)) { why = WallRunReject.NoTangent; return false; }
 
-            float along = Vector3.Dot(flat, runDir);
-            if (along < pr.minEntrySpeed) { why = WallRunReject.TooSlow; return false; }
+            // Speed is judged on the WHOLE horizontal velocity, not its tangential part: the approach
+            // gate above has already said you are moving along the face, and Enter redirects all of it
+            // down the run. Judging the projection made a 45-degree approach at a sprint "too slow",
+            // which was most of "the wall run only works sometimes".
+            if (flatSpeed < pr.minEntrySpeed) { why = WallRunReject.TooSlow; return false; }
 
             Vector3 lf = new Vector3(lookFlat.x, 0f, lookFlat.z);
             if (lf.sqrMagnitude > 1e-6f)
@@ -1085,8 +1879,10 @@ namespace VibeGame1
         /// </summary>
         public static Vector3 Enter(Vector3 vel, Vector3 runDir, Params pr)
         {
+            // ALL of the horizontal speed turns down the run (Titanfall: the wall catches and redirects
+            // you; it does not bill you for the angle you arrived at). Capped at maxSpeed.
             Vector3 flat = new Vector3(vel.x, 0f, vel.z);
-            float along = Vector3.Dot(flat, runDir);
+            float along = flat.magnitude;
             if (along > pr.maxSpeed) along = pr.maxSpeed;
             return new Vector3(runDir.x * along, Mathf.Max(vel.y, pr.entryUpSpeed), runDir.z * along);
         }

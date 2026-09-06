@@ -29,18 +29,18 @@ namespace VibeGame1.Tests
         {
             var p = new WallRunMath.Params();
             p.gravity = -30f;
-            p.minEntrySpeed = 7f;
+            p.minEntrySpeed = 6f;
             p.maxEntryFallSpeed = 9f;
-            p.maxApproachCos = 0.55f;
-            p.minLookAlongCos = 0.30f;
-            p.maxDuration = 1.6f;
+            p.maxApproachCos = 0.80f;
+            p.minLookAlongCos = -0.05f;
+            p.maxDuration = 1.75f;
             p.gravityStartScale = 0.10f;
             p.gravityEndScale = 0.60f;
             p.entryUpSpeed = 3f;
             p.speedDecay = 0.35f;
-            p.minSustainSpeed = 5f;
+            p.minSustainSpeed = 4f;
             p.accel = 14f;
-            p.topSpeed = 11f;
+            p.topSpeed = 13.75f;
             p.maxSpeed = 22f;
             p.exitUpSpeed = 10f;
             p.exitPushSpeed = 7f;
@@ -90,9 +90,11 @@ namespace VibeGame1.Tests
         public void TheApproachGateSitsWhereTheTooltipSaysItDoes()
         {
             var p = Shipped();
-            // maxApproachCos 0.55 is 33.4 deg off the wall plane. Check both sides of that edge with a
-            // speed high enough that the TooSlow gate can never be the one answering.
-            foreach (var probe in new[] { new { deg = 30f, want = true }, new { deg = 40f, want = false } })
+            // maxApproachCos 0.80 is 53.1 deg off the wall plane (retuned from 33: a sprint-jump taken
+            // at 45 deg toward a wall is the NORMAL way a first-person player arrives at one). Check both
+            // sides of that edge with a speed high enough that the TooSlow gate can never be the one
+            // answering.
+            foreach (var probe in new[] { new { deg = 50f, want = true }, new { deg = 60f, want = false } })
             {
                 float rad = probe.deg * Mathf.Deg2Rad;
                 // Into the wall (+x is into it, since the normal is -x) at `deg` off the face.
@@ -100,7 +102,7 @@ namespace VibeGame1.Tests
                 Vector3 runDir; WallRunReject why;
                 bool ok = WallRunMath.CanEnter(v, Normal, new Vector3(0f, 0f, 1f), p, out runDir, out why);
                 Assert.AreEqual(probe.want, ok,
-                    probe.deg + " deg off the face gave " + ok + " (" + why + "); the gate is not at 33 deg.");
+                    probe.deg + " deg off the face gave " + ok + " (" + why + "); the gate is not at 53 deg.");
             }
         }
 
@@ -136,8 +138,10 @@ namespace VibeGame1.Tests
         public void EntryKeepsSpeedAlongTheWallAndFloorsTheRise()
         {
             var p = Shipped();
+            // The WHOLE horizontal speed turns down the run: 4 into the wall and 11 along it arrive as
+            // 11.7 along it. The wall catches and redirects; it does not bill the approach angle.
             Vector3 v = WallRunMath.Enter(new Vector3(-4f, -5f, 11f), Vector3.forward, p);
-            Assert.AreEqual(11f, v.z, 1e-3f, "tangential speed was not preserved on entry");
+            Assert.AreEqual(Mathf.Sqrt(16f + 121f), v.z, 1e-3f, "horizontal speed was not redirected down the run on entry");
             Assert.AreEqual(0f, v.x, 1e-3f, "the into-the-wall component survived entry");
             Assert.AreEqual(p.entryUpSpeed, v.y, 1e-3f, "the catch did not floor vertical speed");
 
@@ -233,7 +237,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void HoldingForwardExtendsTheRunButNeverOutrunsASprint()
+        public void HoldingForwardExtendsTheRunButNeverOutrunsTheWallsTopSpeed()
         {
             var p = Shipped();
             float dA, distA, netA, riseA, endA;
@@ -243,7 +247,7 @@ namespace VibeGame1.Tests
 
             Assert.Greater(distB, distA, "holding forward on the wall does nothing at all");
             Assert.LessOrEqual(endB, p.topSpeed + 1e-3f,
-                "the top-up accelerated past groundSpeed; a wall would then be faster than the floor");
+                "the top-up accelerated past wallRunTopSpeed (1.25x a sprint: the wall IS faster than the floor, by exactly that much and no more)");
         }
 
         [Test]

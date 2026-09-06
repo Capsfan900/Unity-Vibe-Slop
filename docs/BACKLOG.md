@@ -7,6 +7,62 @@ Related: [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) — what is proven and
 
 ---
 
+## 0. The pivot (2026-09-04): parkour first, enemies as tools — asked for, NOT built
+
+The user's words: *"instead having small enemies in the between levels parkour just focus on making the
+parkour better and the movement work better with the levels like neon white and use the enemy placement and
+other creative things to get around certain parts of the map."* Five pieces, in the order they should be built
+(each later one needs the earlier ones to exist as data), with the intended shape:
+
+| Piece | Intended shape |
+|---|---|
+| **Balloons** (Neon White's balloon demons) | The user's words: *"a floating orb that gives you a boost and allow you to dash through it."* Neon White: bounce up off a buoyant balloon demon, or discard-dash INTO one and bounce off it; balloon pops are "capped" jumps. Here: a `BalloonDef` on `LevelDefinition` + a `Balloon` prefab from `PrefabFactory` — a floating orb on `Interactable` that (a) BOUNCES the player straight up with an authored launch speed when touched from any direction or hit by melee, and (b) if the player is dashing when they reach it, lets the dash carry THROUGH it and re-arms the dash on the far side (the orb is the dash's refuel). Pops on use, respawns after a delay. Launch goes through a motor entry point (`Launch(Vector3 velocity)` on the motor clock, rule 1), never a velocity write from the orb. Placed by `LevelDefinitionBuilder`; the analyser learns it as a reach primitive. |
+| **Grapple exit burst** | Keep the grapple finish (`PlayerItems` → `BeginPull` → deathblow). On arrival, a window (~0.25 s) in which a dash press "explodes out" along the move axis at dash speed without spending the dash's stamina or cooldown — one flag on the motor consumed by `TryDash`, raised by `OnPullEnded(arrived)`. Feel: the dash package plus a bigger FOV punch. |
+| **Parriable projectiles** — BUILT 2026-09-05 (code + data, unplayed) | The parkour-section enemies (Grunt, Heavy) fire bolts down the span; a perfect deflect reflects the bolt onto the shooter for damage and posture and buys the player 6 m/s along their look. `Projectile.cs`, `ProjectileShooter.cs`, `ProjectileMath.cs`, `ProjectileTests`. Needs `3. Create Data`, `4. Build Prefabs`, then a human on a span. |
+| **Water** | The user's words: *"flowing water on the ground where you can just speed boost and slide around like skating."* Neon White: walking on water is the fastest movement — no ground friction, a boost zone that extends a little above the surface, jumping up steep water slopes beats running. Here: a `WaterDef` (a flat box volume with a flow direction) built as a trigger + a visible surface; while the player is inside (or within ~0.3 m above), the motor uses a water ground mode: ground friction off, a speed floor/boost along the flow, slide-like steering (skating), the slide never ends on water, and the camera/feel layer gets a spray + a low hiss. The boost is a `WaterSettings` derived while `IsInWater`, like `WallRunSettings` under the surge — the motor's tuning fields never move. |
+| **Level rework** | **AUTHORED 2026-09-05 as code (`8a. Rework Level_01`), unbuilt and unplayed.** The six Grunt/Heavy spawns become shooters on `T*_Perch_*` shelves beside the route (T1 causeway from both sides, T2 spiral from above both wall-run walls, T3 pillars from the west and the steps from the east); a three-orb balloon arc west of the T3 pillars onto the span; water on the T1 fast slide deck and the T3 span, turning into Step_1. `LevelTraversalAnalyzer` flies the arc and the bolt lines; `Level Arc Report` gained SHOOTER PERCHES / BALLOON ARC / WATER LINES sections; `LevelTraversalTests` (9) holds it. Still to do: run 8a → 8 → the report → both suites in the editor, then a human on the spans. |
+| **In-game level editor** | **BUILT 2026-09-05 (v1)** — `docs/LEVEL-EDITOR.md`. F10 / F1 row / main-menu CUSTOM list; first-person placement of platforms, wall faces, balloons, water, spawns, pickups, checkpoints, torches and the player start on a grid; grab, rotate, resize, delete; SAVE/LOAD as `LevelDocument` JSON under `persistentDataPath/levels/`; PLAY rebuilds with a runtime NavMesh; EXPORT ASSET writes a real `LevelDefinition`. One piece factory shared with `8. Build Level From Definition`. Left out of v1: terrain, lighting, undo, multi-select, arena gates/pedestals, a scrolling custom list. |
+
+Design guidance for all of it: [MOVEMENT-PRINCIPLES.md](MOVEMENT-PRINCIPLES.md) (added 2026-09-04) — in particular corner correction and near-miss forgiveness before any gap gets tighter, and shapes (arcs, lines, curves) as the unit of level composition.
+
+Open questions for the user: how deep the editor goes (the v1 above is the proposal); whether the Level_01 filler
+spawns are removed outright or kept as tools. Recorded in memory as `direction-parkour-first`.
+
+---
+
+## 0b. Queued after the level rework (user, 2026-09-05)
+
+- **The slide costs stamina.** Today it is free; the user wants it on the budget like the dash and the wall
+  run. Shape: a `slideCost` on `PlayerStamina` spent in `TrySlide` (refused with the same red flash and name
+  the dash gets), written by `PrefabFactory.BuildPlayer`, pinned by `StaminaTunablesTests`; the landing-slide
+  and the chain falloff unchanged.
+- **Re-tune the perfect-timing stamina regain** ("more reasonable to do but takes skill"): play-test the
+  three windows (wall jump 0.14 s at the let-go, dash-jump 0.04–0.16 s, burst 0.12 s) and their refunds
+  (20 / 30 / +30) against a hand on the stick; widen or move the *anchor* before widening the window
+  (MOVEMENT-PRINCIPLES rule 4); consider a partial refund band around the perfect so a near miss pays
+  something; keep a miss free of penalty. Both changes are motor/stamina data + tests, then one editor pass.
+
+## 0c. Level editor QOL pass — finalized 2026-09-05, shelved
+
+Finalized 2026-09-05 in one bounded pass (see `docs/LEVEL-EDITOR.md`, "Finalized and shelved"): placement at
+the press-frame preview, the carried piece skips its own aim ray, a three-frame surface debounce, one size
+number stepping from the aimed piece with a numeric readout, Esc cancel, Ctrl+Z / Ctrl+Y (50 deep), Ctrl+D,
+arrow nudge, `P` / PLACE HERE, and a grid decal on any aimed surface. Left out: the preview is invisible
+when it sits inside the slab it would be built on, the decal is flat on slopes, no redo button, a Water /
+wall-face nudge uses the platform anchor rule. Then shelved by the user: *"it seems like a waste to keep spending so many tokens on this when the
+Unity editor can do it."* The in-game editor stays at v1 as a test-and-tweak tool; levels are authored in the
+Unity editor per [LEVEL-AUTHORING-TUTORIAL.md](LEVEL-AUTHORING-TUTORIAL.md). The notes below stay as the
+list for whoever picks it up later.
+
+The user's words after playing v1 with the new controls: *"it works for the most part but placing of the
+items is really janky and resizing them, the size buttons still half work or get bugged out, and overall
+QOL of that tool needs improvement."* Shape: a dedicated pass with a hand-on-mouse loop — reproduce each
+of: placement jank (does the preview lag the aim, does a click land where the preview was, does snap
+fight the grab), the size buttons (half-working / stuck state — likely the same second-copy-of-state bug
+family as the piece-kind buttons), and a QOL list (undo, duplicate, nudge with arrow keys, a visible
+grid on any surface, numeric size readout, a "place at player" button, escape to cancel a grab). Prove
+each with a scripted session AND a screenshot, then a human pass.
+
 ## 1. Nobody has played this
 
 **This is the largest open risk in the project, and no amount of further automation closes it.**
@@ -25,6 +81,20 @@ playable.** Specifically unproven:
 - **The deathblow mark**, the riposte's cinematic beat, and whether the Pyre fire reads as escalating
   charge *in motion* rather than in stills.
 - **The main menu.** Its 36 assertions pass, but no human has clicked Play.
+- **The 2026-09-03 movement retune.** Wall-run entry gates, the wall's top speed, the momentum soft caps,
+  the diminishing slide boost and the stamina budget + HUD were all built from a research brief and
+  arithmetic in one pass, straight after the user reported the old tuning felt bad. **Played once that
+  evening: "wall running and movement feels better"** — but "needs more weight, I can still just shoot off
+  a wall or ledge", "more control in the air like CS:GO surfing", "you need to be able to slide-jump".
+- **The 2026-09-03 evening weight pass**, unplayed: `fallGravityMultiplier` 1.5, `airCarryDecay` 0.8/s,
+  `AirSteer` 120°/s, the landing tax (16 → 26 m/s, up to 35%), and the ground snap that fixed the
+  slide-jump. Plus the **sandbox movement yard** (east of the arena through the doorway, or F1 → MOVEMENT
+  YARD), the **top-left status strip** (items and effects), the **wand pedestal hidden unless F1 →
+  WAND PEDESTAL: ON**, and **wall-run particles** (grit off the feet at 44/s falling with speed and age,
+  three sparks per foot-tick; `WallRunLive_*` in the suite proves they fire, only eyes prove they read). First things to feel: does a wall exit arc and land rather than sail; can you carve
+  a 17 m/s exit onto a landing with the stick; does the slide-jump fire every time; and are the Ascent's
+  hops (T2, 4–10 of 25 launch points under the heavier fall, the same as at 1.35×) stingy now — if so the
+  fix is the ledges, not the gravity.
 
 `DebugHarness` and `FeatureTests` parry on a state transition — frame-perfect information no human has.
 They prove the state machine, never that the game feels good or is fair.
@@ -37,6 +107,24 @@ They prove the state machine, never that the game feels good or is fair.
 so a backlit enemy had only a diffuse term and could not show curvature at any light level. Smoothness is
 now per-`Spec` (default 0, neon shapes unchanged) and `M_Enemy` ships at 0.34. The torso now carries an
 interior gradient instead of reading as a uniform cutout. Not emission — "enemies do not glow" holds.
+
+---
+
+## 2b. The player model - asked for, scoped, NOT built (open decision)
+
+Asked for on 2026-09-03: *"make the hands and feet look better and the player model, since now with the
+movement the player is gonna see it."* Surveyed and scoped, then stopped unbuilt when the user set the
+**model-boundary rule** (see `CLAUDE.md` hard rules: an Opus session adds features and does not rewrite a
+system Fable wrote without being told to). The three slices, and which side of that line each sits on:
+
+| Slice | Rule | What it is |
+|---|---|---|
+| **Body, legs, feet** | **BUILT 2026-09-04** | `PlayerBody.cs` under the root: hips / chest / two 3-segment legs of primitives, a distance-driven gait in step with the hand bob, an air tuck, a slide pose thrown out on a spring with the leg root yawed to the velocity, boots rolled into the face on a wall run, and a landing knee dip off `LastLandingSpeed`. Casts shadows (the player finally has one). One wiring line in `PrefabFactory.BuildPlayer`. Still open: a proper "air trail" and any silhouette better than boxes. |
+| **Arms react to movement** | adds a channel to 3 Fable files | Nothing in `Assets/Scripts/Feel/` references either viewmodel: wall run, slide, dash and air steering drive the **camera only**, and the walk bob runs only when `IsGrounded && speed > 0.5`, so the hands are rigid through every airborne move. A pure `MovementPose.cs` plus an additive offset summed onto `Model` after the pose and sway in both viewmodels, driven from `PlayerFeedback.Update`. |
+| **Rebuild the hands** | **an override** | Each hand is 8 flat cubes (palm, four finger slabs, thumb, cuff, band) with no joints; each arm is 2 stretched cubes. Jointed fingers, a wrapping thumb, knuckles, a bracer and an elbow cop would rewrite `PrefabFactory.BuildHand` / `BuildArm` and extend `ViewmodelArm`'s solver - squarely a Fable system. |
+
+Capture tooling for before/after already exists: `VibeGame1/Photograph Weapons` renders through the player
+prefab's own camera and can pose the arms by name (`RebuildAndShoot()` regenerates first).
 
 ---
 
@@ -83,6 +171,20 @@ One intermittent remains, a staging race rather than a game bug:
   interrupt), green on every run since. Watch it; if it recurs, the fix is to sequence the interrupt
   against the heal frame rather than against realtime.
 
+Also 2026-09-03 evening, each red exactly once across four full runs and green when its section runs
+alone: `Trail_LiveDuringStrike`, `Deathblow_StaggerPoseStaysFramed_BossScale` (both in the run where the
+editor gained focus and frame time went 4 → 17 ms), `Items_GrappleBigTakesPosture` (`actual=0`; 21/21 in
+isolation). The pattern is the same as below: what the previous test left behind. Fixed the same evening:
+`WallJump_ChainsBetweenFacingWalls` (chimney now starts from a full stamina bar) and `Stamina_RefillsToFull`
+(the test teleports home after its three dashes before timing the regen).
+
+Fixed 2026-09-03: `Level_CheckpointHeals` / `_RefillsFlask` picked `FindObjectsByType<Checkpoint>()[0]`,
+which is sometimes the checkpoint already current, and `SetCheckpoint` is a no-op on that one by
+design; the test now picks a non-current checkpoint. `Slide_EndsWhenAirborneButKeepsSpeed` was a real
+motor wrinkle (one grounded friction frame after `Launch`), fixed in the motor — see ENGINEERING-LOG.
+`Items_PhysicsPickup` (`held 0 -> 0`) and `Stamina_RegenWaitsItsDelay` each went red once in the
+retune's first runs and green since; both are on watch.
+
 Fixed already and worth copying as the pattern: `Items_PhysicsPickup` and `Progression_BloodstainRecovery`
 both shoved the player blindly forward into the wand pedestal plinth. Both now sweep eight compass
 directions for a clear path **and** ground before walking, and use 14 m/s rather than 6 (ground friction
@@ -104,7 +206,7 @@ runs with **zero skips** for the first time — `WandPedestal_FOpensMenu` exerci
 `T2_Buttress` — `center (4.6, 10.2, 122.5)`, `size (0.8, 7.4, 3.0)` — hangs on `T2_L2`'s west FACE and
 forms a **1.70 m chimney** with the tower's east face, 2.50 m of face overlap, open to the sky. You leave
 L2's west edge around z 125, climb **five pushes to y 15.85** and top out on **`T2_L8`** (top 15.5),
-skipping L3–L7 and `Pickup_T2_Updraft`. Optional, out of reach of the base kit (9 m of rise), rejoins
+skipping L3–L7 and `Pickup_T2_Surge`. Optional, out of reach of the base kit (9 m of rise), rejoins
 34 m short of the T2 arena trigger, and a miss is a death — which is the right price.
 
 **The blocker is gone rather than dodged.** `LevelArcAnalyzer` flies the real ballistic arc and reports

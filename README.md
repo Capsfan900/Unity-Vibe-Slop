@@ -46,8 +46,11 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | Dash | `Left Shift` | B / Circle |
 | **Slide** (needs speed; jump out of it to keep it) | `Left Ctrl` | Left trigger |
 | **Wall jump** (airborne, near a wall) | `Space` again | A / Cross again |
-| **Wall run** (no binding — arrive fast along a wall, looking along it) | — | — |
+| **Wall run** (no binding — arrive airborne along a wall at a jog or better) | — | — |
+| **Stamina** (the segmented bar above health; DASH / AIR / WALL pips) | — | — |
 | **Settings** (sensitivity, FOV, graphics) | Title screen `SETTINGS`, or `Esc` → `SETTINGS` in a level | Same |
+| **Level editor** (build a level in game; see `docs/LEVEL-EDITOR.md`) | `F10`, or `F1` → LEVEL EDITOR | — |
+| **Controls reference** (every bind, on one card) | `Esc` → SETTINGS → INFO, title screen SETTINGS → INFO, or `F1` → INFO | Same |
 | Attack | `LMB` | RB |
 | **Parry** (tap) | `RMB` | LB |
 | **Guard** (hold) | `RMB` **held** | LB held |
@@ -62,22 +65,48 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | Pause | `Esc` | Start |
 
 `F` is shared: while a wand altar's `[F]  CHOOSE WAND` prompt is showing it opens the wand menu, otherwise it
-drinks a flask. `R` still cycles wands as a debug convenience.
+drinks a flask. `R` still cycles wands as a debug convenience. **The wand altar is a dev fixture**: it is
+hidden until you turn on `WAND PEDESTAL` in the `F1` test menu, and you start every run with all four wands
+(Emberlance equipped) either way. Held items and running effects (WALL SURGE countdown, GOD MODE) are listed
+in the small strip under SOULS at the top-left.
 
-**Movement tech.** A slide needs speed to start and adds 5 m/s on top of it — 16 m/s out of a run — then
-bleeds back to 8 over about 4 m, and drops you low enough to pass under things you cannot walk under. The
-point is not the slide: it is **jumping out of one**, which leaves the ground at 15.8 m/s and clears a 12.6 m
-gap instead of 8.8 m. Cancel early and you keep all of it. A **wall jump** is just `Space` again while
-airborne near a wall — it throws you off the wall and 2 m up, keeps whatever speed you had running *along*
-the wall, and refuses the same face twice in a row, so two facing walls climb and one does not.
+**Movement tech.** A slide needs speed to start and adds up to 5 m/s on top of it — 16 m/s out of a run —
+then bleeds back to 8, and drops you low enough to pass under things you cannot walk under. The boost fades
+with the speed you already carry and with every slide chained back-to-back (5, 3, 1.8 …), so the tech is a
+rhythm, not a free constant. The point is not the slide: it is **jumping out of one**, which leaves the
+ground at 15.8 m/s and clears a 12.6 m gap instead of 8.8 m. Cancel early and you keep all of it. A **wall
+jump** is `Space` again while airborne near a wall — it throws you off the wall and 2 m up, keeps whatever
+speed you had running *along* the wall, and refuses the same face twice in a row, so two facing walls climb
+and one does not.
 
-A **wall run** has no key. Arrive at a wall airborne, carrying at least 7 m/s *along* it (a sprint does,
-a shuffle does not), moving with the face rather than into it, and looking roughly down it — and you run
-it: a small upward catch, then gravity comes back in over about 1.6 s so you can feel the loan being called
-in. Hold forward to keep speed on a long wall; let go and it bleeds, and under 5 m/s the wall drops you.
-`Space` off the wall throws you *down the line* you were running — up 10, out 7, and +4 along the wall —
-which is the payoff. The camera leans 13° into the wall while you are on it. The same face cannot be
-re-run straight away, and three runs per airtime is the budget.
+**Momentum.** Nothing you do sets a speed the air then keeps forever. Up to 17.6 m/s is yours; anything
+above it (a dash at 22, a slide-jump, a wall-run exit) bleeds back toward it over about half a second, and on
+the ground anything over a sprint settles back to a sprint. You still fly; you cannot fly off the map.
+
+**Stamina.** The segmented bar above health is the movement budget: a dash costs one segment (30 of 100),
+a wall run 12 to start and 22 a second on the wall, a wall jump 12. It refills fast on the ground (a dash
+back in about a second, full in two and a bit) and slowly in the air. The three pips beside it — **DASH**,
+**AIR** (the one air dash), **WALL** — light only when that ability will actually fire right now. A press you
+cannot afford flashes the bar red and names the ability; nothing is ever refused silently. `F8` makes it
+infinite.
+
+- **Span enemies shoot.** Grunts and heavies on the parkour fire bolts you can deflect: a perfect deflect
+  throws the bolt back into them and boosts you along your look, so aim at the next ledge and parry.
+- **Forgiveness.** A jump that clips a ledge's corner by a few centimetres carries on over it, and a
+  landing that falls just short of a ledge top is lifted onto it. Neither adds reach: a real miss is a miss.
+- **Perfect timing.** Leave a wall on its last breath, jump out of a dash, or burst out of a grapple on the
+  landing and the move's stamina comes back — a chime and a PERFECT stamp say so. Miss and it is just the
+  normal move.
+- **Level editor.** `F10` (or F1 → LEVEL EDITOR) opens the in-game editor: fly, place platforms, wall faces, balloons, water, spawns, pickups, checkpoints and torches on a grid, SAVE / LOAD / PLAY, Ctrl+Z undo, Ctrl+D duplicate, arrow-key nudge, and find saved levels under CUSTOM in level select. See `docs/LEVEL-EDITOR.md`.
+
+A **wall run** has no key. Arrive at a wall airborne at a jog or better (6 m/s), moving within about 53° of
+the face and not looking backwards — and you run it: all of your speed turns down the wall, a small upward
+catch, then gravity comes back in over 1.75 s so you can feel the loan being called in. Hold forward and
+the wall accelerates you to 13.75 m/s, faster than the floor; let go and it bleeds, and under 4 m/s (or an
+empty stamina bar) the wall drops you. A seam in the wall is ridden out, not fallen through. `Space` off
+the wall throws you *down the line* you were running — up 10, out 7, and +4 along the wall — and a press
+just after the run ends on its own still counts. The camera leans 13° into the wall while you are on it.
+The same face cannot be re-run straight away.
 
 **Settings** live in one menu reached two ways: `SETTINGS` on the title screen, or `Esc` then `SETTINGS`
 from the pause menu in a level. Mouse and stick sensitivity, FOV, resolution, display mode, vsync, frame
@@ -110,12 +139,13 @@ Implemented in `Assets/Scripts/Debug/DebugKeys.cs`; compiled out of release buil
 
 | Key | Effect |
 |---|---|
-| `F1` | Toggle the test menu |
+| `F1` | Toggle the test menu (warp, give item, weapons, restore, god mode, **wand pedestal on/off**, enemies) |
 | `4` | Equip "Oathbreaker (TEST)" — 60 dmg, very forgiving parry window, 1000 execute damage |
 | `F5` | Warp to the boss arena entrance with the test blade equipped |
 | `F6` | Full heal + refill flasks + fill PYRE + clear the wand cooldown |
 | `F7` | +1000 souls |
 | `F8` | Toggle god mode |
+| `F9` | Toggle the wall-run diagnostic readout — shows why the last wall run was refused (or entered) and logs each change to the console |
 
 ## Core mechanics
 
@@ -163,16 +193,14 @@ Single-use pickups found in the level, Neon White style. You carry **three**, th
 (the leftmost HUD slot is next), and `E` uses one. Dying restores every pickup in the world, so a run
 always starts from the same state.
 
+There are exactly two, and both are ways to MOVE:
+
 | Item | Effect |
 |---|---|
-| **Stormcall** | **Arms** — your next successful **riposte** discharges a lightning storm centred on the victim, killing nearby lesser enemies outright and shattering a boss's posture |
-| **Updraft** | Launches you straight up — a vertical shortcut |
-| **Soul Lantern** | Full heal, clears your posture, refills the flask |
-| **Phantom Step** | Brief invulnerability and a speed boost |
+| **Grapple** (HOOK) | Hook the enemy you are locked on to, or the one nearest your crosshair within 28 m, and get pulled to it in a third of a second. Lesser enemies die on arrival — a Sekiro-style deathblow, so a kill is the move. A legendary or the boss survives unless it was already staggered: it loses 35% of its posture and you land at its feet. With nothing to hook the item is kept. |
+| **Wall Surge** (SURGE) | For eight seconds every wall run is free (no stamina), 1.5× faster, and attaches at any speed. |
 
-Stormcall is deliberately not a panic button: using it stores the charge, and you still have to earn the
-deflect-to-deathblow exchange that releases it. A Stormcall and an Updraft sit at the level spawn point
-so both are testable immediately.
+A Hook and a Surge sit at the level spawn point so both are testable immediately.
 
 ## Rebuilding generated content
 
@@ -278,10 +306,10 @@ VibeGame1.DebugHarness.Run("parry");   // or "boss" / "death"
 **An enemy** — add an `EnemyData` (+ `EnemyAttackData` per attack, windup ≥ 0.45 s) in `DataFactory`,
 add a prefab case in `PrefabFactory`, then place an `EnemySpawner` in `LevelGreyboxBuilder`. Run 3, 4, 6.
 
-**An item** — add an `ItemEffect` enum value and handle it in `PlayerItems.Apply()`, create the
-`ItemData` asset in `DataFactory`, and place an `ItemPickup` in `LevelGreyboxBuilder`. Run 3, 4, 6.
-For an item that triggers on a later event rather than immediately, follow the Stormcall pattern: store
-it in `Apply()`, raise `GameEvents.ItemArmed`, and act on the event that should release it.
+**An item** — there are deliberately only two (`Grapple`, `WallSurge`). If a third is ever justified:
+add an `ItemEffect` value, handle it in `PlayerItems.Apply()` (return `false` to refuse and keep the
+item), create the `ItemData` asset in `DataFactory`, build its offhand viewmodel in `PrefabFactory`, and
+reference it by `itemKey` from the level definition. Run 3, 4, 6.
 
 **A sound** — drop `.ogg`/`.wav` files into `Assets/Resources/Audio/Sfx/<SfxName>/`. A random variant
 plays each time. No code change. Empty folders fall back to `ProceduralSfx` synthesis.

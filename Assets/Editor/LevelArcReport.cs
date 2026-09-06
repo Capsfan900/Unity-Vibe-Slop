@@ -143,6 +143,40 @@ namespace VibeGame1.EditorTools
             AppendChimney(sb, boxes, p, floorY, "T2_Tower", "T2_Buttress", "T2_L2", "T2_L8");
             sb.AppendLine();
 
+            // ---- the parkour-first pieces (LevelDefinitionAuthoring / LevelTraversalAnalyzer) ----
+            // The band is the SHOOTER'S data (EnemyData.projectileMinRange/MaxRange), never a literal: the report
+            // said 6-30 while the test read 10-30 after the 2026-09-05 projectile retune, and a report that lies
+            // is worse than none.
+            var gruntData = AssetDatabase.LoadAssetAtPath<EnemyData>("Assets/Data/Enemies/Grunt.asset");
+            float bandLo = gruntData != null ? gruntData.projectileMinRange : 6f;
+            float bandHi = gruntData != null ? gruntData.projectileMaxRange : 30f;
+            sb.AppendLine("SHOOTER PERCHES  (a bolt across the route inside the " + bandLo + "-" + bandHi + " m band, line clear)");
+            foreach (var pc in LevelDefinitionAuthoring.Perches)
+            {
+                var sv = LevelTraversalAnalyzer.AnalyzeShooter(boxes, pc.name, pc.spawn, pc.covers.Split(','), bandLo, bandHi);
+                if (sv.covered.Count == 0) fails++;
+                sb.AppendLine("  " + (sv.covered.Count == 0 ? "FAIL  " : "      ") + sv.Summary());
+            }
+            sb.AppendLine();
+            sb.AppendLine("BALLOON ARC  (pop = " + p.launchCarryCap + " m/s carry + the orb's launch, float " + p.launchFloatSeconds + " s)");
+            if (def.balloons != null && def.balloons.Length > 0)
+            {
+                var cv = LevelTraversalAnalyzer.AnalyzeChain(boxes, def.balloons, "T3_Entry", "T3_Span", p, floorY);
+                if (!cv.complete) fails++;
+                sb.AppendLine("  " + cv.Summary());
+            }
+            else sb.AppendLine("  (no balloons in the definition)");
+            sb.AppendLine();
+            sb.AppendLine("WATER LINES  (floor speed " + p.waterFloorSpeed.ToString("0.0") + " m/s)");
+            if (def.waters != null)
+                foreach (var w in def.waters)
+                {
+                    var wv = LevelTraversalAnalyzer.AnalyzeWater(boxes, w);
+                    if (!wv.onADeck) fails++;
+                    sb.AppendLine("  " + (wv.onADeck ? "      " : "FAIL  ") + wv.Summary());
+                }
+            sb.AppendLine();
+
             sb.AppendLine(fails == 0
                 ? "VERDICT: every authored traversal has a clean arc."
                 : "VERDICT: " + fails + " traversal(s) have NO clean arc.");

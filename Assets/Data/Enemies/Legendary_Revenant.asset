@@ -37,6 +37,17 @@ MonoBehaviour:
   backStepSpeedMultiplier: 0.3
   strafeSpeedMultiplier: 0.28
   lungeMinDistance: 2.2
+  shootsProjectiles: 0
+  rangedOnly: 0
+  projectileAttack: {fileID: 0}
+  projectileInterval: 2.4
+  projectileSpeed: 18
+  projectileMinRange: 6
+  projectileMaxRange: 30
+  projectileLead: 0.8
+  parriedProjectileDamage: 30
+  parriedProjectilePosture: 40
+  parrySpeedGain: 6
   soulValue: 400
   bodyColor: {r: 0.16470589, g: 0.13725491, b: 0.1254902, a: 1}
   emission: {r: 2.2, g: 1.052549, b: 0.25882354, a: 2.2}

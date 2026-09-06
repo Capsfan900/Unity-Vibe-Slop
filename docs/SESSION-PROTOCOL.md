@@ -18,6 +18,7 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [ENGI
    | Changing systems or combat | [ARCHITECTURE.md](ARCHITECTURE.md) |
    | Networking / backend | [multiplayer-system-design.md](multiplayer-system-design.md) |
    | "Is X actually working?" | [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) |
+   | Picking up where the last chat stopped | [HANDOFF.md](HANDOFF.md) **first** |
    | Sandbox scene | [../Assets/Scenes/README_Sandbox.md](../Assets/Scenes/README_Sandbox.md) |
    Do not read all of them "for context".
 3. **Confirm the Unity Editor is open on this project.** No MCP tool works otherwise. If tools time out
@@ -42,6 +43,22 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [ENGI
 - **Verify with the tools, not by eye:** `Health Check` → EditMode `run_tests` → `FeatureTests`.
   Remember `DebugHarness` proves the state machine, never the *feel*.
 
+## Working with agents: code lanes first, one editor pass per batch
+
+The Unity editor is a single shared resource and the slowest step in any change (generators ~2 min, the
+full EditMode suite ~4 min, a fresh feature session ~1.5 min, and it waits whenever the user is in play
+mode). Learned on 2026-09-04/05, when five agents each wanted their own pass:
+
+- **Code agents never touch the editor.** They write scripts, data-in-code and tests, prove them with the
+  offline `dotnet build` of both assemblies (temp csproj copies for new files), and hand back the list of
+  generator steps their change needs.
+- **One editor agent runs one pass for the whole batch**: refresh → the generators the batch needs → Health
+  Check → save → `Run Quick EditMode Tests` (the full suite only when a level asset or a motor tuning field
+  changed) → one fresh feature session → screenshots, looked at. The pass costs the same for one change or five.
+- **Never enter play mode while `is_playing` is true** — the user is at the controls; wait.
+- **Never split a lane mid-flight** across a file both halves need; the split on 2026-09-05 cost a full pass
+  when one lane reverted work the other assumed existed.
+
 ## Ending a session
 
 1. **Append to [ENGINEERING-LOG.md](ENGINEERING-LOG.md)** any non-obvious problem you solved, as
@@ -55,6 +72,9 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [ENGI
    A confident "done" on unverified work costs the next session more than an honest caveat. If the test
    results moved, update [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) and the counts in `CLAUDE.md`.
 5. **Leave the project compiling.** Never end on a Safe Mode state.
+6. **Rewrite [HANDOFF.md](HANDOFF.md).** One page, overwritten every session: what is in flight, what is
+   uncommitted, which editor steps still need running, and what the next session should do first. It is
+   the only file here that describes a moment rather than the project.
 
 ---
 

@@ -46,6 +46,26 @@ namespace VibeGame1.EditorTools
             public string function;
         }
 
+        /// <summary>
+        /// What the body as a whole does in a GENERATED clip (<c>forge.py --motion</c>), measured by the
+        /// tool: the pelvis path is baked onto the Hips bone and this block says how far it goes.
+        /// <c>motion</c> is the only field the importer acts on; the distances are read by the tests to
+        /// hold <c>EnemyAttackData.lungeDistance</c> to the art. JsonUtility default-constructs a missing
+        /// nested object, so an authored clip (no <c>root</c> key) arrives with <c>motion = false</c>.
+        /// </summary>
+        [Serializable]
+        public class RootInfo
+        {
+            public bool motion;
+            public float forward_m;
+            public float right_m;
+            public float distance_m;
+            public float duration_s;
+            public float peak_lift_m;
+            public float crouch_m;
+            public float[] airborne;    // [takeoff, landing] as clip fractions, or empty
+        }
+
         [Serializable]
         class ClipEntry
         {
@@ -53,7 +73,9 @@ namespace VibeGame1.EditorTools
             public int start;           // inclusive, in FBX frames
             public int end;             // inclusive
             public bool loop;
+            public bool generated;      // true for a --motion clip; the 15 authored clips omit it
             public ClipEvent[] events;
+            public RootInfo root;
         }
 
         [Serializable]
@@ -124,6 +146,34 @@ namespace VibeGame1.EditorTools
             importer.animationRotationError = 0.5f;
             importer.animationScaleError = 0.5f;
 
+            // The tool's own import contract for the skin (unity/Editor/EnemyForgeImporter.cs in
+            // enemy-forge, newer than the copy vendored here): bone heat leaves 5-8 small influences
+            // around every joint, and Unity's default "Standard" keeps four and renormalises -- a
+            // different, rougher skin from the one previewed in Blender. Keep what the file carries.
+            importer.skinWeights = ModelImporterSkinWeights.Custom;
+            importer.maxBonesPerVertex = 8;
+            importer.minBoneWeight = 0.001f;
+
+            // ---- root motion: the GENERATED clips' contract, and why it is NOT extracted here ----
+            // enemy-forge bakes a generated attack's pelvis path onto the Hips bone and marks the clip
+            // `root.motion` in the manifest. Its own importer (a HUMANOID rig) turns that into XZ root
+            // motion and a component that MOVES the enemy by it. This project keeps the rig Generic,
+            // and on a Generic rig Unity's root node does something else entirely -- MEASURED in play
+            // mode on the Halberdier, 2026-09-04: with Hips as the avatar root node, the Hips' WHOLE
+            // transform is transferred to the model root (XZ, the leap's 0.3 m lift AND the sweep's
+            // 16 deg of yaw), the Bake-Into-Pose flags keep none of it in the pose, and with
+            // applyRootMotion off nothing is removed from the pose at all. Discarding that root motion
+            // would discard the leap and the body turn with it. So NO root node is set (both spellings
+            // -- the Animation tab's motionNodeName and the avatar's rootMotionBoneName -- stay empty;
+            // set to a path the avatar fails to build and the model imports with NO clips), the Hips
+            // travel stays in the pose like every other bone, and PuppetVisuals cancels its XZ
+            // component on a dedicated TravelRoot so the mesh stays over its collider (see
+            // PuppetVisuals.CompensateTravel). The distance the art travels goes into
+            // EnemyAttackData.lungeDistance as data; HalberdierDataTests holds the two together by
+            // sampling the clip.
+            importer.motionNodeName = "";
+            SetAvatarRootMotionBone(importer, "");
+
             var clips = new ModelImporterClipAnimation[entries.Count];
             for (int i = 0; i < entries.Count; i++)
             {
@@ -137,12 +187,13 @@ namespace VibeGame1.EditorTools
                     loopTime = e.loop,
                     loopPose = e.loop,
                     wrapMode = e.loop ? WrapMode.Loop : WrapMode.Once,
-                    // No root motion baking: the NavMeshAgent owns the transform.
+                    // No root motion baking: the NavMeshAgent owns the transform, and with no root
+                    // node these flags describe the FBX root object, whose curves stay in the clip.
                     lockRootRotation = false,
                     keepOriginalOrientation = true,
                     keepOriginalPositionY = true,
                     keepOriginalPositionXZ = true,
-                    events = new AnimationEvent[0]   // deliberate — see class remarks
+                    events = new AnimationEvent[0]   // deliberate -- see class remarks
                 };
             }
             importer.clipAnimations = clips;
@@ -151,8 +202,93 @@ namespace VibeGame1.EditorTools
             importer.SaveAndReimport();
 
             Debug.Log("[ForgeClips] " + Path.GetFileName(fbxPath) + ": wrote " + clips.Length +
-                      " clips (" + string.Join(", ", NamesOf(entries)) + ") as Generic rig.");
+                      " clips (" + string.Join(", ", NamesOf(entries)) + ") as Generic rig" +
+                      (CountTravelling(entries) > 0
+                          ? "; " + CountTravelling(entries) + " travelling clips (Hips XZ stays in the pose; " +
+                            "PuppetVisuals cancels it on TravelRoot)."
+                          : "."));
             return true;
+        }
+
+        /// <summary>
+        /// The manifest's <c>root</c> block for one clip, or null when the clip has none (an authored
+        /// clip) or the manifest is unreadable. Build-time and test-time only.
+        /// </summary>
+        public static RootInfo ReadRoot(string fbxPath, string clipName)
+        {
+            var entries = ReadManifest(ManifestPathFor(fbxPath));
+            if (entries == null) return null;
+            for (int i = 0; i < entries.Count; i++)
+                if (entries[i].name == clipName) return entries[i].root;
+            return null;
+        }
+
+        /// <summary>True when the manifest marks the clip as travelling (<c>root.motion</c>).</summary>
+        public static bool ClipTravels(string fbxPath, string clipName)
+        {
+            var r = ReadRoot(fbxPath, clipName);
+            return r != null && r.motion;
+        }
+
+        /// <summary>True when the manifest marks the clip <c>generated</c> (a <c>forge.py --motion</c> clip).
+        /// Its <c>OnAttackHit</c> fraction is the tool's GUESS at the contact, not an authored frame.</summary>
+        public static bool ClipIsGenerated(string fbxPath, string clipName)
+        {
+            var entries = ReadManifest(ManifestPathFor(fbxPath));
+            if (entries == null) return false;
+            for (int i = 0; i < entries.Count; i++)
+                if (entries[i].name == clipName) return entries[i].generated;
+            return false;
+        }
+
+        /// <summary>True when any clip in the manifest travels -- the model needs a TravelRoot.</summary>
+        public static bool AnyClipTravels(string fbxPath)
+        {
+            var entries = ReadManifest(ManifestPathFor(fbxPath));
+            return entries != null && CountTravelling(entries) > 0;
+        }
+
+        /// <summary>
+        /// Every clip in the manifest that carries <paramref name="function"/> -- with
+        /// <c>OnAttackHit</c>, that is every attack clip the model ships, authored and generated. The
+        /// prefab factory bakes this list onto <see cref="PuppetVisuals"/> so an attack may name any of them.
+        /// </summary>
+        public static List<string> ClipsWithEvent(string fbxPath, string function)
+        {
+            var found = new List<string>();
+            var entries = ReadManifest(ManifestPathFor(fbxPath));
+            if (entries == null) return found;
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var ev = entries[i].events;
+                if (ev == null) continue;
+                for (int e = 0; e < ev.Length; e++)
+                    if (ev[e].function == function) { found.Add(entries[i].name); break; }
+            }
+            return found;
+        }
+
+        /// <summary>The Rig tab's Root node, written the way the inspector writes it (bone NAME, not path).</summary>
+        static void SetAvatarRootMotionBone(ModelImporter importer, string node)
+        {
+            var so = new SerializedObject(importer);
+            var prop = so.FindProperty("m_HumanDescription.m_RootMotionBoneName");
+            if (prop == null)
+            {
+                Debug.LogWarning("[ForgeClips] ModelImporter has no m_HumanDescription.m_RootMotionBoneName; " +
+                                 "the avatar root node cannot be set and root motion will stay in the pose.");
+                return;
+            }
+            prop.stringValue = node;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static int CountTravelling(List<ClipEntry> entries)
+        {
+            int n = 0;
+            for (int i = 0; i < entries.Count; i++)
+                if (entries[i].root != null && entries[i].root.motion) n++;
+            return n;
         }
 
         /// <summary>

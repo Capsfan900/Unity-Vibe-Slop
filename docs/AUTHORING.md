@@ -92,6 +92,51 @@ Prefab keys resolve against `Assets/Prefabs/`.
 
 ---
 
+### 1a′. The parkour-first rework of Level_01 — `8a. Rework Level_01 (parkour first)`
+
+`Editor/LevelDefinitionAuthoring.cs` rewrites `Level_01_Level.asset` deterministically (rule 9: the numbers
+live in code, the asset is output; rule 4: re-runnable, idempotent — `LevelTraversalTests` proves it on a
+copy). Run **8a**, then **8** with the asset selected, then **Level Arc Report**. What it authors, and the
+rules it follows:
+
+- **Shooters on perches, never filler on the route.** Each Grunt/Heavy spawn (names unchanged — the
+  harness finds spawners by name) moves onto a 3 × 1 × 3 stone `T*_Perch_*` hung BESIDE the course:
+  outside every wall-run wall in plan (the span tests forbid a `T*_` box overlapping a wall), outside
+  every hop's corridor, and where its bolt crosses the decks the player runs at 6–30 m with a clear
+  line (`LevelTraversalAnalyzer.AnalyzeShooter`: muzzle at perch top + 1.5, target at deck top + 1.2,
+  the shooter's band read off `EnemyData`). A perfect parry of that bolt is a speed boost on that line.
+  Above a wall-run wall the perch sits ABOVE the wall top so the bolt clears it and the face stays free.
+- **A balloon ARC is laid to a pop's measured reach, not to the yard.** A pop is 11 m/s up with the carry
+  trimmed to 9 m/s and a 0.45 s float at 0.55 gravity: it apexes ~3.5 m above the orb about 5 m out, so
+  the next orb sits ≤ 5.7 m across and **2.4–3.3 m up**. The yard's 1.2 m rise predates the float and a pop
+  sails 2 m over it. The first orb is a run-jump from the deck edge (4 m out, 3 m up); the fall from the
+  last orb lands on the target deck without the dash (`AnalyzeChain` flies it; the dash is only allowed
+  on the final fall). Orbs stay more than a body clear of every deck top or a runner pops them.
+- **Water lines lie ON a deck** (sheet bottom within 6 cm of the top, inside the deck in plan, unit flow):
+  the T1 fast slide deck (a slide on water never decays, so the slide-jump leaves at full carry) and the
+  T3 span after the lintel, whose last sheet flows toward `T3_Step_1` — a line that turns the run.
+
+### 1b. Balloons and water
+
+Both are data on the `LevelDefinition` and are built by **8. Build Level From Definition** through
+`Assets/Editor/TraversalBuilders.cs`, which the sandbox yard uses too, so the two can never disagree.
+**Export Current Level To Definition** reads them back by component (`Balloon`, `WaterVolume`).
+
+- **`BalloonDef { name, position, launchSpeed 11, respawnSeconds 2.5, radius 1.1 }`.** A floating orb: touch it
+  and you leave at `launchSpeed` straight up (the vertical is REPLACED, so 11 m/s is always a 2.0 m rise, then a 0.45 s float you can steer);
+  DASH through it and the dash carries on and is re-armed for the next one. Author one where a jump falls
+  short by up to a storey, and chains 5-6 m apart with a metre of rise (the yard's chain is the reference). The prefab is `Assets/Prefabs/Balloon.prefab`
+  (`4. Build Prefabs`); the material `M_Balloon` (`2. Create Materials`) is held under the bloom threshold.
+- **`WaterDef { name, center, size (x, 0.04, z), flowDirection, flowSpeed 6 }`.** A sheet of flowing water
+  laid ON a platform's top (`center.y = top + size.y / 2`): no friction, a skating floor of
+  `groundSpeed × 1.35`, the flow added as a conveyor, and a slide on it that never decays. The trigger
+  reaches 0.35 m above the sheet so a hop along it keeps the speed. Zero `flowDirection` = still water.
+  Material `M_Water` is the project's one transparent surface (alpha 0.55, set up by `MaterialFactory`).
+
+Neither piece is on the NavMesh: both sit on `Interactable`, and the water sheet has no collider.
+
+---
+
 ## 2. Enemies
 
 An enemy is one `EnemyData` asset (`Assets/Data/Enemies/`). Vitals, movement, spacing, aggression,
@@ -113,6 +158,14 @@ To add one:
 ---
 
 
+**Projectiles (parkour-section enemies).** `shootsProjectiles`, `projectileAttack` (an `EnemyAttackData` —
+`Projectile_Bolt` ships), `projectileInterval`, `projectileSpeed`, `projectileMinRange` / `MaxRange`,
+`parriedProjectileDamage` / `Posture`, `parrySpeedGain`. Every `Enemy_*` prefab carries a
+`ProjectileShooter`; it only fires when the data says so. Keep `minRange / speed > 0.28 s` so the cue can
+fire (shipped: Grunt 32 m/s from 10–30 m every 1.6 s, Heavy 28 m/s every 2.4 s, gain 9 m/s — a mid-band
+bolt arrives in under half a second and is answered at a run; the 2026-09-05 retune from play). A perfect deflect reflects the bolt onto the shooter and buys the player speed along their look —
+the reason a span enemy exists. See DATAFLOW → *Projectiles*.
+
 ### Shipped enemies
 
 All of these are written by `DataFactory` and will be **overwritten** by **3. Create Data** — hard rule 9.
@@ -126,6 +179,7 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Legendary_Spellsword` — *The Ashen Chorister* | `Legendary_Spellsword` | `Legendary_Spellsword_Moveset` | `EnemyController` | Mini-boss; feint/transition + ranged opener + grab. **Imported body** (`Assets/Enemies/AshenChorister.fbx`) |
 | `Legendary_Revenant` — *The Ember Revenant* | `Legendary_Revenant` | `Legendary_Revenant_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x − 28).** The first BURNING enemy — `EmberAura` gives it a constant emission floor, rising embers and a weak light, all riding `Posture.Ratio`. A READ rather than a cadence: slow committed swings, a 40° thrust, an unblockable kick, and a 1.4 s overhead recovery that is the biggest punish window in the game. **Imported ANIMATED body** (`Assets/Enemies/EmberRevenant.fbx`, from `ai_skelly_tool`). See §2b. |
 | `Legendary_Marionette` — *The Pale Marionette* | `Legendary_Marionette` | `Legendary_Marionette_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only — deliberately not in `Level_01`.** The whirl: deflect every pass on a 0.69 s beat (the parry contract's floor), nine passes to a phrase, six clean deflects break it. **Imported ANIMATED body** (`Assets/Enemies/PaleMarionette.fbx`), driven by `PuppetVisuals` + an `Animator`. See §2b. |
+| `Legendary_Halberdier` — *The Argent Halberdier* | `Legendary_Halberdier` | `Legendary_Halberdier_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x 0.75, between the Heavy pad and the Warden's).** REACH: it holds at `preferredRange 4.0`, the furthest of the roster, with wide sweeps and a thrust at that distance, an unblockable shoulder charge that closes the far band, an unblockable kick for a player who turtles inside it, and a heavy whose recovery is the punish. **Imported ANIMATED body with GENERATED clips** (`Assets/Enemies/ArgentHalberdier.fbx`, from `ai_skelly_tool`): nine attacks, nine clips, each attack naming its own via `EnemyAttackData.clip`, and the travelling clips' distance shipped as `lungeDistance`. See §2b. |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
 
 ### 2a. Importing a forge model — and the one source-art exception
@@ -154,8 +208,14 @@ To bring in a new one:
    shipped models face **+Z**; do not assume the next one does.
 4. **Add a `ModelSpec` to `MiniBossFactory.ModelFor`**: the file name, the hover lift, a yaw correction
    if needed, and the local positions of the glowing slot, the shoulder, the hand and the weapon-FX
-   marker. Everything else — collider, agent, `EnemyVisuals`, posture bar, alert cube — is shared with
-   the primitive path and needs no per-model work.
+   marker. Two optional fields: `zShift`, a forward shift of the mesh under the collider (the forge
+   places its skeleton on the drawing's z = 0 plane, and the Halberdier's body mass sits 0.25 m ahead of
+   its bones, so without a −0.22 shift its chest stood a quarter-metre in front of the capsule that gets
+   hit); and `albedo`, the model's texture file beside the FBX, which gives the body its own URP/Lit
+   material cloned from `M_Boss` (`EnemyData.bodyColor` must then be near-white — `EnemyVisuals` tints
+   through `_BaseColor` every frame and a coloured tint would stain the texture). Everything else —
+   collider, agent, `EnemyVisuals`, posture bar, alert cube — is shared with the primitive path and
+   needs no per-model work.
 5. **If the FBX ships a `*.clips.json` beside it, it is ANIMATED** — do §2b instead of stopping here.
 6. Run **VibeGame1 → 4b. Build Mini-Bosses** and look at it at `preferredRange` in the real lighting.
 
@@ -209,6 +269,57 @@ To add another animated model:
    clip name the spec asks for that the model does not have** — a missing clip is otherwise completely
    silent at runtime.
 
+#### Importing a model with GENERATED clips (`forge.py --motion`)
+
+`Assets/Enemies/ArgentHalberdier.fbx` is the first body whose attacks are not the forge's four canonical
+clips but clips generated for this character alone — nine of them, six of which TRAVEL (the pelvis path
+of a thrust, a charge or a leap is baked onto the Hips bone and the manifest marks the clip with a
+`root` block: `{"motion": true, "forward_m": …}`). On top of the steps above:
+
+1. **Every attack names its clip.** `EnemyAttackData.clip` (written in `DataFactory`, rule 9) is
+   resolved by `PuppetVisuals.ClipFor` BEFORE every heuristic. The pipeline mapping — swing, heavy,
+   `_Stab`, `_Kick`, the spin prefix — only knows the canonical names, so a generated clip is unreachable
+   without this. `4b` bakes every manifest clip carrying `OnAttackHit` onto the prefab with its own
+   length and contact frame (`namedClips` / `namedClipLengths` / `namedClipHits`), and errors on an
+   attack whose clip the model does not ship.
+2. **The art's travel becomes `lungeDistance`, and nothing else moves the enemy.** The Hips travel
+   stays IN the clip like every other bone — Unity's root-node extraction is deliberately NOT used on
+   these Generic rigs (with a root node set it moves the Hips' whole transform, lift and yaw included,
+   onto the model root, and a mis-spelled node path imports a model with zero clips; see
+   ENGINEERING-LOG). Instead `4b` inserts an empty `TravelRoot` between `SpinRoot` and the model on any
+   model whose manifest has a `root.motion` clip, and `PuppetVisuals.CompensateTravel` (LateUpdate)
+   moves it by minus the Hips bone's XZ drift from its bind position every frame. The body therefore
+   stays over its collider during a thrust instead of running a metre ahead of it and snapping back,
+   the leap's lift and the sweep's body turn still play, and the distance the art travelled ships as
+   data on the attack, run from the cue to the impact like every other lunge. The tool's own
+   `EnemyForgeRootMotion` component (which would move the agent by the clip) is deliberately not used:
+   a clip may never own the transform.
+3. **Measure the travel on the CLIP, not the sidecar.** The manifest's `forward_m` is the SOURCE
+   motion; the tool scales it onto the rig at export — about ×1.3 on this 1.86 m body (Thrust 1.17 m
+   against a sidecar 0.90, the charge 4.5 against 3.55). Its own README says as much ("1.05 m of source
+   travel moves the Animator 1.30 m"). `HalberdierDataTests.EveryLungeIsTheClipsOwnTravel` reads the
+   imported clip's `averageSpeed × length` and holds `lungeDistance` to it within 0.15 m; a clip the
+   manifest says stays put must ship a lunge of 0.
+4. **A generated clip is only an ATTACK if its tip moves like one.** `MiniBossFactory` samples the
+   weapon tip (the hand-weighted vertex furthest from the joint) through every generated clip at `4b`
+   and logs each one's peak tip speed; under 10 m/s it says "NO STRIKE … prefer an authored strike
+   clip". The Halberdier's HalberdSweep / Thrust / OverheadSlam / HeavyWindup all failed that (1–8 m/s,
+   two ending with the blade behind the body) while the four authored strikes whip the tip at
+   36–86 m/s — so map such an attack to the authored `AttackSwing` / `AttackStab` / `AttackOverhead`,
+   keep the generated clips that have real body action (the kick, the leap, the spin, the charge), and
+   pull the attack's `range` to the blade (tip reach + capsule + the impact slack), with the step into
+   the cut as `lungeDistance`. See ENGINEERING-LOG, "Generated strike clips do not strike".
+5. **When the bridge is down, measure in Blender.** `Tools/measure_forge_fbx.py`, run with the forge
+   tool's own venv, prints the bounds, every bone head, facing slices, per-clip arm span and per-clip
+   Hips travel in Unity axes — the same numbers `Probe Forge Models` gives, with no editor. That is how
+   the Halberdier's `ModelSpec` and every lunge above were written. Its facing could not be read from
+   the bones at all (the forge puts every one on z = 0); the feet, the head and the halberd all sit
+   ahead of that plane and only the tail behind it, so it faces +Z.
+5. **Do not author wind-up poses for such a body until a photograph says two attacks alias.** The
+   Revenant needed authored `bodyOffset` / `bodyEuler` because its four attacks rode one generic clip
+   channel; here each attack IS a different animation, so the clip carries the silhouette and the
+   cone-derived lean is left as the fallback.
+
 Four things that are settled and should not be re-litigated per model:
 
 - **The rig is `Generic`, not `Humanoid`.** `EnemyForgeImporter` asks for Humanoid on first import and
@@ -219,9 +330,12 @@ Four things that are settled and should not be re-litigated per model:
   receiver warns on every play, and an event that drove gameplay would make the fight's timing hostage
   to a clip length. The manifest's `OnAttackHit` / `OnRoar` times ARE used — at *build* time, baked
   onto `PuppetVisuals` so playback speed can be scaled (below).
-- **Timing stays data-driven.** `PuppetVisuals` scales `Animator.speed` so the clip's own contact frame
-  lands on the impact `EnemyAttackData` specifies. If a clip is the wrong length the CLIP is stretched,
-  never the attack. A scale outside `minClipSpeed`..`maxClipSpeed` logs a warning naming the clip.
+- **Timing stays data-driven, and so does travel.** `PuppetVisuals` scales `Animator.speed` so the
+  clip's own contact frame lands on the impact `EnemyAttackData` specifies. If a clip is the wrong
+  length the CLIP is stretched, never the attack. A scale outside `minClipSpeed`..`maxClipSpeed` logs a
+  warning naming the clip. Root motion is never APPLIED and never extracted: the Hips travel stays in
+  the clip, `TravelRoot` cancels its XZ so the mesh stays over the collider, and the distance ships as
+  `lungeDistance` (above).
 - **Pick the clip by measuring, not by name.** For the Marionette the obvious choice for a spin pass
   was `AttackSwing`; sampling the `LeftHand`/`RightHand` separation through every clip showed it tucks
   the arms to a 0.76 m span, while `Roar` holds 2.0 m for its whole length. `Roar` is the spin clip.
@@ -258,6 +372,10 @@ Design rules that keep combos fair while fast:
   the third breaks it.
 - `comboBreathSeconds` is a floor aggression may not compress away. A combo has to read as a phrase
   with a breath after it, not an endless stream.
+- **Tune recoveries for the aggression you ship.** `EnemyController` plays recovery × lerp(1, 0.35,
+  aggression), cooldown × lerp(1, 0.3) and gaps × lerp(1, 0.45). At 0.85 a 1.6 s "punish" is 0.72 s. Write
+  the raw number for the *effective* opening you want, and assert the effective one (see
+  `HalberdierBehaviourTests`).
 
 ### Authoring an attack means authoring its WIND-UP POSE
 
@@ -349,6 +467,21 @@ dagger's is nine small stabs in a narrow cone. A super that could belong to any 
 
 **Every wand carries a `cooldown`.** It gates the riposte *blast* only — while it runs the deathblow
 still lands as the melee execute — so a heavy wand can safely wait 9 s. Written in `WandFactory`.
+
+**Items: exactly two, both moves.** `ItemEffect` is `{ Grapple, WallSurge }` and the level is authored
+around them (kill to move, wall to move) — do not add a heal or a shield here. Each is a `DataFactory`
+block plus an offhand viewmodel in `PrefabFactory.BuildItemViewmodels`, and a level places one by
+`PickupDef.itemKey` (`"Grapple"` / `"WallSurge"`, the asset name). Rule 9 applies: every tunable below
+is written in `DataFactory`.
+
+| Item | Asset | Tunables on `ItemData` | What it does |
+|---|---|---|---|
+| **Grapple** (HOOK, cyan) | `Assets/Data/Items/Grapple.asset` | `grappleRange` 28 m, `grappleConeDeg` 12°, `grappleSeconds` 0.35, `grappleBigPostureFraction` 0.35 | Hooks the lock-on target, else the enemy nearest the crosshair with world line of sight; `FirstPersonMotor.BeginPull` to the deathblow stand-off; a normal enemy is executed through `ExecuteInteractor.ExecuteNow`, a `Legendary_*` / boss that is not staggered takes 35% posture instead. Nothing to hook → refused and **kept**. |
+| **Wall Surge** (SURGE, yellow) | `Assets/Data/Items/WallSurge.asset` | `surgeSeconds` 8 | `FirstPersonMotor.StartWallSurge`: wall runs cost no stamina, top speed and accel ×1.5, any airborne touch attaches. |
+
+The viewmodels follow the wand rules: `Seg*` parts carry the flow band, `Tip*` is where the tip light
+and the hook line originate, `Float*` parts orbit (a `Float*` node ON the axis simply spins — the
+surge's fan). No `Grip*`: items are held in the middle of the palm.
 
 ---
 

@@ -67,6 +67,32 @@ namespace VibeGame1
                  "range without burrowing through them.")]
         public float lungeMinDistance = 1.2f;
 
+        [Header("Projectile — parkour enemies (2026-09-05)")]
+        [Tooltip("This enemy fires parriable bolts down a span while it is awake and not in a melee attack. " +
+                 "A perfect deflect sends the bolt back (parriedProjectileDamage / Posture to the shooter) and " +
+                 "buys the player parrySpeedGain along their look. The bolt resolves through " +
+                 "PlayerCombat.ReceiveAttack like every attack.")]
+        public bool shootsProjectiles;
+        [Tooltip("A SENTRY (2026-09-06): this enemy never melees. It holds its perch, wakes when the player is inside " +
+                 "projectileMaxRange with a line, turns to track them and shoots on the metronome. Nothing about " +
+                 "the moveset is touched, so a test may still drive a combo on it directly.")]
+        public bool rangedOnly;
+        [Tooltip("The attack the bolt carries: its damage and parryPostureMultiplier. Written by DataFactory.")]
+        public EnemyAttackData projectileAttack;
+        public float projectileInterval = 1.6f;
+        public float projectileSpeed = 32f;
+        [Tooltip("Fires only inside this band: far enough that the flight is a readable tell, near enough to matter.")]
+        public float projectileMinRange = 10f;
+        public float projectileMaxRange = 30f;
+        [Tooltip("Fraction of the player's velocity the shot leads by. 1 = aimed where a runner WILL be at impact " +
+                 "(you meet the bolt on the run); 0 = aimed where they were (a runner outruns every bolt). " +
+                 "Under 1 so a sidestep still steps out of the line.")]
+        [Range(0f, 1f)] public float projectileLead = 0.8f;
+        public float parriedProjectileDamage = 30f;
+        public float parriedProjectilePosture = 40f;
+        [Tooltip("Metres per second added along the look on a perfect deflect of a bolt.")]
+        public float parrySpeedGain = 6f;
+
         [Header("Reward")]
         public int soulValue = 40;
 

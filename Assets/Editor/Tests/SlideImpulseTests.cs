@@ -250,7 +250,9 @@ namespace VibeGame1.Tests
             Assert.AreEqual(8f, feel.slideFovHold, 1e-4f);
             Assert.AreEqual(-2.5f, feel.slideEndFovPunch, 1e-4f);
             Assert.AreEqual(3.5f, feel.slideRollDegrees, 1e-4f);
-            Assert.AreEqual(1.2f, feel.slideKickPitch, 1e-4f);
+            // 1.2 -> 1.8 on 2026-09-04 with the player-body pass: the legs now move under the lens on the
+            // commit and the head answers them. SlideFeelTests pins the rest of that pass.
+            Assert.AreEqual(1.8f, feel.slideKickPitch, 1e-4f);
             Assert.AreEqual(0.13f, feel.slideKickTime, 1e-4f);
             Assert.AreEqual(34f, feel.slideDustRate, 1e-4f);
             Assert.AreEqual(5f, feel.slideSparkRate, 1e-4f);

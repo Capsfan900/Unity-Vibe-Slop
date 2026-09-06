@@ -964,6 +964,7 @@ GameObject:
   - component: {fileID: 4543067802383690285}
   - component: {fileID: 856160016777429942}
   - component: {fileID: 4033669415146919657}
+  - component: {fileID: 6908204589200955801}
   m_Layer: 7
   m_Name: Enemy_Grunt
   m_TagString: Untagged
@@ -1091,6 +1092,18 @@ MonoBehaviour:
   data: {fileID: 11400000, guid: 1f8c65f52ebe90841885810c2f1eb3cc, type: 2}
   aggroLocked: 0
   cueLead: 0.28
+--- !u!114 &6908204589200955801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7731051554736065769}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd422e9ce2ad6fd42ab2c3909ba1c48f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ProjectileShooter
 --- !u!1 &7904351987818008422
 GameObject:
   m_ObjectHideFlags: 0

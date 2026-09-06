@@ -50,8 +50,32 @@ namespace VibeGame1.EditorTools
                 def.levelId = sceneName.ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(def.displayName)) def.displayName = sceneName;
 
+            ExportInto(levelRoot, def);
+
+            EditorUtility.SetDirty(def);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = def;
+            EditorGUIUtility.PingObject(def);
+
+            Debug.Log($"[LevelDefinitionExporter] Exported '{def.SafeLevelId}' to {path}: " +
+                      $"{def.platforms.Length} platforms, {def.spawns.Length} spawns, {def.pickups.Length} pickups, " +
+                      $"{def.checkpoints.Length} checkpoints, {def.torches.Length} torches, {def.pedestals.Length} pedestals, " +
+                      $"{def.balloons.Length} balloons, {def.waters.Length} waters, " +
+                      $"{def.arenas.Length} arenas, sky={def.sky.enabled}.");
+        }
+
+        /// <summary>
+        /// Read <paramref name="levelRoot"/> into <paramref name="def"/>, touching no assets. Split out of
+        /// <see cref="Export"/> so a test can round-trip a temporary root through the exporter and the
+        /// builder's helpers without writing a file. Sky parameters are left as authored (see below).
+        /// </summary>
+        public static void ExportInto(GameObject levelRoot, LevelDefinition def)
+        {
             var platforms = new List<PlatformDef>();
             var spawns = new List<SpawnDef>();
+            var balloons = new List<BalloonDef>();
+            var waters = new List<WaterDef>();
             var pickups = new List<PickupDef>();
             var checkpoints = new List<CheckpointDef>();
             var torches = new List<TorchDef>();
@@ -158,6 +182,34 @@ namespace VibeGame1.EditorTools
                     continue;
                 }
 
+                var balloon = go.GetComponent<Balloon>();
+                if (balloon != null)
+                {
+                    balloons.Add(new BalloonDef
+                    {
+                        name = go.name,
+                        position = child.position,
+                        launchSpeed = balloon.launchSpeed,
+                        respawnSeconds = balloon.respawnSeconds,
+                        radius = balloon.radius,
+                    });
+                    continue;
+                }
+
+                var water = go.GetComponent<WaterVolume>();
+                if (water != null)
+                {
+                    waters.Add(new WaterDef
+                    {
+                        name = go.name,
+                        center = child.position,
+                        size = water.size,
+                        flowDirection = water.flowDirection,
+                        flowSpeed = water.flowSpeed,
+                    });
+                    continue;
+                }
+
                 var checkpoint = go.GetComponent<Checkpoint>();
                 if (checkpoint != null)
                 {
@@ -226,18 +278,9 @@ namespace VibeGame1.EditorTools
             def.checkpoints = checkpoints.ToArray();
             def.torches = torches.ToArray();
             def.pedestals = pedestals.ToArray();
+            def.balloons = balloons.ToArray();
+            def.waters = waters.ToArray();
             def.arenas = arenas.ToArray();
-
-            EditorUtility.SetDirty(def);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            Selection.activeObject = def;
-            EditorGUIUtility.PingObject(def);
-
-            Debug.Log($"[LevelDefinitionExporter] Exported '{def.SafeLevelId}' to {path}: " +
-                      $"{platforms.Count} platforms, {spawns.Count} spawns, {pickups.Count} pickups, " +
-                      $"{checkpoints.Count} checkpoints, {torches.Count} torches, {pedestals.Count} pedestals, " +
-                      $"{arenas.Count} arenas, sky={def.sky.enabled}.");
         }
 
         /// <summary>'M_Platform' -> 'Platform'. Keys omit the prefix so definitions read cleanly.</summary>

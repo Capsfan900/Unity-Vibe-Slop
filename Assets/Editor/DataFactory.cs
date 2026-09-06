@@ -232,6 +232,35 @@ namespace VibeGame1.EditorTools
                 Entry("jab-slash-jab (fast, slow, fast)",     2f, 0f, 99f, gruntJab, gruntSlash, gruntJab),
             });
             grunt.combos = grunt.moveset.ToComboArray();
+            // PARKOUR-SECTION ENEMIES SHOOT (2026-09-05 pivot: enemies are a route, not filler). A bolt
+            // every 1.6 s from 10-30 m at 32 m/s -- a 0.31-0.94 s flight that IS the tell, cued 0.28 s
+            // out like every attack. Retuned the same day from play ("so slow I have to stop almost and
+            // parry it"): 18 m/s was a 0.8 s crawl from mid-band that you WAITED for; 32 m/s arrives from
+            // 15 m in 0.47 s, so the deflect happens at a run. The near edge moved 6 -> 10 m because the
+            // cue is 9 m out at this speed and a bolt must never arrive before its own cue. A perfect
+            // deflect throws it back for 30 damage / 40 posture on the shooter and buys the player 9 m/s
+            // along their look (a run at 11 becomes 20, bleeding back toward the 17.6 air soft cap):
+            // deflect while aiming at the next ledge and the enemy has just launched you.
+            // MOVEMENT-PRINCIPLES rules 3, 5 and 6.
+            grunt.shootsProjectiles = true;
+            grunt.projectileAttack = Attack("Projectile_Bolt", a =>
+            {
+                a.windup = 0.5f; a.impactDelay = 0f; a.strikeDuration = 0.05f; a.recovery = 0.2f;
+                a.range = 30f; a.coneDeg = 20f; a.damage = 12f; a.lungeDistance = 0f;
+                a.comboGap = 0.2f; a.parryPostureMultiplier = 1.2f;
+            });
+            // SENTRIES (2026-09-06, from play: "they stop shooting too early, the rhythm is bad, the
+            // detection is bad"). rangedOnly: a perch enemy never melees, never leaves the perch, and
+            // wakes at the far edge of the band (30 m) with a three-line sight check, not at 14 m melee
+            // aggro with one. The near edge drops 10 -> 3 m: inside 11.5 m the LAUNCH slows so the flight
+            // is always cue lead + 0.08 s, so a runner is shot at all the way in and past. The beat is a
+            // fixed 1.6 s metronome (no +-15% jitter), held while the line is blocked, and each shot leads
+            // 80% of the player's velocity so a runner meets it instead of outrunning it.
+            grunt.rangedOnly = true; grunt.projectileLead = 0.8f;
+            grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 32f;
+            grunt.projectileMinRange = 3f; grunt.projectileMaxRange = 32f;
+            grunt.parriedProjectileDamage = 30f; grunt.parriedProjectilePosture = 40f;
+            grunt.parrySpeedGain = 9f;
             EditorUtility.SetDirty(grunt);
 
             var heavy = GetOrCreate<EnemyData>(EnemiesDir + "/Heavy.asset");
@@ -259,6 +288,15 @@ namespace VibeGame1.EditorTools
                 Entry("step-overhead (closes then commits)",        2f, 2.8f, 99f, heavyStep, heavyOverhead),
             });
             heavy.combos = heavy.moveset.ToComboArray();
+            // The heavy shoots too, a touch slower and harder: the same bolt data, a longer interval.
+            // 28 m/s from 10 m is a 0.36 s flight -- still a tell you answer at a run.
+            heavy.shootsProjectiles = true;
+            heavy.projectileAttack = grunt.projectileAttack;
+            heavy.rangedOnly = true; heavy.projectileLead = 0.8f;
+            heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 28f;
+            heavy.projectileMinRange = 3f; heavy.projectileMaxRange = 32f;
+            heavy.parriedProjectileDamage = 40f; heavy.parriedProjectilePosture = 50f;
+            heavy.parrySpeedGain = 9f;
             EditorUtility.SetDirty(heavy);
 
             var boss = GetOrCreate<BossData>(EnemiesDir + "/Boss.asset");
@@ -980,6 +1018,224 @@ namespace VibeGame1.EditorTools
             revenant.combos = revenant.moveset.ToComboArray();
             EditorUtility.SetDirty(revenant);
 
+            // --- Halberdier: THE ARGENT HALBERDIER. PROTOTYPE. ------------------------------------
+            //
+            // The third ai_skelly_tool body (output/a_towering_swift), and the first to ship GENERATED,
+            // per-character clips (forge.py --motion) beside the four canonical AttackSwing/Overhead/
+            // Stab/Kick every model carries. Sandbox pad only (x 0.75), like the other two prototypes;
+            // in no LevelDefinition and no LevelRegistry.
+            //
+            // ===== WHAT IT IS FOR =================================================================
+            // One question: does a forge model whose animation is its OWN drop in without the pipeline
+            // learning its name? Two things had to change for the answer to be yes:
+            //   1. EnemyAttackData.clip. A generated clip has no canonical name the pipeline could map
+            //      (PuppetVisuals.ClipFor knows swing / heavy / _Stab / _Kick / the spin prefix), so the
+            //      attack names it, and MiniBossFactory bakes every attack clip's length and contact
+            //      frame onto the prefab so the clip still bends to the data.
+            //   2. Root motion. The tool bakes a thrust's or a charge's pelvis travel onto the Hips
+            //      bone. Its own Unity contract applies that as root motion through a component that
+            //      moves the agent; this project does not let a clip move an enemy (the parry contract
+            //      is data-driven), so the travel stays in the clip, PuppetVisuals cancels its XZ on a
+            //      TravelRoot so the mesh stays over its collider, and the distance goes here, into
+            //      lungeDistance, as data. HalberdierDataTests holds every lunge to the sampled clip.
+            //
+            // ===== GENERATED STRIKE CLIPS DO NOT STRIKE (2026-09-04, from play) ====================
+            // "The animations don't line up with the attack hitboxes." Measured by sampling the halberd
+            // TIP (the RightHand-weighted vertex 0.80 m out) through every clip at 5% steps: the four
+            // AUTHORED strikes whip the tip from -1.4 m to +1.3 m at 36-86 m/s with the strike exactly
+            // on the manifest's contact frame; the GENERATED "strike" clips move it at 1-8 m/s --
+            // HalberdSweep drifts, HalberdBackswing and Thrust barely stir, OverheadSlam and HeavyWindup
+            // END with the blade BEHIND him. Only Kick, LeapSlam, SpinSweep and ShoulderCharge have real
+            // body action. So the five strikes were playing a wind-up with no blow in it, and the blow
+            // landed at 3.8-4.7 m while the tip's whole reach from the hips is ~1.7 m at scale 1.15:
+            // the hit arrived with the blade two metres short of the player.
+            //
+            // The fix is the mapping, not the numbers on the clips: sweep / thrust / slam now play the
+            // AUTHORED AttackSwing / AttackStab / AttackOverhead, which do strike; the backswing and
+            // the heavy, which had no striking clip left, are GONE rather than doubled onto a shared one
+            // (MOVEMENT-PRINCIPLES rule 2: own the commitment -- a 0.5 s tell with no blow behind it is
+            // exactly the bug). Seven attacks, seven animations. MiniBossFactory measures every
+            // generated clip's tip at 4b and says "NO STRIKE" in the console for any that should not be
+            // an attack; the four that keep their generated clips are the four it passes.
+            //
+            // ===== RANGES ARE THE BLADE'S =========================================================
+            // Ranges came down from 3.8-4.7 to 2.6-3.0 for the three cuts (tip reach ~1.7 m + the
+            // player's 0.4 m capsule + the impact test's own 0.5 m slack), 2.4 for the kick, 3.6 for the
+            // all-round spin. The step INTO a cut is data (lungeDistance 1.0-1.3, run from the cue
+            // like every lunge) because the authored strikes are rotation-only; the generated
+            // travellers keep the clip's own sampled Hips travel: ShoulderCharge 4.70, LeapSlam 2.40,
+            // Kick 0.32 (the sidecar's forward_m is ~1.3x smaller: it records SOURCE motion, the tool
+            // scales it to the rig -- measure the clip, not the sidecar). The commit band is now
+            // preferredRange 3.2 + commitTolerance 0.4 = 3.6 m and every attack's range + lunge covers
+            // it; lungeMinDistance 1.2 so a 2.8 m cut actually arrives.
+            //
+            // ===== THE FIGHT ======================================================================
+            // REACH THROUGH THE CHARGE. The Marionette is a cadence you hold and the Revenant a body
+            // you read; this one answers DISTANCE. Inside 3.6 m it is three-hit strings by default
+            // (sweep, thrust, SLAM is the signature: wide, narrow, then the punish); the kick for a
+            // player who turtles inside the halberd; the spin for one circling behind. From 5 m out
+            // the CHARGE is near-certain (EnemyController's far-band commit fires it, 2026-09-04) and
+            // two of its entries chain straight into the string, so backing off buys a shoulder and
+            // then a phrase, never a breath. The slam's recovery is the punish window.
+            //
+            // ===== AGGRESSIVE =====================================================================
+            // EnemyController scales by aggression: recovery x lerp(1, 0.35), cooldown x lerp(1, 0.3),
+            // combo gaps x lerp(1, 0.45), step-in x lerp(0.5, 1), and >= 0.5 keeps him swinging through
+            // a deflect. At 0.85: recoveries x0.45, cooldown 0.3 -> 0.12 s, gaps x0.53. Nothing here
+            // touches a wind-up: every tell is still >= 0.45 s and the cue still fires 0.28 s before
+            // impact. Speed comes from DENSITY, never from a shorter tell. Every recovery below is
+            // written for the aggressive enemy -- the slam's 2.2 s raw is 0.99 s in play.
+            //
+            // ===== WIND-UP SILHOUETTES: NOT AUTHORED, ON PURPOSE ===================================
+            // Each attack plays a different clip, so the clip is the silhouette and the cone-derived
+            // body lean is the fallback. Author a pose only if a photograph shows two aliasing.
+            var halSweep = Attack("Halberdier_Sweep", a =>
+            {
+                // The bread and butter: the authored AttackSwing -- a real horizontal cut, tip at
+                // 40+ m/s through the contact frame. 120 deg because a halberd sweep IS wide; stepping
+                // aside is not the answer to this one, deflecting is. A 1.0 m step into it from the cue.
+                a.clip = "AttackSwing";
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.55f;
+                a.range = 2.9f; a.coneDeg = 120f; a.damage = 22f; a.lungeDistance = 1.0f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.3f;
+            });
+            var halThrust = Attack("Halberdier_Thrust", a =>
+            {
+                // Down the middle: the authored AttackStab, the one clip in the set whose hands CLOSE
+                // and drive forward. Narrow cone to match, so a sidestep is a real answer to THIS one,
+                // which is what makes sweep-then-thrust a read rather than a rhythm. The quick tell of
+                // the set (0.50 s, clear of the floor) and the longest step (1.3 m): it comes at you.
+                a.clip = "AttackStab";
+                a.windup = 0.50f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.55f;
+                a.range = 2.7f; a.coneDeg = 36f; a.damage = 26f; a.lungeDistance = 1.3f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.45f;
+            });
+            var halSlam = Attack("Halberdier_Slam", a =>
+            {
+                // THE PUNISH WINDOW: the authored AttackOverhead, a full-body chop with a step in.
+                // Recovery 2.2 RAW = 0.99 s in play at aggression 0.85 (x0.45) -- the biggest opening
+                // this enemy offers, and HalberdierBehaviourTests holds the EFFECTIVE number above 0.9 s.
+                // It inherited the role from the removed heavy, whose clip never struck.
+                a.clip = "AttackOverhead";
+                a.windup = 0.95f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 2.2f;
+                a.range = 2.8f; a.coneDeg = 60f; a.damage = 38f; a.lungeDistance = 1.1f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.8f;
+            });
+            var halCharge = Attack("Halberdier_Charge", a =>
+            {
+                // THE ANSWER TO DISTANCE, unblockable. "He needs to use his charge when you get too
+                // far and then combo his attacks on you." A polearm fighter whose reply to a player
+                // backing out of its band is to lower a shoulder and cover 4.7 m -- the clip's own
+                // travel, the biggest lunge in the game -- and it is a COMBO OPENER. Gated to >= 5 m so
+                // it is never thrown point-blank; EnemyController's far-band commit throws it from
+                // anywhere the moveset's bands say (5 m to the aggro edge). Pink alert tell: steel does
+                // not answer this, moving does.
+                //
+                // range 3.0: the shoulder connects at <= 3.5 m after the travel. The lunge stops
+                // lungeMinDistance (1.2) short, so from 5 m the body ends 1.2 m out and from 8 m 3.3 m
+                // out -- picked further than ~8.2 m it closes and whiffs, then the phrase continues
+                // from wherever it stopped. It was 4.4, which "landed" from 9.5 m with the body 4.8 m
+                // away: a hit with nothing touching the player, the complaint in a new costume.
+                a.clip = "ShoulderCharge";
+                a.windup = 0.80f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 1.2f;
+                a.range = 3.0f; a.coneDeg = 40f; a.damage = 24f; a.lungeDistance = 4.70f;   // the clip's travel
+                a.comboGap = 0.26f; a.unblockable = true;
+            });
+            var halKick = Attack("Halberdier_Kick", a =>
+            {
+                // THE ANTI-TURTLE, unblockable: the generated Kick (the foot really goes 0.71 m
+                // forward at the contact frame). Short, low, and it shoves. 2.4 m + the 0.32 m step:
+                // it lands only on a player who is standing in the halberd's shadow.
+                a.clip = "Kick";
+                a.windup = 0.70f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.85f;
+                a.range = 3.3f; a.coneDeg = 50f; a.damage = 16f; a.lungeDistance = 0.32f;   // the clip's travel
+                a.comboGap = 0.28f; a.unblockable = true;
+            });
+            var halLeap = Attack("Halberdier_Leap", a =>
+            {
+                // The far-band alternative to the charge: a leaping slam that visibly leaves the ground
+                // (the lift is in the pose, the collider stays down) and covers 2.4 m. Long wind-up:
+                // you see it coming from across the arena.
+                a.clip = "LeapSlam";
+                a.windup = 1.0f; a.impactDelay = 0.07f; a.strikeDuration = 0.22f; a.recovery = 1.5f;
+                a.range = 2.8f; a.coneDeg = 75f; a.damage = 34f; a.lungeDistance = 2.40f;   // the clip's travel
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.6f;
+            });
+            var halSpin = Attack("Halberdier_Spin", a =>
+            {
+                // All-round: the generated SpinSweep, arms out (1.53 m span at the quarter mark),
+                // 300 deg so it catches a player circling behind it. NOTE the name: PuppetVisuals'
+                // spinAttackPrefix is EMPTY on this body, so this does not drive the whirl -- the whole
+                // spin is in the clip. Stays put (the clip does not travel), so its reach is the range.
+                a.clip = "SpinSweep";
+                a.windup = 0.75f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.90f;
+                a.range = 3.7f; a.coneDeg = 300f; a.damage = 24f; a.lungeDistance = 0f;
+                a.comboGap = 0.25f; a.parryPostureMultiplier = 1.4f;
+            });
+
+            var halberdier = GetOrCreate<EnemyData>(EnemiesDir + "/Legendary_Halberdier.asset");
+            halberdier.displayName = "THE ARGENT HALBERDIER";
+            halberdier.maxHP = 230f; halberdier.maxPosture = 200f; halberdier.postureRegen = 7f;
+            halberdier.postureRegenDelay = 3f;
+            // Stagger 4.2 s: more than 1.5x the slam's 2.2 s raw recovery, so a broken posture is a
+            // bigger reward than a whiffed slam (HalberdierDataTests holds the ratio).
+            halberdier.staggerSeconds = 4.2f;
+            // SWIFT. 5.8 m/s is the fastest chase in the roster (the Marionette is 5.0): a band he
+            // fights from is only a threat if he can re-establish it.
+            halberdier.moveSpeed = 5.8f; halberdier.turnSpeed = 320f; halberdier.aggroRange = 18f;
+            halberdier.attackRange = 3.0f;
+            halberdier.attackCooldown = 0.3f;
+            halberdier.parryRecoilSeconds = 0.3f; halberdier.aggression = 0.85f;
+            // windupTurnMultiplier stays LOW: a committed swing that tracked you would make the
+            // sidestep (the answer to the thrust and the charge) stop working at exactly the moment the
+            // aggression makes it matter most.
+            halberdier.windupTurnMultiplier = 0.28f; halberdier.stepSpeedMultiplier = 0.55f;
+            halberdier.stepAcceleration = 7f; halberdier.stepDeadzone = 0.95f;
+            // 0.22 s of breath between phrases, the floor aggression cannot compress away.
+            halberdier.comboBreathSeconds = 0.22f; halberdier.readyDistanceMultiplier = 1.4f;
+            // The commit band is the BLADE's: 3.2 + 0.4 = 3.6 m, and every cut's range + step covers
+            // it. "Reach" is no longer where he stands -- it is the 4.7 m he closes when you leave.
+            halberdier.preferredRange = 3.2f; halberdier.commitTolerance = 0.4f;
+            halberdier.repositionDeadzone = 0.45f;
+            halberdier.backStepSpeedMultiplier = 0.3f; halberdier.strafeSpeedMultiplier = 0.3f;
+            // 1.2 (the roster's usual): a 2.8 m cut has to arrive. It was 1.6 for the charge's sake,
+            // and the charge's range now accounts for the stop instead.
+            halberdier.lungeMinDistance = 1.2f;
+            halberdier.soulValue = 450;
+            // NEAR-WHITE body: the first forge model with an albedo texture (silver plate, gold trim),
+            // and EnemyVisuals multiplies _BaseColor into it every frame -- so the tint has to be white
+            // for the texture to show, and the wind-up sink still darkens it. Cold silver-blue accent
+            // for the cue and the parry flash, over the bloom threshold.
+            halberdier.bodyColor = Hex("#F2EFE8"); halberdier.emission = Hex("#8FD3FF") * 1.8f;
+            // 1.15: "towering". The forge normalises every model to ~1.9 m; this one is 1.86 to the
+            // horns and the whole point of it is height, so it ships at 2.14 m like the Marionette.
+            halberdier.scale = 1.15f;
+            // THE PHRASES. Inside the band, strings by default -- sweep, thrust, SLAM is the signature
+            // (wide, narrow, then the punish) -- with the single cuts, the spin and the kick as the
+            // tempo breaks. From 5 m out the CHARGE is the answer to distance, almost every time (11 of
+            // 12.2 weight against the leap's 1.2, so the far band is not one animation), and two of its
+            // three entries chain straight into pressure: charge, sweep, thrust / charge, slam. The
+            // opener bands stop at 8 m because past ~8.2 m the shoulder cannot reach after its 4.7 m
+            // (see the charge); the plain charge runs to the aggro edge as a CLOSER that may whiff and
+            // still leaves him on top of you.
+            halberdier.moveset = Moveset("Legendary_Halberdier_Moveset", "The Argent Halberdier", new[]
+            {
+                Entry("sweep, thrust, SLAM (the signature string)",       4f,   0f,   3.6f, halSweep, halThrust, halSlam),
+                Entry("thrust, sweep, thrust",                            1.5f, 0f,   3.6f, halThrust, halSweep, halThrust),
+                Entry("sweep, thrust (the fast pair)",                    2f,   0f,   3.6f, halSweep, halThrust),
+                Entry("sweep",                                            1.2f, 0f,   3.6f, halSweep),
+                Entry("thrust down the middle",                           1.2f, 0f,   3.6f, halThrust),
+                Entry("OVERHEAD SLAM (the punish)",                       0.8f, 0f,   3.6f, halSlam),
+                Entry("the SPIN (all round)",                             1f,   0f,   3.6f, halSpin),
+                Entry("KICK (unblockable, anti-turtle)",                  1.2f, 0f,   3.0f, halKick),
+                Entry("CHARGE into sweep, THRUST (unblockable opener)",   5f,   5f,   8f,   halCharge, halSweep, halThrust),
+                Entry("CHARGE into SLAM (unblockable opener)",            4f,   5f,   8f,   halCharge, halSlam),
+                Entry("SHOULDER CHARGE (unblockable, to the aggro edge)", 2f,   5f,   18f,  halCharge),
+                Entry("LEAP SLAM from range",                             1.2f, 4.5f, 8f,   halLeap),
+            });
+            halberdier.combos = halberdier.moveset.ToComboArray();
+            EditorUtility.SetDirty(halberdier);
+
             // ---------------- Weapons ----------------
             //
             // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette
@@ -1153,28 +1409,28 @@ namespace VibeGame1.EditorTools
             EditorUtility.SetDirty(dev);
 
             // ---------------- Items (Neon White style single-use pickups) ----------------
-            Item("Updraft", i =>
+            // Exactly two, and both are MOVES. The level is built around them (kill to move, wall to
+            // move); nothing in this slot heals or protects. Rule 9: every tunable is written here.
+            Item("Grapple", i =>
             {
-                i.displayName = "Updraft"; i.shortLabel = "LIFT";
-                i.effect = ItemEffect.Updraft;
-                i.color = Hdr("#9AE07A", 5f);
-                i.power = 20f;
-                i.description = "Hurls you skyward. For roads that go up.";
+                i.displayName = "Grapple"; i.shortLabel = "HOOK";
+                i.effect = ItemEffect.Grapple;
+                i.color = Hdr("#5AF2FF", 5f);   // neon cyan: the line, the tine, the HUD slot
+                i.grappleRange = 28f;
+                i.grappleConeDeg = 12f;
+                i.grappleSeconds = 0.35f;
+                i.grappleBigPostureFraction = 0.35f;
+                i.description = "Hook a foe in your sights and arrive with the blade. Lesser things die on the hook; " +
+                                "great ones are shaken, and you land at their feet.";
             });
-            Item("SoulLantern", i =>
+            Item("WallSurge", i =>
             {
-                i.displayName = "Soul Lantern"; i.shortLabel = "LANTERN";
-                i.effect = ItemEffect.SoulLantern;
-                i.color = Hdr("#E0A030", 5f);
-                i.description = "Restores flesh, composure and flask in one breath.";
-            });
-            Item("PhantomStep", i =>
-            {
-                i.displayName = "Phantom Step"; i.shortLabel = "PHANTOM";
-                i.effect = ItemEffect.PhantomStep;
-                i.color = Hdr("#C08FFF", 5f);
-                i.power = 1.35f; i.duration = 2.5f;
-                i.description = "Walk as the dead do. Briefly untouchable, and swift.";
+                i.displayName = "Wall Surge"; i.shortLabel = "SURGE";
+                i.effect = ItemEffect.WallSurge;
+                i.color = Hdr("#FFE24A", 5f);   // neon yellow: the fan, the wall arcs, the HUD slot
+                i.surgeSeconds = 8f;
+                i.description = "For eight seconds every wall is a road: free to run, faster than the floor, " +
+                                "and it catches you at any speed.";
             });
 
             // ---------------- Singletons ----------------
@@ -1278,11 +1534,40 @@ namespace VibeGame1.EditorTools
             feel.slideFovHold = 8f;         // deg, sustained, reaching exactly 0 at the motor's end speed
             feel.slideEndFovPunch = -2.5f;  // deg, the world closing back in as the speed goes
             feel.slideRollDegrees = 3.5f;   // deg, banking into the steer
-            feel.slideKickPitch = 1.2f;     // deg, nose dips on the commit
+            feel.slideKickPitch = 1.8f;     // deg, nose dips on the commit (1.2 before the body pass)
             feel.slideKickTime = 0.13f;
+            // The body pass (PlayerBody + the slide's WEIGHT). The eye now arrives on a spring and the
+            // lens carries the floor's rattle; both are held channels with one writer, like the roll.
+            feel.slideRumble = 0.006f;      // m, held lens rattle at full speed, quadratic in speed
+            feel.slideCrouchHz = 4.5f;      // Hz, the eye PLOPS onto the slide height in ~0.13 s
+            feel.slideCrouchDamping = 0.55f;// ~12% overshoot: below the slide height, then settles up
             feel.slideDustRate = 34f;       // grit/s at full speed, shed into a scene-level root
             feel.slideSparkRate = 5f;       // spark bursts/s above 35% speed, via SlashFx (peak 1.0)
             feel.slideScrapeVolume = 0.22f; // synthesised loop on its own source, not an Sfx entry
+            // The pivot's traversal pieces (rule 9). One-shots and textures only: no held lens channel.
+            feel.balloonFovKick = 5f;       // deg, a launch is bigger than a jump (2.5), smaller than a dash (8)
+            feel.balloonKickPitch = 1.5f;   // deg, the nose lifts as the body goes up
+            feel.burstFovKick = 6f;         // deg, ON TOP of the dash kick: the grapple burst is the fastest thing in the game
+            feel.waterEnterFovKick = 3f;    // deg, one-shot on entering water; the slide owns every held channel
+            feel.waterSprayRate = 26f;      // spray bursts/s at the water floor speed, via SlashFx
+            feel.waterHissVolume = 0.14f;   // its own synthesised loop, an octave over the scrape
+            // Perfect timing (rule 9). The reward is stamina (on the motor); this is only the "yes".
+            feel.perfectFovKick = 3f;       // deg, on top of the move's own kick
+            feel.perfectPromptSeconds = 0.6f;
+            // Wall run feel (rule 9). The lean (PlayerLook, 13° in, 7° kick out on the jump) was never
+            // missing; the catch, the feet and the LET-GO were. Small on purpose — the lean owns the
+            // sustained channel — and every value is force or air. See WallRunImpulse / WallRunFx.
+            feel.wallRunFovHold = 3.5f;        // deg, held for the run; slide's is 8, the lean is loud enough
+            feel.wallRunAttachOffset = 0.03f;  // m, lens pressed toward the face on the catch
+            feel.wallRunAttachTime = 0.12f;    // s, dash-fast: contact is an event
+            feel.wallRunStepDistance = 1.6f;   // m of wall per foot-tick; ground stride is 2.4
+            feel.wallRunStepVolume = 0.40f;    // under the 0.55 grounded footstep — texture, not a voice
+            feel.wallRunDropPitch = 1.4f;      // deg DOWN when the wall lets go (Expired/Decayed/Exhausted)
+            feel.wallRunDropOffset = 0.03f;    // m, head sinks with the sag
+            feel.wallRunDropTime = 0.15f;      // s, over inside the exit-grace window
+            feel.wallRunLostDrift = 0.02f;     // m, lens drifts AWAY from where the face was (LostWall)
+            feel.wallRunGritRate = 44f;        // motes/s off the foot contact at full speed; falls with speed and age
+            feel.wallRunStepSparks = 3;        // sparks per foot-tick, discrete; the grit is the contact, the sparks are the step
             EditorUtility.SetDirty(feel);
 
             // ---- campaign registry ----

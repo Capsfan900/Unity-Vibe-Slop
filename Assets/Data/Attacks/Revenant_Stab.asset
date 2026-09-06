@@ -24,6 +24,7 @@ MonoBehaviour:
   comboGap: 0.2
   parryPostureMultiplier: 1.45
   unblockable: 0
+  clip: 
   windupPose:
     authored: 1
     armWindup: {x: -64, y: -14, z: 0}

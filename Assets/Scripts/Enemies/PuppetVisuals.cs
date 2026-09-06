@@ -3,8 +3,10 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// Presentation for an enemy whose body is a RIGGED, CLIP-CARRYING model — currently only
-    /// <c>Legendary_Marionette</c> (THE PALE MARIONETTE), built from <c>Assets/Enemies/PaleMarionette.fbx</c>.
+    /// Presentation for an enemy whose body is a RIGGED, CLIP-CARRYING model — <c>Legendary_Marionette</c>
+    /// (THE PALE MARIONETTE, <c>Assets/Enemies/PaleMarionette.fbx</c>), <c>Legendary_Revenant</c> and
+    /// <c>Legendary_Halberdier</c> (THE ARGENT HALBERDIER, the first body whose attacks are GENERATED,
+    /// per-character clips named on the attack data — see <see cref="ClipFor"/>).
     ///
     /// <para><b>Why a subclass and not a replacement.</b> <see cref="EnemyVisuals"/> documents itself as
     /// the thing to subclass when real models arrive, and <see cref="EnemyController"/> resolves
@@ -96,6 +98,29 @@ namespace VibeGame1
         public float stabClipLength = 1f;
         [Range(0.05f, 0.95f)] public float kickHitNormalized = 0.55f;
         public float kickClipLength = 1f;
+        [Header("Travelling clips — the mesh stays over its collider")]
+        [Tooltip("An empty transform between SpinRoot and the model, written ONLY by CompensateTravel: " +
+                 "every frame it is moved by minus the Hips bone's XZ drift from its rest position, so a " +
+                 "generated clip that walks the pelvis 1-5 m forward (a thrust, a shoulder charge) leaves " +
+                 "the body over the capsule that actually gets hit. The travel itself is data " +
+                 "(EnemyAttackData.lungeDistance). Null on a model with no travelling clips.")]
+        public Transform travelRoot;
+        [Tooltip("The rig's Hips bone. Read, never written.")]
+        public Transform hipsBone;
+        [Tooltip("Where the Hips sit in the MODEL's local space in the bind pose, baked at build time. " +
+                 "The compensation cancels the XZ difference between this and where the clip puts them.")]
+        public Vector3 hipsRestLocal = new Vector3(0f, 0.93f, 0f);
+
+        [Header("Per-attack clips — EnemyAttackData.clip, baked from the manifest at build time")]
+        [Tooltip("Every attack clip this model ships that an EnemyAttackData.clip may name, with its OWN " +
+                 "authored length and contact anchor (the manifest's OnAttackHit). Filled by MiniBossFactory; " +
+                 "three parallel arrays because a dictionary neither serialises nor diffs. A generated, " +
+                 "per-character clip (a halberd sweep, a shoulder charge) is content: the attack names it, " +
+                 "and this table is what lets the clip still bend to the attack's clock.")]
+        public string[] namedClips = new string[0];
+        public float[] namedClipLengths = new float[0];
+        public float[] namedClipHits = new float[0];
+
         [Tooltip("A clip may be sped up or slowed down to fit the data, but only this far. Beyond the " +
                  "clamp the contact frame no longer lines up with the blow, which is an ART bug — so it " +
                  "is logged rather than hidden.")]
@@ -104,6 +129,16 @@ namespace VibeGame1
 
         [Tooltip("Crossfade into a clip, in seconds. Short: a deflect must read as an instant jar.")]
         public float clipBlend = 0.07f;
+
+        [Header("Follow-through — the clip runs at its own rate once the blow has landed")]
+        [Tooltip("Animator speed from the attack's IMPACT onward. The wind-up is scaled so the contact " +
+                 "frame lands on the data's impact (x0.55-0.7 on most generated clips); keeping that " +
+                 "scale through the follow-through made every swing slow-motion, and the loop then cut " +
+                 "it to idle 0.25 s after the blow. 1 = the authored rate.")]
+        public float recoverySpeed = 1f;
+        [Tooltip("Seconds after the impact the attack clip keeps the Animator before locomotion may " +
+                 "take it back. The next Telegraph crossfades over it regardless.")]
+        public float followThroughSeconds = 0.45f;
 
         // ---------------------------------------------------------------- the whirl
 
@@ -190,6 +225,9 @@ namespace VibeGame1
         float locoSpeed;
         /// <summary>Time until which a one-shot clip owns the Animator and locomotion may not override it.</summary>
         float clipHold;
+        /// <summary>When the attack clip in flight reaches its contact frame; the speed drops to
+        /// <see cref="recoverySpeed"/> there. MaxValue when nothing is in flight.</summary>
+        float attackImpactAt = float.MaxValue;
 
         protected override void Awake()
         {
@@ -409,6 +447,26 @@ namespace VibeGame1
         /// </summary>
         void ClipFor(EnemyAttackData atk, out string clip, out float contact)
         {
+            // An EXPLICIT clip on the attack wins over every heuristic below, including the spin prefix:
+            // it is the one case where the data says outright which art this attack is. Generated
+            // per-character clips have no canonical name the pipeline could map, so this is the only way
+            // they are ever reached. Resolved against the baked table so the clip carries its own
+            // length and contact anchor — the same reason the stab and the kick have their own pair.
+            if (!string.IsNullOrEmpty(atk.clip))
+            {
+                int i = IndexOfNamedClip(atk.clip);
+                if (i >= 0)
+                {
+                    clip = namedClips[i];
+                    contact = namedClipLengths[i] * Mathf.Clamp01(namedClipHits[i]);
+                    return;
+                }
+                if (warnedClips == null) warnedClips = new System.Collections.Generic.HashSet<string>();
+                if (warnedClips.Add(atk.clip))
+                    Debug.LogWarning("[PuppetVisuals] " + atk.name + " names clip '" + atk.clip + "' but this " +
+                        "body's baked clip table has no such clip (rebuild with VibeGame1/4b, or check the " +
+                        "name against the model's .clips.json). Falling back to the pipeline mapping.", this);
+            }
             if (IsSpinPass(atk))
             {
                 clip = clipSpin;
@@ -438,6 +496,20 @@ namespace VibeGame1
             contact = attackClipLength * Mathf.Clamp01(attackHitNormalized);
         }
 
+        /// <summary>Index into <see cref="namedClips"/>, or -1. Linear: the table is a dozen entries.</summary>
+        public int IndexOfNamedClip(string clipName)
+        {
+            if (namedClips == null || string.IsNullOrEmpty(clipName)) return -1;
+            int n = Mathf.Min(namedClips.Length,
+                              namedClipLengths != null ? namedClipLengths.Length : 0,
+                              namedClipHits != null ? namedClipHits.Length : 0);
+            for (int i = 0; i < n; i++)
+                if (namedClips[i] == clipName) return i;
+            return -1;
+        }
+
+        System.Collections.Generic.HashSet<string> warnedClips;
+
         /// <summary>
         /// Play the attack clip so that its own contact frame lands on the data's impact. The clip is
         /// stretched or squeezed to fit; the data is never touched.
@@ -461,8 +533,11 @@ namespace VibeGame1
 
             animator.speed = speed;
             animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
-            // Own the Animator until a little past the strike, so locomotion cannot stomp the swing.
-            clipHold = Time.time + secondsToImpact + 0.25f;
+            // Own the Animator through the follow-through, so locomotion cannot stomp the swing; the
+            // scale above lasts only until the contact frame (see Update), then the clip runs at its
+            // authored rate.
+            attackImpactAt = Time.time + secondsToImpact;
+            clipHold = attackImpactAt + followThroughSeconds;
         }
 
         void PlayOneShot(string clip, float speed, float hold = 0f)
@@ -471,6 +546,7 @@ namespace VibeGame1
             animator.speed = speed;
             animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
             clipHold = Time.time + (hold > 0f ? hold : 0.35f);
+            attackImpactAt = float.MaxValue;   // a one-shot owns the speed; no impact switch pending
         }
 
         void PlayLoop(string clip)
@@ -478,6 +554,33 @@ namespace VibeGame1
             if (animator == null || animator.runtimeAnimatorController == null || string.IsNullOrEmpty(clip)) return;
             animator.speed = 1f;
             animator.CrossFadeInFixedTime(clip, clipBlend * 2f, 0, 0f);
+        }
+
+        // ---------------------------------------------------------------- travelling clips
+
+        /// <summary>
+        /// Keep the mesh over the collider while a clip walks the Hips. Unity's own root-motion
+        /// extraction is NOT used on these Generic rigs: with a root node set, Unity moves the Hips'
+        /// whole transform onto the model root -- the leap's lift and the sweep's body turn included --
+        /// and the bake flags keep none of it in the pose (measured in play mode, 2026-09-04). So the
+        /// Hips travel stays in the pose and this cancels just its XZ, on a transform nothing else
+        /// writes. The difference below is independent of <see cref="travelRoot"/>'s current offset
+        /// (both points ride it), so this is a direct solve, not an iteration.
+        /// </summary>
+        public void CompensateTravel()
+        {
+            if (travelRoot == null || hipsBone == null || animator == null) return;
+            Vector3 rest = animator.transform.TransformPoint(hipsRestLocal);
+            Vector3 drift = hipsBone.position - rest;
+            Transform parent = travelRoot.parent;
+            Vector3 local = parent != null ? parent.InverseTransformVector(drift) : drift;
+            travelRoot.localPosition = new Vector3(-local.x, 0f, -local.z);
+        }
+
+        void LateUpdate()
+        {
+            // After the Animator has posed the rig for this frame and before the camera reads it.
+            CompensateTravel();
         }
 
         // ---------------------------------------------------------------- tick
@@ -540,6 +643,13 @@ namespace VibeGame1
             float inst = (rootPos - lastRootPos).magnitude / dt;
             lastRootPos = rootPos;
             locoSpeed = Mathf.Lerp(locoSpeed, inst, 1f - Mathf.Exp(-8f * dt));
+
+            // The blow has landed: hand the clip back its own rate for the follow-through.
+            if (Time.time >= attackImpactAt && animator != null)
+            {
+                attackImpactAt = float.MaxValue;
+                animator.speed = Mathf.Max(0.05f, recoverySpeed);
+            }
 
             if (Time.time >= clipHold && !spinHalted && animator != null &&
                 animator.runtimeAnimatorController != null)

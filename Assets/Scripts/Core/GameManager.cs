@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace VibeGame1
 {
-    public enum GameState { Playing, Paused, LevelUp, Dead, Won }
+    public enum GameState { Playing, Paused, LevelUp, Dead, Won, Editing }
 
     /// <summary>Owns the high level game state and cursor lock. Lives on the Managers prefab.</summary>
     public class GameManager : MonoBehaviour
@@ -15,6 +15,9 @@ namespace VibeGame1
         public GameState State { get; private set; } = GameState.Playing;
 
         public static bool IsPlaying => I != null && I.State == GameState.Playing;
+        /// <summary>The in-game level editor is open (LevelEditor). Gameplay idles like any non-Playing state; the
+        /// look keeps working and the editor owns the cursor.</summary>
+        public static bool IsEditing => I != null && I.State == GameState.Editing;
 
         void Awake()
         {

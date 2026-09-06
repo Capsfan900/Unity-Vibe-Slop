@@ -23,6 +23,7 @@ namespace VibeGame1
         public Button warpCheckpoint1Button;
         public Button warpCheckpoint2Button;
         public Button warpBossButton;
+        public Button warpYardButton;   // sandbox only: the movement yard east of the arena
 
         [Header("Items")]
         public ItemData[] items;
@@ -36,11 +37,18 @@ namespace VibeGame1
         public Button godModeButton;
         public Button giveSoulsButton;
         public Button breakPostureButton;
+        [Tooltip("Flips WandPedestal.DevMenuEnabled. Label is rewritten to the live state on every refresh.")]
+        public Button wandPedestalButton;
 
         [Header("Enemies")]
         public Button killNearbyButton;
         public Button staggerNearbyButton;
         public Button resetEnemiesButton;
+
+        [Header("Level editor")]
+        public Button levelEditorButton;
+        [Tooltip("Opens the settings screen straight onto its INFO card (the key reference).")]
+        public Button infoButton;
 
         static readonly Vector3 ArenaEntrance = new Vector3(0f, 28.2f, 296f);
         const float NearbyRadius = 40f;
@@ -59,6 +67,7 @@ namespace VibeGame1
             Wire(warpCheckpoint1Button, () => WarpCheckpoint("Checkpoint_1"));
             Wire(warpCheckpoint2Button, () => WarpCheckpoint("Checkpoint_2"));
             Wire(warpBossButton, WarpBossArena);
+            Wire(warpYardButton, WarpMovementYard);
 
             if (itemButtons != null)
                 for (int i = 0; i < itemButtons.Length; i++)
@@ -76,8 +85,11 @@ namespace VibeGame1
 
             Wire(fullRestoreButton, FullRestore);
             Wire(godModeButton, ToggleGodMode);
+            Wire(levelEditorButton, OpenLevelEditor);
+            Wire(infoButton, OpenInfo);
             Wire(giveSoulsButton, GiveSouls);
             Wire(breakPostureButton, BreakPosture);
+            Wire(wandPedestalButton, ToggleWandPedestal);
             Wire(killNearbyButton, KillNearby);
             Wire(staggerNearbyButton, StaggerNearby);
             Wire(resetEnemiesButton, ResetEnemies);
@@ -121,6 +133,12 @@ namespace VibeGame1
             RefreshReadout();
         }
 
+        void OpenInfo()
+        {
+            Close();
+            if (SettingsMenu.I != null) SettingsMenu.I.OpenInfo();
+        }
+
         public void Close()
         {
             if (!open) return;
@@ -160,6 +178,14 @@ namespace VibeGame1
         void WarpCheckpoint(string checkpointName)
         {
             if (LevelManager.I != null) LevelManager.I.Warp(checkpointName);
+        }
+
+        /// <summary>Sandbox only. In the campaign scene there is no SandboxController and the button does nothing.</summary>
+        void WarpMovementYard()
+        {
+            var sandbox = FindAnyObjectByType<SandboxController>();
+            if (sandbox != null) sandbox.WarpToMovementYard();
+            else Debug.Log("[TestMenu] No SandboxController in this scene - the movement yard is in Sandbox.unity.");
         }
 
         void WarpBossArena()
@@ -220,6 +246,17 @@ namespace VibeGame1
             if (SoulsWallet.I != null) SoulsWallet.I.Add(1000);
         }
 
+        /// <summary>
+        /// The wand altar at spawn is hidden and inert by default; this is the one place it is switched
+        /// on. Every WandPedestal applies the flag on its next Update, so the altar appears (or vanishes)
+        /// the moment the menu closes. Public so the feature suite can drive the same body the button does.
+        /// </summary>
+        public void ToggleWandPedestal()
+        {
+            WandPedestal.DevMenuEnabled = !WandPedestal.DevMenuEnabled;
+            RefreshButtons();
+        }
+
         void BreakPosture()
         {
             var posture = OnPlayer<PlayerPosture>();
@@ -259,6 +296,14 @@ namespace VibeGame1
             }
         }
 
+        /// <summary>Close this menu and open the in-game level editor (F10 does the same from play).</summary>
+        void OpenLevelEditor()
+        {
+            Close();
+            if (LevelEditor.I != null) LevelEditor.I.Toggle();
+            else Debug.LogWarning("[TestMenu] No LevelEditor on the HUD; run VibeGame1/5. Build HUD.");
+        }
+
         void ResetEnemies()
         {
             if (LevelManager.I != null) LevelManager.I.ResetEnemies();
@@ -291,6 +336,12 @@ namespace VibeGame1
                     if (text != null) text.text = has ? weapons.loadout[i].displayName.ToUpperInvariant() : "-";
                     b.interactable = has;
                 }
+
+            if (wandPedestalButton != null)
+            {
+                var text = wandPedestalButton.GetComponentInChildren<TMP_Text>();
+                if (text != null) text.text = WandPedestal.DevMenuEnabled ? "WAND PEDESTAL: ON" : "WAND PEDESTAL: OFF";
+            }
         }
 
         void RefreshReadout()
@@ -349,6 +400,7 @@ namespace VibeGame1
             else sb.Append("<b>no player found</b>\n");
 
             sb.Append("SOULS          ").Append(SoulsWallet.I != null ? SoulsWallet.I.Souls : 0).Append('\n');
+            sb.Append("WAND ALTAR     ").Append(WandPedestal.DevMenuEnabled ? "ON" : "OFF  (dev fixture; toggle above)").Append('\n');
 
             if (LevelManager.I != null)
                 sb.Append("DEATHS         ").Append(LevelManager.I.DeathCount).Append('\n');

@@ -7,7 +7,8 @@ namespace VibeGame1
         Tick, Parry, Block, Hit, Swing, Execute, Heal, Ultimate, Checkpoint, Death, Jump, Dash, Souls, Stagger, Hurt, Click, Roar, Drone,
         // Appended (never reorder — folder names under Resources/Audio/Sfx/ follow these names)
         ParryCue, Footstep, Land, PostureBreak,
-        Thunder, ItemPickup, ItemUse
+        Thunder, ItemPickup, ItemUse,
+        Teleport
     }
 
     /// <summary>
@@ -48,6 +49,7 @@ namespace VibeGame1
                 case Sfx.Thunder: return Thunder();
                 case Sfx.ItemPickup: return ItemPickupChime();
                 case Sfx.ItemUse: return ItemUseSwell();
+                case Sfx.Teleport: return Teleport();
             }
             return Click();
         }
@@ -545,6 +547,33 @@ namespace VibeGame1
                 d[i] = SoftClip((tone + air) * shape * 1.3f);
             }
             return Make(name, d, 0.7f);
+        }
+
+        /// <summary>
+        /// The sentry dash (2026-09-06): a rising shimmer -- two detuned sines sweeping up an octave
+        /// and a half with a bright noise tail, an implosion rather than the grapple's whoosh. Reads as
+        /// "you blinked to it", which is what a 0.3 s pull to a staggered shooter is.
+        /// </summary>
+        static AudioClip Teleport()
+        {
+            const string name = "Teleport";
+            const float dur = 0.42f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            float p1 = 0f, p2 = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float f = Mathf.Lerp(320f, 1400f, k * k);
+                p1 += TwoPi * f / Rate;
+                p2 += TwoPi * f * 1.012f / Rate;
+                float tone = (Mathf.Sin(p1) + Mathf.Sin(p2) * 0.7f) * 0.35f;
+                float air = noise.Next(Mathf.Lerp(600f, 5200f, k)) * 1.6f * k;
+                float env = Env(t, 0.03f, 0.16f) * (1f - k * 0.35f);
+                d[i] = SoftClip((tone + air) * env * 1.4f);
+            }
+            return Make(name, d, 0.75f);
         }
 
         // ------------------------------------------------------------------ ambient loop

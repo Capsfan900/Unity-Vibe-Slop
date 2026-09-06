@@ -65,6 +65,18 @@ Audited from the code, not assumed.
   wind-up was rejected and rebuilt because the body kept drifting underneath it, making a 1.0 s wind-up
   look like another 0.76 s pass. That is the "drastically different anticipation" rule enforced in
   practice.
+- **The slide has a body.** `PlayerBody` throws the legs out in front of the lens on a 6 Hz under-damped
+  spring (~0.10 s, 9% overshoot) and yaws them to the velocity; the eye arrives on a 4.5 Hz spring that plops
+  0.065 m below the slide height; a held 6 mm lens rumble rides the speed quadratically. Nothing brightens.
+  What it does NOT do yet: the arms still ignore the slide (BACKLOG §2b, slice 2).
+- **The health and stamina bars are liquid.** `FluidBarView` + `VibeGame1/UI/FluidBar`: a two-harmonic
+  surface that flows along the bar, a meniscus at the surface and the leading edge, and a slosh driven by the
+  player's own acceleration — tilt capped at ~2.7 px, a dash ripples the wave, a landing dips the level —
+  all closed-form springs on unscaled time. Brightening is toward white and clamped at 1.0: the HUD never
+  blooms.
+- **The parry charge burns.** The PYRE meter is a procedural fire in the shape of a loading bar
+  (`FireBarView` + `VibeGame1/UI/FireBar`): heat rises with the charge, a gain kicks it, a full meter holds
+  a roaring band that pulses and never blooms. No texture, no particles, one quad, unscaled time.
 
 ---
 
@@ -269,6 +281,12 @@ additive can only ever *add* light, so a dim spark is faint rather than a hole i
    out to be lit black boxes.
 8. **Timings are data.** Anything that changes how long an attack takes belongs in `AttackData` /
    `WeaponData`, never in an animation curve. The parry window is tuned against those numbers.
+9. **One exception to the bloom cap, and it is the tell, not the enemy.** The enemy bolt
+   (`Projectile.HotCore`, peak 1.6) is the only traversal effect over the 1.05 threshold: a shot you have
+   to deflect at 32 m/s while running must be the brightest thing on the span. The rule survives because
+   the SHOOTER still never glows until deflected, `SlashFx` still normalises everything it makes, and the
+   exception is a named constant with a test (`ProjectileTests.TheBoltIsTheOneGlowInTraversal`), not a
+   widened cap. Anything else that wants to glow argues against this rule, not around it.
 
 ---
 

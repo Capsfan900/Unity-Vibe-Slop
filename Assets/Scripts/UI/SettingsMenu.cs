@@ -74,6 +74,12 @@ namespace VibeGame1
         public Button backButton;
         public Button resetButton;
 
+        [Header("INFO card - the key reference (ControlsInfo), one emitter for both prefabs")]
+        public Button infoButton;
+        public GameObject infoPanel;
+        public TMP_Text infoText;
+        bool infoOpen;
+
         [Header("Entry points")]
         [Tooltip("Button that opens this screen. Built into the title panel (front end) or the pause panel (in game).")]
         public Button openButton;
@@ -113,6 +119,8 @@ namespace VibeGame1
             if (openButton != null) openButton.onClick.AddListener(Open);
             if (backButton != null) backButton.onClick.AddListener(Close);
             if (resetButton != null) resetButton.onClick.AddListener(ResetToDefaults);
+            if (infoButton != null) infoButton.onClick.AddListener(ToggleInfo);
+            if (infoPanel != null) infoPanel.SetActive(false);
             BindRows();
         }
 
@@ -164,8 +172,38 @@ namespace VibeGame1
             if (hideWhileOpen != null && hideWhileOpen.activeSelf) { hideWhileOpen.SetActive(false); wasHidden = true; }
 
             if (panel != null) panel.SetActive(true);
+            ShowInfo(false);
             Refresh();
             AudioManager.Play(Sfx.Click);
+        }
+
+        /// <summary>Open straight onto the INFO card (the F1 menu's INFO button).</summary>
+        public void OpenInfo()
+        {
+            Open();
+            ShowInfo(true);
+        }
+
+        public void ToggleInfo() { ShowInfo(!infoOpen); AudioManager.Play(Sfx.Click); }
+
+        void ShowInfo(bool on)
+        {
+            infoOpen = on;
+            if (infoPanel != null) infoPanel.SetActive(on);
+            // The card is glass: the rows would show through it and keep taking clicks, so they step
+            // aside while it is up (rows, their section headers and the title rule), and come back after.
+            if (rows != null)
+                for (int i = 0; i < rows.Length; i++)
+                    if (rows[i] != null && rows[i].root != null) rows[i].root.SetActive(!on);
+            if (panel != null)
+                foreach (Transform child in panel.transform)
+                    if (child.name.EndsWith("Header") || child.name == "TitleRule") child.gameObject.SetActive(!on);
+            if (infoText != null && on && string.IsNullOrEmpty(infoText.text)) infoText.text = ControlsInfo.Text;
+            if (infoButton != null)
+            {
+                var label = infoButton.GetComponentInChildren<TMP_Text>();
+                if (label != null) label.text = on ? "SETTINGS" : "INFO";
+            }
         }
 
         public void Close()

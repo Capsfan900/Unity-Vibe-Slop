@@ -109,6 +109,30 @@ namespace VibeGame1.EditorTools
             public float groundSpeed;
             public float airAccel;
             public float dashSpeed;
+            /// <summary>Gravity multiplier while descending (1 = symmetric). Read off the prefab like
+            /// everything else: a heavier fall shortens every arc this analyser blesses.</summary>
+            public float fallGravityMultiplier;
+            /// <summary>Per-second decay of airborne speed above groundSpeed (0 = none).</summary>
+            public float airCarryDecay;
+
+            /// <summary>This frame's gravity, mirrored from <c>FirstPersonMotor</c>: the jump cut while
+            /// rising with the key released, the fall multiplier while descending.</summary>
+            public float GravityFor(float vy, bool holdJump)
+            {
+                float g = gravity;
+                if (vy > 0f) { if (!holdJump) g += gravity * jumpCutGravityMultiplier; }
+                else if (vy < 0f && fallGravityMultiplier > 0f) g = gravity * fallGravityMultiplier;
+                return g;
+            }
+
+            /// <summary>Airborne carry decay for one step, mirrored from the motor's air branch: the
+            /// horizontal excess over groundSpeed bleeds on exp(-airCarryDecay dt). Vertical untouched.</summary>
+            public Vector3 Carry(Vector3 v, float dt)
+            {
+                if (airCarryDecay <= 0f) return v;
+                Vector3 flat = FirstPersonMotor.DecayExcess(new Vector3(v.x, 0f, v.z), groundSpeed, airCarryDecay, dt);
+                return new Vector3(flat.x, v.y, flat.z);
+            }
 
             public float slideBoost, slideMaxSpeed, slideHeight;
 
@@ -126,6 +150,11 @@ namespace VibeGame1.EditorTools
             public float wallRunCooldown;
 
             public float capsuleRadius, standHeight, skinWidth;
+
+            /// <summary>The 2026-09-04 traversal pieces, read off the same prefab: a balloon pop trims the
+            /// carry to launchCarryCap and floats (gravity x launchGravityScale for launchFloatSeconds);
+            /// the re-armed dash is dashSpeed for dashDuration; water is a floor at waterFloorSpeed.</summary>
+            public float launchCarryCap, launchFloatSeconds, launchGravityScale, dashDuration, waterFloorSpeed;
 
             /// <summary>Vertical speed a jump leaves the ground at: sqrt(2 g h).</summary>
             public float JumpTakeoffSpeed { get { return Mathf.Sqrt(2f * -gravity * jumpHeight); } }
@@ -166,6 +195,8 @@ namespace VibeGame1.EditorTools
             profile.groundSpeed = m.groundSpeed;
             profile.airAccel = m.airAccel;
             profile.dashSpeed = m.dashSpeed;
+            profile.fallGravityMultiplier = m.fallGravityMultiplier;
+            profile.airCarryDecay = m.airCarryDecay;
             profile.slideBoost = m.slideBoost;
             profile.slideMaxSpeed = m.slideMaxSpeed;
             profile.slideHeight = m.slideHeight;
@@ -182,6 +213,11 @@ namespace VibeGame1.EditorTools
             profile.capsuleRadius = cc.radius;
             profile.standHeight = cc.height;
             profile.skinWidth = cc.skinWidth;
+            profile.launchCarryCap = m.launchCarryCap;
+            profile.launchFloatSeconds = m.launchFloatSeconds;
+            profile.launchGravityScale = m.launchGravityScale;
+            profile.dashDuration = m.dashDuration;
+            profile.waterFloorSpeed = m.groundSpeed * m.waterSpeedScale;
             return true;
         }
 
@@ -280,10 +316,9 @@ namespace VibeGame1.EditorTools
             float t = 0f;
             while (t < maxTime)
             {
-                // Gravity, with the jump cut applied exactly as the motor applies it: only while rising.
-                float g = p.gravity;
-                if (!holdJump && v.y > 0f) g += p.gravity * p.jumpCutGravityMultiplier;
-                v.y += g * Dt;
+                // Gravity exactly as the motor applies it: the jump cut only while rising with the key
+                // released, the fall multiplier only while descending.
+                v.y += p.GravityFor(v.y, holdJump) * Dt;
 
                 // AirAccelerate, mirrored from FirstPersonMotor: adds along wish only up to groundSpeed.
                 if (wish.sqrMagnitude > 0.0001f)
@@ -298,6 +333,7 @@ namespace VibeGame1.EditorTools
                     }
                 }
 
+                v = p.Carry(v, Dt);   // the carry bleeds in the air, as it does in the motor
                 Vector3 prev = feet;
                 feet += v * Dt;
                 t += Dt;
@@ -809,7 +845,8 @@ namespace VibeGame1.EditorTools
                 while (t < 3f)
                 {
                     // Gravity: the jump is held for a chimney — you are pressing it to push off anyway.
-                    s.vel.y += p.gravity * Dt;
+                    // The fall multiplier still applies on the way down between pushes.
+                    s.vel.y += p.GravityFor(s.vel.y, true) * Dt;
 
                     // Air control on the way to the landing, mirrored from FirstPersonMotor.AirAccelerate.
                     // WHEN the brake goes on is the whole question: hold back the instant you leave the
@@ -831,6 +868,7 @@ namespace VibeGame1.EditorTools
                             }
                         }
                     }
+                    s.vel = p.Carry(s.vel, Dt);
                     Vector3 prev = s.feet;
                     s.feet += s.vel * Dt;
                     t += Dt;
@@ -1187,7 +1225,8 @@ namespace VibeGame1.EditorTools
                 }
 
                 // ---- ballistic ----------------------------------------------------------------------
-                v.y += p.gravity * Dt;      // jump held, exactly as a player pressing for the wall would
+                v.y += p.GravityFor(v.y, true) * Dt;   // jump held, exactly as a player pressing for the wall would
+                v = p.Carry(v, Dt);
                 Vector3 prev = feet;
                 feet += v * Dt;
                 t += Dt;

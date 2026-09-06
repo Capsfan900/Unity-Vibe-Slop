@@ -98,7 +98,9 @@ namespace VibeGame1
                 Cursor.visible = false;
             }
 
-            if (!GameManager.IsPlaying || InputReader.I == null) return;
+            if (!(GameManager.IsPlaying || GameManager.IsEditing) || InputReader.I == null) return;
+            // The level editor frees the cursor to click its panel; the look must not spin under it.
+            if (GameManager.IsEditing && Cursor.lockState != CursorLockMode.Locked) return;
             var input = InputReader.I;
             Vector2 d = input.LookDelta;
             if (input.LookIsMouse)

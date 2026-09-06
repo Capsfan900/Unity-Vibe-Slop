@@ -281,6 +281,19 @@ namespace VibeGame1.EditorTools
                 menu.sandboxRow.status.color = Blood;
             }
 
+            // CUSTOM levels (the in-game level editor's saves): a divider and a hidden template row under
+            // the sandbox row. MainMenuController clones one per saved file on every Refresh, so the list
+            // is data read at runtime, never authored here.
+            float customY = sandboxY - stride;
+            var customDivider = Img("CustomDivider", rowsRoot.transform, new Color(1f, 1f, 1f, 0.045f));
+            customDivider.raycastTarget = false;
+            Rect(customDivider.gameObject, Center, Center, Center, new Vector2(0f, customY + stride * 0.5f), new Vector2(1100f, 1f));
+            menu.customTemplate = BuildRow("CustomRowTemplate", rowsRoot.transform, Gold, customY, stride);
+            if (menu.customTemplate.title != null) menu.customTemplate.title.text = "CUSTOM";
+            if (menu.customTemplate.meta != null) menu.customTemplate.meta.text = "made in the level editor";
+            if (menu.customTemplate.status != null) { menu.customTemplate.status.text = "CUSTOM"; menu.customTemplate.status.color = Gold; }
+            menu.customTemplate.root.SetActive(false);
+
             menu.backButton = MenuButton("BackButton", p, "BACK", Cyan, new Vector2(0f, 60f));
             Rect(menu.backButton.gameObject, BottomCenter, BottomCenter, BottomCenter, new Vector2(0f, 60f), new Vector2(420f, 62f));
 
@@ -307,6 +320,8 @@ namespace VibeGame1.EditorTools
             // Base image is opaque white; the ColorBlock supplies BOTH hue and alpha (the CanvasRenderer
             // tint multiplies the image colour, so a translucent base would darken every state twice).
             var strip = Img(name, parent, Color.white);
+            strip.sprite = UiSprites.Track();
+            strip.type = Image.Type.Sliced;
             Rect(strip.gameObject, Center, Center, Center, new Vector2(0f, y), new Vector2(1100f, h));
 
             var btn = strip.gameObject.AddComponent<Button>();
@@ -324,7 +339,9 @@ namespace VibeGame1.EditorTools
 
             var bar = Img("Accent", strip.transform, accent);
             bar.raycastTarget = false;
-            Rect(bar.gameObject, MidLeft, MidLeft, MidLeft, new Vector2(0f, 0f), new Vector2(4f, h));
+            bar.sprite = UiSprites.Pill();
+            bar.type = Image.Type.Sliced;
+            Rect(bar.gameObject, MidLeft, MidLeft, MidLeft, new Vector2(10f, 0f), new Vector2(4f, h - 24f));
 
             var title = Txt("Title", strip.transform, "LEVEL", 26f, accent, TextAlignmentOptions.Left);
             title.fontStyle = FontStyles.Bold;
@@ -355,7 +372,11 @@ namespace VibeGame1.EditorTools
         /// </summary>
         static Button MenuButton(string name, Transform parent, string label, Color accent, Vector2 pos)
         {
-            var img = Img(name, parent, new Color(ButtonBg.r, ButtonBg.g, ButtonBg.b, 0.92f));
+            // A pill of glass, like every button in the HUD (HudBuilder.Btn): the plate at 0.75, an
+            // edge light along its top, the accent bar down its left, the label in bone.
+            var img = Img(name, parent, new Color(ButtonBg.r, ButtonBg.g, ButtonBg.b, 0.75f));
+            img.sprite = UiSprites.Pill();
+            img.type = Image.Type.Sliced;
             Rect(img.gameObject, Center, Center, Center, pos, new Vector2(420f, 62f));
 
             var btn = img.gameObject.AddComponent<Button>();
@@ -368,14 +389,23 @@ namespace VibeGame1.EditorTools
             colors.fadeDuration = 0.08f;
             btn.colors = colors;
 
+            var edge = Img("EdgeLight", img.transform, new Color(Bone.r, Bone.g, Bone.b, 0.24f));
+            edge.raycastTarget = false;
+            edge.sprite = UiSprites.EdgeLight();
+            edge.type = Image.Type.Simple;
+            Rect(edge.gameObject, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -2f), new Vector2(-62f, 1f));
+
+            // The accent is a short bar inside the pill's round end, not a 5 px stripe on a square edge.
             var bar = Img("Accent", img.transform, accent);
             bar.raycastTarget = false;
-            Rect(bar.gameObject, MidLeft, MidLeft, MidLeft, Vector2.zero, new Vector2(5f, 62f));
+            bar.sprite = UiSprites.Pill();
+            bar.type = Image.Type.Sliced;
+            Rect(bar.gameObject, MidLeft, MidLeft, MidLeft, new Vector2(22f, 0f), new Vector2(4f, 28f));
 
-            var txt = Txt("Label", img.transform, label, 26f, Bone, TextAlignmentOptions.Left);
+            var txt = Txt("Label", img.transform, label, 24f, Bone, TextAlignmentOptions.Left);
             txt.fontStyle = FontStyles.Bold;
-            txt.characterSpacing = 8f;
-            Rect(txt.gameObject, MidLeft, MidLeft, MidLeft, new Vector2(30f, 0f), new Vector2(380f, 40f));
+            txt.characterSpacing = 6f;
+            Rect(txt.gameObject, MidLeft, MidLeft, MidLeft, new Vector2(40f, 0f), new Vector2(370f, 40f));
 
             return btn;
         }

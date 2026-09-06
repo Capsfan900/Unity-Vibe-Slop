@@ -24,6 +24,7 @@ namespace VibeGame1.Tests
     /// mean the jump feels good, is readable, or is fair; no test can say that, and no human has yet played
     /// the routes added here.</para>
     /// </summary>
+    [Category("LevelLines")]  // slow: simulates the motor along the level lines; excluded by VibeGame1/Run Quick EditMode Tests
     public class LevelArcClearanceTests
     {
         static LevelDefinition def;

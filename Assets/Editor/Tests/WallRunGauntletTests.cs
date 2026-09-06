@@ -88,8 +88,8 @@ namespace VibeGame1.Tests
         [Test]
         public void TheFaceIsAsLongAsTheRunItHosts()
         {
-            // The builder sized the face at 13 m so the wall ends at the moment a released-stick run
-            // does (13.5 m) and the landing pad is what comes next. Hold that against the real envelope:
+            // The builder sized the face at 14.5 m so the wall ends at the moment a released-stick run
+            // does (14.4 m) and the landing pad is what comes next. Hold that against the real envelope:
             // a released run must reach the end of the face (within a metre), and a held run must overrun
             // it — otherwise the pad is reachable without ever committing to the wall.
             var released = A.MeasureWallRun(profile, profile.groundSpeed, false);
@@ -99,7 +99,7 @@ namespace VibeGame1.Tests
 
             Assert.AreEqual(profile.WallRun.maxDuration, released.duration, 0.02f,
                 "a sprint entry no longer rides the full clock — retune broke the fast case");
-            const float face = 13f;
+            const float face = 14.5f;   // 2026-09-03: 1.75 s clock, released run 14.4 m (was 13 m / 13.5 m)
             Assert.AreEqual(face, released.distance, 1.0f, "a released run no longer ends at the end of the face");
             Assert.Greater(held.distance, face, "a held run does not even reach the end of the face");
         }

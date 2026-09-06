@@ -35,12 +35,13 @@ namespace VibeGame1.EditorTools
 
         // Floor top sits at y = 0; everything is measured from there.
         const float FloorTop = 0f;
-        const float HalfExtent = 30f;   // 60 x 60 arena
+        public const float HalfExtent = 30f;   // 60 x 60 arena (public: MovementYardTests reads it)
 
-        static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss;
+        static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss, mWater;
+        static GameObject pBalloon;
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
-        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant;
+        static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -86,6 +87,7 @@ namespace VibeGame1.EditorTools
             BuildPlatformingCorner(root);
             BuildDashGap(root);
             BuildWallRunGauntlet(root);
+            var yardSpawn = BuildMovementYard(root);
             BuildEnemyPads(root);
             BuildItemPedestals(root);
             // Wand altar beside the sandbox start, same contract as the level: trigger reaches the
@@ -114,7 +116,7 @@ namespace VibeGame1.EditorTools
 
             InstantiatePrefab(pHud, "HUD", null);
 
-            BuildSandboxController(root);
+            BuildSandboxController(root, yardSpawn);
 
             // Save first so the scene has a path, then bake (NavMeshData is written beside the scene
             // asset and needs one), then save again to persist the reference.
@@ -270,6 +272,12 @@ namespace VibeGame1.EditorTools
             // A low, cool bounce at the player spawn so the viewmodel and the wand read on arrival —
             // the first thing anyone checks in here is what is in their hands.
             Lamp("Sandbox_Spawn", new Vector3(0f, 5f, 4f), new Color(0.66f, 0.72f, 0.88f), 40f, 16f, root.transform);
+
+            // The movement yard gets the same cool key, twice, because it is 120 m long. Landings and
+            // wall exits are judged by where the floor is, and a floor you cannot see is a yard you
+            // cannot tune in. Torches along the kerbs give it warmth; these give it a ground.
+            Lamp("Yard_Key_W", new Vector3(62f, 18f, 0f), new Color(0.72f, 0.78f, 0.95f), 260f, 52f, root.transform);
+            Lamp("Yard_Key_E", new Vector3(122f, 18f, 0f), new Color(0.72f, 0.78f, 0.95f), 260f, 52f, root.transform);
         }
 
         /// <summary>One point light. Shadows off: six shadow-casting lights in one room is a frame-rate
@@ -319,6 +327,12 @@ namespace VibeGame1.EditorTools
         /// <summary>
         /// Same deep-space sky as the campaign level, so lighting and materials read identically when
         /// they are tuned in here. See <see cref="Starfield"/> for why it is geometry and not a skybox.
+        ///
+        /// <para>The radius stays at 25 even though the movement yard now reaches x = 152. The sky is
+        /// NOT a dome the geometry has to fit inside: it follows the camera (<see cref="SkyFollower"/>),
+        /// draws in the Background queue and writes no depth, so a wall 100 m away still paints over it.
+        /// What the radius must do is stay below <c>fogStartDistance</c> (45) — enlarging it to "enclose"
+        /// the yard would fog the sky and change nothing else.</para>
         /// </summary>
         static void BuildSky(Transform root)
         {
@@ -341,8 +355,14 @@ namespace VibeGame1.EditorTools
             float wy = FloorTop + wallH * 0.5f;
             Box("Wall_N", new Vector3(0f, wy, HalfExtent), new Vector3(HalfExtent * 2f, wallH, 0.5f), mGround, root);
             Box("Wall_S", new Vector3(0f, wy, -HalfExtent), new Vector3(HalfExtent * 2f, wallH, 0.5f), mGround, root);
-            Box("Wall_E", new Vector3(HalfExtent, wy, 0f), new Vector3(0.5f, wallH, HalfExtent * 2f), mGround, root);
             Box("Wall_W", new Vector3(-HalfExtent, wy, 0f), new Vector3(0.5f, wallH, HalfExtent * 2f), mGround, root);
+
+            // The east wall has a doorway cut in it: z -3..3, straight east (+X) of the spawn, leading
+            // into the movement yard (BuildMovementYard). Two halves rather than one wall with a hole.
+            float eastHalfLen = HalfExtent - YardDoorHalfWidth;               // 27 m each side
+            float eastHalfZ = YardDoorHalfWidth + eastHalfLen * 0.5f;         // centred at z = +/-16.5
+            Box("Wall_E_N", new Vector3(HalfExtent, wy, eastHalfZ), new Vector3(0.5f, wallH, eastHalfLen), mGround, root);
+            Box("Wall_E_S", new Vector3(HalfExtent, wy, -eastHalfZ), new Vector3(0.5f, wallH, eastHalfLen), mGround, root);
 
             return Empty("StartSpawn", new Vector3(0f, FloorTop + 1.2f, 0f), Quaternion.identity, root);
         }
@@ -376,7 +396,7 @@ namespace VibeGame1.EditorTools
         /// altar own z 0-5.5. Everything here lives in x -7.6 to 6.6, z 5.5 to 29.7, which was empty.</para>
         ///
         /// <list type="number">
-        ///   <item><b>WallRun_Face</b> - a 13 m x 8 m slab. Its EAST side (x 6.6, facing the jump
+        ///   <item><b>WallRun_Face</b> - a 14.5 m x 8 m slab. Its EAST side (x 6.6, facing the jump
         ///   staircase) is the practice lane: sprint along the floor beside it, jump, and mount it from
         ///   a standing start with nothing at stake. Its WEST side is the real run.</item>
         ///   <item><b>The gap.</b> WallRun_Launch (top 1.5 m) to WallRun_Landing (top 4.0 m) is 13.5 m
@@ -414,9 +434,10 @@ namespace VibeGame1.EditorTools
             // Take-off deck. Big enough to build up a full sprint along +z before leaving it.
             Trim(Box("WallRun_Launch", new Vector3(2f, 1.0f, 8f), new Vector3(5f, 1f, 5f), mPlatform, g), mCyan);
 
-            // The run wall itself, z 10 to 23. 13 m long: a released-stick full run covers 13.5 m of
-            // face, so the wall ends at the moment the mechanic does and the pad is what comes next.
-            Trim(Box("WallRun_Face", new Vector3(6f, 4f, 16.5f), new Vector3(1.2f, 8f, 13f), mStone, g), mYellow);
+            // The run wall itself, z 10 to 24.5. 14.5 m long: a released-stick full run covers 14.4 m of
+            // face (1.75 s at 0.35/s decay), so the wall ends at the moment the mechanic does and the pad
+            // is what comes next.
+            Trim(Box("WallRun_Face", new Vector3(6f, 4f, 17.25f), new Vector3(1.2f, 8f, 14.5f), mStone, g), mYellow);
 
             // Only reachable off the wall. Sheer on all four sides and 4 m up, so there is no walk-up.
             // z 24 to 29, x -1 to 5: a metre past the end of the face, 0.4 m west of its plane.
@@ -426,9 +447,277 @@ namespace VibeGame1.EditorTools
             Trim(Box("WallRun_Corner", new Vector3(-7f, 4f, 23.85f), new Vector3(1.2f, 8f, 11.7f), mStone, g), mYellow);
         }
 
+        // ---- the movement yard --------------------------------------------------------------------
+
+        /// <summary>Half-width of the doorway cut in the arena's east wall (z -3..3).</summary>
+        public const float YardDoorHalfWidth = 3f;
+        /// <summary>Yard floor extent along X. The 2 m between the arena wall (x 30) and here is the doorway floor.</summary>
+        public const float YardMinX = 32f;
+        public const float YardMaxX = 152f;
+        /// <summary>Yard floor half-extent along Z (same as the arena, so the north/south kerbs line up with its walls).</summary>
+        public const float YardHalfZ = 30f;
+        /// <summary>Where <see cref="SandboxController.WarpToMovementYard"/> puts you: just inside the doorway, facing +X.</summary>
+        public static readonly Vector3 YardSpawnPos = new Vector3(36f, 1.2f, 0f);
+
+        /// <summary>What a yard box is FOR. The builder uses it to pick geometry vs marker; the test uses it to pick which contract applies.</summary>
+        /// <summary>Water and Balloon are the pivot's traversal pieces: not solids (the tests skip them
+        /// in overlap checks), built by <see cref="TraversalBuilders"/>. For a Balloon the box is the
+        /// orb's bounding cube (size = 2 x radius) and <c>center</c> its centre.</summary>
+        public enum YardKind { Floor, Kerb, Wall, Pad, Step, Tier, Runway, Stripe, Water, Balloon }
+        public enum YardMat { None, Ground, Platform, Stone, Pink, Cyan, Yellow }
+
         /// <summary>
-        /// Spawn pads along the south wall, with live spawners for Grunt / Heavy / Boss and the three
-        /// legendary mini-bosses.
+        /// One yard box, as a literal. Pure data (no scene objects), so MovementYardTests can pin the
+        /// yard's contract without opening the scene. <c>size</c> is the full world extent, like <see cref="Box"/>.
+        /// </summary>
+        public struct YardBox
+        {
+            public string name;
+            public Vector3 center, size;
+            public YardKind kind;
+            public YardMat mat, trim;
+
+            public YardBox(string name, Vector3 center, Vector3 size, YardKind kind, YardMat mat, YardMat trim = YardMat.None)
+            {
+                this.name = name; this.center = center; this.size = size;
+                this.kind = kind; this.mat = mat; this.trim = trim;
+            }
+
+            public float MinX { get { return center.x - size.x * 0.5f; } }
+            public float MaxX { get { return center.x + size.x * 0.5f; } }
+            public float MinZ { get { return center.z - size.z * 0.5f; } }
+            public float MaxZ { get { return center.z + size.z * 0.5f; } }
+            public float Bottom { get { return center.y - size.y * 0.5f; } }
+            public float Top { get { return center.y + size.y * 0.5f; } }
+        }
+
+        /// <summary>
+        /// <b>The movement yard, as literals.</b> A 120 x 60 m annex east of the arena for tuning wall
+        /// running, jumping, sliding, wall exits, landings and air control — room to actually run, which
+        /// the 60 x 60 arena with a fight on every side of it does not have.
+        ///
+        /// <para>This list IS the yard. <see cref="BuildMovementYard"/> only turns it into boxes, and
+        /// <c>MovementYardTests</c> asserts the contract against it (gap sizes, step rises, corridor
+        /// width, the clear run-off), so a change here is checked before anyone stands on it.</para>
+        ///
+        /// <para>Layout, all tops relative to the floor at y = 0, X east, Z north:</para>
+        /// <list type="bullet">
+        ///   <item><b>Doorway</b> x 30..32, z -3..3 — a 2 m floor bridging the arena wall gap.</item>
+        ///   <item><b>Yard_Floor</b> x 32..152, z -30..30, 1 m kerbs on the outer edges. A 1.75 m fill
+        ///   either side of the doorway closes the strip between the arena wall and the yard floor.</item>
+        ///   <item><b>Stripes</b> at every 10 m of x from 40 to 150 (yellow at 50 / 100 / 150) so a
+        ///   distance can be read by eye. Markers only: no collider.</item>
+        ///   <item><b>Runway</b> x 40..70, z -13..-3, top 4 m, 1.5 m steps at its west end and 30 m of
+        ///   nothing east of it — sprint off a ledge, slide-jump off a ledge.</item>
+        ///   <item><b>Long walls</b> two 40 x 8 x 1 m walls at z 18 and z 24.5, x 60..100, a 5.5 m
+        ///   corridor between: long runs, exits into open floor, wall-to-wall chains.</item>
+        ///   <item><b>Gap ladder</b> six 6 x 6 x 2 m pads along z -18 from x 40, gaps 4 / 6 / 8 / 10 /
+        ///   12 m, with a 1 m step before the first so the climb starts as a hop.</item>
+        ///   <item><b>Drop tower</b> x 126..134, tiers with tops at 3 / 6 / 9 / 12 m ascending north
+        ///   from z -27 to z 5. Every tier is reached by a 1.5 m-rise, zero-gap chain of 2 x 2 steps
+        ///   (the reachability rule: rise &lt;= 1.5 m with gap &lt;= 4.5 m), and every tier's east face
+        ///   drops onto 18 m of flat floor.</item>
+        /// </list>
+        /// Everything stays clear of z -3..3 from x 32 to 126, so the doorway looks straight down 94 m of
+        /// open floor.
+        /// </summary>
+        public static List<YardBox> YardLayout()
+        {
+            var L = new List<YardBox>();
+            float yardW = YardMaxX - YardMinX;               // 120
+            float yardCx = (YardMinX + YardMaxX) * 0.5f;     // 92
+            float floorY = FloorTop - 0.5f;
+
+            // ---- floor, doorway, kerbs ------------------------------------------------------------
+            L.Add(new YardBox("Yard_Floor", new Vector3(yardCx, floorY, 0f), new Vector3(yardW, 1f, YardHalfZ * 2f),
+                              YardKind.Floor, YardMat.Platform, YardMat.Pink));
+            L.Add(new YardBox("Yard_Doorway", new Vector3(HalfExtent + 1f, floorY, 0f), new Vector3(YardMinX - HalfExtent, 1f, YardDoorHalfWidth * 2f),
+                              YardKind.Floor, YardMat.Platform));
+
+            const float kerbH = 1f, kerbT = 0.5f;
+            float kerbY = FloorTop + kerbH * 0.5f;
+            L.Add(new YardBox("Yard_Kerb_N", new Vector3(yardCx, kerbY, YardHalfZ), new Vector3(yardW, kerbH, kerbT), YardKind.Kerb, YardMat.Ground));
+            L.Add(new YardBox("Yard_Kerb_S", new Vector3(yardCx, kerbY, -YardHalfZ), new Vector3(yardW, kerbH, kerbT), YardKind.Kerb, YardMat.Ground));
+            // Butted against the N/S kerbs rather than through them (no overlapping solids).
+            L.Add(new YardBox("Yard_Kerb_E", new Vector3(YardMaxX, kerbY, 0f), new Vector3(kerbT, kerbH, YardHalfZ * 2f - kerbT), YardKind.Kerb, YardMat.Ground));
+            // The strip between the arena wall (x 30.25) and the yard floor (x 32) is filled solid so
+            // nobody steps west off the yard into a 2 m slot. Leaves the doorway (z -3..3) open.
+            float fillX0 = HalfExtent + 0.25f, fillW = YardMinX - fillX0, fillCx = fillX0 + fillW * 0.5f;
+            float fillLen = YardHalfZ - YardDoorHalfWidth, fillCz = YardDoorHalfWidth + fillLen * 0.5f;
+            L.Add(new YardBox("Yard_Kerb_W_N", new Vector3(fillCx, kerbY, fillCz), new Vector3(fillW, kerbH, fillLen), YardKind.Kerb, YardMat.Ground));
+            L.Add(new YardBox("Yard_Kerb_W_S", new Vector3(fillCx, kerbY, -fillCz), new Vector3(fillW, kerbH, fillLen), YardKind.Kerb, YardMat.Ground));
+
+            // ---- distance stripes -----------------------------------------------------------------
+            const float stripeT = 0.15f;
+            for (int x = 40; x <= 150; x += 10)
+            {
+                bool major = x % 50 == 0;
+                L.Add(new YardBox("Yard_Stripe_" + x, new Vector3(x, FloorTop + stripeT * 0.5f, 0f), new Vector3(stripeT, stripeT, YardHalfZ * 2f),
+                                  YardKind.Stripe, major ? YardMat.Yellow : YardMat.Cyan));
+            }
+
+            // ---- runway ---------------------------------------------------------------------------
+            // z -13..-3: south of the doorway line so the straight run east stays open, and south of
+            // the long walls so a run exit off Yard_LongWall's south face lands on flat floor, not on this.
+            const float runwayCz = -8f;
+            L.Add(new YardBox("Yard_Runway_Step1", new Vector3(34f, FloorTop + 0.75f, runwayCz), new Vector3(2f, 1.5f, 4f), YardKind.Step, YardMat.Stone));   // top 1.5
+            L.Add(new YardBox("Yard_Runway_Step2", new Vector3(37.5f, FloorTop + 1.5f, runwayCz), new Vector3(2f, 3f, 4f), YardKind.Step, YardMat.Stone));   // top 3.0
+            L.Add(new YardBox("Yard_Runway", new Vector3(55f, FloorTop + 2f, runwayCz), new Vector3(30f, 4f, 10f),
+                              YardKind.Runway, YardMat.Platform, YardMat.Yellow));                                                                         // top 4.0, x 40..70
+
+            // ---- long walls -----------------------------------------------------------------------
+            L.Add(new YardBox("Yard_LongWall", new Vector3(80f, FloorTop + 4f, 18f), new Vector3(40f, 8f, 1f), YardKind.Wall, YardMat.Stone, YardMat.Yellow));
+            L.Add(new YardBox("Yard_LongWall_B", new Vector3(80f, FloorTop + 4f, 24.5f), new Vector3(40f, 8f, 1f), YardKind.Wall, YardMat.Stone, YardMat.Yellow));
+
+            // ---- gap ladder -----------------------------------------------------------------------
+            const float ladderZ = -18f, padW = 6f, padH = 2f;
+            L.Add(new YardBox("Yard_GapLadder_Step", new Vector3(38.5f, FloorTop + 0.5f, ladderZ), new Vector3(3f, 1f, padW), YardKind.Step, YardMat.Stone));
+            float padX0 = 40f;
+            int[] gaps = { 4, 6, 8, 10, 12 };
+            for (int i = 0; i <= gaps.Length; i++)
+            {
+                L.Add(new YardBox("Yard_GapLadder_" + (i + 1), new Vector3(padX0 + padW * 0.5f, FloorTop + padH * 0.5f, ladderZ), new Vector3(padW, padH, padW),
+                                  YardKind.Pad, YardMat.Platform, YardMat.Cyan));
+                if (i < gaps.Length) padX0 += padW + gaps[i];
+            }
+
+            // ---- drop tower -----------------------------------------------------------------------
+            // Tiers ascend NORTH along x 126..134; every east face (x 134) is a straight drop onto the
+            // 18 m of floor before the east kerb. The step blocks sit on the west half of each tier,
+            // against the next tier's south face, so the east half stays a clean run-off.
+            const float towerX = 130f, tierW = 8f, stepW = 2f, stepX = 128f;
+            float z0 = -27f;
+            for (int i = 0; i < 4; i++)
+            {
+                float top = 3f * (i + 1);
+                float zc = z0 + tierW * 0.5f + tierW * i;
+                L.Add(new YardBox("Yard_Tower_" + (i + 1), new Vector3(towerX, FloorTop + top * 0.5f, zc), new Vector3(tierW, top, tierW),
+                                  YardKind.Tier, YardMat.Platform, YardMat.Cyan));
+                // The step that reaches THIS tier: 1.5 m below its top, touching its south face.
+                float stepBase = top - 3f;                                       // the previous tier's top (or the floor)
+                float stepZ = z0 + tierW * i - stepW * 0.5f;
+                L.Add(new YardBox("Yard_Tower_Step" + (i + 1), new Vector3(stepX, FloorTop + stepBase + 0.75f, stepZ), new Vector3(stepW, 1.5f, stepW),
+                                  YardKind.Step, YardMat.Stone));
+            }
+
+            // ---- water lane (2026-09-04 pivot) ----------------------------------------------------
+            // A 60 x 6 m sheet along z 8..14 flowing EAST at 6 m/s: north of the doorway line (kept
+            // open), south of the long walls at z 17.5. Run in from the west, feel the lift to the
+            // 14.85 m/s skating floor, slide on it and never slow down, jump off it at the east end.
+            L.Add(new YardBox("Yard_Water", new Vector3(70f, FloorTop + WaterThickness * 0.5f, 11f),
+                              new Vector3(60f, WaterThickness, 6f), YardKind.Water, YardMat.None));
+
+            // ---- balloon chain ----------------------------------------------------------------------
+            // Five orbs you DASH between, not a column you ride up. From play (2026-09-05): the 3 m
+            // column was "too small and not placed in a manner where I can dash to one another". Each
+            // orb sits BalloonChainStep ahead and BalloonChainRise higher than the last, zig-zagging
+            // BalloonChainSway in z so the float window's steer has something to do. The arithmetic
+            // MovementYardTests pins: a pop at BalloonLaunch is a v^2/2g rise, the run's 11 m/s carries
+            // through the hang, and the re-armed dash (3.5 m) closes what the arc misses.
+            // Three orbs stacked 3 m apart over x 110, z -10: north of the gap ladder's sixth pad
+            // (z -21..-15), south of the doorway line. A 14 m/s launch is a 3.27 m rise, so each orb is
+            // just inside the reach of the launch below it - the chain is meant to be climbed one
+            // touch at a time, and a dash through the bottom one re-arms the dash for the next.
+            for (int i = 0; i < BalloonChainCount; i++)
+            {
+                var c = BalloonChainStart + new Vector3(BalloonChainStep * i, BalloonChainRise * i,
+                                                       (i % 2 == 0 ? 0f : BalloonChainSway));
+                L.Add(new YardBox("Yard_Balloon_" + (i + 1), c, Vector3.one * (BalloonRadius * 2f),
+                                  YardKind.Balloon, YardMat.None));
+            }
+
+            return L;
+        }
+
+        /// <summary>The yard water sheet's thickness; the tests read it to hold the sheet to the floor.</summary>
+        public const float WaterThickness = 0.04f;
+        /// <summary>Yard water flow, m/s, east.</summary>
+        public const float WaterFlowSpeed = 6f;
+        /// <summary>The yard balloon chain: where it starts, the step ahead / rise / sway per orb, the count, the
+        /// orb radius and the launch speed. All pinned by MovementYardTests.</summary>
+        public static readonly Vector3 BalloonChainStart = new Vector3(104f, FloorTop + 3.0f, -10f);
+        public const int BalloonChainCount = 5;
+        // Re-flown 2026-09-05 with LevelTraversalAnalyzer (the arc the motor actually flies after a pop: 9 m/s
+        // carry, 11 m/s launch, the 0.45 s float): about 5 m across and 2-3 m up per orb. The old 5.5 / 1.2
+        // predates the carry cap and the float and asked for a flat hop the pop no longer makes.
+        public const float BalloonChainStep = 5.0f, BalloonChainRise = 2.4f, BalloonChainSway = 1.5f;
+        public const float BalloonRadius = 1.1f, BalloonLaunch = 11f;
+
+        /// <summary>
+        /// Builds <see cref="YardLayout"/> under a "MovementYard" group, plus its torches and the
+        /// YardSpawn point, and returns that spawn for <see cref="BuildSandboxController"/>.
+        /// </summary>
+        static GameObject BuildMovementYard(Transform root)
+        {
+            var group = new GameObject("MovementYard");
+            group.transform.SetParent(root, false);
+            SetStatic(group);
+            Transform g = group.transform;
+
+            foreach (var b in YardLayout())
+            {
+                if (b.kind == YardKind.Stripe)
+                {
+                    Stripe(b.name, b.center, b.size, YardMaterial(b.mat), g);
+                    continue;
+                }
+                if (b.kind == YardKind.Water)
+                {
+                    TraversalBuilders.BuildWater(b.name, b.center, b.size, Vector3.right, WaterFlowSpeed, mWater, g);
+                    continue;
+                }
+                if (b.kind == YardKind.Balloon)
+                {
+                    TraversalBuilders.BuildBalloon(pBalloon, b.name, b.center, BalloonLaunch, 2.5f, b.size.x * 0.5f, g);
+                    continue;
+                }
+                var box = Box(b.name, b.center, b.size, YardMaterial(b.mat), g);
+                if (b.trim != YardMat.None) Trim(box, YardMaterial(b.trim));
+            }
+
+            // Torches along the kerbs, alternating sides, none closer than 20 m to another: the point
+            // is not to light the yard (the key lamps in BuildRoomLights do that) but to give the
+            // 120 m of floor a scale you can read in the fog.
+            Torch("Yard_Torch_1", new Vector3(36f, FloorTop, 16f), g);
+            Torch("Yard_Torch_2", new Vector3(60f, FloorTop, 28f), g);
+            Torch("Yard_Torch_3", new Vector3(70f, FloorTop, -28f), g);
+            Torch("Yard_Torch_4", new Vector3(90f, FloorTop, 28f), g);
+            Torch("Yard_Torch_5", new Vector3(110f, FloorTop, -28f), g);
+            Torch("Yard_Torch_6", new Vector3(130f, FloorTop, 28f), g);
+            Torch("Yard_Torch_7", new Vector3(150f, FloorTop, -28f), g);
+            Torch("Yard_Torch_8", new Vector3(150f, FloorTop, 10f), g);
+
+            // Facing +X: down the yard.
+            return Empty("YardSpawn", YardSpawnPos, Quaternion.Euler(0f, 90f, 0f), g);
+        }
+
+        static Material YardMaterial(YardMat m)
+        {
+            switch (m)
+            {
+                case YardMat.Ground: return mGround;
+                case YardMat.Platform: return mPlatform;
+                case YardMat.Stone: return mStone;
+                case YardMat.Pink: return mPink;
+                case YardMat.Cyan: return mCyan;
+                case YardMat.Yellow: return mYellow;
+                default: return null;
+            }
+        }
+
+        /// <summary>A marker bar: a <see cref="Box"/> with its collider removed, same construction as a <see cref="Trim"/> bar.</summary>
+        static GameObject Stripe(string name, Vector3 center, Vector3 size, Material m, Transform parent)
+        {
+            var go = Box(name, center, size, m, parent);
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            boxCount--;
+            trimCount++;
+            return go;
+        }
+
+        /// <summary>
+        /// Spawn pads along the south wall, with live spawners for Grunt / Heavy / Boss and the six
+        /// legendary mini-bosses (three campaign duellists, three sandbox-only prototypes).
         ///
         /// <para>The row used to end at the Boss pad with two unused "spare" pads at x 18 / 24. Three
         /// legendaries need three slots, so the eastern half of the row is re-spaced rather than
@@ -475,6 +764,13 @@ namespace VibeGame1.EditorTools
             // to look at either of them.
             Box("Pad_Legendary_Revenant", new Vector3(-28f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
 
+            // The Argent Halberdier takes the one gap left in the row: between the Heavy pad (edge at
+            // x -2.5) and the Warden's (edge at x 4). A 4.5 m pad at x 0.75 spans -1.5..3.0, one metre
+            // clear of each neighbour. West of the Revenant there is no room (its pad is already 2 m
+            // off the wall) and the eastern run is full. It is 18 m from the player spawn; like every
+            // pad enemy it sleeps behind its wake switch, so the arena is still quiet on load.
+            Box("Pad_Legendary_Halberdier", new Vector3(0.75f, padY, z), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+
             // Enemies sit south of the player, so they face +Z (identity), unlike the campaign level.
             var sGrunt = Spawner("Spawn_Grunt", new Vector3(-14f, spawnY, z), pGrunt, false, root);
             var sHeavy = Spawner("Spawn_Heavy", new Vector3(-5f, spawnY, z), pHeavy, false, root);
@@ -488,6 +784,7 @@ namespace VibeGame1.EditorTools
             var sSpell = Spawner("Spawn_Legendary_Spellsword", new Vector3(26f, spawnY, z), pLegSpellsword, false, root);
             var sMarionette = Spawner("Spawn_Legendary_Marionette", new Vector3(-22f, spawnY, z), pLegMarionette, false, root);
             var sRevenant = Spawner("Spawn_Legendary_Revenant", new Vector3(-28f, spawnY, z), pLegRevenant, false, root);
+            var sHalberdier = Spawner("Spawn_Legendary_Halberdier", new Vector3(0.75f, spawnY, z), pLegHalberdier, false, root);
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -505,6 +802,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Spellsword", new Vector3(26f, FloorTop, switchZ), sSpell, "ASHEN CHORISTER", root);
             Switch("Wake_Legendary_Marionette", new Vector3(-22f, FloorTop, switchZ), sMarionette, "PALE MARIONETTE", root);
             Switch("Wake_Legendary_Revenant", new Vector3(-28f, FloorTop, switchZ), sRevenant, "EMBER REVENANT", root);
+            Switch("Wake_Legendary_Halberdier", new Vector3(0.75f, FloorTop, switchZ), sHalberdier, "ARGENT HALBERDIER", root);
         }
 
         /// <summary>
@@ -627,24 +925,30 @@ namespace VibeGame1.EditorTools
             Torch("Torch_NE", new Vector3(c, FloorTop, c), t);
             Torch("Torch_N", new Vector3(0f, FloorTop, c), t);
             Torch("Torch_S", new Vector3(0f, FloorTop, -c), t);
-            Torch("Torch_E", new Vector3(c, FloorTop, 0f), t);
+            // Off the z = 0 line: that is now the walk from the spawn to the yard doorway, and a torch
+            // post (no collider) standing in it reads as a mistake even though you pass through it.
+            Torch("Torch_E", new Vector3(c, FloorTop, 6f), t);
             Torch("Torch_W", new Vector3(-c, FloorTop, 0f), t);
         }
 
         static void BuildKillZone(Transform root)
         {
-            var kill = Empty("KillZone", new Vector3(0f, -25f, 0f), Quaternion.identity, root);
+            // Covers the arena AND the movement yard with margin: x -40..165, z -40..40.
+            var kill = Empty("KillZone", new Vector3(62.5f, -25f, 0f), Quaternion.identity, root);
             var col = kill.AddComponent<BoxCollider>();
-            col.size = new Vector3(140f, 2f, 140f);
+            col.size = new Vector3(205f, 2f, 80f);
             col.isTrigger = true;
             kill.AddComponent<KillZone>();
         }
 
-        static void BuildSandboxController(Transform root)
+        static void BuildSandboxController(Transform root, GameObject yardSpawn)
         {
             var go = new GameObject("SandboxController");
             go.transform.SetParent(root, false);
             var controller = go.AddComponent<SandboxController>();
+
+            // WarpToMovementYard() teleports here: just inside the yard doorway, facing down the yard.
+            controller.yardSpawn = yardSpawn != null ? yardSpawn.transform : null;
 
             // Rule 9: a field initialiser does nothing to a component already serialized in the scene, so
             // the shipped respawn values are written here. Practising a fight should not mean walking
@@ -655,7 +959,7 @@ namespace VibeGame1.EditorTools
             // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
-                                              pLegMarionette, pLegRevenant };
+                                              pLegMarionette, pLegRevenant, pLegHalberdier };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -666,6 +970,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Spellsword"),
                 LoadEnemyData("Legendary_Marionette"),
                 LoadEnemyData("Legendary_Revenant"),
+                LoadEnemyData("Legendary_Halberdier"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -689,6 +994,7 @@ namespace VibeGame1.EditorTools
             mTorch = LoadMat("M_Torch");
             mEnemy = LoadMat("M_Enemy");
             mBoss = LoadMat("M_Boss");
+            mWater = LoadMat("M_Water");
             mWepSword = LoadMat("M_Weapon_Sword");
             mWepHammer = LoadMat("M_Weapon_Hammer");
             mWepDagger = LoadMat("M_Weapon_Dagger");
@@ -709,6 +1015,8 @@ namespace VibeGame1.EditorTools
             pLegSpellsword = LoadPrefab("Legendary_Spellsword");
             pLegMarionette = LoadPrefab("Legendary_Marionette");
             pLegRevenant = LoadPrefab("Legendary_Revenant");
+            pLegHalberdier = LoadPrefab("Legendary_Halberdier");
+            pBalloon = LoadPrefab("Balloon");
         }
 
         static Material LoadMat(string name)
