@@ -3,114 +3,86 @@
 **Rewritten at the end of every session; describes a moment, not the project.** Read this first when picking
 up where the last chat stopped, then [SESSION-PROTOCOL.md](SESSION-PROTOCOL.md).
 
-Last session: **2026-09-04, late evening** (Fable 5.1, four parallel forks).
+Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent teams).
 
 ## What happened
 
-**Latest (2026-09-06 late, Fable 5.1):** (0) LAST: a parkour enemy NEVER waits to be finished -- a posture break detonates it next frame (flare); a grapple-hook finish (Break+Execute same frame, EnemyController.DiedExecuted) kills with NO flare; FeatureTests Flare_BreakDetonates / Flare_ExecuteFinishThrowsNothing prove both. (1) the user's tweak -- parkour enemies are FINISHED BY PARRYING (2-3 reflects
-kill), the flare comes on death and is optional; first type renamed `pshooter_enemy01` (`pshooter_enemy02` heavy);
-bolts 40/36 m/s, full lead + in-flight homing so they never sail past unparriable, core 0.55, hitRadius 1.0. (2) Both
-teams now run on OPUS; Opus AUDITED their Sonnet passes (halo double-scale, ACES overshoot, pulse budget, doc lies;
-the UI beat that never cleared) and each team fixed its own pass as a separate commit. (3) THE RADIO: LevelRadio
-backbone (mp3s in Resources/Audio/Radio/<levelId>, keys ] [ backslash, ducks the ambient bed) + RadioView pane in the
-top-right corner (BEST RUNS moved left to BestRunsX -348). (4) VFX passes: horizon silhouette under the eclipse,
-turbulent death mist. Regression guard is a CLAUDE.md hard rule. EditMode 603/603; feature 761/762 (the flask timing
-flake). NOTHING played by a human yet: the flare at 30 m, the bolt homing, the radio pane -- all reasoned, not seen.
-Open from the teams: a priority on PromptChanged; a screen-edge chevron for flares; a per-call drag on SlashFx.Sparks.
+**2026-09-06 was a long session. Newest first.**
 
-**Latest (2026-09-06 night, Fable 5.1): THE SENTRY FLARE + the subagent teams.** A broken Sentry_* now DETONATES
-(`SentryBurst`, ordinary death path) and throws a `SentryFlare` (violet-white, low-gravity arc, fades over 4.5 s);
-DASH at a glowing flare (`FlareGrapple`, replaces SentryDash) pulls you to it and tosses you up 14 m/s. Proven end
-to end in FeatureTests (Flare_*). Two Sonnet teams exist in `.claude/agents/` (`ui-designer`, `vfx-art-team`) with
-the user's mandate: REFINE what Fable/Opus built, never invent; every pass is one lead-made commit prefixed with the
-team name (see TOOLING.md "Subagent teams"); tag `pre-team-passes-2026-09-06` precedes their first passes. Pass 1
-results: the near-break beat on the boss and player posture bars (ui-designer), a ring shockwave on the detonation
-and a feet-ring + chroma pulse on the toss (vfx-art-team). Open from the teams: a priority on `PromptChanged` so
-PERFECT cannot eat GRAPPLE [DASH]; a screen-edge chevron for live flares (diegetic first, only if playtest shows
-misses). EditMode 584/584; feature 760/761 (the flask timing flake again). Nothing played by a human.
-
-**Latest (2026-09-06 evening, Fable 5.1): the `parkour_enemies` / `souls_enemies` SPLIT.** `EnemyPaths`
-(Scripts/Enemies/Core) decides the family by name: `Sentry_*` is parkour, everything else souls. Scripts live
-in `Enemies/Core` (shared brain), `Enemies/parkour_enemies` (Projectile, ProjectileShooter, ProjectileMath) and
-`Enemies/souls_enemies` (BossController); data and movesets under `Data/Enemies|Movesets/{parkour,souls}_enemies`;
-tests split the same way. All moved with `AssetDatabase.MoveAsset` (GUIDs kept). New `pshooter_enemy01` /
-`pshooter_enemy02` data + prefabs (copied from the pill guys, flipped to shoot, violet); `Level_01_Level.asset` places
-only sentries and the scene was rebuilt from it by code. Grunt / Heavy are MELEE souls_enemies again on their
-sandbox pads (the user: "we still want the little pill guys for combat in the sandbox"), plus a sentry pad on the
-second row. `ProjectileShooter` is added only to a body whose data shoots. FeatureTests fetch the melee dummy
-from the level editor's prefab library. Generators 3, 4, 4b, 5, 7, level-from-definition and Health Check re-run.
-EditMode 575/575; feature 751/752 (one flask timing flake; the group passes twice in isolation). DebugHarness's
-parry scenario still looks up `Spawn_GruntA`, which is a sentry now -- it degrades, not fixed. Nothing played by a human.
-
-**Latest (2026-09-06 afternoon, Fable 5.1):** the SOULS COMBAT pass for the non-parkour enemies, from
-`docs/plans/soulslike-report-gap-analysis-2026-09-06.md`: per-move cooldowns in `EnemyMoveset.SelectIndex`
-(history on the instance), the Warden never repeats a phase pattern, a FLASK INTERRUPT (`flaskPunishChance`,
-4 s cooldown, from Chase/Recover only), the NEAR-BREAK beat on the posture bar and the eye from 80%, and
-THE DRILLMASTER showcase (`Legendary_Drillmaster`, sandbox second row x 14 z −26, index 9) carrying all of it.
-Also P1/P2/P4 from the combat plan (commit e2dceac). EditMode 575/575. Feature suite 750/752 with the two
-failures being frame-timing flakes (hitstop checks on a 50 ms frame in an unfocused editor; a different pair
-each run, all timing-shaped; every group passes in isolation). Tag `pre-combat-plan-2026-09-06` is the revert
-point before any of the combat plan work. Open: the user wants the pill grunts to stay MELEE in the sandbox
-(they are sentries now) and a `parkour_enemies` / `souls_enemies` split — see the Plan agent's proposal in
-this session and `docs/plans/`. Nothing here has been played by a human.
-
-**Latest (2026-09-06 midday, Fable 5.1):** the span shooters are SENTRIES (`EnemyData.rangedOnly`: never melee,
-hold the perch, wake at 32 m with a three-line sight check, fire on a fixed metronome with 80% velocity lead and
-a launch that slows inside 11.5 m so the near edge is 3 m). New SENTRY DASH: DASH at a staggered sentry pulls you
-to it and executes, with a new `Sfx.Teleport`. HUD: BEST RUNS pane sized to the board, the level-editor pane's
-root (not its glass) is what F10 toggles — the empty black pane is gone. Generators 3, 4, 5 re-run; EditMode
-561/561 (full), feature 747/747. **Not played by a human yet** — the rhythm, lead and dash feel need the user.
-Still nothing committed.
-
-**Latest (2026-09-05 late morning):** projectiles retuned (32/28 m/s, 10–30 m band, glow exception, 9 m/s parry gain), three perches re-aimed for the new band, the arc report now reads the band from data; quick suite 420/420, full 558/558 (before the last two perch edits, which only changed covers lists), feature 747/747. In-game level editor finalized and SHELVED; levels are authored per LEVEL-AUTHORING-TUTORIAL.md. Still nothing committed.
-
-
-1. **THE ARGENT HALBERDIER** (`Legendary_Halberdier`, from `ai_skelly_tool/output/a_towering_swift`) is on
-   its sandbox pad at x 0.75, wake switch "ARGENT HALBERDIER", SpawnEnemyInFront index 8. First forge body
-   with GENERATED per-character attack clips (nine, six travelling) and an albedo texture. New machinery:
-   `EnemyAttackData.clip`, the named-clip table on `PuppetVisuals`, `TravelRoot` + `CompensateTravel`
-   (root motion is NOT extracted on a Generic rig — see ENGINEERING-LOG), `ModelSpec.zShift/albedo`,
-   `ForgeClipSplitter` reads the manifest's `root` block and the tool's skin contract.
-2. **The player has legs** (`PlayerBody`, under the root) that swing forward into view on a slide, plus a
-   heavier slide: eye plop on a spring, a held lens rumble, kick pitch 1.8°, a plant on stand-up.
-3. **The pivot's first three pieces** — balloons, water, the grapple exit burst — are built as data + code
-   and placed in the sandbox movement yard (`Yard_Water` x 40..100, `Yard_Balloon_1..3` at x 110). Levels
-   are NOT reworked yet and the in-game editor is NOT started. See BACKLOG §0 for the intended shape.
-4. `McpReconnect.cs` re-arms the MCP bridge on every domain reload (the editor lost the startup race).
-5. `Tools/measure_forge_fbx.py` measures a forge FBX in Blender when the editor is unavailable.
+1. **The HUD pass is IN FLIGHT** — a `ui-designer` (Opus) agent was running when the session ended, on four
+   things the user asked for: Best Runs moved under the radio in one right-hand column and shipping collapsed,
+   the wand name + cooldown bar removed from the top-left pane, and the souls counter made to read as a
+   counted resource. Its transcript is
+   `C:\Temp\claude\C--Users-tyler-Main-Storage-vibegame1\5ae61e4e-bd67-47c5-923c-f1857df5cbad\tasks\a60f2079725e1526f.output`.
+   **Check `git status` first**: if `Assets/Editor/HudBuilder.cs`, `Assets/Scripts/UI/*` or `Assets/Scripts/Ghost/GhostHud.cs`
+   are dirty, the agent finished and its work is uncommitted — read it, run `5. Build HUD`, run both suites,
+   then commit it as `[ui-designer] …` (one commit, the regression guard). If the tree is clean it never landed;
+   re-delegate with the same brief.
+2. **The radio** (the user's "2000s racing game" ask). `LevelRadio` on Managers + `RadioView` pane top-right.
+   mp3 / ogg / wav go in `Assets/Resources/Audio/Radio/<SceneName>/` — `Level_01/`, `Sandbox/`, `Default/`.
+   Keyed to the SCENE, not `levelId`: `LevelRegistry` is an editor asset under `Assets/Data` that a build never
+   loads, which made the first version always resolve null (caught in play, not by a test). Keys `]` `[` and
+   backslash. `Level_01/` holds two 8-second **placeholder tones** so the pane is visible out of the box —
+   delete them when real music goes in.
+3. **The slide costs stamina** (`slideCost` 12). It had sat in BACKLOG 0b unbuilt while the user asked for it
+   repeatedly — the lesson is in the backlog note now.
+4. **Two prompt channels.** `GameEvents.PromptFlash` is additive beside `PromptChanged`; a momentary PERFECT no
+   longer erases a standing "GRAPPLE [DASH]" for good. Residual, recorded in DATAFLOW and BACKLOG: the standing
+   slot still has several writers and no owner, so a writer clearing with `""` blanks another's live cue.
+5. **Parkour enemies never wait to be finished.** A posture break detonates them (flare); a grapple-hook finish
+   kills with NO flare (`EnemyController.DiedExecuted`). They die to their own reflected bolts, 2 or 3 deflects.
+   Bolts are 40 / 36 m/s with in-flight homing so one can never sail past unparriable.
+6. **`pshooter_enemy01` / `02`** — the parkour family renamed, and the whole enemy tree split into
+   `parkour_enemies` / `souls_enemies` (`EnemyPaths` decides by name). The melee pill guys are souls enemies on
+   the sandbox pads again.
+7. **The sentry flare + flare grapple**, the soulslike combat pass for the duels (per-move cooldowns, the flask
+   interrupt, the near-break beat, the Drillmaster showcase), the horizon silhouette under the eclipse, and
+   turbulent death mist.
+8. **`session-handoff` skill + a context watcher** (`.claude/skills/session-handoff/`). A PostToolUse hook reads
+   the last turn's real token usage from the transcript and warns once each at 65 / 80 / 90 percent. This
+   handoff was written because it fired.
 
 ## State of the tree
 
-- **Nothing from this session is committed.** ~200 changed/new files including regenerated
-  `Assets/Data/**`, `Assets/Prefabs/**`, `Assets/Animation/**`, `Assets/Scenes/Sandbox.unity`, the
-  ArgentHalberdier FBX/meta and new materials. Commit before any large refactor (CLAUDE.md).
-- Every generator has been run in the live editor after the last code change: `2`, `3`, `4`, `4a`, `4b`,
-  `7`, Health Check (no errors; the 1321 warnings are the pre-existing HUD `SettingsMenu.slider` nulls).
-- EditMode: **552 / 552, 0 skipped** (2026-09-05 09:40, full run, 213 s). The three perch pins closed by MOVING perches: T1_Perch_E to (11, 3.5, 63) covering the wall-run landing + Stone_5 (a line to the causeway centre crosses T1_Wall_Causeway), T2 spawns swapped so GruntB stands inside the west wall at (-7.5, 4, 110.5) between the landing and the mount, both T3 perches beside T3_Wall_Span at (-7.5, 24, 217.5) and (11, 31, 227.5). No span assertion touched.
-- Feature suite: **747 / 747, 0 skipped** (2026-09-05 09:45, fresh session on the reworked Level_01). The forgiveness rig now starts 0.2 m before the edge; its miss case is proven as "never on the ledge top" — the capsule pushed into the ledge's side hovers at y -58.1 instead of sliding to the floor, worth a look by the forgiveness owner.
-- Level editor (finalized 2026-09-05, shelved as a tweak tool): press-frame placement, self-ray-free grab, surface debounce, one size number + readout, Esc cancel, Ctrl+Z/Y, Ctrl+D, arrow nudge, P / PLACE HERE, grid decal; EditMode 17 + feature 10 green; five new actions in the input asset.
-- Level editor: the flashing map (editor ground coplanar with every floor) and the dead piece options (a text list, not buttons) are fixed and proven; the yard balloon chain is retuned to the measured pop arc (5.0 m across, 2.4 m up).
-- Also this session, after the first handoff: the Halberdier's cuts remapped onto the authored strike clips with ranges at the blade and a far-band commit in `EnemyController` (the charge now actually fires from 5 m+); the glass HUD, fluid bars and Pyre fire built and seen once; the perfect-timing refunds built; balloons/water/burst built into the yard.
+- **Committed and clean** as of `7c9fd88`, unless the in-flight HUD agent above has since written files.
+- Revert points: `pre-team-passes-2026-09-06` (before any subagent work), `pre-combat-plan-2026-09-06` (before
+  the combat plan). Every team pass is its own commit prefixed with the team name, so one regression reverts alone.
+- Generators re-run since the last code change: `3`, `4`, `4b`, `5`, `7`, level-from-definition, Health Check.
+  **The HUD agent's work will need `5. Build HUD` before its tests mean anything.**
+- Four subagent teams live in `.claude/agents/`: `combat-designer` (Opus, plans only), `ui-designer` (Opus),
+  `vfx-art-team` (Opus), `editor-controls` (Sonnet). Their mandate and the one-commit-per-pass rule are a
+  CLAUDE.md hard rule and `docs/TOOLING.md`.
+
+## Verification
+
+| Suite | Result | When |
+|---|---|---|
+| EditMode, full | **604 / 604** | 2026-09-06, after the radio scene-key fix |
+| Feature suite, play mode | **765 / 766** | 2026-09-06, on Level_01 |
+
+The single failure is `Flask_DrinkCoroutineAndInterruptOnHit`, a timing flake: it passes twice in isolation and
+its detail flips between runs. A run showing ~20 failures means the editor was throttled while unfocused, not a
+regression — rerun it focused before believing it.
+
+**Nothing from this session has been played by a human.** The flare at 30 m, the bolt homing and its bigger
+core, the detonation, the radio pane, the sky silhouette, the slide's new cost and the souls economy behind it
+are all reasoned and tested, not felt. The Sandbox is the place: the SENTRY pad on the second row for the
+parkour loop (deflect twice, watch it burst, aim at the flare, DASH), the DRILLMASTER pad for the whole souls kit,
+the Grunt and Heavy pads for melee.
 
 ## Do first next session
 
-**The in-game level editor v1 is BUILT (2026-09-05).** `docs/LEVEL-EDITOR.md` is its page; the generators
-(5, 9, 7, 8 on Level_01) have been re-run through the shared `LevelPieceFactory` and Level_01 rebuilt identically
-(125 root children, 441 renderers, 122 colliders, same bounds; `Torches` / `Pickups` groups restored). Test and
-play results: see VERIFICATION-REPORT.
-
-1. Open the editor on the project; if `mcpforunity://instances` says 0, save any script or run
-   **Tools → MCP Bootstrap → Reconnect Bridge**.
-2. **Fix the perfect dash-jump** (3 red feature checks): measure `IsGrounded` through a ground dash with the harness's own setup (`CanAct` must be true), then most likely let a ground-started dash count as grounded for a jump for its 0.16 s. Then re-run `FeatureTests` (expect 734 / 0).
-3. **Fix the top-centre overlap**: the developer help text draws over the clock pill (HudBuilder).
-4. **Play it.** Nobody has: the halberdier's 4.7 m charge lunge (~14 m/s over the cue window) may need
-   retuning; the legs, the eye plop and the 6 mm rumble are feel calls; the 14.85 m/s water floor, the
-   3.27 m balloon launch and the 27.5 m/s grapple burst are all numbers from arithmetic.
-5. Then the rest of the pivot: rework `Level_01_Level.asset` (remove or repurpose the filler spawns, lay in
-   balloons and water, teach `LevelArcAnalyzer` the balloon launch) — with the level editor now available
-   for laying pieces out by hand and exporting them.
+1. **Land or re-run the in-flight HUD pass** (item 1 above). It is the only thing that may be half-done.
+2. **Play a span and the Drillmaster**, then retune from what it actually feels like. Everything else is guesswork
+   until then, and there is a lot of untested feel stacked up.
+3. **Answer the combat-designer's open questions** in `docs/plans/combat-plan-2026-09-06.md` and
+   `docs/plans/soulslike-report-gap-analysis-2026-09-06.md` — the next combat work is blocked on taste calls
+   only the user can make.
 
 ## Open questions for the user
 
-- Editor v1 scope: place / move / delete / save / play the existing pieces — or more?
-- Are the `Level_01` filler Grunt/Heavy spawns removed outright, or kept as traversal tools?
+1. Should reflected bolts ever kill a sentry outright, or only ever open it?
+2. Should the flare grapple cost anything, or stay a free reward?
+3. Is a rear watch region (an enemy punishing you for circling behind) fair in first person?
+4. Should the standing prompt slot get an owner key, so one writer's clear cannot blank another's cue?
+
