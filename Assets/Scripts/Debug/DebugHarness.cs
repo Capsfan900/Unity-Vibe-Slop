@@ -114,6 +114,39 @@ namespace VibeGame1
             return null;
         }
 
+        /// <summary>
+        /// A body that actually SWINGS. 2026-09-06: the campaign level's grunt spawners now hold
+        /// pshooter_enemy01 — a sentry that never melees — so <see cref="FindSpawned"/> kept returning a
+        /// body and the parry scenario sat through its whole timeout proving nothing. Prefer the named
+        /// spawner when it is melee, else any spawned melee body, else build one from the level editor's
+        /// prefab library (the melee Enemy_Grunt lives there even on a level that places none).
+        /// </summary>
+        EnemyController FindMelee(string preferredSpawner)
+        {
+            var e = FindSpawned(preferredSpawner);
+            if (IsMelee(e)) return e;
+
+            foreach (var s in FindObjectsByType<EnemySpawner>())
+            {
+                var c = s.Instance != null ? s.Instance.GetComponent<EnemyController>() : null;
+                if (IsMelee(c) && !(c is BossController)) return c;
+            }
+
+            var pf = LevelEditor.I != null ? LevelEditor.I.PrefabFor("Enemy_Grunt") : null;
+            if (pf == null) return null;
+            Vector3 pos = player.transform.position + player.transform.forward * 5f;
+            if (UnityEngine.AI.NavMesh.SamplePosition(pos, out var hit, 8f, UnityEngine.AI.NavMesh.AllAreas)) pos = hit.position;
+            var go = Instantiate(pf, pos, Quaternion.identity);
+            go.name = "~HarnessMelee";
+            L("no melee enemy in this scene; spawned " + pf.name + " at " + pos);
+            return go.GetComponent<EnemyController>();
+        }
+
+        static bool IsMelee(EnemyController e)
+        {
+            return e != null && e.IsAlive && (e.data == null || !e.data.rangedOnly);
+        }
+
         IEnumerator FightAutoParry(EnemyController e, bool executeWhenStaggered, float timeout, bool cheatHeal)
         {
             float end = Time.unscaledTime + timeout;
@@ -159,8 +192,8 @@ namespace VibeGame1
         {
             Bind();
             yield return null;
-            var grunt = FindSpawned("Spawn_GruntA");
-            if (grunt == null) { L("no grunt A"); yield break; }
+            var grunt = FindMelee("Spawn_GruntA");
+            if (grunt == null) { L("no MELEE enemy to parry (the level's grunts are sentries; no editor library either)"); yield break; }
             int souls0 = SoulsWallet.I.Souls;
             TeleportNear(grunt.transform, 4f);
             L($"teleported near {grunt.name} at {player.transform.position}");
@@ -168,7 +201,7 @@ namespace VibeGame1
             L($"souls {souls0} -> {SoulsWallet.I.Souls}");
 
             // now a heavy with a 2-hit combo
-            var heavy = FindSpawned("Spawn_Heavy");
+            var heavy = FindMelee("Spawn_Heavy");
             if (heavy != null)
             {
                 TeleportNear(heavy.transform, 4f);

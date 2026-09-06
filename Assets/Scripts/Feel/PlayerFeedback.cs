@@ -388,7 +388,7 @@ namespace VibeGame1
             AudioManager.Play(Sfx.Swing, 0.28f, 1.9f, 0.04f);
             if (CameraFX.I != null) CameraFX.I.FovKick(feel != null ? feel.perfectFovKick : 3f);
             float hold = feel != null ? feel.perfectPromptSeconds : 0.6f;
-            GameEvents.RaisePromptChanged("PERFECT");
+            GameEvents.RaisePromptFlash("PERFECT", 0.9f);   // a flash, so it hands the standing cue back (2026-09-06)
             perfectPromptUntil = Time.unscaledTime + hold;
         }
 

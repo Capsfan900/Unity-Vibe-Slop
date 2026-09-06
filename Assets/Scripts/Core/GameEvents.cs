@@ -25,6 +25,8 @@ namespace VibeGame1
         public static event Action<float, float> BossPostureChanged;
         public static event Action BossDefeated;
         public static event Action<string> PromptChanged;
+        /// <summary>A momentary prompt (text, seconds) drawn over the standing one. See RaisePromptFlash.</summary>
+        public static event Action<string, float> PromptFlash;
         public static event Action UltimateUsed;
         public static event Action<float, float> PlayerPostureChanged;
         public static event Action PlayerPostureBroken;
@@ -59,6 +61,15 @@ namespace VibeGame1
         public static void RaiseBossPostureChanged(float c, float m) => BossPostureChanged?.Invoke(c, m);
         public static void RaiseBossDefeated() => BossDefeated?.Invoke();
         public static void RaisePromptChanged(string s) => PromptChanged?.Invoke(s);
+
+        /// <summary>
+        /// A momentary prompt shown OVER the standing one for <paramref name="seconds"/>, then gone —
+        /// "PERFECT", "NO TARGET". 2026-09-06: these used to be written to the same single channel as the
+        /// standing cues ("DEATHBLOW [ATTACK]", "GRAPPLE [DASH]"), which are EDGE-TRIGGERED — a writer only
+        /// re-raises when its own string changes — so one PERFECT erased a live cue until the player looked
+        /// away and back. PromptView keeps the two apart and restores the standing cue when the flash ends.
+        /// </summary>
+        public static void RaisePromptFlash(string s, float seconds) => PromptFlash?.Invoke(s, seconds);
         public static void RaiseUltimateUsed() => UltimateUsed?.Invoke();
         public static void RaisePlayerPostureChanged(float c, float m) => PlayerPostureChanged?.Invoke(c, m);
         public static void RaisePlayerPostureBroken() => PlayerPostureBroken?.Invoke();

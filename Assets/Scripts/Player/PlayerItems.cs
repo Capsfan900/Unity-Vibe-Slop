@@ -210,9 +210,8 @@ namespace VibeGame1
             if (target == null)
             {
                 // Refused, kept. Says so: a press that does nothing with no explanation reads as broken.
-                GameEvents.RaisePromptChanged("NO TARGET");
+                GameEvents.RaisePromptFlash("NO TARGET", 0.6f);   // a flash: it must not erase a live GRAPPLE cue
                 AudioManager.Play(Sfx.Click, 0.5f, 0.7f);
-                StartCoroutine(ClearPromptCo(0.6f));
                 return false;
             }
             StartCoroutine(PullCo(target, item.grappleSeconds, item.color, Sfx.Dash, 0.75f, item.grappleBigPostureFraction));
@@ -318,14 +317,6 @@ namespace VibeGame1
             }
             GameEvents.RaisePromptChanged("");
             surgePrompt = null;
-        }
-
-        IEnumerator ClearPromptCo(float seconds)
-        {
-            float t = 0f;
-            while (t < seconds) { t += Time.unscaledDeltaTime; yield return null; }
-            // The interactor only re-raises its own prompt on change, so clear ours explicitly.
-            GameEvents.RaisePromptChanged("");
         }
     }
 }

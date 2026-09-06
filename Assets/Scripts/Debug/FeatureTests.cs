@@ -324,6 +324,7 @@ namespace VibeGame1
                 Test("Deathblow",       TestDeathblowMarker),
                 Test("FlaskPunish",     TestFlaskPunish),
                 Test("Flare",           TestFlare),
+                Test("PromptChannels",  TestPromptChannels),
                 Test("LockOn",          TestLockOn),
                 Test("Items",           TestItems),
                 Test("Flask",           TestFlask),
@@ -1865,6 +1866,37 @@ namespace VibeGame1
         /// at the glowing flare pulls the player to it and tosses them up. Forced through the public
         /// entry points; the aim cone is a FlareGrapple.FindTarget matter the sandbox proves by hand.
         /// </summary>
+        /// <summary>
+        /// The two prompt channels (2026-09-06). A momentary flash ("PERFECT") is drawn over a standing cue
+        /// ("GRAPPLE  [DASH]") and then HANDS IT BACK — before the split, one PERFECT erased a live cue for
+        /// good, because every standing writer is edge-triggered and never re-raises the same string.
+        /// </summary>
+        IEnumerator TestPromptChannels()
+        {
+            var view = FindAnyObjectByType<PromptView>();
+            if (view == null) { Skip("PromptChannels", "no PromptView in the HUD; run 5. Build HUD"); yield break; }
+
+            GameEvents.RaisePromptChanged("");
+            GameEvents.RaisePromptFlash("", 0f);
+            yield return null;
+
+            GameEvents.RaisePromptChanged("GRAPPLE  [DASH]");
+            yield return null;
+            Check("Prompt_StandingShows", view.Current == "GRAPPLE  [DASH]", "current=" + view.Current);
+
+            GameEvents.RaisePromptFlash("PERFECT", 0.25f);
+            yield return null;
+            Check("Prompt_FlashDrawsOverTheStandingCue", view.Current == "PERFECT", "current=" + view.Current);
+
+            yield return WaitRealtime(0.35f);
+            Check("Prompt_StandingCueComesBack", view.Current == "GRAPPLE  [DASH]",
+                "current=" + view.Current + " -- a flash must hand the standing cue back, not eat it");
+
+            GameEvents.RaisePromptChanged("");
+            yield return null;
+            Check("Prompt_EmptyStandingClears", view.Current.Length == 0, "current=" + view.Current);
+        }
+
         IEnumerator TestFlare()
         {
             var sentryPf = LevelEditor.I != null ? LevelEditor.I.PrefabFor("pshooter_enemy01") : null;

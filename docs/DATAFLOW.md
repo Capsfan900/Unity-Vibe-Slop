@@ -152,7 +152,9 @@ InputReader → FirstPersonMotor.Update()
     GROUND SNAP final cc.Move displacement.y = min(vel.y dt, -groundSnapDistance 0.12) while grounded and not
                  rising — displacement only, the sweep stops at the floor. Without it the -2 pin moved 0.004 m
                  at 500 fps, inside skinWidth 0.05, isGrounded flickered off and every slide died at coyote time
-    SLIDE      capsule 1.8 → 0.9 m, boost +5 x fade x 0.6^chain (cap 22), bleeds at 2/s to a floor of 8
+    SLIDE      costs stamina.slideCost 12 (spent in TrySlide AFTER the standstill / cooldown / airborne / min-speed
+               gates, so a refused slide is free; a refusal raises StaminaAction.Slide and flashes like the dash's)
+               capsule 1.8 → 0.9 m, boost +5 x fade x 0.6^chain (cap 22), bleeds at 2/s to a floor of 8
                  fade = (22 - speed)/(22 - 11): full at a sprint, nothing at the cap
                  chain = slides started within 1.2 s of the last one ENDING: 5, 3, 1.8, 1.1 ...
     WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal; costs 12 stamina
@@ -727,6 +729,18 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
             → prompt "SURGE Ns" once a second (SurgePromptCo), "" on expiry
             → StatusStripView reads IsWallSurging / WallSurgeRemaining per frame → "WALL SURGE  N.Ns" row
 
+THE PROMPT LINE — two channels (2026-09-06)
+  GameEvents.PromptChanged (string)        → PromptView.standing : a cue true while a condition holds
+        "DEATHBLOW  [ATTACK]" (ExecuteInteractor), "GRAPPLE  [DASH]" (FlareGrapple), "SURGE N.Ns" (PlayerItems),
+        the level editor's PLAYING line. Every writer is EDGE-TRIGGERED (raises only when its own string changes).
+  GameEvents.PromptFlash (string, seconds) → PromptView.flash : momentary, drawn OVER the standing cue and then
+        gone — "PERFECT" (PlayerFeedback, 0.9 s), "NO TARGET" (PlayerItems, 0.6 s).
+  PromptView.Current = flash while unexpired, else standing. Unscaled time. Before the split there was one
+  channel, so a PERFECT erased a live GRAPPLE cue permanently (nothing re-raised it). FeatureTests: Prompt_*.
+  RESIDUAL, known: the STANDING slot still has several writers and no owner, so one writer's clear ("" at the
+  end of a SURGE) blanks another's live cue until that writer's own string changes. Next smallest step is an
+  owner key on the standing slot, so a clear only lands if the clearer is the one being shown. BACKLOG 0b.
+
 GameEvents.PlayerRespawned → every ItemPickup re-enables; PlayerItems clears
 
 THE SENTRY FLARE (2026-09-06; parkour_enemies)
@@ -793,10 +807,13 @@ OffhandController  = the player's left hand, ALWAYS visible (OffhandViewmodel)
 ```
 Managers prefab → LevelRadio (one 2D AudioSource, volume = AudioManager.musicVolume * masterVolume, faded on unscaled time)
   Start / SceneManager.activeSceneChanged → LoadForActiveLevel()
-     LevelRegistryRuntime.Current   (Resources/LevelRegistry, matched by sceneName; null in the sandbox)
-     folder = def.radioFolder, else def.SafeLevelId, else ""  → RadioMath.ResourcesFolder → "Audio/Radio/<folder>"
-     Resources.LoadAll<AudioClip>  (mp3 / ogg / wav dropped in Assets/Resources/Audio/Radio/<folder>/, name order;
-                                    empty → "Audio/Radio/Default"; still empty → radio OFF, HasPlaylist false)
+     folder = the ACTIVE SCENE NAME ("Level_01") → RadioMath.ResourcesFolder → "Audio/Radio/Level_01"
+     StationName = RadioMath.StationFor(scene) → "LEVEL 01"     [the scene is the only level identity a BUILD has:
+     LevelRegistry is an editor asset under Assets/Data and nothing loads it at runtime -- a levelId lookup came
+     back null in play, 2026-09-06]
+     Resources.LoadAll<AudioClip>  (mp3 / ogg / wav dropped in Assets/Resources/Audio/Radio/<Scene>/, name order;
+                                    empty → "Audio/Radio/Default"; still empty → radio OFF, HasPlaylist false,
+                                    RadioView hides its pane ROOT)
      autoPlay → TurnOn(): AudioManager.MusicDuck = 0 (the ambient bed ducks; boss music still swaps as before)
   InputReader.RadioNextPressed (]) → Next()        RadioMath.Next wraps
   InputReader.RadioPreviousPressed ([) → Previous() RadioMath.PreviousRestartsCurrent(elapsed, 3 s): restart, else back
