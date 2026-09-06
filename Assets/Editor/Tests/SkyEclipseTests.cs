@@ -108,6 +108,31 @@ namespace VibeGame1.Tests
             });
         }
 
+        [Test]
+        public void HorizonHasASilhouette()
+        {
+            // 2026-09-06 VFX pass: "the sky and surrounds must look polished and like a complete game" --
+            // before this the horizon was fog and nothing else. A jagged near-black ring reads as distant
+            // ruins without spending any of the light budget or introducing a new hue.
+            RunOnBuiltSky((mesh, mats) =>
+            {
+                const int domeVerts = 21 * 41;
+                Color[] cols = mesh.colors;
+                Vector3[] verts = mesh.vertices;
+                int silhouetteVerts = 0;
+                for (int i = domeVerts; i < cols.Length; i++)
+                {
+                    float peak = Mathf.Max(cols[i].r, Mathf.Max(cols[i].g, cols[i].b));
+                    // Near black, full alpha, and clearly below eye level (the y component of a unit-ish
+                    // direction at radius ~25 with a small negative pitch).
+                    if (cols[i].a >= 0.999f && peak > 0.001f && peak < 0.12f && verts[i].y < 0f)
+                        silhouetteVerts++;
+                }
+                Assert.GreaterOrEqual(silhouetteVerts, 64,
+                    "expected a full ring of near-black silhouette geometry just below the horizon");
+            });
+        }
+
         // ---------------------------------------------------------------- environment palette
 
         [Test]

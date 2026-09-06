@@ -114,6 +114,14 @@ namespace VibeGame1
             // The base sky. Written first so everything else paints over it.
             BuildDome(verts, colors, tris, radius, eclipseDir);
 
+            // --- 1b. Horizon silhouette --------------------------------------------------------------
+            // 2026-09-06 VFX pass: "the sky and surrounds must look polished and like a complete game."
+            // Elden Ring's Erdtree and Dark Souls 3's distant Irithyll skyline both put something with a
+            // SHAPE between the player and the sky, so the horizon reads as a place seen from within,
+            // not a hard edge where geometry stops. Pure near-black, no new hue and no light budget: it
+            // silhouettes against the dome's horizon band the same way a body silhouettes against it.
+            BuildHorizonSilhouette(verts, colors, tris, radius, rng);
+
             // --- 2. Nebulae ------------------------------------------------------------------------
             // Large, very dim soft discs. They do most of the work of making the sky feel like a place
             // rather than a black void with dots in it.
@@ -263,6 +271,46 @@ namespace VibeGame1
                     t.Add(a); t.Add(d); t.Add(b);
                     t.Add(b); t.Add(d); t.Add(e);
                 }
+            }
+        }
+
+        /// <summary>Angular height range of a single spire, degrees. Jagged and irregular -- ruins, not a wall.</summary>
+        const float SilhouetteMinDeg = 1.2f;
+        const float SilhouetteMaxDeg = 7.5f;
+        /// <summary>Segments around the full horizon. Cheap: two extra triangles per segment, one draw call.</summary>
+        const int SilhouetteSegments = 64;
+
+        /// <summary>
+        /// A jagged ring of near-black ruin spires sitting just below the horizon, all the way around.
+        /// Drawn nearer than the dome (radius 0.975 against the dome's 1.0) so it silhouettes correctly,
+        /// and biased low so it never competes with the eclipse or a mid-air read.
+        /// </summary>
+        static void BuildHorizonSilhouette(List<Vector3> v, List<Color> c, List<int> t, float radius, System.Random rng)
+        {
+            const int n = SilhouetteSegments;
+            float r = radius * 0.975f;
+            Color body = Hex("#0A0203");     // matches the dome's nadir: no new hue introduced
+            Color rimHot = Hex("#6A1608");   // a thin ember catch-light along the topmost edge only
+
+            int baseIdx = v.Count;
+            const float basePitch = -3f;     // a touch below the horizon: grounded, not floating
+            var heights = new float[n];
+            for (int i = 0; i < n; i++) heights[i] = Lerp(rng, SilhouetteMinDeg, SilhouetteMaxDeg);
+
+            for (int i = 0; i <= n; i++)
+            {
+                int wi = i % n;
+                float yaw = i / (float)n * 360f;
+                v.Add(Direction(yaw, basePitch) * r);
+                c.Add(PM(body, 1f));
+                v.Add(Direction(yaw, basePitch + heights[wi]) * r);
+                c.Add(PM(Color.Lerp(body, rimHot, 0.6f), 1f));
+            }
+            for (int i = 0; i < n; i++)
+            {
+                int b0 = baseIdx + i * 2, t0 = b0 + 1, b1 = b0 + 2, t1 = b0 + 3;
+                t.Add(b0); t.Add(t0); t.Add(b1);
+                t.Add(b1); t.Add(t0); t.Add(t1);
             }
         }
 
