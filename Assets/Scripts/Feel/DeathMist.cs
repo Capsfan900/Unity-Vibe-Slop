@@ -35,6 +35,16 @@ namespace VibeGame1
         const int MaxParticles = 96;
         const int TextureSize = 32;
 
+        /// <summary>
+        /// 2026-09-06 VFX pass ("physics simulations and effects"): the mist previously rose as a rigid
+        /// column, decelerated only by the velocity clamp below. Real smoke buoyancy is turbulent, not
+        /// laminar. A small, damped noise field breaks that up without changing how fast or how far the
+        /// burst reads -- it is the same silhouette, just alive rather than solid.
+        /// </summary>
+        public const float MistNoiseStrength = 0.28f;
+        public const float MistNoiseFrequency = 0.35f;
+        public const float MistNoiseScrollSpeed = 0.15f;
+
         static readonly List<DeathMist> pool = new List<DeathMist>(PoolSize);
         static int roundRobin;
 
@@ -165,6 +175,17 @@ namespace VibeGame1
             limit.dampen = 0.14f;
             limit.limit = new ParticleSystem.MinMaxCurve(0.7f);
 
+            // Damped turbulence so the rise reads as smoke curling, not a solid column being pushed up at
+            // a fixed rate. Low quality (1D) is plenty at this particle count and this size on screen, and
+            // "damping" on means the field itself settles rather than churning forever.
+            var noise = ps.noise;
+            noise.enabled = true;
+            noise.quality = ParticleSystemNoiseQuality.Low;
+            noise.strength = new ParticleSystem.MinMaxCurve(MistNoiseStrength);
+            noise.frequency = MistNoiseFrequency;
+            noise.scrollSpeed = MistNoiseScrollSpeed;
+            noise.damping = true;
+
             // Fade in fast, out slow. Allocating a Gradient/AnimationCurve here is fine — this runs once
             // per pooled system for the life of the process, never per burst.
             var col = ps.colorOverLifetime;
@@ -214,6 +235,14 @@ namespace VibeGame1
 
         /// <summary>Claim a share of the mist material/texture. Balanced by <see cref="ReleaseShared"/>.</summary>
         internal static void RetainShared() { liveInstances++; }
+
+        /// <summary>Test-only: first pooled system's noise module, so the buoyancy wiring can be pinned
+        /// without touching play mode. Builds the pool if it does not exist yet.</summary>
+        internal static ParticleSystem.NoiseModule PeekNoiseModuleForTests()
+        {
+            EnsurePool();
+            return pool[0].ps.noise;
+        }
 
         /// <summary>Give it back. The last release frees the material and the generated texture.</summary>
         internal static void ReleaseShared()
