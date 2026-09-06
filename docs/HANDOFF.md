@@ -9,15 +9,11 @@ Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent team
 
 **2026-09-06 was a long session. Newest first.**
 
-1. **The HUD pass is IN FLIGHT** — a `ui-designer` (Opus) agent was running when the session ended, on four
-   things the user asked for: Best Runs moved under the radio in one right-hand column and shipping collapsed,
-   the wand name + cooldown bar removed from the top-left pane, and the souls counter made to read as a
-   counted resource. Its transcript is
-   `C:\Temp\claude\C--Users-tyler-Main-Storage-vibegame1\5ae61e4e-bd67-47c5-923c-f1857df5cbad\tasks\a60f2079725e1526f.output`.
-   **Check `git status` first**: if `Assets/Editor/HudBuilder.cs`, `Assets/Scripts/UI/*` or `Assets/Scripts/Ghost/GhostHud.cs`
-   are dirty, the agent finished and its work is uncommitted — read it, run `5. Build HUD`, run both suites,
-   then commit it as `[ui-designer] …` (one commit, the regression guard). If the tree is clean it never landed;
-   re-delegate with the same brief.
+1. **The HUD pass LANDED** (`0d1c73c`). The top-right is one column now: radio on top, Best Runs beneath it and
+   shipping COLLAPSED (best time + "+N MORE"), auto-expanding for 4 s when the leaderboard changes — no new input.
+   The wand name and cooldown bar are gone from the loadout pane (only HudBuilder and HUDController read them;
+   `ExecuteInteractor` still prints the wand cooldown at the crosshair when it matters), and the souls counter is
+   bone label over rolling mint digits that flash ember on a gain and snap on a spend. `HudColumnTests` (11) pin it.
 2. **The radio** (the user's "2000s racing game" ask). `LevelRadio` on Managers + `RadioView` pane top-right.
    mp3 / ogg / wav go in `Assets/Resources/Audio/Radio/<SceneName>/` — `Level_01/`, `Sandbox/`, `Default/`.
    Keyed to the SCENE, not `levelId`: `LevelRegistry` is an editor asset under `Assets/Data` that a build never
@@ -48,7 +44,7 @@ Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent team
 - Revert points: `pre-team-passes-2026-09-06` (before any subagent work), `pre-combat-plan-2026-09-06` (before
   the combat plan). Every team pass is its own commit prefixed with the team name, so one regression reverts alone.
 - Generators re-run since the last code change: `3`, `4`, `4b`, `5`, `7`, level-from-definition, Health Check.
-  **The HUD agent's work will need `5. Build HUD` before its tests mean anything.**
+  `5. Build HUD` has been re-run since the HUD column pass, so its prefab pins assert rather than skip.
 - Four subagent teams live in `.claude/agents/`: `combat-designer` (Opus, plans only), `ui-designer` (Opus),
   `vfx-art-team` (Opus), `editor-controls` (Sonnet). Their mandate and the one-commit-per-pass rule are a
   CLAUDE.md hard rule and `docs/TOOLING.md`.
@@ -57,8 +53,8 @@ Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent team
 
 | Suite | Result | When |
 |---|---|---|
-| EditMode, full | **604 / 604** | 2026-09-06, after the radio scene-key fix |
-| Feature suite, play mode | **765 / 766** | 2026-09-06, on Level_01 |
+| EditMode, full | **616 / 616** | 2026-09-06, after the HUD column pass |
+| Feature suite, play mode | **765 / 766** | 2026-09-06, on Level_01, after the HUD column pass |
 
 The single failure is `Flask_DrinkCoroutineAndInterruptOnHit`, a timing flake: it passes twice in isolation and
 its detail flips between runs. A run showing ~20 failures means the editor was throttled while unfocused, not a
@@ -72,10 +68,9 @@ the Grunt and Heavy pads for melee.
 
 ## Do first next session
 
-1. **Land or re-run the in-flight HUD pass** (item 1 above). It is the only thing that may be half-done.
-2. **Play a span and the Drillmaster**, then retune from what it actually feels like. Everything else is guesswork
+1. **Play a span and the Drillmaster**, then retune from what it actually feels like. Everything else is guesswork
    until then, and there is a lot of untested feel stacked up.
-3. **Answer the combat-designer's open questions** in `docs/plans/combat-plan-2026-09-06.md` and
+2. **Answer the combat-designer's open questions** in `docs/plans/combat-plan-2026-09-06.md` and
    `docs/plans/soulslike-report-gap-analysis-2026-09-06.md` — the next combat work is blocked on taste calls
    only the user can make.
 
