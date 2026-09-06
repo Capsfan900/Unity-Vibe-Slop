@@ -399,6 +399,13 @@ namespace VibeGame1
             float sp = Mathf.Sqrt(sx * sx + sz * sz);
             if (sp < slideMinEntrySpeed) return false;
 
+            // THE SLIDE IS ON THE BUDGET (2026-09-06, the user). Last of the four gates on purpose:
+            // TrySpend has a side effect, so it may only run once the slide is certain to start —
+            // a refusal from a standstill, on cooldown, in the air or under the entry speed must
+            // cost nothing. A refusal here names Slide, so the HUD flashes and says which move was
+            // denied instead of the press reading as a dropped input.
+            if (stamina != null && !stamina.TrySpend(stamina.slideCost, StaminaAction.Slide)) return false;
+
             // The boost DIMINISHES with the speed you already carry (full at a sprint, nothing at
             // slideMaxSpeed) and with every slide chained inside slideChainWindow. A slide entered at a
             // run still buys its full 5 m/s; a fourth back-to-back slide-hop buys ~1. That is the whole

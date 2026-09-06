@@ -34,6 +34,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(12f, s.wallRunEntryCost, 1e-4f, "wallRunEntryCost");
             Assert.AreEqual(22f, s.wallRunDrainPerSecond, 1e-4f, "wallRunDrainPerSecond");
             Assert.AreEqual(12f, s.wallJumpCost, 1e-4f, "wallJumpCost");
+            Assert.AreEqual(12f, s.slideCost, 1e-4f, "slideCost -- the slide is on the budget (2026-09-06)");
             Assert.IsFalse(s.Infinite, "Infinite shipped ON — the budget is decorative");
         }
 
@@ -138,5 +139,20 @@ namespace VibeGame1.Tests
             Assert.Greater(fourth, 0.5f, "a fourth chained slide earns nothing; the tech is dead rather than taxed");
             Assert.Greater(m.slideChainWindow, m.slideCooldown, "the chain window is shorter than the cooldown; no slide can ever chain");
         }
-    }
+    
+        [Test]
+        public void TheSlideIsOnTheBudget_AndTheDashIsStillTheExpensiveOne()
+        {
+            var s = Player().GetComponentInChildren<PlayerStamina>(true);
+            Assert.IsNotNull(s);
+            Assert.Greater(s.slideCost, 0f, "a free slide is the one movement tech off the budget (BACKLOG 0b)");
+            Assert.Less(s.slideCost, s.dashCost, "a slide preserves speed, a dash mints it: the dash must cost more");
+            // A full bar is a run of slides, not an endless one: the chain has a floor a player can feel.
+            int slides = Mathf.FloorToInt(s.max / s.slideCost + 1e-4f);
+            Assert.GreaterOrEqual(slides, 5, "fewer than five slides from full makes ordinary traversal a resource puzzle");
+            Assert.LessOrEqual(slides, 10, slides + " slides from full is a budget nobody feels");
+            // Dash then slide out of it -- the common combo -- must still fit inside one bar.
+            Assert.Less(s.dashCost + s.slideCost, s.max, "dash into a slide must be affordable from full");
+        }
+}
 }

@@ -32,10 +32,17 @@ spawns are removed outright or kept as tools. Recorded in memory as `direction-p
 
 ## 0b. Queued after the level rework (user, 2026-09-05)
 
-- **The slide costs stamina.** Today it is free; the user wants it on the budget like the dash and the wall
-  run. Shape: a `slideCost` on `PlayerStamina` spent in `TrySlide` (refused with the same red flash and name
-  the dash gets), written by `PrefabFactory.BuildPlayer`, pinned by `StaminaTunablesTests`; the landing-slide
-  and the chain falloff unchanged.
+- ~~**The slide costs stamina.**~~ **BUILT 2026-09-06** (the user asked again; it had sat here unbuilt).
+  `PlayerStamina.slideCost` 12 — the wall-run/wall-jump price, with the dash still the expensive burst at 30 —
+  spent in `FirstPersonMotor.TrySlide` after every refusal gate so a refused slide is free; `StaminaAction.Slide`
+  names the refusal; written by `PrefabFactory.BuildPlayer`, pinned by `StaminaTunablesTests`. The landing-slide
+  and the chain falloff are untouched.
+- **An owner key on the standing prompt slot.** Done 2026-09-06: flashes ("PERFECT", "NO TARGET") moved to
+  their own `GameEvents.PromptFlash` channel so they hand the standing cue back. Still open: the standing slot
+  has several writers and no owner, so a writer clearing with `""` (the SURGE readout when it expires) blanks
+  another writer's live cue ("GRAPPLE  [DASH]") until that writer's own string changes. Shape: pass an owner
+  token to `RaisePromptChanged`, and let a clear land only when the clearer is the one currently shown.
+
 - **Re-tune the perfect-timing stamina regain** ("more reasonable to do but takes skill"): play-test the
   three windows (wall jump 0.14 s at the let-go, dash-jump 0.04–0.16 s, burst 0.12 s) and their refunds
   (20 / 30 / +30) against a hand on the stick; widen or move the *anchor* before widening the window

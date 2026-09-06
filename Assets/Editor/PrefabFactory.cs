@@ -687,6 +687,7 @@ namespace VibeGame1.EditorTools
             stamina.wallRunEntryCost = 12f;
             stamina.wallRunDrainPerSecond = 22f;
             stamina.wallJumpCost = 12f;
+            stamina.slideCost = 12f;   // 2026-09-06: the slide joins the budget (BACKLOG 0b, closed)
             root.AddComponent<PlayerPosture>();
             root.AddComponent<ParryController>();
             root.AddComponent<PlayerCombat>();

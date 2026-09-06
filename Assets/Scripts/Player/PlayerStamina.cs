@@ -5,7 +5,8 @@ namespace VibeGame1
 {
     /// <summary>What a stamina spend was for. Carried on the refusal event so the HUD can say WHICH
     /// ability you could not afford, not just "no".</summary>
-    public enum StaminaAction { Dash = 0, WallRun = 1, WallJump = 2 }
+    /// <summary>APPEND ONLY: the values are raised on GameEvents.StaminaRefused and read by the HUD.</summary>
+    public enum StaminaAction { Dash = 0, WallRun = 1, WallJump = 2, Slide = 3 }
 
     /// <summary>
     /// The movement budget. Dashes, wall runs and wall jumps spend it; standing on the ground earns it
@@ -43,6 +44,12 @@ namespace VibeGame1
         [Tooltip("Drained every second on the wall. The run ends (Exhausted) when the bar hits zero.")]
         public float wallRunDrainPerSecond = 22f;
         public float wallJumpCost = 12f;
+        [Tooltip("Stamina a slide costs at entry (2026-09-06, the user, repeatedly: the slide was the one movement " +
+                 "tech still free). 12 like the wall run and the wall jump: the dash is the expensive burst at 30, " +
+                 "everything else is a 12, so a full bar is three dashes or eight slides. Spent in " +
+                 "FirstPersonMotor.TrySlide AFTER every refusal gate, so a slide that does not start is never paid " +
+                 "for; a refusal names Slide and flashes like the dash's.")]
+        public float slideCost = 12f;
 
         /// <summary>Debug: never spends, never refuses. God mode (F8) sets this.</summary>
         public bool Infinite;
