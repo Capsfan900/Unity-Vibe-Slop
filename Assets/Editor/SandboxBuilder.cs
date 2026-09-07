@@ -205,12 +205,19 @@ namespace VibeGame1.EditorTools
             if (profile != null) volume.sharedProfile = profile;
             else Debug.LogWarning($"[SandboxBuilder] Missing volume profile {ProfilePath}; post-processing will differ from the level.");
 
+            // FOG IS NOT MIRRORED BY HAND ANY MORE. It used to be three literals here (#0C0912 violet,
+            // 45, 240) beside three different literals in ProjectSetup, and the colours had already
+            // drifted apart — the sandbox was still violet after the cold pass took the level blue.
+            // The sandbox exists so a value can be judged in here and trusted out there, so it now reads
+            // the campaign's constants directly and the drift is structurally impossible.
+            // (STILL DRIFTED, deliberately not touched in this pass: the ambient below is the WARM
+            // pre-cold-pass set, #7A5540 equator against ProjectSetup's #3F5E88. That is a bigger call
+            // than fog — it changes how every enemy reads in the workshop — and belongs to its own pass.)
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = Hex("#0C0912", new Color(0.047f, 0.035f, 0.07f));
-            // Start must stay clear of the Starfield radius (25) or the sky begins to fog.
-            RenderSettings.fogStartDistance = 45f;
-            RenderSettings.fogEndDistance = 240f;
+            RenderSettings.fogColor = ProjectSetup.FogColor;
+            RenderSettings.fogStartDistance = ProjectSetup.FogStartDistance;
+            RenderSettings.fogEndDistance = ProjectSetup.FogEndDistance;
             // Trilight, matching ProjectSetup: cool starlight above, warm eclipse ember on vertical
             // faces, near-black bounce underneath. This is what lifts the scene - the sky mesh is unlit
             // and contributes no illumination by itself. The EQUATOR term is the one that matters:
@@ -332,8 +339,11 @@ namespace VibeGame1.EditorTools
         /// <para>The radius stays at 25 even though the movement yard now reaches x = 152. The sky is
         /// NOT a dome the geometry has to fit inside: it follows the camera (<see cref="SkyFollower"/>),
         /// draws in the Background queue and writes no depth, so a wall 100 m away still paints over it.
-        /// What the radius must do is stay below <c>fogStartDistance</c> (45) — enlarging it to "enclose"
-        /// the yard would fog the sky and change nothing else.</para>
+        /// What the radius must do is stay below <c>ProjectSetup.FogStartDistance</c> (36) — enlarging it
+        /// to "enclose" the yard would fog the sky and change nothing else. Note the real clearance is
+        /// tighter than 34 vs 25 suggests: the eclipse halo is a wide flat disc whose corners sit ~31.2 m
+        /// out, so the mesh's true outer radius is 31, not 25.
+        /// <c>SkyEclipseTests.TheSkyIsFogImmuneByGeometryNotByAssumption</c> measures it.</para>
         /// </summary>
         static void BuildSky(Transform root)
         {

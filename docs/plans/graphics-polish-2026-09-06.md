@@ -80,6 +80,45 @@ does not; and `m_UpscalingFilter: 0` (Automatic) at renderScale 0.8 should be ve
 FSR 1.0 rather than a bilinear stretch — the asset already authors `m_FsrSharpness: 0.92`.
 *Cost:* a few shadow taps; FSR is ~0.1 ms. *Risk:* LOW. *Proof:* a WebGL build and a human's eye.
 
+**A5. Bring fog into the band that matters.** — **BUILT 2026-09-06.**
+*Shipped:* `ProjectSetup.FogColor` **`#0E1C34`** (lin lum .0117), `FogStartDistance` **36**,
+`FogEndDistance` **170**; `SandboxBuilder.EnsureEnvironment` now reads those three constants instead of
+mirroring literals. Four new pins in `SkyEclipseTests`.
+
+*Why the numbers differ from the plan's guess.* The plan proposed moving `fogStartDistance` to ~30 and
+leaving colour and end alone. Three things came out of actually measuring it:
+
+1. **The colour was the bug, not the range.** `#060D18` is lin lum .0039, which is the dome's **zenith**
+   value (`#060A17`, .0032) — not its horizon band (`#13233F`, .0170, 4.3x brighter). Since a
+   first-person platformer reads geometry forward and slightly down, the old fog converged distant
+   surfaces toward something *darker than the sky behind them*: a hole in the backdrop. That is exactly
+   the risk this item was gated on, and it is a property of the colour, so it was fixed there. At .0117
+   the fog sits **above a shadowed stone face** (~.009 linear), so a receding platform's dark riser now
+   gets *lighter* and only its lit top gets slightly darker — compression toward a mid value, which is
+   what aerial perspective is. The "darkens the deck you are about to land on" failure is inverted, not
+   merely accepted.
+2. **The start floor is 31 m, not 25.** The eclipse **halo** is a flat soft disc of lateral radius
+   `discR * 2.3` = 19.8 m sitting 24.1 m down the eclipse axis, so its corners are 31.2 m from the
+   camera — 6 m past the dome radius everyone quotes. The plan's ~30 would have fogged a wedge across
+   the halo. 36 clears the whole built mesh with 4.8 m of margin, at a cost of ~1.5% of the ramp.
+   `TheSkyIsFogImmuneByGeometryNotByAssumption` measures the mesh rather than trusting the comment.
+   Going under ~32 needs the dome sized to the fog first, which is a bigger change than this item —
+   not attempted.
+3. **The end mattered as much as the start.** Nothing in Level_01 is read past ~90 m (the tiles are
+   walled arenas; the longest sightline is the spawn pad to the T1 arena). A 240 m end spent only the
+   first 37% of the ramp on the entire course. 170 spends 48%.
+
+*Resulting fog factors:* 8 m 0% · 12 m 0% · 25 m 0% · 50 m **10%** · 64 m **21%** · 87 m **38%** ·
+100 m 48%. Every landing target in the level is inside 12 m (longest hop `T3_Entry` → `T3_Pillar_1`,
+9 m; T3's pillar hops 5-6 m) and combat is 3-8 m, so foot placement and deflect reads are at fog factor
+**exactly zero** — the ramp only touches route preview.
+
+*Not done, named:* `SandboxBuilder`'s **ambient** is still the warm pre-cold-pass set (`#7A5540` equator
+against `ProjectSetup`'s `#3F5E88`). Fixing it changes how every enemy reads in the workshop and is its
+own pass.
+
+<details><summary>Original plan text</summary>
+
 **A5. Bring fog into the band that matters.** Fog is 45 to 240 m; combat is 3-8 m and traversal spans
 read at 20-60 m, so **there is no aerial perspective anywhere the player actually looks**. Moving
 `fogStartDistance` to ~30 (still above the 25 m `Starfield` radius that keeps the sky fog-immune)
@@ -88,6 +127,8 @@ gives spans a depth ramp for free. *Touches:* `ProjectSetup.SetupSceneEnvironmen
 capture.** The fog colour is near-black, so it darkens rather than whitens: good for a dark enemy
 against the sky's mid-red horizon band, bad for the platform you are about to land on. *Proof:*
 `LevelRouteShots` at span distances, then a human.
+
+</details>
 
 ### Tier B — real projects with a real payoff
 

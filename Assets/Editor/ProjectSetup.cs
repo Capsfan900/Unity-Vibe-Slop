@@ -286,9 +286,68 @@ namespace VibeGame1.EditorTools
         // Turning the tells blue with the world would have destroyed the game's readability to satisfy
         // a palette request.
 
-        /// <summary>Fog and camera clear. Was #1A0708 blood; distance now reads as cold blue haze.
-        /// Linear luminance 0.0039 - identical to the red it replaces.</summary>
+        /// <summary>Camera clear. Was #1A0708 blood; distance now reads as cold blue haze.
+        /// Linear luminance 0.0039 - identical to the red it replaces. The sky dome covers the whole
+        /// sphere, so this is almost never actually seen; it exists so a missing sky fails to black-blue
+        /// rather than to Unity's default cornflower.</summary>
         public static readonly Color VoidColor = Hex("#060D18");
+
+        // ---- FOG: the depth ramp (2026-09-06, graphics-polish item A5) ------------------------------
+        //
+        // Fog was 45 -> 240 in the SAME near-black as the camera clear, and it did nothing. Level_01's
+        // longest sightline is about 90 m (the spawn pad up the causeway to the T1 arena); at 45/240
+        // that is 21% fogged, and the 20-60 m band that every traversal read happens in was under 8%.
+        // There was no aerial perspective anywhere the player actually looks.
+        //
+        // THE COLOUR IS THE FIX, NOT THE RANGE. #060D18 is linear luminance .0039 - which is the dome's
+        // ZENITH value (#060A17, .0032), not the horizon. The dome's horizon band is #13233F at .0170,
+        // 4.3x brighter, and that band is what geometry is read against in a first-person platformer
+        // where you look forward and slightly down. So the old fog converged distant geometry to a value
+        // DARKER than the sky behind it: a hole punched in the backdrop, extinction rather than haze.
+        // FogColor is now the horizon band's own hue at ~0.7 of its value (lin lum .0117), which lands
+        // between the zenith and the horizon - the two elevations geometry is actually silhouetted
+        // against. This inverts the risk the plan flagged: a distant SHADOWED face (~.009 linear) now
+        // gets LIGHTER as it recedes and a distant lit deck top gets slightly darker, which compresses
+        // far contrast toward a mid value. That is what aerial perspective is. Nothing goes to black.
+        //
+        // WHY THE LANDING TARGET IS SAFE. Every jump in Level_01 lands within 12 m - the longest is
+        // T3_Entry -> T3_Pillar_1 at 9 m, and the T3 pillar hops are 5-6 m. At a 36 m start the surface
+        // you are about to stand on is at fog factor EXACTLY ZERO, always. What the ramp touches is the
+        // route AHEAD (the pillar line at 24 m, the span's far end at 48 m, the next arena at 64-90 m),
+        // which is preview, not foot placement.
+        //
+        // THE START FLOOR IS 31 m, NOT 25. The Starfield dome radius is 25, but the eclipse HALO is a
+        // flat soft disc of lateral radius discR*2.3 = 19.8 m sitting 24.1 m down the eclipse axis, so
+        // its outermost verts are sqrt(24.1^2 + 19.8^2) = 31.2 m from the camera - the widest thing in
+        // the sky mesh, and 6 m past the radius everyone quotes. 34 clears the whole mesh with margin,
+        // and SkyEclipseTests.TheSkyIsFogImmuneByGeometryNotByAssumption measures the BUILT mesh rather
+        // than trusting this comment. Going under ~32 would fog a wedge across the eclipse halo, which
+        // is a different and much larger job (the dome would have to be sized to the fog). 36 rather
+        // than a bare 32 buys ~4.8 m of headroom, which costs the ramp under 1.5% and means a future
+        // widening of the halo trips the test instead of shipping a wedge.
+        //
+        // THE END IS 170, DOWN FROM 240. Nothing in this level is read past ~90 m - the tiles are walled
+        // arenas and the sightlines are bounded. An end of 240 spent only the first 37% of the ramp on
+        // the whole level; 170 spends 48%. Resulting factors: 25 m -> 0%, 50 m -> 12%, 64 m -> 22%,
+        // 87 m -> 38%, 100 m -> 48%. A distant torch ember (FlickerLight culls the LIGHT at 42 m and
+        // leaves the mesh) keeps 62% of its punch at 87 m, so the level's beacons still carry.
+
+        /// <summary>The colour distant geometry converges to: the dome's horizon band #13233F at ~0.7 of
+        /// its value. Linear luminance 0.0117 - 3.0x the old fog, 0.69x the horizon band it sits in front
+        /// of, and above a shadowed stone face (~0.009), so distance LIGHTENS the dark instead of eating
+        /// it. Not the same constant as <see cref="VoidColor"/> on purpose: the clear is the void, the fog
+        /// is the sky.</summary>
+        public static readonly Color FogColor = Hex("#0E1C34");
+
+        /// <summary>First metre of fog. Must stay clear of the SKY MESH's true outer radius (~31.2 m at
+        /// the eclipse halo's corners), not the quoted dome radius of 25. Also far past every landing
+        /// target in Level_01 (longest hop 9 m), so fog can never touch the surface you are about to
+        /// stand on.</summary>
+        public const float FogStartDistance = 36f;
+
+        /// <summary>Full fog. Sized to the level's real depth (~90 m of usable sightline), not to the
+        /// far clip - a 240 m end put the entire course inside the ramp's first third.</summary>
+        public const float FogEndDistance = 170f;
         /// <summary>Trilight sky term - platform TOPS. Was #6B4045 x1.35 (lin lum .1348); now .1348
         /// exactly, as moonlight instead of dusty rose. Footing legibility is unmoved.</summary>
         public static readonly Color AmbientSky = Hex("#344C78") * 1.35f;
@@ -316,16 +375,17 @@ namespace VibeGame1.EditorTools
             // The Eclipse: a world drowned in COLD light under a dead sun, low and enormous behind
             // the arena.
             //
-            // FOG. Deep blue-black (was #1A0708 blood) so distance reads as cold haze and agrees
-            // with the Starfield dome's midnight-blue horizon. The 45-240 range is unchanged - fog is not the
-            // backdrop, the sky is. Combat distances (3-8m) are still completely unfogged.
+            // FOG. Deep blue haze in the dome's own horizon hue, ramping 36 -> 170 m so the traversal
+            // band (20-60 m) and the next-arena read (64-90 m) finally have aerial perspective, while
+            // combat (3-8 m) and every landing target (<= 12 m) stay at fog factor zero. The full
+            // argument, including why the start floor is 31 m and not the quoted dome radius of 25,
+            // is on FogColor / FogStartDistance above. SandboxBuilder reads these same constants.
             var voidColor = VoidColor;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = voidColor;
-            // Must stay comfortably ABOVE the Starfield radius (25) or the sky itself starts fogging.
-            RenderSettings.fogStartDistance = 45f;
-            RenderSettings.fogEndDistance = 240f;
+            RenderSettings.fogColor = FogColor;
+            RenderSettings.fogStartDistance = FogStartDistance;
+            RenderSettings.fogEndDistance = FogEndDistance;
 
             // AMBIENT. This is what actually lights the level - the sky mesh is unlit geometry and
             // contributes no illumination on its own, so the backdrop only "lights the level" if the

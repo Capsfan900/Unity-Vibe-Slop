@@ -148,7 +148,8 @@ namespace VibeGame1.Tests
         [Test]
         public void EnvironmentPaletteIsCold()
         {
-            Assert.Greater(ProjectSetup.VoidColor.b, ProjectSetup.VoidColor.r * 2f, "fog must be cold blue, not blood");
+            Assert.Greater(ProjectSetup.VoidColor.b, ProjectSetup.VoidColor.r * 2f, "the camera clear must be cold blue, not blood");
+            Assert.Greater(ProjectSetup.FogColor.b, ProjectSetup.FogColor.r * 2f, "fog must be cold blue, not blood");
             Assert.Greater(ProjectSetup.AmbientSky.b, ProjectSetup.AmbientSky.r, "sky ambient must lean blue");
             Assert.Greater(ProjectSetup.AmbientEquator.b, ProjectSetup.AmbientEquator.r, "the equator lights every wall and every enemy; it carries the palette");
             Assert.Greater(ProjectSetup.AmbientGround.b, ProjectSetup.AmbientGround.r, "ground bounce must not lean warm");
@@ -232,6 +233,138 @@ namespace VibeGame1.Tests
             float lum = Lum(ProjectSetup.AmbientSky.linear);
             Assert.That(lum, Is.InRange(0.10f, 0.18f),
                 "sky ambient luminance drifted — this term is what makes platform TOPS readable");
+        }
+
+        // ---------------------------------------------------------------- fog: the depth ramp
+
+        /// <summary>The dome's horizon band, mirrored from <c>Starfield.BuildDome</c>'s local
+        /// <c>horizon</c> constant (private there). This is the backdrop every combat-range enemy
+        /// silhouette is read against, and — because a first-person platformer looks forward and
+        /// slightly down — it is what distant geometry is read against too. If that literal moves in
+        /// Starfield and this one does not, <see cref="FogIsTheSkyBleedingIn_NotAHolePunchedInIt"/>
+        /// starts asserting against a colour the sky no longer has.</summary>
+        static readonly Color DomeHorizonBand = Parse("#13233F");
+        /// <summary>Same, for <c>Starfield.BuildDome</c>'s <c>zenith</c>.</summary>
+        static readonly Color DomeZenith = Parse("#060A17");
+
+        /// <summary>
+        /// A5 (2026-09-06). The fog colour has to be the SKY, not the void.
+        ///
+        /// <para>The old fog was #060D18 — linear luminance .0039, which is the dome's ZENITH value, not
+        /// its horizon. Fogging toward it converged distant geometry to something 4.3x DARKER than the
+        /// sky behind it: a hole punched in the backdrop rather than haze in front of it, and the exact
+        /// reason "more fog" had always been the wrong lever here. Aerial perspective converges a
+        /// surface toward the light scattered along the line of sight, so the fog must sit between the
+        /// two sky elevations geometry is actually silhouetted against.</para>
+        ///
+        /// <para>The lower bound is the load-bearing half: fog brighter than a shadowed stone face
+        /// (~.009 linear at the shipped albedos and ambient) means distance LIGHTENS the dark parts of a
+        /// far platform instead of eating them — which is the whole answer to "a depth ramp that makes
+        /// the next deck harder to read is a regression".</para>
+        /// </summary>
+        [Test]
+        public void FogIsTheSkyBleedingIn_NotAHolePunchedInIt()
+        {
+            float fog = Lum(ProjectSetup.FogColor.linear);
+            float horizon = Lum(DomeHorizonBand.linear);
+            float zenith = Lum(DomeZenith.linear);
+
+            Assert.Greater(fog, zenith,
+                "fog at or under the zenith value is extinction, not haze — distant geometry reads as a hole in the sky");
+            Assert.Less(fog, horizon,
+                "fog brighter than the horizon band would make distant geometry glow against its own backdrop");
+            Assert.Greater(fog, 0.0095f,
+                "fog must sit ABOVE a shadowed stone face (~.009 linear) or distance darkens the deck you are reading");
+            Assert.Greater(fog, Lum(ProjectSetup.VoidColor.linear) * 2f,
+                "the fog and the camera clear are different jobs; fog that equals the clear is the pre-A5 value");
+
+            // Same hue family as the band it stands in front of: the fog may never introduce a colour
+            // the sky does not already have.
+            Assert.Greater(ProjectSetup.FogColor.b, ProjectSetup.FogColor.g, "fog must stay in the horizon band's blue");
+            Assert.Greater(ProjectSetup.FogColor.g, ProjectSetup.FogColor.r, "blue through green, not violet — the sandbox's old #0C0912 was violet");
+        }
+
+        /// <summary>
+        /// THE trap, and it is not the one everybody quotes. "Keep fogStartDistance above the Starfield
+        /// radius (25)" understates the clearance by 6 m: the eclipse HALO is a flat soft disc of lateral
+        /// radius <c>discR * 2.3</c> parked 24 m down the eclipse axis, so its outermost verts are
+        /// ~31 m from the camera — the widest thing in the mesh. A start distance between 25 and 31
+        /// would fog a WEDGE across the halo, which is the sort of artefact that gets blamed on the
+        /// tonemapper for three sessions.
+        ///
+        /// <para>So this measures the built mesh instead of trusting any comment. Getting under ~32
+        /// means sizing the dome to the fog first, which is a different and much larger job.</para>
+        /// </summary>
+        [Test]
+        public void TheSkyIsFogImmuneByGeometryNotByAssumption()
+        {
+            RunOnBuiltSky((mesh, mats) =>
+            {
+                float maxDist = 0f;
+                foreach (var v in mesh.vertices) maxDist = Mathf.Max(maxDist, v.magnitude);
+
+                Assert.Greater(maxDist, 25f,
+                    "sanity: the halo should reach PAST the dome radius — if it does not, this test is measuring the wrong mesh");
+                Assert.Greater(ProjectSetup.FogStartDistance, maxDist,
+                    "fog starts inside the sky mesh (outermost vert " + maxDist.ToString("0.0") +
+                    " m): the eclipse halo will fog as a wedge. Raise FogStartDistance or shrink the sky.");
+                Assert.Greater(ProjectSetup.FogStartDistance, maxDist + 2f,
+                    "under 2 m of margin over the sky mesh is not a margin — one widening of the halo silently fogs it");
+            });
+        }
+
+        /// <summary>
+        /// Fog must never touch a surface the player is about to stand on. Every jump in Level_01 lands
+        /// within 12 m — the longest is T3_Entry -> T3_Pillar_1 at 9 m (z 189 -> 198), and the T3 pillar
+        /// hops are 5-6 m. Combat resolves at 3-8 m. Both are far inside the start distance, so foot
+        /// placement and deflect reads are at fog factor EXACTLY zero, by construction rather than by
+        /// eye. What the ramp is allowed to touch is the route AHEAD, which is preview.
+        /// </summary>
+        [Test]
+        public void FogNeverTouchesCombatOrALandingTarget()
+        {
+            Assert.AreEqual(0f, FogFactor(8f), 1e-6f, "the 3-8 m combat band must be completely unfogged");
+            Assert.AreEqual(0f, FogFactor(12f), 1e-6f, "the farthest landing target in Level_01 must be completely unfogged");
+            Assert.GreaterOrEqual(ProjectSetup.FogStartDistance, 24f,
+                "fog inside 24 m starts eating the near read; combat is 3-8 m and landings reach 12 m");
+        }
+
+        /// <summary>
+        /// A5's actual claim, pinned as numbers. The 20-60 m traversal band and the 64-90 m next-arena
+        /// read had no depth ramp at all (45 -> 240 gave 7.7% at 60 m and 21% at 87 m). These bounds are
+        /// deliberately a RANGE, not the shipped value: a later pass may retune inside them, but a pass
+        /// that flattens the ramp back out or drowns the far end fails here rather than in a playtest.
+        /// </summary>
+        [Test]
+        public void FogRampsAcrossTheBandTheGameIsActuallyPlayedIn()
+        {
+            // The pillar line seen from T3_Entry: a hint of separation, no more.
+            Assert.That(FogFactor(25f), Is.InRange(0f, 0.05f), "the near preview band must stay essentially clear");
+            // A span's far end / the T2 bridge from the entry. This is the number A5 exists for.
+            Assert.That(FogFactor(50f), Is.InRange(0.07f, 0.22f),
+                "50 m is the traversal read; under 7% is the pre-A5 nothing, over 22% starts hiding the route");
+            // The next arena: spawn pad -> T1 arena is the level's longest sightline at ~87 m.
+            Assert.That(FogFactor(87f), Is.InRange(0.25f, 0.50f),
+                "the longest sightline in Level_01 must read as FAR, without losing the torches that mark it");
+            // Beyond the level's real depth. Nothing is read past ~90 m; the ramp must not be sized to
+            // the far clip plane, which is what the old 240 did.
+            Assert.LessOrEqual(ProjectSetup.FogEndDistance, 200f,
+                "an end past 200 m spends the ramp on distances this level does not have");
+            Assert.Greater(ProjectSetup.FogEndDistance, ProjectSetup.FogStartDistance + 80f,
+                "too short a ramp is a visible fog wall crossing the geometry");
+        }
+
+        /// <summary>Unity's linear fog factor: 0 = untouched, 1 = fully the fog colour.</summary>
+        static float FogFactor(float distance)
+        {
+            float span = ProjectSetup.FogEndDistance - ProjectSetup.FogStartDistance;
+            return Mathf.Clamp01((distance - ProjectSetup.FogStartDistance) / span);
+        }
+
+        static Color Parse(string hex)
+        {
+            Assert.IsTrue(ColorUtility.TryParseHtmlString(hex, out var c), "bad hex in test: " + hex);
+            return c;
         }
 
         // ---------------------------------------------------------------- planets
