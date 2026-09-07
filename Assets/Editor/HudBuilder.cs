@@ -699,18 +699,21 @@ namespace VibeGame1.EditorTools
             title.characterSpacing = 3f;
             Rect(title.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset), new Vector2(320f, 26f));
 
-            // One BUTTON per piece kind (3 x 3, enum order), wired by LevelEditor.Awake to SelectKind. The list
+            // One BUTTON per piece kind (4 x 3, enum order), wired by LevelEditor.Awake to SelectKind. The list
             // used to be plain text -- nothing to click -- and the user's "the options don't switch the object"
-            // was exactly that. Each is 100 x 32 on the 8 px rhythm; the selected one is lit by RefreshPanel.
+            // was exactly that. Each is 82 x 32 on the 8 px rhythm; the selected one is lit by RefreshPanel.
+            // FOUR columns, not three (2026-09-07, the Ramp kind): the tenth kind on a 3-wide grid opened a
+            // fourth row exactly where the piece list sits, and everything below is laid out at absolute
+            // offsets down to a 700 px pane with no room to shift. Four columns keeps 10 kinds in 3 rows.
             var kinds = System.Enum.GetNames(typeof(LevelPieceKind));
             ed.kindButtons = new Button[kinds.Length];
             for (int i = 0; i < kinds.Length; i++)
             {
-                int col = i % 3, row = i / 3;
-                var kb = Btn("Kind_" + kinds[i], pane, kinds[i].ToUpperInvariant(), Vector2.zero, new Vector2(100f, 32f));
-                Rect(kb.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset + col * 110f, -Inset - 34f - row * 40f), new Vector2(100f, 32f));
+                int col = i % 4, row = i / 4;
+                var kb = Btn("Kind_" + kinds[i], pane, kinds[i].ToUpperInvariant(), Vector2.zero, new Vector2(82f, 32f));
+                Rect(kb.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset + col * 84f, -Inset - 34f - row * 40f), new Vector2(82f, 32f));
                 var kl = kb.GetComponentInChildren<TMP_Text>(true);
-                if (kl != null) kl.fontSize = 12f;
+                if (kl != null) kl.fontSize = 11f;
                 ed.kindButtons[i] = kb;
             }
             ed.pieceList = Txt("PieceList", pane, "", 14f, Bone, TextAlignmentOptions.TopLeft);

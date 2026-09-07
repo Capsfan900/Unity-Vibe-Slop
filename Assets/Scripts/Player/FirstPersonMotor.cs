@@ -61,6 +61,11 @@ namespace VibeGame1
         public float slideEndSpeed = 8f;
         [Tooltip("Hard cap on one slide, so a downhill slide can never run forever.")]
         public float slideMaxDuration = 0.9f;
+        [Tooltip("How much of gravity's along-slope pull a slide feels, as a fraction. 0 = slopes do " +
+                 "nothing and a slide behaves exactly as it did before ramps existed; 1 = a frictionless " +
+                 "ramp. The slide is still capped by slideMaxDuration and still bled by slideFriction, " +
+                 "so this decides how much a hill PAYS, not how long you keep it.")]
+        public float slideSlopeAccel = 0.85f;
         public float slideCooldown = 0.3f;
         [Tooltip("CharacterController height while sliding. The stand height is read off the collider " +
                  "at Awake, so this is the only number that decides what you fit under.")]
@@ -304,6 +309,25 @@ namespace VibeGame1
         public bool IsGrounded { get; private set; }
         public bool IsDashing => now < dashUntil;
         public bool IsSliding => sliding;
+
+        /// <summary>
+        /// Unit normal of the ground under the feet, or <see cref="Vector3.up"/> when airborne or when
+        /// nothing has been touched yet. Written from <c>OnControllerColliderHit</c> during
+        /// <c>cc.Move</c> - the CharacterController reports the surface it actually resolved against,
+        /// which is cheaper and more honest than a second cast.
+        ///
+        /// <para>Until 2026-09-07 this did not exist and nothing in the game was sloped: every
+        /// <c>LevelPieceKind</c> was an axis-aligned box. The slide's own
+        /// <see cref="slideMaxDuration"/> tooltip has always guarded against "a downhill slide" running
+        /// forever - a guard on a hill that could not be built. Ramps are that hill.</para>
+        /// </summary>
+        public Vector3 GroundNormal { get; private set; }
+
+        /// <summary>Slope of the ground under the feet in degrees; 0 on the flat.</summary>
+        public float GroundSlopeDeg
+        {
+            get { return Vector3.Angle(GroundNormal.sqrMagnitude > 1e-6f ? GroundNormal : Vector3.up, Vector3.up); }
+        }
         /// <summary>Wall jumps spent since the last landing. Resets on ground contact.</summary>
         public int WallJumpsUsed => wallJumpsUsed;
         public bool IsWallRunning => wallRunning;
@@ -878,6 +902,7 @@ namespace VibeGame1
         float groundedPosTimer;
 
         bool sliding;
+        Vector3 groundNormalThisMove;
         float slideEndsAt, slideReadyAt;
         float lastSlideEndedAt = -99f;
         int slideChain;
@@ -1088,6 +1113,14 @@ namespace VibeGame1
                             float sp0 = hv.magnitude;
                             hv = Vector3.MoveTowards(hv, wish.normalized * sp0, slideSteerAccel * dt);
                         }
+                        // THE HILL. Gravity's component ALONG the ground plane, which is exactly zero
+                        // on a flat floor - so every span built before ramps existed behaves
+                        // bit-for-bit as it did, and this cannot regress geometry nobody re-authored.
+                        // Downhill it adds; uphill the same term subtracts and a slide dies early on a
+                        // climb. Applied BEFORE friction so the hill and the bleed compose in the
+                        // honest order: you gain, then you are taxed on what you now have.
+                        hv += TraversalMath.SlopeAccel(GroundNormal, slideSlopeAccel) * dt;
+
                         hv *= Mathf.Max(0f, 1f - slideFriction * dt);
 
                         bool spent = hv.magnitude <= slideEndSpeed || now >= slideEndsAt;
@@ -1287,7 +1320,14 @@ namespace VibeGame1
                     }
                 }
             }
+            groundNormalThisMove = Vector3.zero;
             var flags = cc.Move(disp);
+            // The most UPWARD surface touched this Move is the floor. Most-upward rather than last-hit
+            // is what stops a wall brushed on the same frame being read as a ramp; the 0.2 floor in the
+            // callback drops anything past ~78 deg, which is a wall by any measure.
+            GroundNormal = groundNormalThisMove.sqrMagnitude > 1e-6f
+                         ? groundNormalThisMove.normalized
+                         : (IsGrounded && GroundNormal.sqrMagnitude > 1e-6f ? GroundNormal : Vector3.up);
             if ((flags & CollisionFlags.Above) != 0 && vel.y > 0f)
             {
                 // CORNER CORRECTION (forgiveness). The head met something while rising. If a capsule
@@ -1816,6 +1856,22 @@ namespace VibeGame1
         {
             wallSurgeUntil = Mathf.Max(wallSurgeUntil, now + Mathf.Max(0f, seconds));
         }
+
+        /// <summary>
+        /// Records the floor the CharacterController actually resolved against this frame. Unity calls
+        /// this once per contact DURING <c>cc.Move</c>, so it costs nothing extra and needs no cast.
+        ///
+        /// <para>Only upward-facing contacts count (normal.y &gt; 0.2, i.e. shallower than ~78 deg);
+        /// anything steeper is a wall, and reading a wall as ground would let a slide "fall" sideways
+        /// along it. The most upward contact of the frame wins, so brushing a wall while sliding down a
+        /// ramp still reports the ramp.</para>
+        /// </summary>
+        void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            if (hit.normal.y <= 0.2f) return;
+            if (hit.normal.y > groundNormalThisMove.y) groundNormalThisMove = hit.normal;
+        }
+
     }
 
     /// <summary>Why <see cref="WallRunMath.CanEnter"/> said no. An enum rather than a string because
@@ -2099,5 +2155,7 @@ namespace VibeGame1
 
             return new Vector3(hx, pr.exitUpSpeed, hz);
         }
+
+
     }
 }

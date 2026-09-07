@@ -157,6 +157,14 @@ InputReader → FirstPersonMotor.Update()
                capsule 1.8 → 0.9 m, boost +5 x fade x 0.6^chain (cap 22), bleeds at 2/s to a floor of 8
                  fade = (22 - speed)/(22 - 11): full at a sprint, nothing at the cap
                  chain = slides started within 1.2 s of the last one ENDING: 5, 3, 1.8, 1.1 ...
+               SLOPE (2026-09-07, ramps): hv += TraversalMath.SlopeAccel(GroundNormal, slideSlopeAccel 0.85) dt,
+                 applied BEFORE the friction bleed. GroundNormal is written in OnControllerColliderHit during
+                 cc.Move -- the most UPWARD contact of the frame with normal.y > 0.2, so a wall brushed while
+                 sliding down a ramp is not read as ground. The term is gravity projected onto the ground
+                 plane, flattened to XZ, and is EXACTLY zero on a flat floor: every span authored before ramps
+                 existed is an axis-aligned box, so nothing tuned on the flat can drift. Uphill is not a
+                 special case -- velocity opposes the same vector, so a slide bleeds and dies early on a climb.
+                 slideSlopeAccel = 0 restores the pre-ramp motor without a code change. SlopeSlideTests.
     WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal; costs 12 stamina
     WALL RUN   no binding; entered by arriving — see "Movement — wall run" below
     now += dt                                 ← the motor's OWN clock; every timer reads it
@@ -1729,14 +1737,14 @@ GRAPPLE BURST
 ### The in-game level editor — `LevelEditor` + the one piece factory
 
 ```
-LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocument (JSON mirror: platforms, spawns,
+LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocument (JSON mirror: platforms, ramps, spawns,
         ▲                                                   pickups, checkpoints, torches, balloons, waters,
         │ doc.CopyTo(def)  (EXPORT ASSET, editor only)      playerStart)  ◄──ToJson / FromJson──►  <persistentDataPath>/levels/<name>.json
         │
    8. Build Level From Definition (Editor/LevelDefinitionBuilder)      LevelEditor (on the HUD prefab; HudBuilder.BuildLevelEditor)
         │  EditorContext: AssetDatabase / PrefabUtility / static flags   RuntimeContext: the serialised library (materials, prefabs, items)
         └───────────────► LevelPieceFactory.BuildDocument(doc, root, ctx) ◄───────────────┘
-                              Platform (+Trim) · PlayerStart "StartSpawn" · Spawner · Checkpoint
+                              Platform (+Trim) · Ramp · PlayerStart "StartSpawn" · Spawner · Checkpoint
                               Torch (under "Torches") · Pickup (under "Pickups") · Balloon · Water
                               every object gets a LevelPiece tag (kind, index)
    arenas / pedestals / sky / kill zone / NavMesh / Player / Managers / HUD   stay in the builder (campaign only)
@@ -1747,7 +1755,7 @@ LevelEditor.Update  (GameState.Editing; InputReader is the only input reader —
    a CUSTOM level loads and plays in every build because PendingLoadPath calls Enter()/Play() DIRECTLY,
    never through input. Only the fly-cam entry is gated.
    F10 ─► Enter(): returnPosition, fly camera on PlayerLook, cursor locked, panel shown
-   Aim(): ray from the lens → grid snap (1 m platforms/water, 0.5 m else; Alt = free) → preview cube
+   Aim(): ray from the lens → grid snap (1 m platforms/water/walls/ramps, 0.5 m else; Alt = free) → preview cube
    [ ] kind · V variant · = − size ladder · T rotate (axis swap / flow turn), Shift+T the reverse turn
    LMB Place(point, normal) ─► doc.<list>.Add(def) → LevelPieceFactory.<Piece>(def, customRoot, ctx)
    X / Delete   DeletePiece(LevelPiece under the crosshair) ─► doc list remove + rebuild indices
@@ -1762,6 +1770,24 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
 ```
 
 **Invariants**
+- **A ramp is authored as a RISE over a RUN, never as an angle** (`RampDef`, 2026-09-07 — the game's only
+  non-axis-aligned geometry). `basePosition` is the centre of the LOW edge of the walkable face; `run` is
+  the HORIZONTAL distance covered and `rise` the height gained, so the high edge is exactly
+  `basePosition + Heading * run + up * rise` (`TopPosition`) and an arc report can use both without
+  trigonometry. `AngleDegrees = atan2(rise, run)` is DERIVED and nothing stores it. The defaults, 2 m over
+  6 m, are **18.4°**; keep authored ramps under ~35°, because a CharacterController's 45° `slopeLimit`
+  turns anything steeper into a wall on the way up.
+- **`LevelPieceFactory.Ramp` builds ONE rotated cube and nothing else** — collider, renderer, `LevelPiece`
+  tag, no behaviour (hard rule 10). The slab is `Quaternion.Euler(-AngleDegrees, yaw, 0)` at `BoxCenter`
+  with scale `(width, thickness, SlopeLength)`, on layer 0 so the NavMesh bake walks it, and no trim bars
+  (the trim builder places world-axis bars, which a rotated slab has none of). Whether a slide accelerates
+  down it is the motor's business, read off the real ground normal — the ramp never tells it anything.
+  `LevelPieceFactory.RampFrom` is the exact inverse, and is how `Export Current Level To Definition`
+  round-trips a ramp instead of flattening it into a `PlatformDef`.
+- **`LevelPieceKind` is APPEND-ONLY, exactly like the `Sfx` enum.** Level JSON stores the kind as a NUMBER;
+  `Ramp` is 9 and every earlier value keeps its index, which is why a level saved before ramps existed
+  still loads (`RampPieceTests`). A missing `ramps` list comes back null from `JsonUtility` and
+  `LevelDocument.FromJson` fills it, the same rule every other list follows.
 - **Level_01's parkour-first layout is CODE that writes the asset** (`LevelDefinitionAuthoring.Apply`, menu
   `8a`): perches + spawn moves + the balloon arc + the water lines, idempotent. `LevelTraversalAnalyzer`
   flies the arc (pop = carry trimmed to `launchCarryCap`, `launchFloatSeconds` at `launchGravityScale`, the

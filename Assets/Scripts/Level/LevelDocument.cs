@@ -29,6 +29,7 @@ namespace VibeGame1
         public Vector3 playerStart = new Vector3(0f, 1.2f, 0f);
         public float playerStartYaw = 0f;
         public List<PlatformDef> platforms = new List<PlatformDef>();
+        public List<RampDef> ramps = new List<RampDef>();
         public List<SpawnDef> spawns = new List<SpawnDef>();
         public List<PickupDef> pickups = new List<PickupDef>();
         public List<CheckpointDef> checkpoints = new List<CheckpointDef>();
@@ -56,6 +57,7 @@ namespace VibeGame1
                 playerStart = def.playerStart, playerStartYaw = def.playerStartYaw,
             };
             if (def.platforms != null) d.platforms.AddRange(def.platforms);
+            if (def.ramps != null) d.ramps.AddRange(def.ramps);
             if (def.spawns != null) d.spawns.AddRange(def.spawns);
             if (def.pickups != null) d.pickups.AddRange(def.pickups);
             if (def.checkpoints != null) d.checkpoints.AddRange(def.checkpoints);
@@ -70,7 +72,8 @@ namespace VibeGame1
         {
             def.levelId = levelId; def.displayName = displayName; def.parTime = parTime;
             def.playerStart = playerStart; def.playerStartYaw = playerStartYaw;
-            def.platforms = platforms.ToArray(); def.spawns = spawns.ToArray(); def.pickups = pickups.ToArray();
+            def.platforms = platforms.ToArray(); def.ramps = ramps.ToArray();
+            def.spawns = spawns.ToArray(); def.pickups = pickups.ToArray();
             def.checkpoints = checkpoints.ToArray(); def.torches = torches.ToArray();
             def.balloons = balloons.ToArray(); def.waters = waters.ToArray();
         }
@@ -85,18 +88,20 @@ namespace VibeGame1
             d.platforms = d.platforms ?? new List<PlatformDef>(); d.spawns = d.spawns ?? new List<SpawnDef>();
             d.pickups = d.pickups ?? new List<PickupDef>(); d.checkpoints = d.checkpoints ?? new List<CheckpointDef>();
             d.torches = d.torches ?? new List<TorchDef>(); d.balloons = d.balloons ?? new List<BalloonDef>();
-            d.waters = d.waters ?? new List<WaterDef>();
+            d.waters = d.waters ?? new List<WaterDef>(); d.ramps = d.ramps ?? new List<RampDef>();
             return d;
         }
 
         public int PieceCount
         {
-            get { return platforms.Count + spawns.Count + pickups.Count + checkpoints.Count + torches.Count + balloons.Count + waters.Count; }
+            get { return platforms.Count + ramps.Count + spawns.Count + pickups.Count + checkpoints.Count + torches.Count + balloons.Count + waters.Count; }
         }
     }
 
-    /// <summary>The kinds of piece the in-game editor can place. Order = the panel's list and the cycle order.</summary>
-    public enum LevelPieceKind { Platform, WallFace, Balloon, Water, Spawn, Pickup, Checkpoint, Torch, PlayerStart }
+    /// <summary>The kinds of piece the in-game editor can place. Order = the panel's list and the cycle
+    /// order, AND the number saved into every level JSON: <b>APPEND ONLY</b>, exactly like the Sfx enum.
+    /// Reordering silently turns every saved custom level's pieces into the wrong kind.</summary>
+    public enum LevelPieceKind { Platform, WallFace, Balloon, Water, Spawn, Pickup, Checkpoint, Torch, PlayerStart, Ramp }
 
     /// <summary>
     /// Pure maths for the in-game editor, kept free of scene objects so <c>LevelEditorTests</c> can
@@ -117,7 +122,11 @@ namespace VibeGame1
         /// <summary>Grid for a kind: platforms and water on the metre, everything else on the half metre.</summary>
         public static float GridFor(LevelPieceKind kind)
         {
-            return kind == LevelPieceKind.Platform || kind == LevelPieceKind.Water || kind == LevelPieceKind.WallFace
+            // A ramp is a BIG piece whose two ends have to meet platform edges, and platforms are on
+            // the metre. Snapping it to the half metre would let a 6 m run start half a cell off the deck
+            // it leaves, leaving a lip; the metre grid is what makes a ramp land flush.
+            return kind == LevelPieceKind.Platform || kind == LevelPieceKind.Water
+                || kind == LevelPieceKind.WallFace || kind == LevelPieceKind.Ramp
                 ? PlatformGrid : FineGrid;
         }
 

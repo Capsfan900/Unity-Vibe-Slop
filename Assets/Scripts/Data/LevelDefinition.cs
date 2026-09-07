@@ -50,6 +50,10 @@ namespace VibeGame1
         [Header("Geometry")]
         public PlatformDef[] platforms = new PlatformDef[0];
 
+        [Tooltip("Sloped slabs. The only non-axis-aligned geometry in the game: a run you can carry speed " +
+                 "down. Authored as a rise over a run, not an angle.")]
+        public RampDef[] ramps = new RampDef[0];
+
         [Header("Contents")]
         public SpawnDef[] spawns = new SpawnDef[0];
         public PickupDef[] pickups = new PickupDef[0];
@@ -109,6 +113,108 @@ namespace VibeGame1
 
         [Tooltip("Off for anything that moves (a gate). Static geometry batches and contributes GI.")]
         public bool isStatic = true;
+    }
+
+    /// <summary>
+    /// A sloped slab — the one piece of geometry in this game that is not axis-aligned.
+    ///
+    /// <para><b>Authored as a rise over a run, never as an angle.</b> A designer thinks "2 m up over 6 m",
+    /// and so does the arc report: the run is the horizontal distance a body covers and the rise is the
+    /// height it gains, which is what a jump-clearance check needs. The angle is DERIVED
+    /// (<see cref="AngleDegrees"/> = atan(rise / run)); the defaults 2 over 6 are <b>18.4°</b>, which is
+    /// comfortably under a CharacterController's 45° slope limit, so it is walkable in both directions.
+    /// A 6-over-6 ramp would be 45° — right on the limit, and that is the point where a body starts
+    /// sliding instead of walking. Keep authored ramps at or under about 35°.</para>
+    ///
+    /// <para><b>Pure geometry (hard rule 10).</b> A ramp is a rotated box with a collider and a renderer
+    /// and no behaviour whatsoever — it never touches the player or writes a velocity. Whether a slide
+    /// accelerates down it is the motor's business, read off the ground normal.</para>
+    /// </summary>
+    [Serializable]
+    public class RampDef
+    {
+        [Tooltip("Scene object name.")]
+        public string name = "Ramp";
+
+        [Tooltip("The centre of the ramp's LOW EDGE, on its walkable top surface — i.e. the point you step " +
+                 "on to start climbing. Put it on the top surface of the platform the ramp leaves from. " +
+                 "The high edge is then basePosition + (run along yaw) + (rise up).")]
+        public Vector3 basePosition;
+
+        [Tooltip("Width across the slope, metres. 4 m matches a default platform.")]
+        public float width = 4f;
+
+        [Tooltip("HORIZONTAL length of the slope, metres — the ground the ramp covers in plan, not the " +
+                 "length of the sloped face.")]
+        public float run = 6f;
+
+        [Tooltip("Height gained from the low edge to the high edge, metres. Negative is legal and makes a " +
+                 "descent. rise/run gives the angle: 2/6 = 18.4°, 3/6 = 26.6°, 4/6 = 33.7°.")]
+        public float rise = 2f;
+
+        [Tooltip("Slab thickness, measured DOWN from the walkable surface, so the surface stays exactly " +
+                 "where basePosition and rise put it however thick the slab is.")]
+        public float thickness = 0.5f;
+
+        [Tooltip("Direction the ramp climbs, in degrees around Y. 0 climbs toward +Z. Any angle works; " +
+                 "the four cardinals are 0 / 90 / 180 / 270.")]
+        public float yaw = 0f;
+
+        [Tooltip("Material key: 'Platform' resolves to Assets/Materials/M_Platform.mat.")]
+        public string materialKey = "Platform";
+
+        [Tooltip("Off for anything that moves. Static geometry batches and contributes GI.")]
+        public bool isStatic = true;
+
+        /// <summary>The slope angle in degrees, derived from rise over run. Signed: negative descends.</summary>
+        public float AngleDegrees
+        {
+            get { return Mathf.Atan2(rise, Mathf.Max(0.0001f, run)) * Mathf.Rad2Deg; }
+        }
+
+        /// <summary>Length of the sloped FACE — hypotenuse of run and rise. This is the slab's local z scale.</summary>
+        public float SlopeLength
+        {
+            get { return Mathf.Sqrt(run * run + rise * rise); }
+        }
+
+        /// <summary>Horizontal unit direction the ramp climbs in, from <see cref="yaw"/>.</summary>
+        public Vector3 Heading
+        {
+            get { return Quaternion.Euler(0f, yaw, 0f) * Vector3.forward; }
+        }
+
+        /// <summary>The slab's rotation: yawed, then pitched nose-up by the slope angle.</summary>
+        public Quaternion Rotation
+        {
+            get { return Quaternion.Euler(-AngleDegrees, yaw, 0f); }
+        }
+
+        /// <summary>The slab's local scale as a unit cube: width across, thickness down, slope length along.</summary>
+        public Vector3 BoxScale
+        {
+            get
+            {
+                return new Vector3(Mathf.Max(0.01f, width), Mathf.Max(0.01f, thickness), Mathf.Max(0.01f, SlopeLength));
+            }
+        }
+
+        /// <summary>The slab's world CENTRE: half a slope along from the base, then half a thickness below the surface.</summary>
+        public Vector3 BoxCenter
+        {
+            get
+            {
+                Quaternion rot = Rotation;
+                return basePosition + rot * Vector3.forward * (SlopeLength * 0.5f)
+                                    - rot * Vector3.up * (Mathf.Max(0.01f, thickness) * 0.5f);
+            }
+        }
+
+        /// <summary>Centre of the ramp's HIGH edge, on the walkable surface — where the next platform meets it.</summary>
+        public Vector3 TopPosition
+        {
+            get { return basePosition + Heading * run + Vector3.up * rise; }
+        }
     }
 
     /// <summary>An enemy spawn point. The spawner owns respawn, so enemies reset with the level.</summary>

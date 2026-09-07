@@ -13,7 +13,7 @@ the "Still needs code" section at the bottom rather than working around it silen
 
 ## 1. Levels
 
-A level is one `LevelDefinition` asset: identity, platforms, spawns, pickups, checkpoints, torches,
+A level is one `LevelDefinition` asset: identity, platforms, ramps, spawns, pickups, checkpoints, torches,
 the boss arena, the kill plane and the player start. `LevelDefinitionBuilder` turns it into a scene.
 
 ### 1a. Migration: DONE. The level is data now.
@@ -39,6 +39,8 @@ Definition**, then rebuild and diff. The round trip is the proof the two represe
 3. Author contents. Each array element is one object:
    - **platforms** — `center`, `size`, `materialKey`, and `trim` for the neon edge bars.
      Give each tile its own trim colour; it is the cheapest way to make a section read as a place.
+   - **ramps** — the one sloped piece. `basePosition` (the centre of the LOW edge, on the walkable
+     face), `width`, `run`, `rise`, `thickness`, `yaw`. See §1c.
    - **spawns** — `prefabKey` (`Enemy_Grunt`, `Enemy_Heavy`, `Legendary_*`, `Boss`), `yaw`, `isBoss`.
    - **pickups** — `itemKey` matching an item asset name in `Assets/Data/Items/`.
    - **checkpoints** — `name` matters: `LevelManager.Warp()` finds checkpoints **by name**, and F5
@@ -134,6 +136,30 @@ Both are data on the `LevelDefinition` and are built by **8. Build Level From De
   Material `M_Water` is the project's one transparent surface (alpha 0.55, set up by `MaterialFactory`).
 
 Neither piece is on the NavMesh: both sit on `Interactable`, and the water sheet has no collider.
+
+### 1c. Ramps
+
+The only **sloped** geometry in the game (2026-09-07). Data on the `LevelDefinition`, built by
+**8. Build Level From Definition** and by the in-game editor through the one `LevelPieceFactory`;
+**Export Current Level To Definition** reads one back off its `LevelPiece` tag.
+
+- **`RampDef { name, basePosition, width 4, run 6, rise 2, thickness 0.5, yaw 0, materialKey "Platform",
+  isStatic }`.** Author it as a **rise over a run**, never as an angle — "2 m up over 6 m" is how a level
+  reads and is what an arc check needs. `basePosition` is the centre of the ramp's **low edge on its
+  walkable face**: put it on the top surface of the deck the ramp leaves from, and the high edge lands
+  at `basePosition + (run along yaw) + (rise up)` — exactly where you should put the next deck.
+  `yaw` is the direction it climbs (0 = toward +Z; the cardinals are 0 / 90 / 180 / 270, but any angle
+  works). A negative `rise` makes a descent. `thickness` hangs DOWN from the surface, so the walkable
+  face stays where `basePosition` and `rise` put it however thick the slab is.
+- **The angle is derived, and 45° is a hard ceiling.** `AngleDegrees = atan(rise / run)`: the defaults
+  2 over 6 are **18.4°**, 3 over 6 is 26.6°, 4 over 6 is 33.7°, 6 over 6 is 45°. A `CharacterController`
+  will not walk up anything past its `slopeLimit` (45° by default), so a steeper ramp is a **wall** on the
+  way up. **Keep authored ramps at or under about 35°.**
+- **It is pure geometry.** One rotated cube with a collider, a renderer and a `LevelPiece` tag, on layer 0
+  so the NavMesh bake walks it — no script, no trigger, nothing that touches the player (hard rule 10).
+  A slide gaining speed downhill is the motor reading the real ground normal, not the ramp pushing.
+- **No trim bars.** The trim builder places world-axis bars and a ramp has no world-axis edges. Read a
+  ramp by its material and by the decks at either end.
 
 ---
 

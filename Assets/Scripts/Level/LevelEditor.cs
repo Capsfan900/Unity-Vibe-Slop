@@ -793,6 +793,7 @@ namespace VibeGame1
                 case LevelPieceKind.Pickup: if (piece.index < doc.pickups.Count) return doc.pickups[piece.index].position - Vector3.up * 1.2f; break;
                 case LevelPieceKind.Checkpoint: if (piece.index < doc.checkpoints.Count) return doc.checkpoints[piece.index].position; break;
                 case LevelPieceKind.Torch: if (piece.index < doc.torches.Count) return doc.torches[piece.index].basePosition; break;
+                case LevelPieceKind.Ramp: if (piece.index < doc.ramps.Count) return doc.ramps[piece.index].basePosition; break;
             }
             return piece.transform.position;
         }
@@ -1115,6 +1116,17 @@ namespace VibeGame1
                     doc.torches.Add(t);
                     return LevelPieceFactory.Torch(t, LevelPieceFactory.Group("Torches", customRoot), ctx, null, idx);
                 }
+                case LevelPieceKind.Ramp:
+                {
+                    // Rise is a THIRD of the run whatever the size step, so a ramp placed from the panel is
+                    // always the same 18.4 deg the RampDef defaults describe - a walkable, carry-able slope.
+                    idx = doc.ramps.Count;
+                    var r = new RampDef { name = "Ramp_" + idx, basePosition = point, width = size, run = size, rise = size / 3f,
+                                          thickness = platformThickness, materialKey = "Platform", isStatic = true,
+                                          yaw = Mathf.Repeat(Quaternion.LookRotation(facing, Vector3.up).eulerAngles.y + yaw, 360f) };
+                    doc.ramps.Add(r);
+                    return LevelPieceFactory.Ramp(r, customRoot, ctx, null, idx);
+                }
                 default:   // PlayerStart: one only, moved rather than added
                 {
                     doc.playerStart = point + Vector3.up * 1.2f;
@@ -1161,6 +1173,9 @@ namespace VibeGame1
                 case LevelPieceKind.Torch:
                     if (piece.index < doc.torches.Count) { doc.torches[piece.index].basePosition = pos; piece.transform.position = pos; }
                     break;
+                case LevelPieceKind.Ramp:
+                    if (piece.index < doc.ramps.Count) { var r = doc.ramps[piece.index]; r.basePosition = pos; piece.transform.position = r.BoxCenter; }
+                    break;
             }
         }
 
@@ -1177,6 +1192,7 @@ namespace VibeGame1
                 case LevelPieceKind.Pickup: if (piece.index < doc.pickups.Count) doc.pickups.RemoveAt(piece.index); break;
                 case LevelPieceKind.Checkpoint: if (piece.index < doc.checkpoints.Count) doc.checkpoints.RemoveAt(piece.index); break;
                 case LevelPieceKind.Torch: if (piece.index < doc.torches.Count) doc.torches.RemoveAt(piece.index); break;
+                case LevelPieceKind.Ramp: if (piece.index < doc.ramps.Count) doc.ramps.RemoveAt(piece.index); break;
                 default: return;   // the start cannot be deleted, only moved
             }
             Rebuild();   // indices shift; a full rebuild is cheap at this scale and cannot desync
@@ -1255,6 +1271,7 @@ namespace VibeGame1
                 case LevelPieceKind.WallFace: s = new Vector3(size, wallFaceHeight, wallFaceThickness); target = point + Vector3.up * (wallFaceHeight * 0.5f); break;
                 case LevelPieceKind.Water: s = new Vector3(size, 0.1f, size); target = point + Vector3.up * 0.05f; break;
                 case LevelPieceKind.Balloon: s = Vector3.one * (balloonRadius * 2f); target = point + Vector3.up * 1.2f; break;
+                case LevelPieceKind.Ramp: s = new Vector3(size, platformThickness, size); target = point + Vector3.up * (size / 6f); break;
                 default: s = new Vector3(0.5f, 0.5f, 0.5f); target = point + Vector3.up * 0.25f; break;
             }
             // The cube SLIDES to its cell and TURNS through a rotate rather than teleporting: the same
@@ -1291,7 +1308,7 @@ namespace VibeGame1
                 sb.Append("<color=#4FE0D0>").Append(kind.ToString().ToUpperInvariant()).Append("</color>");
                 if (kind == LevelPieceKind.Spawn) sb.Append("   ").Append(SelectedSpawnKey).Append("   <color=#9A918A>Ctrl+wheel / V: variant</color>");
                 else if (kind == LevelPieceKind.Pickup) sb.Append("   ").Append(SelectedItemKey).Append("   <color=#9A918A>Ctrl+wheel / V: variant</color>");
-                else if (kind == LevelPieceKind.Platform || kind == LevelPieceKind.Water || kind == LevelPieceKind.WallFace) sb.Append("   ").Append(size.ToString("0")).Append(" m   <color=#9A918A>wheel: size</color>");
+                else if (kind == LevelPieceKind.Platform || kind == LevelPieceKind.Water || kind == LevelPieceKind.WallFace || kind == LevelPieceKind.Ramp) sb.Append("   ").Append(size.ToString("0")).Append(" m   <color=#9A918A>wheel: size</color>");
                 pieceList.text = sb.ToString();
             }
             if (readout != null)

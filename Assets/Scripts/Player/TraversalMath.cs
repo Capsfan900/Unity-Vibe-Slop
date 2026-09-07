@@ -28,6 +28,50 @@ namespace VibeGame1
     public static class TraversalMath
     {
         /// <summary>A balloon launch: vertical REPLACED by <paramref name="upSpeed"/>, horizontal kept.</summary>
+        /// <summary>
+        /// Gravity's component ALONG a ground plane, scaled — the horizontal acceleration a slide feels
+        /// on a hill. Downhill on the XZ plane; magnitude <c>g·sin(theta)·cos(theta)·scale</c>, which is
+        /// the horizontal part of the along-slope pull.
+        ///
+        /// <para><b>Exactly zero on flat ground</b>, and that is the whole safety argument for adding
+        /// this to a shipped motor: every span authored before ramps existed is an axis-aligned box, so
+        /// <paramref name="groundNormal"/> is <c>Vector3.up</c>, the projection is the zero vector, and
+        /// the slide behaves bit-for-bit as it did. Nothing that was tuned on the flat can drift.</para>
+        ///
+        /// <para>Uphill is not a special case: a player sliding INTO a rise has velocity opposing this
+        /// vector, so the same term bleeds them and the slide dies early on a climb. One law, both
+        /// directions — no sign tests, nothing to get backwards.</para>
+        ///
+        /// <para>A degenerate or upward-of-vertical normal returns zero rather than throwing, because a
+        /// CharacterController can report an odd contact for a frame in a corner and a movement law must
+        /// never spike on one bad sample.</para>
+        /// </summary>
+        /// <param name="groundNormal">Unit normal of the surface; <c>Vector3.up</c> is flat.</param>
+        /// <param name="scale">Fraction of gravity's pull the slide feels. 0 disables slopes entirely.</param>
+        public static Vector3 SlopeAccel(Vector3 groundNormal, float scale)
+        {
+            if (scale <= 0f) return Vector3.zero;
+            if (groundNormal.sqrMagnitude < 1e-6f) return Vector3.zero;
+            Vector3 n = groundNormal.normalized;
+            if (n.y >= 0.9999f) return Vector3.zero;                    // flat: nothing to gain
+            if (n.y <= 0f) return Vector3.zero;                         // a wall or an overhang is not ground
+
+            // Gravity projected onto the plane, then flattened to XZ: the slide's speed is horizontal,
+            // and the motor owns vertical separately (vel.y is pinned while grounded).
+            Vector3 g = Physics.gravity;
+            Vector3 alongSlope = g - n * Vector3.Dot(g, n);
+            alongSlope.y = 0f;
+            return alongSlope * scale;
+        }
+
+        /// <summary>Slope of a ground normal in degrees; 0 is flat. Exposed so tests and the HUD can
+        /// talk about a hill in the same units a level designer authors one in.</summary>
+        public static float SlopeDegrees(Vector3 groundNormal)
+        {
+            if (groundNormal.sqrMagnitude < 1e-6f) return 0f;
+            return Vector3.Angle(groundNormal.normalized, Vector3.up);
+        }
+
         public static Vector3 Launch(Vector3 vel, float upSpeed)
         {
             return Launch(vel, upSpeed, float.PositiveInfinity);

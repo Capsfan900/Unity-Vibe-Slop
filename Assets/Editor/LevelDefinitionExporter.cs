@@ -61,7 +61,7 @@ namespace VibeGame1.EditorTools
             Debug.Log($"[LevelDefinitionExporter] Exported '{def.SafeLevelId}' to {path}: " +
                       $"{def.platforms.Length} platforms, {def.spawns.Length} spawns, {def.pickups.Length} pickups, " +
                       $"{def.checkpoints.Length} checkpoints, {def.torches.Length} torches, {def.pedestals.Length} pedestals, " +
-                      $"{def.balloons.Length} balloons, {def.waters.Length} waters, " +
+                      $"{def.balloons.Length} balloons, {def.waters.Length} waters, {def.ramps.Length} ramps, " +
                       $"{def.arenas.Length} arenas, sky={def.sky.enabled}.");
         }
 
@@ -73,6 +73,7 @@ namespace VibeGame1.EditorTools
         public static void ExportInto(GameObject levelRoot, LevelDefinition def)
         {
             var platforms = new List<PlatformDef>();
+            var ramps = new List<RampDef>();
             var spawns = new List<SpawnDef>();
             var balloons = new List<BalloonDef>();
             var waters = new List<WaterDef>();
@@ -250,6 +251,16 @@ namespace VibeGame1.EditorTools
                 // Anything left that renders a mesh is geometry.
                 if (go.GetComponent<MeshRenderer>() == null) continue;
 
+                // A ramp is the one rotated slab in the level: exporting it as a PlatformDef would throw
+                // its pitch away and rebuild it flat. Its LevelPiece tag is how we know.
+                var tag = go.GetComponent<LevelPiece>();
+                if (tag != null && tag.kind == LevelPieceKind.Ramp)
+                {
+                    ramps.Add(LevelPieceFactory.RampFrom(child, go.name, MaterialKeyOf(go),
+                        GameObjectUtility.AreStaticEditorFlagsSet(go, StaticEditorFlags.BatchingStatic)));
+                    continue;
+                }
+
                 bool hasTrim = false;
                 string trimKey = "NeonPink";
                 foreach (Transform sub in child)
@@ -273,6 +284,7 @@ namespace VibeGame1.EditorTools
             }
 
             def.platforms = platforms.ToArray();
+            def.ramps = ramps.ToArray();
             def.spawns = spawns.ToArray();
             def.pickups = pickups.ToArray();
             def.checkpoints = checkpoints.ToArray();

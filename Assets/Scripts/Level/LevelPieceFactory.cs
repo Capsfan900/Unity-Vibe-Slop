@@ -29,10 +29,10 @@ namespace VibeGame1
         /// <summary>Per-piece build counts, for the builders' log lines.</summary>
         public class Counts
         {
-            public int boxes, trims, spawners, torches, pickups, balloons, waters, checkpoints;
+            public int boxes, trims, spawners, torches, pickups, balloons, waters, checkpoints, ramps;
             public override string ToString()
             {
-                return boxes + " boxes, " + trims + " trims, " + spawners + " spawners, " + torches + " torches, " +
+                return boxes + " boxes, " + trims + " trims, " + ramps + " ramps, " + spawners + " spawners, " + torches + " torches, " +
                        pickups + " pickups, " + balloons + " balloons, " + waters + " waters, " + checkpoints + " checkpoints";
             }
         }
@@ -45,6 +45,7 @@ namespace VibeGame1
         {
             var n = new Counts();
             for (int i = 0; i < doc.platforms.Count; i++) Platform(doc.platforms[i], root, ctx, n, i);
+            for (int i = 0; i < doc.ramps.Count; i++) Ramp(doc.ramps[i], root, ctx, n, i);
             PlayerStart(doc.playerStart, doc.playerStartYaw, root);
             for (int i = 0; i < doc.spawns.Count; i++) Spawner(doc.spawns[i], root, ctx, n, i);
             for (int i = 0; i < doc.checkpoints.Count; i++) Checkpoint(doc.checkpoints[i], root, ctx, n, i);
@@ -70,6 +71,61 @@ namespace VibeGame1
             if (p.trim) Trim(box, ctx.Material(p.trimMaterialKey), ctx, n);
             Tag(box, LevelPieceKind.Platform, index);
             return box;
+        }
+
+        /// <summary>
+        /// A ramp: ONE rotated cube — collider, renderer, no behaviour (hard rule 10). Its walkable face is
+        /// the box's local +Y, pitched by <see cref="RampDef.AngleDegrees"/>, so the ground normal a motor
+        /// reads off it is the real slope normal and nothing here has to tell it so.
+        ///
+        /// <para>Layer 0 (Default) like a platform, so the NavMesh bake — which collects RenderMeshes on
+        /// layer 0 — walks it. No trim bars: the four edges of a rotated slab are not axis-aligned and the
+        /// trim builder places world-axis bars.</para>
+        /// </summary>
+        public static GameObject Ramp(RampDef r, Transform root, LevelPieceContext ctx, Counts n, int index)
+        {
+            if (r == null) return null;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = r.name;
+            go.transform.SetParent(root, false);
+            go.transform.position = r.BoxCenter;
+            go.transform.rotation = r.Rotation;
+            go.transform.localScale = r.BoxScale;
+            go.layer = 0;
+            var m = ctx.Material(r.materialKey);
+            if (m != null) go.GetComponent<Renderer>().sharedMaterial = m;
+            if (r.isStatic) ctx.MarkStatic(go);
+            if (n != null) n.ramps++;
+            Tag(go, LevelPieceKind.Ramp, index);
+            return go;
+        }
+
+        /// <summary>
+        /// The inverse of <see cref="Ramp"/>: read a built slab's transform back into the numbers that made
+        /// it, so <c>Export Current Level To Definition</c> round-trips a ramp instead of mangling it into a
+        /// platform. Assumes the ramp's parent is unrotated and unscaled, which every level root is.
+        /// </summary>
+        public static RampDef RampFrom(Transform t, string name, string materialKey, bool isStatic)
+        {
+            if (t == null) return null;
+            Quaternion rot = t.rotation;
+            Vector3 slope = rot * Vector3.forward;
+            Vector3 up = rot * Vector3.up;
+            Vector3 scale = t.localScale;
+            Vector3 delta = slope * scale.z;                       // base -> top along the face
+            float run = new Vector2(delta.x, delta.z).magnitude;
+            return new RampDef
+            {
+                name = name,
+                basePosition = t.position - slope * (scale.z * 0.5f) + up * (scale.y * 0.5f),
+                width = scale.x,
+                thickness = scale.y,
+                run = run,
+                rise = delta.y,
+                yaw = run > 0.0001f ? Mathf.Repeat(Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg, 360f) : 0f,
+                materialKey = materialKey,
+                isStatic = isStatic,
+            };
         }
 
         public static GameObject PlayerStart(Vector3 position, float yaw, Transform root)

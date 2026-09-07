@@ -641,6 +641,19 @@ namespace VibeGame1.EditorTools
             motor.airDrag = 3f;
             motor.groundOverspeedDecay = 4f;
             motor.maxHorizontalSpeed = 27.5f;
+            // RAMPS, 2026-09-07. How much of gravity's along-slope pull a slide feels. Shipped here
+            // rather than left on the field initialiser because rule 9 says a code default is not a
+            // shipped value -- and this is the one number that turns ramps off if they feel wrong in
+            // play, so it must be reachable without a recompile.
+            //
+            // 0.85 rather than 1.0: a real ramp has friction, and the slide already has its own bleed
+            // (slideFriction) and a hard cap (slideMaxDuration 0.9 s). At 0.85 a 15 deg ramp -- the sort
+            // a slide line would be built on -- pays about 3.6 m/s over a full slide, which is worth
+            // steering onto and well under what a dash gives. SlopeSlideTests holds both edges.
+            //
+            // It is EXACTLY zero on flat ground, so every span authored before ramps existed behaves
+            // bit-for-bit as it did; nothing tuned on the flat can drift because of this.
+            motor.slideSlopeAccel = 0.85f;
             motor.slideChainWindow = 1.2f;
             motor.slideChainFalloff = 0.6f;
             // Weight and air control (2026-09-03 evening, after play: "I can still just shoot off a wall or
