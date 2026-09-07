@@ -334,8 +334,12 @@ namespace VibeGame1.Tests
             float f = ParryImpulse.ShockScreenHeightFraction(ContactDistance, ShippedVerticalFov);
             // Big enough that it is not a detail the eye can miss mid-flurry, small enough that it is
             // plainly a confirmation rather than a blast. 0.34 m at 1.05 m / 95 deg = ~0.30.
-            Assert.Greater(f, 0.18f, "below ~a fifth of screen height a hoop reads as a detail, not a confirm");
-            Assert.Less(f, 0.42f, "'minimal' was the ask; past ~40% of screen height this is an explosion");
+            // 2026-09-07: the floor moved 0.18 -> 0.35 and the cap 0.42 -> 0.68 on the user's report
+            // that the hoop was "to small". The band is still a band: under ~a third of screen height a
+            // confirm reads as a detail the player has to hunt for, and past ~two thirds it stops being
+            // a hoop around the crosshair and becomes a curtain over the fight.
+            Assert.Greater(f, 0.35f, "below ~a third of screen height a hoop reads as a detail, not a confirm");
+            Assert.Less(f, 0.68f, "past ~two thirds of screen height the hoop is a curtain, not a confirm");
         }
 
         [Test]
@@ -409,35 +413,67 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheShockwaveIsBornOnTheBlowLineAtTheSparksOwnContactPoint()
+        public void TheShockwaveIsBornOnTheCrosshair()
         {
-            // PlayerCombat.ContactPoint: root + up*1.25, then up to 1.0 m toward the attacker's chest
-            // (+1.1). The hoop must be born there, plus a 0.12 m push down the line, or it detaches
-            // from the sparks and the crescent and reads as a second, unrelated effect.
-            Assert.AreEqual(1.25f, ParryImpulse.ShockEyeHeight, 1e-4f, "mirrors PlayerCombat.ContactPoint");
-            Assert.AreEqual(1.0f, ParryImpulse.ShockReach, 1e-4f, "mirrors PlayerCombat.ContactPoint");
-            Assert.AreEqual(1.1f, ParryImpulse.ShockAttackerChest, 1e-4f, "mirrors PlayerCombat.ContactPoint");
+            // 2026-09-07, the user's report: "its just misplace and to small ... it needs to be right
+            // where the point of contact for the parry is (so essentially the crosshair)".
+            //
+            // THE BUG THIS PINS. The hoop used to be born at playerPos + up * ShockEyeHeight (1.25),
+            // walked toward the attacker's chest. ShockEyeHeight is a PLAYER-ROOT height, but
+            // ParryImpact.Deflect passes the CAMERA transform -- so 1.25 m was added on top of the eye's
+            // own ~1.6 m and the hoop appeared nearly three metres up, above the frame or clipped at its
+            // top edge. It also tracked the ATTACKER rather than the aim, so it slid off centre whenever
+            // the crosshair was not on their chest.
+            //
+            // The contract now: ON THE LOOK RAY, ShockDistance ahead of the eye, square to the lens.
+            // That is the crosshair, at any pitch, with or without an attacker.
 
-            Vector3 player = new Vector3(3f, 0f, -2f);
-            Vector3 attacker = player + new Vector3(0f, 0f, 6f);          // dead ahead, well out of reach
-            Vector3 n = ParryImpulse.ShockNormal(player, attacker, true, Vector3.forward);
-            Vector3 o = ParryImpulse.ShockOrigin(player, attacker, true, Vector3.forward);
+            Vector3 eye = new Vector3(3f, 1.62f, -2f);   // a CAMERA position, not a player root
 
-            Assert.AreEqual(1f, n.magnitude, 1e-4f, "the normal is a unit direction");
-            Assert.AreEqual(0f, n.y, 1e-4f, "the wave-front is level; a tilted hoop reads as a ground slam");
-            Assert.Greater(Vector3.Dot(n, Vector3.forward), 0.999f, "the hoop faces the blow");
+            // Level, dead ahead.
+            Vector3 o = ParryImpulse.ShockOrigin(eye, eye + Vector3.forward * 6f, true, Vector3.forward);
+            Assert.AreEqual(eye + Vector3.forward * ParryImpulse.ShockDistance, o,
+                "the hoop is born on the look ray, ShockDistance ahead of the eye");
+            Assert.AreEqual(eye.y, o.y, 1e-4f,
+                "looking level, the hoop sits at EYE height -- the old code put it 1.25 m above that");
 
-            Vector3 contact = player + Vector3.up * ParryImpulse.ShockEyeHeight;
-            float along = Vector3.Dot(o - contact, n);
-            Assert.AreEqual(ParryImpulse.ShockReach + ParryImpulse.ShockForward, along, 1e-3f,
-                "clamped to arm's length plus the forward push, never at the attacker");
+            // Steeply pitched: it must still be centred, which is the whole point of the change.
+            foreach (var f in new[] { new Vector3(0f, 0.8f, 0.6f).normalized,
+                                      new Vector3(0f, -0.7f, 0.7f).normalized,
+                                      new Vector3(0.9f, 0.1f, -0.4f).normalized })
+            {
+                Vector3 origin = ParryImpulse.ShockOrigin(eye, eye + Vector3.forward * 6f, true, f);
+                Vector3 offset = origin - eye;
+                Assert.AreEqual(ParryImpulse.ShockDistance, offset.magnitude, 1e-3f,
+                    "always exactly ShockDistance from the lens, whatever the pitch");
+                Assert.Greater(Vector3.Dot(offset.normalized, f), 0.9999f,
+                    "always ON the look ray -- any drift off it is a hoop off the crosshair");
 
-            // A bolt with no attacker still gets a hoop, thrown along the player's own facing — a
-            // Perfect happened, so something must confirm it.
-            Vector3 fallback = ParryImpulse.ShockOrigin(player, Vector3.zero, false, Vector3.right);
-            Assert.AreEqual(1f, ParryImpulse.ShockNormal(player, Vector3.zero, false, Vector3.right).x, 1e-4f);
-            Assert.AreEqual(ParryImpulse.ShockReach + ParryImpulse.ShockForward,
-                Vector3.Dot(fallback - contact, Vector3.right), 1e-3f);
+                Vector3 n = ParryImpulse.ShockNormal(eye, eye + Vector3.forward * 6f, true, f);
+                Assert.AreEqual(1f, n.magnitude, 1e-4f, "the normal is a unit direction");
+                Assert.Greater(Vector3.Dot(n, -f), 0.9999f,
+                    "the hoop faces the LENS, so it renders as a disc; a normal off the view axis " +
+                    "foreshortens it into an ellipse, which is what made it read as misplaced");
+            }
+
+            // An attacker-less Perfect (a deflected bolt) is confirmed identically: the crosshair does
+            // not care whether anything is standing there.
+            Assert.AreEqual(ParryImpulse.ShockOrigin(eye, Vector3.zero, false, Vector3.right),
+                            ParryImpulse.ShockOrigin(eye, eye + Vector3.right * 6f, true, Vector3.right),
+                            "with or without an attacker the hoop is on the crosshair");
+        }
+
+        [Test]
+        public void TheShockwaveClearsTheViewmodelAndIsBigEnoughToRead()
+        {
+            Assert.Greater(ParryImpulse.ShockDistance, 0.9f,
+                "closer than ~0.9 m the hoop is inside the viewmodel's swept arc and a weapon pokes through it");
+            Assert.Less(ParryImpulse.ShockDistance, 1.6f,
+                "further out and the hoop stops reading as the player's own event");
+
+            // The size complaint, pinned so it cannot silently shrink back.
+            Assert.Greater(ParryImpulse.ShockRadius, 0.5f,
+                "0.34 was reported as 'to small' once it was in the right place; do not go back under 0.5");
         }
     }
 }

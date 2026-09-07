@@ -172,15 +172,21 @@ namespace VibeGame1
         public static readonly Color ShockHue = new Color(0.658f, 0.902f, 0.855f);   // #A8E6DA
 
         /// <summary>
-        /// Ring radius, metres. The contact point sits ~1.05 m from the lens, so at the shipped 95°
-        /// vertical FOV (<c>PrefabFactory</c> line 763) a 0.68 m hoop covers <b>30% of screen height</b>
-        /// — the user's "minimal". For scale: the crescent already thrown on the same frame
-        /// (<c>PlayerCombat.DeflectArc</c>, radius 0.85) covers 74%, and
-        /// <see cref="WeaponImpactFx.ShockwaveRadius"/> — the maul's landed-hit wave — is 1.10.
-        /// The perfect's ring is deliberately the SMALLEST wave in the game: it is a confirmation, not
-        /// an explosion, and it has to survive being fired three times in four seconds.
+        /// Ring radius, metres. 0.34 → 0.62 on 2026-09-07, on the user's report that the hoop was "to
+        /// small" once they could finally see it in the right place.
+        ///
+        /// <para>At <see cref="ShockDistance"/> from the lens and the shipped 95° vertical FOV
+        /// (<c>PrefabFactory</c> line 763), a 1.24 m hoop covers <b>~54% of screen height</b> — it was
+        /// ~30% before. It is still not an explosion and still the smallest wave in the game: the
+        /// crescent thrown on the same frame (<c>PlayerCombat.DeflectArc</c>, radius 0.85) covers 74%,
+        /// and <see cref="WeaponImpactFx.ShockwaveRadius"/>, the maul's landed-hit wave, is 1.10.</para>
+        ///
+        /// <para>"Minimal" was the original ask and it still holds — one thin hoop, 0.18 s, no bloom.
+        /// Minimal is about how MUCH is drawn, not how small it is; a confirm the player has to hunt for
+        /// is not minimal, it is quiet. It still has to survive being fired three times in four
+        /// seconds, which is what keeps <see cref="ShockSeconds"/> where it is.</para>
         /// </summary>
-        public const float ShockRadius = 0.34f;
+        public const float ShockRadius = 0.62f;
 
         /// <summary>
         /// Life, seconds. Two frames longer than the crescent's 0.16 s so the hoop is the last thing on
@@ -192,47 +198,58 @@ namespace VibeGame1
         /// </summary>
         public const float ShockSeconds = 0.18f;
 
-        /// <summary>Player-root to contact height. Mirrors <c>PlayerCombat.ContactPoint</c> (1.25 m);
-        /// if that moves, this must, or the hoop detaches from the sparks it is meant to complete.</summary>
-        public const float ShockEyeHeight = 1.25f;
-
-        /// <summary>Reach along the line to the attacker. Mirrors <c>PlayerCombat.ContactPoint</c>.</summary>
-        public const float ShockReach = 1.0f;
-
-        /// <summary>Attacker aim height. Mirrors <c>PlayerCombat.ContactPoint</c>.</summary>
-        public const float ShockAttackerChest = 1.1f;
+        // ShockEyeHeight / ShockReach / ShockAttackerChest / ShockForward lived here until 2026-09-07.
+        // They mirrored PlayerCombat.ContactPoint so the hoop would sit on the sparks -- but the hoop is
+        // now born on the LOOK RAY (see ShockOrigin), so they had no readers left, and a constant whose
+        // doc-comment still claims "if PlayerCombat.ContactPoint moves, this must" is worse than no
+        // constant: the next reader wires it back up. The sparks and the crescent still come off the
+        // real contact point; only the confirmation hoop moved to the crosshair.
 
         /// <summary>
-        /// Pushed this far further down the blow line than the sparks and the crescent. Additive
-        /// geometry writes no depth so there is nothing to z-fight, but starting the hoop slightly
-        /// ahead of the contact is what makes it read as leaving the blade rather than sitting on it.
+        /// The ring's normal: straight back down the LOOK ray, so the hoop is square to the lens and
+        /// reads as a flat wave-front seen face on wherever the player happens to be aiming.
+        ///
+        /// <para><b>It used to be the level direction to the attacker</b> (<c>to.y = 0</c>), which tilted
+        /// the hoop away from the camera whenever the player was not looking dead level at the attacker's
+        /// chest — the ring went elliptical and slid off centre exactly when the fight was most vertical.
+        /// The user's report: "its just misplace and to small ... it needs to be right where the point of
+        /// contact for the parry is (so essentially the crosshair)".</para>
         /// </summary>
-        public const float ShockForward = 0.12f;
-
-        /// <summary>Unit direction the blow arrived from, in world space; the ring's normal, so the
-        /// hoop is a flat wave-front seen FACE ON and expanding across the line of the attack.</summary>
-        public static Vector3 ShockNormal(Vector3 playerPos, Vector3 attackerPos, bool haveAttacker, Vector3 forward)
+        public static Vector3 ShockNormal(Vector3 eyePos, Vector3 attackerPos, bool haveAttacker, Vector3 forward)
         {
             Vector3 f = forward.sqrMagnitude > 1e-6f ? forward.normalized : Vector3.forward;
-            if (!haveAttacker) return f;
-            Vector3 to = attackerPos - playerPos;
-            to.y = 0f;
-            return to.sqrMagnitude > 1e-6f ? to.normalized : f;
+            return -f;   // face the lens: the hoop is a disc on the crosshair, never an ellipse
         }
 
         /// <summary>
-        /// Where the hoop is born: the same contact point <c>PlayerCombat</c> throws its sparks and its
-        /// crescent from, nudged <see cref="ShockForward"/> further out. All three are one event, so
-        /// all three must share an origin.
+        /// Where the hoop is born: ON THE LOOK RAY, <see cref="ShockDistance"/> in front of the eye, so
+        /// it renders centred on the CROSSHAIR — which is where the player's attention already is, and
+        /// where they read the parry from.
+        ///
+        /// <para><b>The bug this replaces.</b> The old origin was
+        /// <c>playerPos + up * ShockEyeHeight</c> walked toward the attacker's chest.
+        /// <see cref="ShockEyeHeight"/> is a PLAYER-ROOT to contact height (1.25 m), but
+        /// <c>ParryImpact.Deflect</c> passes the CAMERA transform, so the 1.25 m was added on top of the
+        /// eye's own ~1.6 m and the hoop was born nearly three metres up — above the frame, or clipped at
+        /// its top edge. Compounding it, the origin then tracked the ATTACKER rather than the aim, so it
+        /// drifted off centre whenever the crosshair was not on their chest.</para>
+        ///
+        /// <para>The attacker parameters are kept in the signature deliberately: the sparks and the
+        /// crescent still come off the real contact point, and a future pass may want to lean the hoop
+        /// back toward it. Today it is the crosshair, because that is what the player is looking at.</para>
         /// </summary>
-        public static Vector3 ShockOrigin(Vector3 playerPos, Vector3 attackerPos, bool haveAttacker, Vector3 forward)
+        public static Vector3 ShockOrigin(Vector3 eyePos, Vector3 attackerPos, bool haveAttacker, Vector3 forward)
         {
-            Vector3 n = ShockNormal(playerPos, attackerPos, haveAttacker, forward);
-            Vector3 origin = playerPos + Vector3.up * ShockEyeHeight;
-            if (!haveAttacker) return origin + n * (ShockReach + ShockForward);
-            Vector3 to = attackerPos + Vector3.up * ShockAttackerChest - origin;
-            return origin + Vector3.ClampMagnitude(to, ShockReach) + n * ShockForward;
+            Vector3 f = forward.sqrMagnitude > 1e-6f ? forward.normalized : Vector3.forward;
+            return eyePos + f * ShockDistance;
         }
+
+        /// <summary>
+        /// How far down the look ray the hoop sits, metres. Near enough that it is unmistakably the
+        /// player's own event rather than something happening to the enemy, far enough to clear the
+        /// viewmodel's swept arc so a weapon cannot poke through it.
+        /// </summary>
+        public const float ShockDistance = 1.05f;
 
         /// <summary>
         /// Fraction of SCREEN HEIGHT the finished hoop covers, at a vertical field of view of
