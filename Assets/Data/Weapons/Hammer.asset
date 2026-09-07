@@ -16,8 +16,8 @@ MonoBehaviour:
   neon: {r: 0.8784314, g: 0.4, b: 0.101960786, a: 1}
   viewmodelPrefab: {fileID: 5162901324134690919, guid: 310351ac8eee4dc4fb35e0fcb9dcc049, type: 3}
   viewmodelScale: 0.5
-  baseDamage: 46
-  postureDamage: 34
+  baseDamage: 52
+  postureDamage: 26
   executeDamage: 400
   strScale: 1
   dexScale: 0
@@ -31,7 +31,7 @@ MonoBehaviour:
   comboWindow: 0.55
   hitOffset: 2.5
   hitRadius: 1.7
-  hitStopSeconds: 0.11
+  hitStopSeconds: 0.085
   parryWindowMultiplier: 0.75
   parryPostureDamage: 40
   pyreBonus: 5

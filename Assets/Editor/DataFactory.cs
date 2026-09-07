@@ -1464,6 +1464,39 @@ namespace VibeGame1.EditorTools
             //
             // Every step is roughly x2 in swing time and +0.4-0.8 m of reach. A player who swaps
             // weapons should notice inside one swing, without reading a stat.
+            //
+            // THAT LADDER IS SHAPE. THIS IS THE JOB (2026-09-06). A ladder alone is not a roster: with
+            // the old numbers the sword and the maul had the SAME throughput (73.9 vs 72.2 health/s,
+            // 36.4 vs 39.5 posture/s), so the maul was a slow sword with more reach, and the needle was
+            // last on BOTH — the starting-weapon failure, applied to the third slot. The fix is not a
+            // fourth rung, it is a CROSSING: the two posture channels now run in OPPOSITE directions to
+            // health damage, so each weapon wins one column outright and loses another outright.
+            //
+            //                    health/s   HIT-posture/s   deflect-posture   parry window   reach
+            //   Rosethorn          44.0         59.1              18             x1.35       2.20 m
+            //   Cerulean Edge      73.9         36.4              25             x1.00       3.25 m
+            //   Sunbreaker         81.6         30.2              40             x0.75       4.20 m
+            //
+            //   ROSETHORN  — THE BREAKER. Kills slowest of anything in the game and BREAKS fastest, by
+            //                a wide margin: it is the only weapon whose swings take a Grunt's posture
+            //                down before its health (5 hits to break, ~7 to kill), so with the needle
+            //                the deathblow is the kill, not a bonus. Widest parry window (x1.35) and
+            //                the cheapest commitment in the game (0.22 s, contact at 0.06) — which is
+            //                also what makes it the speedrun weapon: it takes the least time out of a
+            //                line. It pays for all of it with pyreBonus -5 and the lowest deflect
+            //                posture. Deletion test: lose the needle and nothing else breaks by hitting.
+            //   CERULEAN EDGE — THE INSTRUMENT. Deliberately unchanged by this pass, to the number. It
+            //                is the middle of every column, and its parryPostureDamage 25 is the
+            //                calibration constant two boss fights are built on. Its job is to be the
+            //                thing the other two are deviations from, and a generalist that keeps
+            //                moving is a real job in a speedrun platformer.
+            //   SUNBREAKER — THE CRUSHER, and the DEFLECT weapon. Health-damage crown (52 a swing, 88
+            //                on the finisher — twice a sword hit) and the longest reach, so it kills a
+            //                span sentry without leaving the line. Worst hit-posture in the set: a maul
+            //                caves a body in, it does not out-fence it. It breaks through the PARRY
+            //                instead — 40 a deflect, the crown, behind the narrowest window in the game
+            //                (x0.75). The two ways of breaking an enemy are now split across two
+            //                weapons, and both of them are parry-first.
             var sword = GetOrCreate<WeaponData>(WeaponsDir + "/Sword.asset");
             sword.displayName = "Cerulean Edge";
             sword.neon = Hex("#8FB5D9");
@@ -1509,14 +1542,27 @@ namespace VibeGame1.EditorTools
             var hammer = GetOrCreate<WeaponData>(WeaponsDir + "/Hammer.asset");
             hammer.displayName = "Sunbreaker";
             hammer.neon = Hex("#E0661A");
-            hammer.baseDamage = 46f; hammer.postureDamage = 34f; hammer.executeDamage = 400f;
+            // THE CRUSHER. baseDamage 46 -> 52 takes the health-damage crown outright (81.6/s against
+            // the sword's 73.9, and 88.4 on the 1.7x finisher — twice a sword hit, in one legible beat),
+            // and postureDamage 34 -> 26 gives up the hit-posture column entirely (30.2/s, last in the
+            // set). A maul caves a body in; it does not out-fence it. The maul still breaks people —
+            // through parryPostureDamage 40, the crown, bought with the narrowest parry window in the
+            // game (x0.75). So breaking-by-hitting and breaking-by-deflecting are now two different
+            // weapons instead of the same one, and the sword sits between them at 16 / 25.
+            hammer.baseDamage = 52f; hammer.postureDamage = 26f; hammer.executeDamage = 400f;
             hammer.strScale = 1f; hammer.dexScale = 0f; hammer.arcScale = 0.2f;
             hammer.comboLength = 2; hammer.comboMultipliers = new[] { 1f, 1.7f };
             // COMMITTED. 0.86 s is nearly four dagger swings and the contact frame does not arrive until
             // 0.40 s — you are holding the maul over your head for longer than a Marionette wind-up, and
             // there is no taking it back. That is the trade the reach and the 1.7x finisher pay for.
             hammer.attackDuration = 0.86f; hammer.hitDelay = 0.40f; hammer.comboWindow = 0.55f;
-            hammer.hitOffset = 2.5f; hammer.hitRadius = 1.7f; hammer.hitStopSeconds = 0.11f;
+            // hitStopSeconds 0.11 -> 0.085. Still the heaviest freeze of any weapon and still 2.8x the
+            // needle's 0.03 (sword 0.06), so the weight ladder is intact — but 0.11 was LONGER than
+            // GameFeel.parryHitStop 0.09, which quietly made an ordinary maul swing the biggest beat in
+            // the game. The deflect is the thing this project is about and it must own the longest
+            // freeze; nothing routine may out-punctuate it. It is also 25 ms less world-stop per hit on
+            // a run clock, on the weapon a speedrunner swings at a sentry in passing.
+            hammer.hitOffset = 2.5f; hammer.hitRadius = 1.7f; hammer.hitStopSeconds = 0.085f;
             hammer.parryWindowMultiplier = 0.75f; hammer.parryPostureDamage = 40f; hammer.pyreBonus = 5f;
             // SUPER "SUNBREAK" — overhead into the ground, 360 degree shockwave. The longest wind-up in
             // the set and by far the biggest posture number: the hammer already trades speed for weight,
@@ -1561,7 +1607,21 @@ namespace VibeGame1.EditorTools
             var dagger = GetOrCreate<WeaponData>(WeaponsDir + "/Dagger.asset");
             dagger.displayName = "Rosethorn";
             dagger.neon = Hex("#5FD66A");
-            dagger.baseDamage = 12f; dagger.postureDamage = 6f; dagger.executeDamage = 250f;
+            // ...AND THE ROLE IS NOT THE SILHOUETTE. Everything that paragraph is about — pose,
+            // geometry, viewmodelScale, tempo, reach, comboLength, parryPostureDamage — is untouched
+            // and is pinned by WeaponSilhouetteTests.RosethornIsTheControl. What moves here is the one
+            // thing the control was never about: the needle's JOB. It was last in health/s AND last in
+            // posture/s, i.e. it had no column of its own.
+            //   baseDamage 12 -> 9      the worst killer in the game, on purpose
+            //   postureDamage 6 -> 13   the best BREAKER in the game, by 1.6x over the sword
+            // 4 hits in 0.88 s: 44.0 health/s against 59.1 posture/s. On a 60/60 Grunt that is 5 hits
+            // to the break and ~7 to the kill, so the needle is the only weapon that reaches the
+            // deathblow first — it is the one weapon that plays the deflect-and-break game this
+            // project is built on with its OFFENCE too; the other two simply kill. Its super already agreed with this (Thornstorm's payload is nine
+            // separate posture applications); now the light attack does too.
+            // executeDamage 250 -> 320: a breaker's deathblow has to actually kill the toughest thing
+            // it can break, and 250 sits UNDER the Iron Penitent's 260 HP and the Chorister's 300.
+            dagger.baseDamage = 9f; dagger.postureDamage = 13f; dagger.executeDamage = 320f;
             dagger.strScale = 0f; dagger.dexScale = 1f; dagger.arcScale = 0.4f;
             dagger.comboLength = 4; dagger.comboMultipliers = new[] { 1f, 1f, 1f, 1.3f };
             dagger.attackDuration = 0.22f; dagger.hitDelay = 0.06f; dagger.comboWindow = 0.3f;

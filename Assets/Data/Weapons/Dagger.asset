@@ -16,9 +16,9 @@ MonoBehaviour:
   neon: {r: 0.37254903, g: 0.8392157, b: 0.41568628, a: 1}
   viewmodelPrefab: {fileID: 3050010489944845851, guid: 8ca2df59fbcb95745af140d6cea814c4, type: 3}
   viewmodelScale: 0.5
-  baseDamage: 12
-  postureDamage: 6
-  executeDamage: 250
+  baseDamage: 9
+  postureDamage: 13
+  executeDamage: 320
   strScale: 0
   dexScale: 1
   arcScale: 0.4
