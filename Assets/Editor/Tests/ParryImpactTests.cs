@@ -316,5 +316,128 @@ namespace VibeGame1.Tests
             Assert.Less(Mathf.Abs(feel.parryFovPunch), feel.dashFovKick,
                 "the deflect must not warp the lens harder than a dash");
         }
+        // ---------------------------------------------------------------- the perfect shockwave
+        //
+        // The user's ask, 2026-09-07: "the perfect parry needs to have a minimal shockwave visual to
+        // know it was performed, over the words." MINIMAL is the constraint these tests defend — a
+        // confirmation that grows into an explosion stops being distinguishable from a payoff, and a
+        // confirmation that lingers turns a chain of perfects into one glow.
+
+        const float ShippedVerticalFov = 95f;      // PrefabFactory.cs:763 / CameraFX.baseFov
+        const float ContactDistance = 1.05f;       // contact point to lens, ~1.0 m out and ~0.4 m down
+        const float DeflectArcRadius = 0.85f;      // PlayerCombat.ReceiveAttack, the Perfect branch
+        const float DeflectArcSeconds = 0.16f;     // PlayerCombat.DeflectArc
+
+        [Test]
+        public void TheShockwaveIsMinimalOnScreen()
+        {
+            float f = ParryImpulse.ShockScreenHeightFraction(ContactDistance, ShippedVerticalFov);
+            // Big enough that it is not a detail the eye can miss mid-flurry, small enough that it is
+            // plainly a confirmation rather than a blast. 0.34 m at 1.05 m / 95 deg = ~0.30.
+            Assert.Greater(f, 0.18f, "below ~a fifth of screen height a hoop reads as a detail, not a confirm");
+            Assert.Less(f, 0.42f, "'minimal' was the ask; past ~40% of screen height this is an explosion");
+        }
+
+        [Test]
+        public void TheShockwaveIsTheSmallestWaveInTheGame()
+        {
+            // The radius ladder, across the waves an impact the player caused or absorbed can throw.
+            // A confirmation must not out-size the payoff (a landed maul hit) or the crescent it sits
+            // inside; if it ever does, the perfect stops being crisp and starts being loud.
+            Assert.Less(ParryImpulse.ShockRadius, WeaponImpactFx.ShockwaveRadius,
+                "the perfect confirm must stay under the maul's landed-hit wave (1.10 m)");
+            Assert.Less(ParryImpulse.ShockRadius, DeflectArcRadius,
+                "the hoop completes the crescent thrown on the same frame; it must sit inside it");
+            Assert.Greater(ParryImpulse.ShockRadius, 0.2f,
+                "SlashFx.Ring draws a 0.045 m hoop; shrink the radius much further and it reads as a dot");
+        }
+
+        [Test]
+        public void TheShockwaveClearsBeforeTheNextParryableImpactCanArrive()
+        {
+            // ANIMATION-VFX section 1: the dissipation must finish before the next action. The tightest
+            // gap between two impacts the player can deflect is comboGap + the next attack's windup,
+            // read off the SHIPPED assets rather than assumed, because a retuned combo would otherwise
+            // silently turn a chain of perfects into one smear.
+            float minGap = float.MaxValue;
+            float minWindup = float.MaxValue;
+            var guids = AssetDatabase.FindAssets("t:EnemyAttackData", new[] { "Assets/Data" });
+            Assert.Greater(guids.Length, 0, "no EnemyAttackData assets — run VibeGame1/3. Create Data.");
+            for (int i = 0; i < guids.Length; i++)
+            {
+                var a = AssetDatabase.LoadAssetAtPath<EnemyAttackData>(AssetDatabase.GUIDToAssetPath(guids[i]));
+                if (a == null) continue;
+                if (a.comboGap < minGap) minGap = a.comboGap;
+                if (a.windup < minWindup) minWindup = a.windup;
+            }
+            // A conservative lower bound: the smallest gap and the smallest windup need not belong to
+            // the same attack, and impactDelay is left out entirely. Shipped it is 0.12 + 0.45 = 0.57.
+            float tightest = minGap + minWindup;
+            Assert.LessOrEqual(ParryImpulse.ShockSeconds, 0.20f, "pin the number, not just the ratio");
+            Assert.Less(ParryImpulse.ShockSeconds, tightest * 0.5f,
+                "the hoop must be gone before the halfway point of the tightest possible chain, or perfects smear into one glow");
+
+            // And it outlives the crescent by ~2 frames so it is the SETTLE, the last shape on screen.
+            Assert.Greater(ParryImpulse.ShockSeconds, DeflectArcSeconds);
+            Assert.Less(ParryImpulse.ShockSeconds - DeflectArcSeconds, 4f * Frame);
+        }
+
+        [Test]
+        public void TheShockwaveCannotBloomAndCannotWearATellsColour()
+        {
+            // It goes through SlashFx, which normalises to 1.0 and lerps the core 78% to white. Both
+            // materials must land under the 1.05 threshold: the licensed bright moment of a deflect is
+            // EnemyVisuals.ParryGlow at 3.2, on the ENEMY, and nothing player-side may compete with it.
+            Color fringe = SlashFx.NormaliseColor(ParryImpulse.ShockHue);
+            Color core = Color.Lerp(fringe, Color.white, 0.78f);
+            Assert.Less(fringe.maxColorComponent, 1.05f, "the perfect confirm is shape, not bloom");
+            Assert.Less(core.maxColorComponent, 1.05f, "the perfect confirm is shape, not bloom");
+
+            // Hue discipline (ANIMATION-VFX section 4 rules 9 and 10): amber means "answer this",
+            // violet means "use this". A confirmation claims neither.
+            float h, sat, val;
+            Color.RGBToHSV(ParryImpulse.ShockHue, out h, out sat, out val);
+            float hue = h * 360f;
+            Assert.Greater(Mathf.Abs(Mathf.DeltaAngle(hue, 28f)), 90f, "must not wear the enemy bolt's amber");
+            Assert.Greater(Mathf.Abs(Mathf.DeltaAngle(hue, 272f)), 60f, "must not wear the sentry flare's violet");
+
+            // It IS the colour of the word it replaces: HUDController's Teal, #A8E6DA.
+            var teal = new Color(0.658f, 0.902f, 0.855f);
+            Assert.AreEqual(teal.r, ParryImpulse.ShockHue.r, 1e-3f);
+            Assert.AreEqual(teal.g, ParryImpulse.ShockHue.g, 1e-3f);
+            Assert.AreEqual(teal.b, ParryImpulse.ShockHue.b, 1e-3f);
+        }
+
+        [Test]
+        public void TheShockwaveIsBornOnTheBlowLineAtTheSparksOwnContactPoint()
+        {
+            // PlayerCombat.ContactPoint: root + up*1.25, then up to 1.0 m toward the attacker's chest
+            // (+1.1). The hoop must be born there, plus a 0.12 m push down the line, or it detaches
+            // from the sparks and the crescent and reads as a second, unrelated effect.
+            Assert.AreEqual(1.25f, ParryImpulse.ShockEyeHeight, 1e-4f, "mirrors PlayerCombat.ContactPoint");
+            Assert.AreEqual(1.0f, ParryImpulse.ShockReach, 1e-4f, "mirrors PlayerCombat.ContactPoint");
+            Assert.AreEqual(1.1f, ParryImpulse.ShockAttackerChest, 1e-4f, "mirrors PlayerCombat.ContactPoint");
+
+            Vector3 player = new Vector3(3f, 0f, -2f);
+            Vector3 attacker = player + new Vector3(0f, 0f, 6f);          // dead ahead, well out of reach
+            Vector3 n = ParryImpulse.ShockNormal(player, attacker, true, Vector3.forward);
+            Vector3 o = ParryImpulse.ShockOrigin(player, attacker, true, Vector3.forward);
+
+            Assert.AreEqual(1f, n.magnitude, 1e-4f, "the normal is a unit direction");
+            Assert.AreEqual(0f, n.y, 1e-4f, "the wave-front is level; a tilted hoop reads as a ground slam");
+            Assert.Greater(Vector3.Dot(n, Vector3.forward), 0.999f, "the hoop faces the blow");
+
+            Vector3 contact = player + Vector3.up * ParryImpulse.ShockEyeHeight;
+            float along = Vector3.Dot(o - contact, n);
+            Assert.AreEqual(ParryImpulse.ShockReach + ParryImpulse.ShockForward, along, 1e-3f,
+                "clamped to arm's length plus the forward push, never at the attacker");
+
+            // A bolt with no attacker still gets a hoop, thrown along the player's own facing — a
+            // Perfect happened, so something must confirm it.
+            Vector3 fallback = ParryImpulse.ShockOrigin(player, Vector3.zero, false, Vector3.right);
+            Assert.AreEqual(1f, ParryImpulse.ShockNormal(player, Vector3.zero, false, Vector3.right).x, 1e-4f);
+            Assert.AreEqual(ParryImpulse.ShockReach + ParryImpulse.ShockForward,
+                Vector3.Dot(fallback - contact, Vector3.right), 1e-3f);
+        }
     }
 }

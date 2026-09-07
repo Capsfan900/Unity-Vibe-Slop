@@ -144,6 +144,107 @@ namespace VibeGame1
             return lost;
         }
 
+        // ---------------------------------------------------------------- the perfect shockwave
+
+        /// <summary>
+        /// The one place in this file that spends LIGHT rather than force, and it is here because the
+        /// user asked for it: a perfect deflect used to announce itself almost entirely in TEXT — the
+        /// teal <c>PERFECT</c> popup in <c>HUDController.OnParry</c> — while the world showed the same
+        /// vocabulary a scraped block shows (sparks, a flash). Sekiro's whole parry read is that a
+        /// deflect is *immediately* distinguishable from a block without looking at a meter; a word on
+        /// the HUD is the opposite of that, because reading costs a beat the player does not have at
+        /// 32 m/s.
+        ///
+        /// <para><b>Why a RING and nothing else.</b> Shape is the channel, not brightness. Every other
+        /// outcome in <c>PlayerCombat.ReceiveAttack</c> is drawn from sparks (Blocked: 5 grey; Guard:
+        /// 9 steel; Hit: 4 dark red) and a Perfect already adds a 0.85 m crescent. A closed expanding
+        /// hoop is the one primitive none of the other three can produce, so its mere PRESENCE is the
+        /// message — it cannot be confused with a block, and pointing away from the body rather than
+        /// smearing over it means it cannot be confused with damage taken either.</para>
+        ///
+        /// <para><b>Why it does not bloom.</b> It goes through <c>SlashFx.Ring</c>, which normalises to
+        /// 1.0, so it peaks at 0.98 after the core's white lerp — under the 1.05 threshold. The
+        /// deflect's licensed bright moment is <c>EnemyVisuals.ParryGlow</c> at 3.2 ON THE ENEMY, and
+        /// the whole reason that flash means "you deflected" is that nothing on the player's side
+        /// competes with it. Adding a bloom here would have bought a second confirm by devaluing the
+        /// first. See ANIMATION-VFX section 4 rule 9.</para>
+        /// </summary>
+        public static readonly Color ShockHue = new Color(0.658f, 0.902f, 0.855f);   // #A8E6DA
+
+        /// <summary>
+        /// Ring radius, metres. The contact point sits ~1.05 m from the lens, so at the shipped 95°
+        /// vertical FOV (<c>PrefabFactory</c> line 763) a 0.68 m hoop covers <b>30% of screen height</b>
+        /// — the user's "minimal". For scale: the crescent already thrown on the same frame
+        /// (<c>PlayerCombat.DeflectArc</c>, radius 0.85) covers 74%, and
+        /// <see cref="WeaponImpactFx.ShockwaveRadius"/> — the maul's landed-hit wave — is 1.10.
+        /// The perfect's ring is deliberately the SMALLEST wave in the game: it is a confirmation, not
+        /// an explosion, and it has to survive being fired three times in four seconds.
+        /// </summary>
+        public const float ShockRadius = 0.34f;
+
+        /// <summary>
+        /// Life, seconds. Two frames longer than the crescent's 0.16 s so the hoop is the last thing on
+        /// screen — the settle at the end of anticipation/snap/settle — and under a third of the
+        /// tightest possible interval between two parryable impacts in the shipped data
+        /// (min <c>comboGap</c> 0.12 + min <c>windup</c> 0.45 = 0.57 s), so a chain of perfects reads as
+        /// three separate hoops rather than one smear. <c>SlashFx.Ring</c> supplies the shape: it
+        /// punches out on an ease-out and its alpha falls on a square, i.e. snap then clear.
+        /// </summary>
+        public const float ShockSeconds = 0.18f;
+
+        /// <summary>Player-root to contact height. Mirrors <c>PlayerCombat.ContactPoint</c> (1.25 m);
+        /// if that moves, this must, or the hoop detaches from the sparks it is meant to complete.</summary>
+        public const float ShockEyeHeight = 1.25f;
+
+        /// <summary>Reach along the line to the attacker. Mirrors <c>PlayerCombat.ContactPoint</c>.</summary>
+        public const float ShockReach = 1.0f;
+
+        /// <summary>Attacker aim height. Mirrors <c>PlayerCombat.ContactPoint</c>.</summary>
+        public const float ShockAttackerChest = 1.1f;
+
+        /// <summary>
+        /// Pushed this far further down the blow line than the sparks and the crescent. Additive
+        /// geometry writes no depth so there is nothing to z-fight, but starting the hoop slightly
+        /// ahead of the contact is what makes it read as leaving the blade rather than sitting on it.
+        /// </summary>
+        public const float ShockForward = 0.12f;
+
+        /// <summary>Unit direction the blow arrived from, in world space; the ring's normal, so the
+        /// hoop is a flat wave-front seen FACE ON and expanding across the line of the attack.</summary>
+        public static Vector3 ShockNormal(Vector3 playerPos, Vector3 attackerPos, bool haveAttacker, Vector3 forward)
+        {
+            Vector3 f = forward.sqrMagnitude > 1e-6f ? forward.normalized : Vector3.forward;
+            if (!haveAttacker) return f;
+            Vector3 to = attackerPos - playerPos;
+            to.y = 0f;
+            return to.sqrMagnitude > 1e-6f ? to.normalized : f;
+        }
+
+        /// <summary>
+        /// Where the hoop is born: the same contact point <c>PlayerCombat</c> throws its sparks and its
+        /// crescent from, nudged <see cref="ShockForward"/> further out. All three are one event, so
+        /// all three must share an origin.
+        /// </summary>
+        public static Vector3 ShockOrigin(Vector3 playerPos, Vector3 attackerPos, bool haveAttacker, Vector3 forward)
+        {
+            Vector3 n = ShockNormal(playerPos, attackerPos, haveAttacker, forward);
+            Vector3 origin = playerPos + Vector3.up * ShockEyeHeight;
+            if (!haveAttacker) return origin + n * (ShockReach + ShockForward);
+            Vector3 to = attackerPos + Vector3.up * ShockAttackerChest - origin;
+            return origin + Vector3.ClampMagnitude(to, ShockReach) + n * ShockForward;
+        }
+
+        /// <summary>
+        /// Fraction of SCREEN HEIGHT the finished hoop covers, at a vertical field of view of
+        /// <paramref name="vFovDeg"/> and a viewing distance of <paramref name="distance"/>. Exposed so
+        /// "minimal" is a measured claim rather than an adjective — see the test.
+        /// </summary>
+        public static float ShockScreenHeightFraction(float distance, float vFovDeg)
+        {
+            float halfHeight = Mathf.Max(1e-4f, distance) * Mathf.Tan(Mathf.Deg2Rad * Mathf.Clamp(vFovDeg, 1f, 179f) * 0.5f);
+            return (2f * ShockRadius) / (2f * halfHeight);
+        }
+
         // ---------------------------------------------------------------- sound
 
         /// <summary>One voice in the deflect stack.</summary>

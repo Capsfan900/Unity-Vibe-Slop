@@ -6,11 +6,17 @@ namespace VibeGame1
     /// The extra layers a deflect lands with, on top of what <c>PlayerCombat</c> already fires
     /// (hitstop, Perlin shake, chromatic pulse, screen flash, sparks, arc, enemy recoil, Sfx.Parry).
     ///
-    /// <para><b>Why a separate class.</b> Everything here is FORCE — a directional camera kick, an FOV
-    /// punch, a stepped hitstop release, two extra audio voices, a blade kickback. None of it is light.
-    /// The deflect was already legible; what it was missing is weight, and weight added as brightness
-    /// would have taken the frame away from <c>EnemyVisuals.CueFlash</c>, which has to stay the loudest
-    /// thing on screen or the player stops being able to see the attack coming.</para>
+    /// <para><b>Why a separate class.</b> Almost everything here is FORCE — a directional camera kick,
+    /// an FOV punch, a stepped hitstop release, two extra audio voices, a blade kickback. The deflect
+    /// was already legible; what it was missing is weight, and weight added as brightness would have
+    /// taken the frame away from <c>EnemyVisuals.CueFlash</c>, which has to stay the loudest thing on
+    /// screen or the player stops being able to see the attack coming.</para>
+    ///
+    /// <para><b>The one exception, added 2026-09-07 on the user's ask</b> (<i>"the perfect parry needs
+    /// to have a minimal shockwave visual to know it was performed, over the words"</i>):
+    /// <see cref="Shockwave"/>. It is SHAPE, not luminance — a closed hoop is a primitive no other
+    /// parry outcome can produce, and it runs through <c>SlashFx</c>, which normalises to 1.0, so it
+    /// peaks at 0.98 and never crosses the 1.05 bloom threshold. The cue flash keeps the frame.</para>
     ///
     /// <para><b>Rule 1.</b> Every time request routes through <see cref="TimeScaleController"/> with
     /// <c>affectsPlayer: false</c>; the camera runs on unscaled time. The player's clock, their input
@@ -29,6 +35,10 @@ namespace VibeGame1
         /// <param name="attackerPos">World position of the attacker, for the kick direction.</param>
         public static void Deflect(Transform playerEye, Vector3 attackerPos, bool haveAttacker)
         {
+            // Before the settings guard on purpose: the confirmation that a Perfect happened is the one
+            // layer that must never be contingent on an unrelated asset having loaded.
+            Shockwave(playerEye, attackerPos, haveAttacker);
+
             var feel = GameManager.I != null ? GameManager.I.feel : null;
             if (feel == null) return;
 
@@ -36,6 +46,35 @@ namespace VibeGame1
             CameraKick(playerEye, attackerPos, haveAttacker, feel);
             FovPunch(feel);
             Layers(feel);
+        }
+
+        /// <summary>
+        /// The world's answer to "was that a PERFECT?". A single expanding hoop on the blow line, at the
+        /// same contact point the sparks and the crescent already use, so the three read as one event.
+        ///
+        /// <para><b>It cannot lie.</b> This method is reachable only from
+        /// <see cref="ParryController.NotifyDeflected"/>, which <c>PlayerCombat.ReceiveAttack</c> calls
+        /// in the <c>ParryResult.Perfect</c> branch and nowhere else. A hoop on screen means a perfect
+        /// deflect resolved, with no second path to it.</para>
+        ///
+        /// <para><b>Teal, matching the word it is replacing.</b> <c>HUDController</c> prints
+        /// <c>PERFECT</c> in <c>#A8E6DA</c> and <see cref="ParryImpulse.ShockHue"/> is the same colour,
+        /// so the HUD and the world are one language rather than two. It is also ~138° of hue from the
+        /// enemy bolt's amber and ~106° from the sentry flare's violet, which is what keeps "answer
+        /// this" and "use this" untouched — the hoop claims neither.</para>
+        ///
+        /// <para>All numbers live in <see cref="ParryImpulse"/> (rule 9) and are pinned by
+        /// <c>ParryImpactTests</c>.</para>
+        /// </summary>
+        static void Shockwave(Transform playerEye, Vector3 attackerPos, bool haveAttacker)
+        {
+            Vector3 pos = playerEye != null ? playerEye.position : Vector3.zero;
+            Vector3 fwd = playerEye != null ? playerEye.forward : Vector3.forward;
+            SlashFx.Ring(ParryImpulse.ShockOrigin(pos, attackerPos, haveAttacker, fwd),
+                         ParryImpulse.ShockNormal(pos, attackerPos, haveAttacker, fwd),
+                         ParryImpulse.ShockHue,
+                         ParryImpulse.ShockRadius,
+                         ParryImpulse.ShockSeconds);
         }
 
         /// <summary>
