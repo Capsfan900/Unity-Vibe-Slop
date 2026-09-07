@@ -755,6 +755,33 @@ namespace VibeGame1.EditorTools
             root.AddComponent<PlayerDeath>();
             root.AddComponent<PlayerFeedback>();
             root.AddComponent<PlayerItems>();
+            // One bounded, world-space route-mist field. AmbientMist follows this ROOT as an emitter,
+            // never the camera: existing particles stay in the world when the player looks around.
+            // Every value is written here because the prefab, not the component initialiser, ships.
+            var ambientMist = root.AddComponent<AmbientMist>();
+            ambientMist.maxParticles = 48;
+            ambientMist.emissionRate = 4f;
+            ambientMist.lifetimeMin = 8f;
+            ambientMist.lifetimeMax = 12f;
+            ambientMist.volumeCenter = new Vector3(0f, -1f, 28f);
+            ambientMist.volumeSize = new Vector3(26f, 4f, 28f);   // 14-42 m ahead before ground alignment
+            ambientMist.sizeMin = 8f;
+            ambientMist.sizeMax = 14f;
+            ambientMist.groundProbeForward = 28f;
+            ambientMist.groundProbeInterval = 0.25f;
+            ambientMist.groundProbeStartHeight = 12f;
+            ambientMist.groundProbeDistance = 60f;
+            ambientMist.groundClearance = 0.8f;
+            ambientMist.tint = new Color(0.28f, 0.40f, 0.58f, 1f);
+            ambientMist.alphaMin = 0.18f;
+            ambientMist.alphaMax = 0.26f;
+            ambientMist.maxScreenSize = 0.22f;
+            ambientMist.cameraFadeNear = 3f;
+            ambientMist.cameraFadeFar = 9f;
+            ambientMist.noiseStrength = 0.35f;
+            ambientMist.noiseFrequency = 0.08f;
+            ambientMist.noiseScrollSpeed = 0.04f;
+            ambientMist.randomSeed = 0xA11CEu;
             // The FLARE GRAPPLE (2026-09-06, replaces the sentry dash): DASH at a glowing sentry flare pulls you
             // to it and tosses you up. Rule 9: written here, not left to the initialiser.
             var flareGrapple = root.AddComponent<FlareGrapple>();

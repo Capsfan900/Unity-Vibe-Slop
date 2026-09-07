@@ -647,12 +647,25 @@ additive hoop for 0.18 s, so confusion is not expected — but that is reasoned,
 
 `RenderSettings.fogColor` must sit between the dome's zenith (`#060A17`, lin lum .0032) and its horizon
 band (`#13233F`, .0170), and **above a shadowed stone face** (~.009 linear), so distance *lightens* dark
-surfaces instead of eating them. Shipped: `#0E1C34`, 36 -> 170 m. Two traps. `fogStartDistance`'s floor is
+surfaces instead of eating them. Shipped: `#0E1C34`, 36 -> 140 m. Two traps. `fogStartDistance`'s floor is
 the **eclipse halo's corners at 31.2 m**, not the quoted 25 m dome radius — the halo is a flat disc of
 lateral radius 19.8 m parked 24.1 m down the eclipse axis. And fog must never reach a landing target:
 every hop in Level_01 lands inside 12 m, so 36 keeps foot placement at fog factor zero. Pinned by four
 tests in `SkyEclipseTests`.
 
-**Measured, so expectations stay honest:** at the 91 m approach the change moves 0.8% of the frame
-(dark pixels .0893 -> .0966, sky pixel-identical). Most of any frame is either fog-immune sky or geometry
-inside 36 m, so linear fog in this level is a *route-preview* instrument, not an atmosphere one.
+**Measured, so expectations stay honest:** the first 36 -> 170 pass moved 0.8% of the historical 91 m
+frame, and an identical-camera 170 -> 140 check at the new ramp crest moved mean RGB by only 0.002% of
+channel range. Linear fog remains a route-depth instrument; it cannot supply visible moving atmosphere.
+
+`AmbientMist` supplies that moving layer with the project's existing mist language: one prewarmed,
+world-space ParticleSystem emitted 14-42 m ahead from the player root, using an ambient-only clone of
+`DeathMist`'s shared soft particle material. The texture and shader stay shared; the clone only adds a
+3-9 m camera fade so a sheet caught at speed dissolves before it fills the view. The shipped field is
+four particles per second, 48 maximum, 8-14 m sheets, cold additive alpha .18-.26, with an .22 maximum
+screen size. Before prewarm and every .25 scaled seconds, one Default-layer-only downward ray places
+the box 0.8 m above the route at its 28 m forward anchor and tilts it to the ground normal; a miss restores
+the authored centre and zero rotation. Enemies, interactables and triggers cannot steer the atmosphere.
+There are no collisions, lights, shadows, probes or gameplay writes. It runs on scaled time so pause and
+hitstop freeze the atmosphere with the world; death/Pyre mist stay unscaled because they explain an event.
+Its job is slow parallax and drift around the route. It must never become a cloud ceiling, a bloom source,
+or enough additive wash to mute an amber projectile or bone-white cue.

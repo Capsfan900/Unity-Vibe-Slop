@@ -2012,7 +2012,7 @@ SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, 
 VibeGame1/1. Project Setup -> ProjectSetup.SetupSceneEnvironment()
     mainCam.backgroundColor        = VoidColor        #060D18   lin lum .0039  (never seen: the dome covers it)
     RenderSettings.fogColor        = FogColor         #0E1C34   lin lum .0117  = the dome's horizon band x0.7
-    RenderSettings.fogStart / End  = 36 / 170  -> 25 m 0% · 50 m 10% · 64 m 21% · 87 m 38% · 100 m 48%
+    RenderSettings.fogStart / End  = 36 / 140  -> 25 m 0% · 50 m 13% · 64 m 27% · 87 m 49% · 100 m 62%
     RenderSettings.ambientSkyColor = AmbientSky       #344C78 x1.35   .1348  platform TOPS
     RenderSettings.ambientEquator  = AmbientEquator   #3F5E88 x1.35   .2045  every wall + every BACKLIT enemy
     RenderSettings.ambientGround   = AmbientGround    #0E1326 x1.35   .0110
@@ -2023,6 +2023,16 @@ VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat
     structural  M_Ground #1B222E · M_Stone #2A3443 · M_Platform #475262 · M_Enemy #1A1E29
     trims       T1 ice cyan #35DCEC · T2 brass #D8C22A x0.75 · T3 azure #2F6BFF · T4 ghost green #3FE07A
     WARM ON PURPOSE  M_Torch, M_Checkpoint (fire = safety), M_EnemyEye, M_AlertTell (the tell, 3.00)
+
+VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer() -> AmbientMist on PLAYER ROOT
+    Awake -> one looping, prewarmed ParticleSystem; deterministic seed; WORLD simulation
+    before prewarm + every .25 scaled s: one Default-only ray at 28 m -> box aligns to ground + .8 m
+      miss -> authored fallback centre/zero rotation; enemies/triggers/interactables never steer atmosphere
+    emitter follows root -> box 14-42 m ahead, 26x4x28 m -> old particles stay in world
+    4/s x 8-12 s -> 48 hard cap; 8-14 m soft billboards; low-quality drifting noise
+    ambient-only clone of DeathMist.MistMaterial -> shared 32x32 falloff texture, cold additive alpha .18-.26
+      -> camera fade 3-9 m + max screen size .22; no collision, lights, trails, shadows or probes
+    OnDestroy -> destroy ambient material clone + release DeathMist shared-material/texture lease
 
 6. Build Level -> LevelDefinitionBuilder -> Starfield.Build(def.sky.*)   ONE mesh, TWO materials
     index order (no depth is written, so index order IS draw order):
@@ -2047,6 +2057,14 @@ VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat
   `T3_Entry` → `T3_Pillar_1`, 9 m; the T3 pillar hops are 5-6 m) and combat resolves at 3-8 m, so both
   sit at fog factor exactly zero. The ramp is for the route *ahead* — pillar line 24 m, span far end
   48 m, next arena 64-90 m. `SkyEclipseTests.FogNeverTouchesCombatOrALandingTarget`.
+- **Visible mist is a bounded presentation layer, not another movement volume.** `AmbientMist` lives on
+  the player root so only its emitter follows the route; particles simulate in world space and never
+  steer, collide or write gameplay state. One quarter-second Default-only ray places the emission box
+  on the route 28 m ahead; a miss restores the authored fallback. New particles start beyond the 12 m
+  landing band, and sheets caught by a fast player fade to zero inside 3 m. Additive blending cannot
+  darken footing, while the `.26` per-sheet alpha, `.22` screen-size cap and 48-particle ceiling limit contrast wash. It uses scaled
+  time because atmosphere freezes with the world; death and Pyre mist remain unscaled authored payoffs.
+  `AmbientMistTests` pins the prefab, modules, camera fade, cost ceiling and shared-material lifecycle.
 - **`SandboxBuilder.EnsureEnvironment` no longer mirrors fog by hand** — it reads `ProjectSetup.FogColor
   / FogStartDistance / FogEndDistance` directly, because the hand-mirrored copies had already drifted
   (the sandbox was still violet `#0C0912` after the cold pass took the level blue). Its **ambient is

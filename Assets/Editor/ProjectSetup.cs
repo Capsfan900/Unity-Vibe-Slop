@@ -326,11 +326,11 @@ namespace VibeGame1.EditorTools
         // than a bare 32 buys ~4.8 m of headroom, which costs the ramp under 1.5% and means a future
         // widening of the halo trips the test instead of shipping a wedge.
         //
-        // THE END IS 170, DOWN FROM 240. Nothing in this level is read past ~90 m - the tiles are walled
-        // arenas and the sightlines are bounded. An end of 240 spent only the first 37% of the ramp on
-        // the whole level; 170 spends 48%. Resulting factors: 25 m -> 0%, 50 m -> 12%, 64 m -> 22%,
-        // 87 m -> 38%, 100 m -> 48%. A distant torch ember (FlickerLight culls the LIGHT at 42 m and
-        // leaves the mesh) keeps 62% of its punch at 87 m, so the level's beacons still carry.
+        // THE END IS 140, DOWN FROM 240 (and then 170). Nothing in this level is read past ~90 m - the
+        // tiles are walled arenas and the sightlines are bounded. 170 remained too mild to establish the
+        // requested depth separation. 140 uses the existing test's strongest safe end: 25 m -> 0%, 50 m -> 13%,
+        // 64 m -> 27%, 87 m -> 49%, 100 m -> 62%. The longest read reaches half fog, while a distant
+        // torch ember still keeps 51% of its punch and the 104 m ramp stays well clear of a fog wall.
 
         /// <summary>The colour distant geometry converges to: the dome's horizon band #13233F at ~0.7 of
         /// its value. Linear luminance 0.0117 - 3.0x the old fog, 0.69x the horizon band it sits in front
@@ -345,9 +345,9 @@ namespace VibeGame1.EditorTools
         /// stand on.</summary>
         public const float FogStartDistance = 36f;
 
-        /// <summary>Full fog. Sized to the level's real depth (~90 m of usable sightline), not to the
-        /// far clip - a 240 m end put the entire course inside the ramp's first third.</summary>
-        public const float FogEndDistance = 170f;
+        /// <summary>Full fog. The level's longest usable sightline (~90 m) reaches half this ramp, while
+        /// its 104 m span stays gradual. A 170-240 m end was too subtle to establish route depth.</summary>
+        public const float FogEndDistance = 140f;
         /// <summary>Trilight sky term - platform TOPS. Was #6B4045 x1.35 (lin lum .1348); now .1348
         /// exactly, as moonlight instead of dusty rose. Footing legibility is unmoved.</summary>
         public static readonly Color AmbientSky = Hex("#344C78") * 1.35f;
@@ -375,7 +375,7 @@ namespace VibeGame1.EditorTools
             // The Eclipse: a world drowned in COLD light under a dead sun, low and enormous behind
             // the arena.
             //
-            // FOG. Deep blue haze in the dome's own horizon hue, ramping 36 -> 170 m so the traversal
+            // FOG. Deep blue haze in the dome's own horizon hue, ramping 36 -> 140 m so the traversal
             // band (20-60 m) and the next-arena read (64-90 m) finally have aerial perspective, while
             // combat (3-8 m) and every landing target (<= 12 m) stay at fog factor zero. The full
             // argument, including why the start floor is 31 m and not the quoted dome radius of 25,
@@ -465,7 +465,7 @@ namespace VibeGame1.EditorTools
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
-            log.Add($"Scene '{scene.name}': fog 45-240 #060D18 (cold), Trilight ambient sky#344C78x1.35/eq#3F5E88x1.35/gnd#0E1326x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low pale-cold sun 1.05 #5A79AD {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
+            log.Add($"Scene '{scene.name}': fog {FogStartDistance:0}-{FogEndDistance:0} #{ColorUtility.ToHtmlStringRGB(FogColor)} (cold), Trilight ambient sky#344C78x1.35/eq#3F5E88x1.35/gnd#0E1326x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low pale-cold sun 1.05 #5A79AD {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
         }
 
         // ---------------------------------------------------------------- utils

@@ -10,6 +10,39 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Fog and incoming-shot presentation — 2026-09-07
+
+- **Quick EditMode: 701/701 passed**, 0 failed/skipped, 9.8 s. Final source and generated Player prefab.
+  Report: `TestResults/EditMode-20260907-163601.xml`. The slow 138 level-line simulations were excluded;
+  geometry and motor code did not change in this presentation pass.
+- **Actual downhill encounter: PASS at capped 60 fps**, one entry slide, three shots and **1/1/1 surge
+  grants**, with mist and projectile weave enabled. Slide ends on the run-out at z361.09; longest
+  observed frame 26 ms. This editor observation is not a standalone performance benchmark.
+- **Live bolt visuals:** sampled maximum core offset 0.340002 m (0.34 m cap plus transform rounding),
+  zero during all sampled cued and reflected states. Actual homing, arrival, forecasts, damage and
+  deflect impulse retain their previous code paths. The observer samples are not distinct frame counts.
+- **Mist:** observed 36–38 particles (cap 48); emitter aligns at 14.04 degrees to the shipped ramp.
+  A real Play-mode add/destroy cycle changed material leases **1 → 2 → 1**. Near fade is 3–9 m;
+  the ambient material uses the URP particle shader's camera-fade parameters. Matched camera renders
+  show a thin gray-blue band over the route with immediate footing clear. The combined mist/haze A/B
+  changed 23,466 pixels and mean RGB by 0.135% of channel range; this measures the image, not fairness.
+- **Full FeatureTests: 773 pass / 3 fail**, 0 skipped. Failed checks: `Items_PhysicsPickup`,
+  `Flask_DrinkCoroutineAndInterruptOnHit`, `Progression_BloodstainRecovery`. Started in a fresh session
+  with warm GameManager/timeScale 1. Do not report this full suite as green. The spawn-correction runs
+  below also had changing failures, and a causal diagnosis is still outstanding.
+  A subsequent isolated Items run reported 36 pass / 7 fail while readback showed
+  `InputReader.MoveAxis=(0,1)` and `JumpHeld=True`; that was not a hands-off run and is excluded.
+  A fresh user-released rerun reproduced **773 pass / 3 fail**, with 95,449 read-only input observations
+  and zero movement/jump observations. Input interference therefore does not explain those three.
+  A diagnostic repeat returned 772 pass / 4 fail (one additional lock-on recenter timing check).
+  Its position trace established short trigger-test travel and flask death/respawn contamination;
+  see ENGINEERING-LOG. These reports are retained rather than relabeled as passes.
+
+Local evidence: `TestResults/descent/with-mist-and-weave.txt`, `bolt-visual-final.txt`,
+`features-fog-weave-final.txt`; matched images in `RouteShots/fog-flares/route-before.png` and
+`route-mist.png`. No new player build was cut; WebGL shader variants/performance and human cue
+readability remain unproven by these editor checks.
+
 ### Ramp-start correction — 2026-09-07
 
 Level 1 now starts at `(0,28.3,297.5)`, facing downhill, with the wand pedestal at `(3,28,297.5)`.

@@ -53,6 +53,10 @@ namespace VibeGame1
         static Texture2D sharedTex;
         static int liveInstances;
 
+        /// <summary>Test-only visibility into the shared material lease count. Ambient, death and Pyre
+        /// mist all use the same generated material, and every holder must release exactly once.</summary>
+        public static int SharedHolderCountForTests { get { return liveInstances; } }
+
         ParticleSystem ps;
 
         // ------------------------------------------------------------------ public API
@@ -249,8 +253,18 @@ namespace VibeGame1
         {
             liveInstances = Mathf.Max(0, liveInstances - 1);
             if (liveInstances > 0) return;
-            if (sharedMat != null) { Destroy(sharedMat); sharedMat = null; }
-            if (sharedTex != null) { Destroy(sharedTex); sharedTex = null; }
+            if (sharedMat != null)
+            {
+                if (Application.isPlaying) Destroy(sharedMat);
+                else DestroyImmediate(sharedMat);
+                sharedMat = null;
+            }
+            if (sharedTex != null)
+            {
+                if (Application.isPlaying) Destroy(sharedTex);
+                else DestroyImmediate(sharedTex);
+                sharedTex = null;
+            }
         }
 
         static Material SharedMaterial()

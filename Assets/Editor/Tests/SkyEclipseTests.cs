@@ -284,6 +284,17 @@ namespace VibeGame1.Tests
             Assert.Greater(ProjectSetup.FogColor.g, ProjectSetup.FogColor.r, "blue through green, not violet — the sandbox's old #0C0912 was violet");
         }
 
+        [Test]
+        public void FogProfileIsTheApprovedStrongerRouteHaze()
+        {
+            Assert.AreEqual(Parse("#0E1C34"), ProjectSetup.FogColor,
+                "the visible refinement changes range, not the established sky-horizon hue");
+            Assert.AreEqual(36f, ProjectSetup.FogStartDistance, 1e-5f,
+                "the sky-mesh and landing clearance remain unchanged");
+            Assert.AreEqual(140f, ProjectSetup.FogEndDistance, 1e-5f,
+                "170 m was visually negligible; 140 m puts the longest route read at half fog");
+        }
+
         /// <summary>
         /// THE trap, and it is not the one everybody quotes. "Keep fogStartDistance above the Starfield
         /// radius (25)" understates the clearance by 6 m: the eclipse HALO is a flat soft disc of lateral
@@ -331,9 +342,9 @@ namespace VibeGame1.Tests
 
         /// <summary>
         /// A5's actual claim, pinned as numbers. The 20-60 m traversal band and the 64-90 m next-arena
-        /// read had no depth ramp at all (45 -> 240 gave 7.7% at 60 m and 21% at 87 m). These bounds are
-        /// deliberately a RANGE, not the shipped value: a later pass may retune inside them, but a pass
-        /// that flattens the ramp back out or drowns the far end fails here rather than in a playtest.
+        /// read had no depth ramp at all (45 -> 240 gave 7.7% at 60 m and 21% at 87 m). A first A5 pass
+        /// at 36 -> 170 was correct but still visually negligible in an identical-camera comparison.
+        /// The stronger 36 -> 140 profile uses the safe end of these bounds without crossing it.
         /// </summary>
         [Test]
         public void FogRampsAcrossTheBandTheGameIsActuallyPlayedIn()
@@ -341,10 +352,12 @@ namespace VibeGame1.Tests
             // The pillar line seen from T3_Entry: a hint of separation, no more.
             Assert.That(FogFactor(25f), Is.InRange(0f, 0.05f), "the near preview band must stay essentially clear");
             // A span's far end / the T2 bridge from the entry. This is the number A5 exists for.
-            Assert.That(FogFactor(50f), Is.InRange(0.07f, 0.22f),
+            Assert.That(FogFactor(50f), Is.InRange(0.10f, 0.22f),
                 "50 m is the traversal read; under 7% is the pre-A5 nothing, over 22% starts hiding the route");
+            Assert.That(FogFactor(64f), Is.InRange(0.25f, 0.35f),
+                "the next-arena read needs clear depth separation before the longest sightline");
             // The next arena: spawn pad -> T1 arena is the level's longest sightline at ~87 m.
-            Assert.That(FogFactor(87f), Is.InRange(0.25f, 0.50f),
+            Assert.That(FogFactor(87f), Is.InRange(0.45f, 0.50f),
                 "the longest sightline in Level_01 must read as FAR, without losing the torches that mark it");
             // Beyond the level's real depth. Nothing is read past ~90 m; the ramp must not be sized to
             // the far clip plane, which is what the old 240 did.
