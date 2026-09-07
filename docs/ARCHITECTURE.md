@@ -1119,13 +1119,36 @@ hierarchy and solve order: [`DATAFLOW.md > Viewmodel arms`](DATAFLOW.md#viewmode
 ### Audio
 Real **CC0** clips live in `Assets/Resources/Audio/Sfx/<SfxName>/*` (a random variant is chosen per play)
 and `Assets/Resources/Audio/Music/{ambient,boss}.ogg`, which crossfade on `BossStarted` / `BossDefeated`
-/ respawn. Sources and licences: [`CREDITS.md`](../CREDITS.md).
+/ respawn. Sources and licences: [`CREDITS.md`](../CREDITS.md). The radio (`LevelRadio.cs`) is a separate
+2D `AudioSource` playing per-scene playlists from `Resources/Audio/Radio/<SceneName>/`; see the file header
+for the fallback-to-`Default` rule. `AudioManager.MusicDuck` ducks the ambient/boss bed to zero while it plays.
 
 **To swap a sound, drop files into the matching folder — no code change.** `ProceduralSfx.cs` synthesizes
 a fallback only when a folder is empty; sourced clips are strongly preferred (the synthesized set was
-rejected as harsh).
+rejected as harsh). **2026-09-06 audit finding:** four shipped folders (`Footstep`, `Land`, `ParryCue`,
+`PostureBreak`) turned out to be real Kenney (`Impact Sounds`, CC0) clips with no `CREDITS.md` row at
+all — identified from their Vorbis comment block (`ARTIST=KenneyG`, GameSynth/Tsugi), which matches the
+already-credited `Block` clips exactly. Backfilled; see `CREDITS.md`.
 
 ⚠️ `Sfx` enum names *are* the folder names — append only, never reorder or rename.
+
+**The mix table (`AudioManager.trim`, static) is exhaustive over every non-`Drone` `Sfx` value** — a
+missing row silently took `PlayInternal`'s 0.7 default, which is how `Sfx.Teleport` shipped un-mixed
+until the 2026-09-06 audio pass. `AudioManager.Trim(Sfx)` / `.HasExplicitTrim(Sfx)` are public so
+`Assets/Editor/Tests/AudioTests.cs` can pin the table's shape (exhaustive, in-range, headroom around
+`Sfx.ParryCue`) without a scene. `ParryCue` fires 0.28 s before every impact and is the one sound
+nothing else may mask or match in level.
+
+**2026-09-06 audio pass — four systems that shipped silent.** All four were built the same week and had
+no sound at all: a refused stamina action (dash/wall-run/wall-jump/**slide**) now plays `Sfx.Refuse`
+(`PlayerFeedback.OnStaminaRefused`, subscribed to `GameEvents.StaminaRefused`); a parkour sentry's
+detonation now plays a dedicated `Sfx.Detonate` instead of borrowing the Stormbreak ultimate's
+`Sfx.Thunder` (`SentryBurst.Detonate`); an enemy crossing into the near-break posture threshold plays a
+one-shot `Sfx.Tension` (`EnemyPostureBar.LateUpdate`, edge-triggered — not a repeating heartbeat, to avoid
+spamming the one-shot pool with several near-break enemies at once); and a flask drink punished mid-heal
+now layers `Sfx.Spill` on top of the ordinary `Sfx.Hurt` (`FlaskAbility.Interrupt`) so losing the charge
+reads as more than an ordinary hit. All four are synthesized only (`ProceduralSfx.cs`) — no new clip
+files — and mixed under `Sfx.ParryCue`'s trim.
 
 ---
 

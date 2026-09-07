@@ -752,21 +752,47 @@ THE SENTRY FLARE (2026-09-06; parkour_enemies)
   THE EXCEPTION: the grapple hook (PlayerItems.PullCo: Break + ExecuteNow in one frame, State.Executed, then the
       killing blow) -- EnemyController.DiedExecuted -- throws NO flare. The finish is the reward, not a lift.
   Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5) + the burst (2.4 m flash,
-      2.6 m ring shockwave, sparks, Thunder, shake). The flare is optional traversal.
+      2.6 m ring shockwave, sparks, Sfx.Detonate, shake). The flare is optional traversal.
+      Sfx.Detonate NOT Sfx.Thunder (2026-09-06 audio pass): Thunder is the Stormbreak ultimate and must
+      stay the loudest thing in the game; a sentry can detonate many times a level.
   SentryFlare.Update (scaled time): position = FlareMath.Position(origin, v, g, t) -- floats up ~10 m, hangs, sinks;
       glow = 1 - t/life drives size and colour; Grappleable while glow > MinGrappleGlow 0.08; gone at life.
       SentryFlare.Live is the registry.
+      THREE concentric additive shells (2026-09-06 polish pass), all driven in WORLD space with the parent
+      scale divided out: Core 1.40 m @ peak 1.45, Halo 2.30 m @ 0.24, Outer 3.60 m @ 0.12 -- summed 1.81,
+      under the 2.0 ACES ceiling. The peak came DOWN (was 1.6) to pay for the size, so the flare is now the
+      BIGGEST thing on a span and the bolt (1.6) is still the BRIGHTEST. Core flickers at 3.7 Hz, Outer
+      breathes at ~0.5 Hz -- two rates, one object.
+      SHAPE = SpawnPop(age) x DeathContract(age, life), multiplying core + both shells together: a 0.18 s
+      arrival from 0.18x with a ~6% overshoot, and a 0.35 s collapse that begins only AFTER the flare has
+      stopped being grappleable. A natural expiry is silent; only Consume() bangs (ring + flash + sparks).
+      Trail: a 6-point recorded history (ring buffer, no allocation) -- it used to be a 2-point straight
+      tangent, which pointed along the current velocity on a parabolic path.
 FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEFORE the motor)
   every frame while playing, not pulling, not executing:
     Target = nearest-to-crosshair Grappleable flare within range 30 m, coneDeg 20, world ray clear
     prompt "GRAPPLE  [DASH]" when Target != null and ExecuteInteractor has no target
   DASH pressed with a Target → GrappleNow(f): line + FovKick + Sfx.Dash, motor.BeginPull(flare - 0.6 m, 0.35 s)
-    motor.OnPullEnded (arrived OR cut) → motor.Launch(tossUpSpeed 14) [rule 10 entry point], FovKick 8,
+    motor.OnPullEnded (arrived OR cut) → motor.Launch(tossUpSpeed 18, tossHangSeconds 2) [rule 10 entry
+      point; the overload opens the motor's HANG WINDOW -- see below], FovKick 8,
       ChromaticPulse(tossChroma 0.16, 0.25s) [g-force read, a separate channel from FovKick -- VFX pass
       2026-09-06, the toss used to have no visual anchored to the player at all], shake, Sfx.Teleport,
       SlashFx.Ring(player position, hue, radius 1.4, 0.25s) [sells "thrown FROM here"],
       f.Consume() (sparks; the flare is spent by the use). Tosses++.
     the motor's own Update returns early while IsPulling, so the press never doubles as an ordinary dash
+
+  THE TOSS AND ITS HANGTIME (2026-09-06, the user: "a bit higher, and like 2 seconds of extra hangtime only")
+    Launch(up, hang) = Launch(up) [capped-jump rise, air kit reset, balloons unchanged] + BeginHangTime(hang)
+    FirstPersonMotor.hangUntil = now + min(hang, hangSecondsCap 2.5)   [motor clock, never Time.time]
+    while hangUntil is open, inside the motor's air branch:
+      gravity × HangGravityScale(vel.y, hangGravityScale 0.22) -- 1 while RISING (the apex is exactly
+        18²/(2×30) = 5.4 m, authorable), 0.22 while FALLING (×fallGravityMultiplier = -9.9 m/s²)
+      the JUMP CUT is suspended: a toss is not a jump, and the cut was eating up to two thirds of it
+      air steer takes launchSteerBoost, the same knob the balloon float uses -- the window is for aiming
+    it ENDS: on the clock (2 s), on landing, on a dash, on a wall jump, on a wall run entry, on another
+      BeginPull, on a plain Launch (a balloon), and on WarpTo. IsHanging / HangRemaining expose it.
+    a balloon calls Launch(upSpeed) and gets the 0.45 s / 0.55 float exactly as before -- the two windows
+      are separate fields and the hang path is only ever opened by the flare toss
 ```
 
 **Invariants**
@@ -850,6 +876,9 @@ INTERRUPT: the flask   (EnemyController.Update, before the state switch; never a
 NEAR-BREAK read   (EnemyPostureBar.LateUpdate + EnemyVisuals.SetPostureRatio)
    posture ratio ≥ NearBreakRatio 0.8 and not broken → the fill and the eye beat toward white at NearBreakHz 4.5,
    amplitude rising to the break. Hue, not brightness: the eye's peak stays 1.4 (bloom budget untouched).
+   Rising edge only (was-not-near-break → is) → AudioManager.Play(Sfx.Tension) once (2026-09-06 audio pass:
+   this read was pure visual before — a player not looking at THIS enemy's bar got no warning at all. Not a
+   repeating beat: several near-break enemies ticking every ~0.22 s would spam the shared one-shot pool).
 THE DRILLMASTER   (Legendary_Drillmaster; sandbox pad x 14, z -26, SpawnEnemyInFront 9) -- the showcase body:
    every signature on cooldown, a 1.25 s DELAYED overhead in a 0.5 s fight, a feint, an unblockable kick,
    a far-band lunge, flaskPunishChance 1.0, posture 150. Knight silhouette in slate and cold blue.
@@ -1078,7 +1107,27 @@ EnemyWeaponTrail.LateUpdate()          (MiniBossFactory.WireBladeTrail, ModelSpe
 
 Since the 2026-09-06 split the span shooters are their own assets, `pshooter_enemy01` / `pshooter_enemy02`
 (`Assets/Data/Enemies/parkour_enemies`, copied from the melee Grunt / Heavy by `DataFactory` then flipped to
-`rangedOnly` + `shootsProjectiles`, violet body). `Level_01_Level.asset` places only these; the melee
+`rangedOnly` + `shootsProjectiles`).
+
+**`pshooter_enemy01` is a floating cartoon GHOST** (2026-09-06, user-directed). `PrefabFactory.BuildEnemy`
+takes a `ghost` flag and calls `BuildGhostBody` instead of `BuildPillBody` for that one prefab: a rounded
+1.06 x 1.24 m shell at y 1.30, five waving hem tatters down to y 0.24, two ember eye sockets and a dark
+mouth, two nub arms on the SAME pivots as the pill (so no authored wind-up pose moved) and no blade
+(`EnemyVisuals.weapon` is null; `WeaponPoint()` falls back to `weaponPivot`). `SentryGhostVisual`
+(`Assets/Scripts/Feel`) owns the float, the hem wave and four additive mist wisps it builds at `Awake`.
+
+- **Nothing about the float is physical.** It writes `FloatRoot`, a child of `LungeRoot`. The root, the
+  capsule (h 2, r 0.45, centre 1), the `NavMeshAgent`, the deathblow height (1.45) and the world posture
+  bar are byte-for-byte what they were.
+- **Luminous, never blooming.** The emission floor goes through `EnemyVisuals.SetAura` (the only sanctioned
+  door), so it is modulated by `chargeDark` and the ghost inhales its light on a wind-up. Budget: lit 0.35
+  + floor 0.28 + 4 x 0.10 mist = **1.03**, under the 1.05 bloom threshold. Pinned by `GhostTests`.
+- **Colour.** `M_SentryGhost` albedo `#A9C2DA` (also `EnemyData.bodyColor`, so shell and hem match), cold
+  blue-white. Both sentries lost their violet: violet is `SentryFlare`, i.e. "use this", and no body may
+  wear it. `pshooter_enemy02` keeps the pill body in dark slate `#25303F`, so the two sentries separate by
+  VALUE at a glance.
+- **Time split.** Float and hem run on SCALED time (body motion, freezes in hitstop); the mist runs
+  UNSCALED like every other effect. `Level_01_Level.asset` places only these; the melee
 `Enemy_Grunt` / `Enemy_Heavy` are `souls_enemies` on the sandbox pads. `ProjectileShooter` is added by
 `PrefabFactory` only to a body whose data shoots.
 
@@ -1247,10 +1296,28 @@ SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on ever
         │                                                     captures baseFov)
         ├→ QualitySettings.SetQualityLevel, THEN vSyncCount, THEN targetFrameRate
         ├→ Screen.SetResolution                             (builds only; no-op in the editor)
-        └→ Volume.profile (runtime CLONE, never sharedProfile): Bloom.intensity =
-                                                              authored x scale; FilmGrain on/off
+        ├→ Volume.profile (runtime CLONE, never sharedProfile): Bloom.intensity =
+        │                                                     authored x scale; FilmGrain on/off
+        └→ AudioManager.masterVolume / .musicVolume         (2026-09-06) = AUTHORED x scale, the same
+                                                              shape bloom uses. The authored pair is
+                                                              measured ONCE per AudioManager instance
+                                                              (Managers.prefab ships 0.7 / 0.45) and is
+                                                              deliberately NOT re-measured on a scene
+                                                              load: re-reading the same instance would
+                                                              read back our own output and compound it.
    applied on Awake, on every sceneLoaded (+1 frame), and on every Changed.
 ```
+
+**Audio rows (2026-09-06).** The panel carries MASTER VOLUME and MUSIC VOLUME, in the AUDIO section,
+last. Both are `SettingsData` floats persisted at `vg1.settings.volMaster` / `volMusic` with every other
+setting, both are percent sliders in 5% notches, and both are heard the frame they move: `Commit()` →
+`SettingsStore.Save` → `Changed` → `SettingsApplier.ApplyAudio`, and `AudioManager` reads both fields
+live (music every `Update`, SFX on every one-shot). `SettingsMenu.Audition` also ticks one `Sfx.Click`
+per 0.09 s while a volume row is moving, so master is audible on a silent screen.
+
+> **There is no SFX row, and there must not be one until there is a bus.** `AudioManager.PlayInternal`
+> multiplies a one-shot by `masterVolume × trim` — there is no third gain to point a slider at.
+> `SettingsAudioTests.ThereIsNoSfxRow_BecauseThereIsNoSfxBus` fails if one appears.
 
 **Invariants**
 - Sensitivity is applied OUTWARD onto `PlayerLook`'s public fields. Settings code never edits
@@ -1259,6 +1326,13 @@ SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on ever
   re-enables `PauseMenu` one frame late, because `PausePressed` is true for the whole frame.
 - Bloom writes the runtime clone. Writing `sharedProfile` from play mode dirties the asset on disk.
 - Sliders are stock UGUI `Slider`s driven by anchors — never `Image.fillAmount` (rule 5).
+- **A volume is a SCALE on the shipped mix, not an absolute gain.** 100% is the mix the audio pass
+  authored, so retuning `Managers.prefab` moves every player's 100% with it, and `MasterGain` /
+  `MusicGain` clamp to 0..1 because `AudioSource.volume` above 1 clips rather than amplifying.
+- **The panel's layout is arithmetic, not eyeballing.** `SettingsPanelKit.LastRowY` is the same pure
+  function the builder walks; `SettingsAudioTests` runs it and proves the last row clears BACK / RESET,
+  that both clear the glass card, and that BACK stays on screen at **21:9** — where the canvas scaler
+  leaves only 935 logical units of height and the buttons used to sit at y −484, off the bottom.
 
 ### Stamina
 
@@ -1272,6 +1346,9 @@ FirstPersonMotor (dash, wall run entry, wall jump)
                          +45/s grounded, +18/s airborne, to max 100. Infinite (F8 god mode) never spends.
   ⇢ GameEvents.StaminaChanged(cur, max)  → StaminaView.bar (BarView, 3 ticks at 30/60/90)
   ⇢ GameEvents.StaminaRefused(action)    → StaminaView: bar.Flash(red), label names the ability 0.8 s
+                                          → PlayerFeedback.OnStaminaRefused: AudioManager.Play(Sfx.Refuse,
+                                            pitch varies by action) (2026-09-06 audio pass — a refusal was
+                                            previously silent and read as a dropped input, worst on the slide)
   StaminaView.Update  pips DASH / AIR / WALL ← FirstPersonMotor.CanDashNow / !AirDashUsed / CanWallRunNow
                       (stamina AND cooldown AND the air charge: "can I, this frame")
                       CanvasGroup alpha 0.45 when full and idle, 1.0 within 1.2 s of a spend or refusal
@@ -1721,6 +1798,41 @@ LevelManager  owns spawners, checkpoints, respawn
 SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, excludes menus
 ```
 
+### Sky and palette
+
+```
+VibeGame1/1. Project Setup -> ProjectSetup.SetupSceneEnvironment()
+    RenderSettings.fogColor        = VoidColor        #060D18   lin lum .0039
+    RenderSettings.ambientSkyColor = AmbientSky       #344C78 x1.35   .1348  platform TOPS
+    RenderSettings.ambientEquator  = AmbientEquator   #3F5E88 x1.35   .2045  every wall + every BACKLIT enemy
+    RenderSettings.ambientGround   = AmbientGround    #0E1326 x1.35   .0110
+    the one directional            = KeyLightColor    #5A79AD  @1.05, Euler (10,180,0)
+  + VolumeProfile: Bloom 1.05/0.60, ACES, Vignette 0.27, WhiteBalance -6 / 0
+
+VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat)
+    structural  M_Ground #1B222E · M_Stone #2A3443 · M_Platform #475262 · M_Enemy #1A1E29
+    trims       T1 ice cyan #35DCEC · T2 brass #D8C22A x0.75 · T3 azure #2F6BFF · T4 ghost green #3FE07A
+    WARM ON PURPOSE  M_Torch, M_Checkpoint (fire = safety), M_EnemyEye, M_AlertTell (the tell, 3.00)
+
+6. Build Level -> LevelDefinitionBuilder -> Starfield.Build(def.sky.*)   ONE mesh, TWO materials
+    index order (no depth is written, so index order IS draw order):
+      dome -> horizon silhouette -> nebulae -> stars -> PLANETS -> eclipse halo/mid/falloff/disc
+      -> [submesh 1, HDR tint CoronaHdrBoost 1.35] the white-hot rim
+    per planet, five passes in order: halo -> ring FAR half -> body -> ring NEAR half
+      (that ordering is the whole Saturn read; there is no alpha sort to rely on)
+```
+
+**Palette invariants**
+- **The cold pass changed HUE, never LIGHT LEVEL.** Every environment colour was fitted to the Rec.709
+  linear luminance of the blood-red value it replaced. `SkyEclipseTests.TheColdPassChangedHueAndNotLightLevel`
+  pins the four numbers; `FeatureTests.Lighting_EquatorLitsVerticals` (0.15 floor) is the play-mode half.
+- **Warm means exactly two things: a combat tell, or fire.** Cold is the world. That is why the corona rim
+  went cold with the sky (a warm bloom that size would be the backdrop the amber bolt has to fly across)
+  and why the deflect glow, `EnemyVisuals.ParryGlow`, went the OTHER way — bone-white at the same 3.2 peak.
+- **The sky can only bloom through one material.** Submesh 0's tint is exactly 1.0 and vertex colours clamp
+  at 1.0, so planets, rings, stars and the whole field physically cannot cross the 1.05 threshold.
+  `Starfield.PlanetPeakCeiling` 0.55 is the intent on top of that guarantee.
+
 **Invariants**
 - `LevelManager.Warp()` finds checkpoints **by name**. The checkpoints are `Checkpoint_1`..`Checkpoint_4`,
   one per tile entrance, and `Checkpoint_4` is the boss tile: `DebugKeys` F5, `TestMenu` and
@@ -1759,6 +1871,25 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
                         A gain rolls, a SPEND snaps — the label never shows souls the wallet does not
                         hold. Formats only when the displayed integer changes (the run timer's rule).
    item slots → ItemSlotView          deathblow banner, toasts, popups → TMP
+   PromptChanged (standing) / PromptFlash (momentary) → PromptView, ONE line at (0, −132).
+                        The throb now SETTLES: PromptView.PulseAmount(age, settleSeconds 0.6) scales the
+                        wobble to zero 0.6 s after the shown string changes, and a settled line at rest
+                        writes neither colour nor scale. A cue that stands for eight seconds (SURGE, the
+                        level editor's PLAYING banner) used to throb for all eight.
+   Centre-screen events speak ONE palette (HUDController statics, all under the 1.05 cap):
+                        ghost teal #A8E6DA = a deflect (PERFECT) · ember #E0A030 = a reward (BLOCK, the
+                        super, LEVEL CLEAR) · mint #A9D8A0 = banked (CHECKPOINT) · blood #FF3A1A = danger
+                        (YOU DIED, POSTURE BROKEN) · bone #E8E2D6 = a name (the boss). PERFECT and
+                        CHECKPOINT shipped the same raw cyan until 2026-09-06.
+   PlayerDied / PlayerRespawned → HUDController.ClearMomentary(): the parry popup and the item toast are
+                        CANCELLED, not left to fade over the death card.
+   GameManager.State == Editing (F10) → HUDController hides editorHiddenRoots by ROOT and restores them
+                        on the way out: Vitals, Loadout, Clock, ItemSlots, StatusStrip (+ the PYRE READY
+                        banner, re-derived from the last PyreChanged since it has no pane to hang off).
+                        The editor parks the CharacterController, so every one of those was a frozen
+                        readout claiming to be live. NOT in the list, on purpose — ONE OWNER PER PANE:
+                        RadioPane (RadioView), BestRunsPane (GhostHud), the crosshair (the editor aims
+                        with it) and PromptText (the editor writes PLAYING to it). HudStateTests pins it.
    GhostHud (its own runtime canvas) → builds the board TWICE (brief = the PB + "+N MORE", full = every
                                        row) and hands both to HUDController.SetBestRuns; the pane is the
                                        glass under the RADIO in the one top-right column (300 wide at

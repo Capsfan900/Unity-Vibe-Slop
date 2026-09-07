@@ -51,8 +51,8 @@ MonoBehaviour:
   parriedProjectilePosture: 50
   parrySpeedGain: 9
   soulValue: 120
-  bodyColor: {r: 0.18039216, g: 0.15686275, b: 0.21960784, a: 1}
-  emission: {r: 0.49882355, g: 0.20235296, b: 1.0541177, a: 1.2}
+  bodyColor: {r: 0.14509805, g: 0.1882353, b: 0.24705882, a: 1}
+  emission: {r: 0.56078434, g: 0.7137255, b: 0.8784314, a: 1}
   scale: 1.4
   moveset: {fileID: 11400000, guid: aadc06f9fa6824d49b556792b6bda53f, type: 2}
   combos:
