@@ -1,0 +1,720 @@
+[
+ {
+  "name": "Idle",
+  "start": 1,
+  "end": 32,
+  "loop": true,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "IdleCombat",
+  "start": 37,
+  "end": 63,
+  "loop": true,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Walk",
+  "start": 68,
+  "end": 89,
+  "loop": true,
+  "events": [
+   {
+    "time": 0.0,
+    "function": "OnFootstep"
+   },
+   {
+    "time": 0.5,
+    "function": "OnFootstep"
+   }
+  ],
+  "root": {
+   "motion": true,
+   "distance_m": 2.307,
+   "forward_m": 2.306,
+   "right_m": -0.039,
+   "duration_s": 0.875,
+   "peak_lift_m": 0.0,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Run",
+  "start": 94,
+  "end": 110,
+  "loop": true,
+  "events": [
+   {
+    "time": 0.0,
+    "function": "OnFootstep"
+   },
+   {
+    "time": 0.5,
+    "function": "OnFootstep"
+   }
+  ],
+  "root": {
+   "motion": true,
+   "distance_m": 2.718,
+   "forward_m": 2.717,
+   "right_m": -0.064,
+   "duration_s": 0.667,
+   "peak_lift_m": 0.0,
+   "crouch_m": 0.0,
+   "airborne": null
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Jump",
+  "start": 115,
+  "end": 137,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.28,
+    "function": "OnJumpTakeoff"
+   },
+   {
+    "time": 0.85,
+    "function": "OnJumpLand"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackSwing",
+  "start": 142,
+  "end": 160,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackOverhead",
+  "start": 165,
+  "end": 187,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.6,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackStab",
+  "start": 192,
+  "end": 206,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "AttackKick",
+  "start": 211,
+  "end": 228,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.55,
+    "function": "OnAttackHit"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Hit",
+  "start": 233,
+  "end": 245,
+  "loop": false,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Stagger",
+  "start": 250,
+  "end": 270,
+  "loop": false,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Roar",
+  "start": 275,
+  "end": 304,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.4,
+    "function": "OnRoar"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Block",
+  "start": 309,
+  "end": 329,
+  "loop": true,
+  "events": [],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Spawn",
+  "start": 334,
+  "end": 360,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.9,
+    "function": "OnSpawnFinished"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Death",
+  "start": 365,
+  "end": 391,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.95,
+    "function": "OnDeathFinished"
+   }
+  ],
+  "time_base": "fbx"
+ },
+ {
+  "name": "Jab1",
+  "start": 396,
+  "end": 406,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.8,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.185,
+   "right_m": 0.092,
+   "distance_m": 0.206,
+   "duration_s": 0.375,
+   "peak_lift_m": 0.013,
+   "crouch_m": 0.009,
+   "airborne": null,
+   "speed": 2.0
+  },
+  "beats": {
+   "tell": 0.2,
+   "active_start": 0.733,
+   "active_end": 0.867,
+   "recovery_start": 0.867,
+   "contact": 0.8,
+   "joint": "right_wrist",
+   "anticipation_s": 0.2,
+   "active_s": 0.075,
+   "recovery_s": 0.05
+  },
+  "vfx": {
+   "charge": [
+    0.2,
+    0.733
+   ],
+   "strike": [
+    0.733,
+    0.867
+   ],
+   "contact": 0.8,
+   "end": 1.0,
+   "anchor": "right_wrist",
+   "intensity": 0.499,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.854,
+    "right": -0.346,
+    "up": 0.388,
+    "arc_m": 0.486,
+    "reach_m": 0.57,
+    "reach_frac": 0.357
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Jab2",
+  "start": 411,
+  "end": 421,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.667,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": false,
+   "forward_m": 0.01,
+   "right_m": -0.022,
+   "distance_m": 0.025,
+   "duration_s": 0.375,
+   "peak_lift_m": 0.01,
+   "crouch_m": 0.0,
+   "airborne": null,
+   "speed": 2.0
+  },
+  "beats": {
+   "tell": 0.333,
+   "active_start": 0.533,
+   "active_end": 1.0,
+   "recovery_start": 1.0,
+   "contact": 0.667,
+   "joint": "left_wrist",
+   "anticipation_s": 0.075,
+   "active_s": 0.2,
+   "recovery_s": 0.0
+  },
+  "vfx": {
+   "charge": [
+    0.333,
+    0.533
+   ],
+   "strike": [
+    0.533,
+    1.0
+   ],
+   "contact": 0.667,
+   "end": 1.0,
+   "anchor": "left_wrist",
+   "intensity": 0.394,
+   "sweep": {
+    "plane": "horizontal",
+    "forward": 0.609,
+    "right": 0.724,
+    "up": -0.323,
+    "arc_m": 1.298,
+    "reach_m": 0.975,
+    "reach_frac": 0.609
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Uppercut",
+  "start": 426,
+  "end": 441,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.579,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": false,
+   "forward_m": 0.054,
+   "right_m": 0.072,
+   "distance_m": 0.09,
+   "duration_s": 0.594,
+   "peak_lift_m": 0.032,
+   "crouch_m": 0.0,
+   "airborne": null,
+   "speed": 1.6
+  },
+  "beats": {
+   "tell": 0.053,
+   "active_start": 0.579,
+   "active_end": 0.632,
+   "recovery_start": 0.632,
+   "contact": 0.579,
+   "joint": "left_wrist",
+   "anticipation_s": 0.312,
+   "active_s": 0.062,
+   "recovery_s": 0.219
+  },
+  "vfx": {
+   "charge": [
+    0.053,
+    0.579
+   ],
+   "strike": [
+    0.579,
+    0.632
+   ],
+   "contact": 0.579,
+   "end": 1.0,
+   "anchor": "left_wrist",
+   "intensity": 0.442,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.895,
+    "right": 0.355,
+    "up": -0.27,
+    "arc_m": 0.411,
+    "reach_m": 0.271,
+    "reach_frac": 0.164
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Dash",
+  "start": 446,
+  "end": 457,
+  "loop": false,
+  "events": [],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.402,
+   "right_m": -0.144,
+   "distance_m": 0.427,
+   "duration_s": 0.417,
+   "peak_lift_m": 0.057,
+   "crouch_m": 0.009,
+   "airborne": null,
+   "speed": 1.8
+  },
+  "beats": {
+   "tell": 0.133,
+   "active_start": 0.733,
+   "active_end": 1.0,
+   "recovery_start": 1.0,
+   "contact": 0.867,
+   "joint": "left_wrist",
+   "anticipation_s": 0.25,
+   "active_s": 0.139,
+   "recovery_s": 0.0
+  },
+  "vfx": {
+   "charge": [
+    0.133,
+    0.733
+   ],
+   "strike": [
+    0.733,
+    1.0
+   ],
+   "contact": 0.867,
+   "end": 1.0,
+   "anchor": "left_wrist",
+   "intensity": 0.192,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.818,
+    "right": 0.065,
+    "up": 0.572,
+    "arc_m": 0.376,
+    "reach_m": 0.364,
+    "reach_frac": 0.221
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "ShoulderCharge",
+  "start": 462,
+  "end": 477,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.533,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 3.123,
+   "right_m": -0.246,
+   "distance_m": 3.132,
+   "duration_s": 0.577,
+   "peak_lift_m": 0.206,
+   "crouch_m": 0.016,
+   "airborne": null,
+   "speed": 1.3
+  },
+  "beats": {
+   "tell": 0.133,
+   "active_start": 0.333,
+   "active_end": 0.667,
+   "recovery_start": 0.667,
+   "contact": 0.533,
+   "joint": "right_wrist",
+   "anticipation_s": 0.115,
+   "active_s": 0.231,
+   "recovery_s": 0.192
+  },
+  "vfx": {
+   "charge": [
+    0.133,
+    0.333
+   ],
+   "strike": [
+    0.333,
+    0.667
+   ],
+   "contact": 0.533,
+   "end": 1.0,
+   "anchor": "right_wrist",
+   "intensity": 0.566,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.99,
+    "right": -0.105,
+    "up": -0.09,
+    "arc_m": 1.443,
+    "reach_m": 0.413,
+    "reach_frac": 0.281
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Stance",
+  "start": 482,
+  "end": 498,
+  "loop": false,
+  "events": [],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.6,
+   "right_m": -0.173,
+   "distance_m": 0.625,
+   "duration_s": 0.625,
+   "peak_lift_m": 0.026,
+   "crouch_m": 0.186,
+   "airborne": null,
+   "speed": 1.2
+  },
+  "beats": {
+   "tell": 0.0,
+   "active_start": 0.0,
+   "active_end": 0.0,
+   "recovery_start": 0.0,
+   "contact": 0.0,
+   "joint": "left_wrist",
+   "anticipation_s": 0.0,
+   "active_s": 0.042,
+   "recovery_s": 0.625
+  },
+  "vfx": {
+   "charge": [
+    0.0,
+    0.0
+   ],
+   "strike": [
+    0.0,
+    0.0
+   ],
+   "contact": 0.0,
+   "end": 1.0,
+   "anchor": "left_wrist",
+   "intensity": 0.184,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.866,
+    "right": -0.401,
+    "up": -0.298,
+    "arc_m": 0.11,
+    "reach_m": 0.401,
+    "reach_frac": 0.324
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Backstep",
+  "start": 503,
+  "end": 517,
+  "loop": false,
+  "events": [],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": -0.536,
+   "right_m": 0.055,
+   "distance_m": 0.539,
+   "duration_s": 0.536,
+   "peak_lift_m": 0.024,
+   "crouch_m": 0.0,
+   "airborne": null,
+   "speed": 1.4
+  },
+  "beats": {
+   "tell": 0.133,
+   "active_start": 0.4,
+   "active_end": 1.0,
+   "recovery_start": 1.0,
+   "contact": 0.667,
+   "joint": "left_wrist",
+   "anticipation_s": 0.143,
+   "active_s": 0.357,
+   "recovery_s": 0.0
+  },
+  "vfx": {
+   "charge": [
+    0.133,
+    0.4
+   ],
+   "strike": [
+    0.4,
+    1.0
+   ],
+   "contact": 0.667,
+   "end": 1.0,
+   "anchor": "left_wrist",
+   "intensity": 0.17,
+   "sweep": {
+    "plane": "thrust",
+    "forward": -0.999,
+    "right": -0.029,
+    "up": 0.033,
+    "arc_m": 0.774,
+    "reach_m": 0.41,
+    "reach_frac": 0.248
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Burst4",
+  "start": 522,
+  "end": 551,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.617,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": true,
+   "forward_m": 0.006,
+   "right_m": -0.184,
+   "distance_m": 0.184,
+   "duration_s": 1.175,
+   "peak_lift_m": 0.04,
+   "crouch_m": 0.0,
+   "airborne": null,
+   "speed": 2.0
+  },
+  "beats": {
+   "tell": 0.085,
+   "active_start": 0.553,
+   "active_end": 0.702,
+   "recovery_start": 0.702,
+   "contact": 0.617,
+   "joint": "left_wrist",
+   "anticipation_s": 0.55,
+   "active_s": 0.2,
+   "recovery_s": 0.35
+  },
+  "vfx": {
+   "charge": [
+    0.085,
+    0.553
+   ],
+   "strike": [
+    0.553,
+    0.702
+   ],
+   "contact": 0.617,
+   "end": 1.0,
+   "anchor": "left_wrist",
+   "intensity": 0.256,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.841,
+    "right": -0.465,
+    "up": -0.278,
+    "arc_m": 0.837,
+    "reach_m": 0.636,
+    "reach_frac": 0.379
+   }
+  },
+  "time_base": "fbx"
+ },
+ {
+  "name": "Burst2",
+  "start": 556,
+  "end": 573,
+  "loop": false,
+  "events": [
+   {
+    "time": 0.778,
+    "function": "OnAttackHit"
+   }
+  ],
+  "generated": true,
+  "root": {
+   "motion": false,
+   "forward_m": -0.049,
+   "right_m": 0.013,
+   "distance_m": 0.051,
+   "duration_s": 0.675,
+   "peak_lift_m": 0.039,
+   "crouch_m": 0.009,
+   "airborne": null,
+   "speed": 2.0
+  },
+  "beats": {
+   "tell": 0.222,
+   "active_start": 0.741,
+   "active_end": 0.815,
+   "recovery_start": 0.815,
+   "contact": 0.778,
+   "joint": "right_wrist",
+   "anticipation_s": 0.35,
+   "active_s": 0.075,
+   "recovery_s": 0.125
+  },
+  "vfx": {
+   "charge": [
+    0.222,
+    0.741
+   ],
+   "strike": [
+    0.741,
+    0.815
+   ],
+   "contact": 0.778,
+   "end": 1.0,
+   "anchor": "right_wrist",
+   "intensity": 0.363,
+   "sweep": {
+    "plane": "thrust",
+    "forward": 0.999,
+    "right": -0.05,
+    "up": 0.023,
+    "arc_m": 0.383,
+    "reach_m": 0.49,
+    "reach_frac": 0.294
+   }
+  },
+  "time_base": "fbx"
+ }
+]
