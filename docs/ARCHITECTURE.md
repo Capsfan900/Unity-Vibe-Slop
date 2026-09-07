@@ -830,12 +830,9 @@ All balance lives in ScriptableObjects under `Assets/Data/`. Edit in the Inspect
 
 ### Art direction — dark fantasy
 
-Blood-red sky under **the Eclipse**: an enormous dead sun (38° across, 22° up, over the boss arena) — near-black disc, white-hot rim, the sky around it on fire — over a world drowned in red. Red fog, blood-tinted Trilight ambient at the *same luminance* as the old cool set, a dying-ember key light, crimson / ember / ghost-teal / brass trim accents, flickering torches (`FlickerLight`), film grain and heavy vignette. The sky is `Starfield` geometry, never a skybox — **two submeshes**: an LDR field that can never bloom, and the corona rim alone on an HDR tint. Its shipped geometry is `LevelDefinition.sky` for the shipped level and `Starfield.DefaultEclipse*` for the legacy greybox — keep them equal. Ambient table: sky `#6B4045 × 1.35`, equator `#82503A × 1.35`, ground `#1F1010 × 1.35`, key `#C9542E` @ 1.05. **Fog** (rebuilt by A5, 2026-09-06) is `#0E1C34` — the dome's own horizon band `#13233F` at 0.7 value, lin lum .0117 — ramping **36 → 170 m**, not the void colour `#060D18` over 45 → 240 that it replaced. Fog is the sky bleeding in front of distance, so it must sit between the dome's zenith and its horizon and above a shadowed stone face; below that it is extinction and it eats the deck you are about to land on. Start distance has a hard floor of ~31 m (the eclipse halo's corners), not the quoted dome radius of 25. Pinned by `SkyEclipseTests`.
-Void-black violet background and fog, cold moonlight, blood / ember / ghost-teal accents, flickering
-torches (`FlickerLight`), film grain and heavy vignette. Four separable trim accents: ghost teal, brass
-gold, crimson, ember orange - one per level tile.
+Cold sky under **the Eclipse**: an enormous dead sun (38° across, 22° up, over the boss arena) — near-black disc, white-hot rim, the sky around it on fire — over a world drowned in blue (the 2026-09-06 cold-palette pass, user-directed: "change the main colour scheme to blue"). Deep-blue fog, a cold Trilight ambient at the *same luminance* as the warm set it replaced, a pale cold key light, and four separable trim hues — ice cyan / brass gold / azure / ghost green — one per level tile. Warm is reserved for exactly two things now: a combat tell (`M_AlertTell`, the bolt, the cue spark) and fire/safety (`M_Torch`, `M_Checkpoint` — the Dark Souls bonfire read); everything else in the world is cold, so any warm pixel reads as "pay attention" by construction. The sky is `Starfield` geometry, never a skybox — **two submeshes**: an LDR field that can never bloom, and the corona rim alone on an HDR tint. Its shipped geometry is `LevelDefinition.sky` for the shipped level and `Starfield.DefaultEclipse*` for the legacy greybox — keep them equal. Ambient table: sky `#344C78 × 1.35`, equator `#3F5E88 × 1.35`, ground `#0E1326 × 1.35`, key `#5A79AD` @ 1.05 (`Editor/ProjectSetup.AmbientSky` / `.AmbientEquator` / `.AmbientGround` / `.KeyLightColor`, applied in `ProjectSetup.SetupSceneEnvironment` and mirrored — read from the same constants, not hand-copied — in `SandboxBuilder.EnsureEnvironment`). Fog (rebuilt by A5, 2026-09-06) is `#0E1C34` (`ProjectSetup.FogColor`) — the dome's own horizon band `#13233F` at 0.7 value, lin lum .0117 — ramping **36 → 170 m** (`ProjectSetup.FogStartDistance` / `.FogEndDistance`), not the void colour `#060D18` over 45 → 240 that it replaced. Fog is the sky bleeding in front of distance, so it must sit between the dome's zenith and its horizon and above a shadowed stone face; below that it is extinction and it eats the deck you are about to land on. Start distance has a hard floor of ~31 m (the eclipse halo's corners), not the quoted dome radius of 25. Pinned by `SkyEclipseTests`.
 
-Palette lives in `Editor/MaterialFactory.cs` and the colour constants in `Editor/HudBuilder.cs`.
+Structural albedos, trim hues and combat-tell colours all live in `Editor/MaterialFactory.Table`; ambient and the key light live in `Editor/ProjectSetup.SetupSceneEnvironment`; enemy body albedos live in `Editor/DataFactory`; the HUD's own colour constants live in `Editor/HudBuilder.cs`. None of these are on a `.mat` or in the Inspector (rules 4 and 9) — change the constant, then re-run the generator that consumes it (`2. Create Materials`, `1. Project Setup` / `7. Build Sandbox`, or `3. Create Data` respectively).
 
 **The HUD is panes of smoked glass, edge-lit by the eclipse (2026-09-04).** UGUI has no blur, so glass
 is built from four cheap layers — a dark rounded 9-slice at a linear-space alpha of 0.58, a soft shadow
@@ -863,15 +860,15 @@ structural albedos in `Editor/MaterialFactory.Table`, and the enemy body albedos
 | Knob | Shipped | Reasoning |
 |---|---|---|
 | ambient mode | `Trilight` | three-way by surface normal, costs nothing |
-| ambient sky | `#3E4A6B × 1.35` | cool starlight, lifts platform **tops** — the surfaces you land on |
-| ambient equator | `#7A5540 × 1.35` | warm eclipse ember — lifts every **vertical** face and every enemy |
-| ambient ground | `#191424 × 1.35` | dim violet bounce; undersides stay heavy so shapes keep weight |
+| ambient sky | `#344C78 × 1.35` | cold starlight, lifts platform **tops** — the surfaces you land on |
+| ambient equator | `#3F5E88 × 1.35` | cold eclipse light — lifts every **vertical** face and every enemy |
+| ambient ground | `#0E1326 × 1.35` | near-black indigo bounce; undersides stay heavy so shapes keep weight |
 | `ambientIntensity` | **1.0 — it is a no-op here** | Unity applies it to *Skybox* ambient only; in Trilight the multiplier must live in the colours |
-| key directional | `#C9663A`, **1.05**, Euler `(10, 180, 0)` | one dying sun low behind the arena, backlighting the course |
-| `M_Ground` | `#262023` | ~0.020 linear — most of the structural surface area |
-| `M_Stone` | `#3A3134` | ~0.033 linear — walls, pillars, obelisks; above ground so a wall separates from the floor |
-| `M_Platform` | `#56504A` | ~0.082 linear — ash top, footing legibility, never trim |
-| `M_Enemy` | `#1F1D24` | material default only — **the body albedo comes from `EnemyData.bodyColor`**; smoothness **0.34** (see below) |
+| key directional | `#5A79AD`, **1.05**, Euler `(10, 180, 0)` | one dying, pale-cold sun low behind the arena, backlighting the course |
+| `M_Ground` | `#1B222E` | ~0.0157 linear — most of the structural surface area |
+| `M_Stone` | `#2A3443` | ~0.0334 linear — walls, pillars, obelisks; above ground so a wall separates from the floor |
+| `M_Platform` | `#475262` | ~0.0821 linear — ash top, footing legibility, never trim |
+| `M_Enemy` | `#1A1E29` | material default only — **the body albedo comes from `EnemyData.bodyColor`**; smoothness **0.34** (see below) |
 
 **Smoothness is per-material, and it is the only thing that gives an enemy shape.** Everything else in this palette is matte by design, and `MaterialFactory.Configure` used to force smoothness 0 plus `_SPECULARHIGHLIGHTS_OFF` on *every* material. The course is backlit, so an enemy facing the player gets no key light — with only a diffuse term its whole torso renders as one flat value and no amount of extra ambient can carve it. Specs now carry their own `smoothness` (default 0, so the neon shapes are untouched) and `M_Enemy` ships at 0.34: enough for the ambient sky term to skim a shoulder, not enough to look wet. Deliberately **not** emission — *enemies do not glow*, because light on an enemy means you deflected.
 
@@ -911,10 +908,10 @@ values in `MaterialFactory.Table`:
 
 | Material (key) | Used for | Shipped emission | Reads as |
 |---|---|---|---|
-| `M_NeonCyan` | tile 1 trim, ultimate ring, pickup shell | `#1FB9D6 × 1.00` → `(0.12, 0.73, 0.84)` | cold ghost teal |
-| `M_NeonYellow` | tile 2 trim, hit sparks, posture bar | `#D8C22A × 0.85` → `(0.72, 0.65, 0.14)` | brass gold |
-| `M_NeonRed` | tile 3 trim (navigation only) | `#FF1010 × 1.10` → `(1.10, 0.07, 0.07)` | saturated crimson |
-| `M_NeonPink` | boss court trim, checkpoints, gates | `#C4400F × 1.15` → `(0.88, 0.29, 0.07)` | ember orange |
+| `M_NeonCyan` | tile 1 trim, ultimate ring, pickup shell | `#35DCEC × 1.00` → `(0.04, 0.72, 0.84)` | ice cyan |
+| `M_NeonYellow` | tile 2 trim, hit sparks, posture bar | `#D8C22A × 0.75` → `(0.52, 0.40, 0.02)` | brass gold — the one warm navigational hue kept (see below) |
+| `M_NeonPink` | tile 3 trim (navigation only) | `#2F6BFF × 0.95` → `(0.03, 0.14, 0.95)` | deep azure |
+| `M_NeonRed` | tile 4 trim (navigation only) | `#3FE07A × 0.95` → `(0.05, 0.71, 0.18)` | ghost green |
 | `M_AlertTell` | **unblockable / alert cube** — combat only, never level trim | `#FF0A28 × 3.00` → `(3.00, 0.12, 0.47)` | hot pink-white, blooms hard |
 | `M_DeathblowMark` | **deathblow spot** on a posture-broken enemy's sternum, and the commit shatter thrown at that same point — combat only | `#2A0BFF × 2.60` → `(0.43, 0.11, 2.60)` | arc violet-blue, blooms hard |
 | `M_LockOnDot` | **lock-on dot** on the chest of the locked target — combat only | `#CBD2D8 × 0.95` → `(0.76, 0.78, 0.81)` | pale bone-grey, **never blooms** |
@@ -939,7 +936,7 @@ Two traps are baked into those numbers:
   1.05 bloom threshold, and that is the whole design. The tell means danger and the glyph means
   opportunity, so both are 2.5–3x over it and both are meant to grab you; lock-on means neither — it is
   up for the entire fight and has to stay ignorable. "Does not bloom" is an axis of separation that
-  survives peripheral vision, and it cost nothing: at 0.78 against a `#1F1D24` enemy it is still ~60x the
+  survives peripheral vision, and it cost nothing: at 0.78 against a `#1A1E29` enemy it is still ~60x the
   albedo it sits on. It is also desaturated because every saturated slot is already spoken for (four
   trims, the tell, the glyph, the Pyre fire), which is exactly why the Dark Souls reticle is a plain pale
   dot. Raising it to "make it clearer" merges it with the two markers it exists to differ from.

@@ -189,7 +189,10 @@ namespace VibeGame1.EditorTools
             light.type = LightType.Directional;
             // Mirrors ProjectSetup: low and from +Z, so the sandbox is backlit by the same eclipse.
             light.transform.rotation = Quaternion.Euler(10f, 180f, 0f);
-            light.color = Hex("#C9663A", new Color(0.788f, 0.4f, 0.227f));
+            // Was the pre-cold-pass warm ember (#C9663A). ProjectSetup's key light is
+            // ProjectSetup.KeyLightColor, the pale cold sun #5A79AD — read directly so this can't drift
+            // from the campaign's again.
+            light.color = ProjectSetup.KeyLightColor;
             light.intensity = 1.05f;
             light.shadows = LightShadows.Soft;
 
@@ -210,24 +213,27 @@ namespace VibeGame1.EditorTools
             // drifted apart — the sandbox was still violet after the cold pass took the level blue.
             // The sandbox exists so a value can be judged in here and trusted out there, so it now reads
             // the campaign's constants directly and the drift is structurally impossible.
-            // (STILL DRIFTED, deliberately not touched in this pass: the ambient below is the WARM
-            // pre-cold-pass set, #7A5540 equator against ProjectSetup's #3F5E88. That is a bigger call
-            // than fog — it changes how every enemy reads in the workshop — and belongs to its own pass.)
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = ProjectSetup.FogColor;
             RenderSettings.fogStartDistance = ProjectSetup.FogStartDistance;
             RenderSettings.fogEndDistance = ProjectSetup.FogEndDistance;
-            // Trilight, matching ProjectSetup: cool starlight above, warm eclipse ember on vertical
+            // Trilight, matching ProjectSetup: cool starlight above, cold eclipse light on vertical
             // faces, near-black bounce underneath. This is what lifts the scene - the sky mesh is unlit
             // and contributes no illumination by itself. The EQUATOR term is the one that matters:
             // Trilight lights by normal, so every wall, pillar and torso is lit by it alone.
+            //
+            // Was the pre-cold-pass WARM set (#3E4A6B sky / #7A5540 equator / #191424 ground, each
+            // *1.35 by hand here). That drifted from the campaign the same way the old hand-copied fog
+            // literals did — an enemy silhouette judged in here did not transfer to the level, which is
+            // the sandbox's entire reason to exist. Read ProjectSetup's constants directly, same as
+            // fog above, so it can't drift again; the *1.35 multiplier is already baked into them.
             RenderSettings.ambientMode = AmbientMode.Trilight;
             // ambientIntensity is a NO-OP in Trilight mode (Unity only applies it to Skybox ambient),
             // so the multipliers live in the colours - same as ProjectSetup.
-            RenderSettings.ambientSkyColor = Hex("#3E4A6B", new Color(0.243f, 0.290f, 0.420f)) * 1.35f;
-            RenderSettings.ambientEquatorColor = Hex("#7A5540", new Color(0.478f, 0.333f, 0.251f)) * 1.35f;
-            RenderSettings.ambientGroundColor = Hex("#191424", new Color(0.098f, 0.078f, 0.141f)) * 1.35f;
+            RenderSettings.ambientSkyColor = ProjectSetup.AmbientSky;
+            RenderSettings.ambientEquatorColor = ProjectSetup.AmbientEquator;
+            RenderSettings.ambientGroundColor = ProjectSetup.AmbientGround;
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.skybox = null;
 
