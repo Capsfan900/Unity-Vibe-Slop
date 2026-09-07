@@ -1865,6 +1865,10 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
 - **Final descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` ends with `ApplyDescent`: a 10 m wide
   entry at y 28 feeds `T4_Ramp_Descent` (48 m run, 12 m drop), then a 24.4 m run-out at y 16.
+  Level 1 start is authored 1.3 m before the ramp crest, 0.3 m above its surface, facing downhill.
+  `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart` into `StartSpawn`, which
+  `LevelDefinitionBuilder` places the saved player there and wires the level manager for pre-checkpoint respawns.
+  `WandPedestal_Start` moves beside the new start at (3,28,297.5), preserving loadout access.
   Three `Spawn_T4_Surge_*` entries use the existing `pshooter_enemy03` prefab on side pads at
   z 324/342/360, 18 m apart. Live interception moved the row 8 m past its first draft: the original
   opening bolt could chase behind the player and never arrive. The last beat now rides the run-out.

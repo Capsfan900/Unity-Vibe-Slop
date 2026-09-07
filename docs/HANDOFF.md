@@ -4,6 +4,19 @@
 
 ## What happened
 
+Follow-up correction: the user intended Level 1 to START at the downhill ramp. The first pass
+incorrectly left the old spawn in place. `ApplyDescent` now authors `playerStart=(0,28.3,297.5)`
+and yaw 0, with the starting wand pedestal beside it at (3,28,297.5). The level asset/scene were
+regenerated. The actual Main Menu `PlayFirstAvailable` path loaded the player at the crest with
+the level manager's respawn there too.
+This is a data-authoring correction; the earlier route remains in the level. Restore point for this
+follow-up is `pre-descent-start-2026-09-07` (the original descent commit `691fc89`).
+Follow-up checks: quick EditMode 693/693 and live LevelStructure 70/70 passed. Full live suite
+was 770/777; trail, grapple and flask failures remain undiagnosed (see VERIFICATION-REPORT).
+Fog implementation and flare-curve restoration are now explicitly authorized and delegated to
+Sol agents for investigation; source edits are held for lead review. An Astra design-agent launch
+was rejected by the agent manager's thread limit, so do not claim these tasks were Astra-designed.
+
 Level_01 now has a 48 m long, 12 m descending, 10 m wide ramp leading into a 24.4 m run-out. Three existing Surge Turrets occupy z324/342/360; the boss arena, checkpoint and associated content moved consistently. The openness work and small uphill ramps already existed; the large downhill encounter had never been authored. Moving the whole turret row 8 m downhill resolved the first shot's late arrival without changing enemy or combat timing.
 
 Actual grounded downhill slides now sustain and follow the contacted slope. Flat/uphill arithmetic, water, jumping and serialized movement tuning retain their previous rules. Jump cancellation and low-frame-rate contact were exercised live. The boss south walls now receive absolute final coordinates so repeated generation cannot detach them.

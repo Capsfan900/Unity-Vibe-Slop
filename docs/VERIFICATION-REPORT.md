@@ -10,6 +10,20 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Ramp-start correction — 2026-09-07
+
+Level 1 now starts at `(0,28.3,297.5)`, facing downhill, with the wand pedestal at `(3,28,297.5)`.
+The saved scene and asset were regenerated. The real Main Menu `PlayFirstAvailable` path loaded
+the player at the crest; the level manager's start/respawn transform matches.
+Quick EditMode: **693/693 pass** (9.2 s). Fresh `LevelStructure` feature group: **70/70 pass**,
+including the relocated pedestal. The full live suite is **not green for this follow-up**:
+the final run was 770 pass / 7 fail (trail sampling, five grapple checks, flask healing).
+The preceding run had a dash check fail and correctly exposed the old pedestal placement; the
+pedestal was fixed and the dash passed in the final run. These changing failures have not been
+diagnosed as gameplay regressions or harness effects. Detailed local reports are in
+`TestResults/descent/features-start-correction.txt` and `features-start-final.txt`.
+The earlier 777/777 result below belongs to the pre-spawn-correction descent pass.
+
 ### Final descent pass — 2026-09-07
 
 | Check | Result | Evidence and limits |

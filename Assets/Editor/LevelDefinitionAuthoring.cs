@@ -695,6 +695,12 @@ namespace VibeGame1.EditorTools
                 width = 10f, run = 48f, rise = -12f, thickness = 0.5f, materialKey = "Stone" };
             ramps.Add(descent);
             def.ramps = ramps.ToArray();
+            // Level 1 opens at the descent, not at the retained earlier traversal route.
+            def.playerStart = descent.basePosition - descent.Heading * 1.3f + Vector3.up * 0.3f;
+            def.playerStartYaw = descent.yaw;
+            foreach (var pedestal in def.pedestals)
+                if (pedestal.name == "WandPedestal_Start")
+                    pedestal.groundPosition = new Vector3(3f, descent.basePosition.y, def.playerStart.z);
 
             var spawns = new List<SpawnDef>(def.spawns);
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T4_Surge_"));

@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  playerStart: {x: 0, y: 1.2, z: -4}
+  playerStart: {x: 0, y: 28.3, z: 297.5}
   playerStartYaw: 0
   platforms:
   - name: Ground_Start
@@ -1018,7 +1018,7 @@ MonoBehaviour:
     basePosition: {x: 8, y: 23, z: 207.5}
   pedestals:
   - name: WandPedestal_Start
-    groundPosition: {x: 0, y: 0, z: -2}
+    groundPosition: {x: 3, y: 28, z: 297.5}
     triggerRadius: 3
   balloons:
   - name: T3_Arc_1
