@@ -207,6 +207,49 @@ namespace VibeGame1
                 current = Pose.Lerp(current, data.idle, Mathf.Clamp01(12f * TimeScaleController.PlayerDelta));
                 ApplyPose(current);
             }
+
+            ApplyMovementPose(TimeScaleController.PlayerDelta, grounded);
+        }
+
+        // ---- movement pose (BACKLOG 2b, "arms react to movement") -----------------------------------
+
+        Pose moveOffset;
+
+        /// <summary>Follow speed, per second, for the smoothed offset below — deliberately slower than
+        /// sway's 12: this is secondary motion (an air/wall/slide REACTION) and must never arrive faster
+        /// than sway or bob, or it starts reading as the primary pose.</summary>
+        const float MoveOffsetFollow = 9f;
+
+        /// <summary>
+        /// Sums a small, ADDITIVE offset onto <see cref="model"/> AFTER whatever pose already wrote it
+        /// this frame — the idle blend above, or an attack/guard coroutine earlier in the same Update.
+        /// Delete this call and the viewmodel is back to exactly what it was: <see cref="MovementPose"/>
+        /// is a pure function with no state of its own, and <see cref="moveOffset"/> here is only the
+        /// spring that keeps its output from snapping frame to frame.
+        ///
+        /// <para>RULE 1: runs on <see cref="TimeScaleController.PlayerDelta"/>, the same clock as the BOB
+        /// just above — not on the raw <c>unscaledDeltaTime</c> that sway uses. Sway is driven by the mouse,
+        /// an input device that keeps moving whatever the world does; this is driven by the player's own
+        /// movement, so it must freeze when the player does and not when the world does. PlayerDelta is
+        /// also clamped to 0.05 s, so a frame hitch cannot snap the offset to its target in one step.</para>
+        /// </summary>
+        void ApplyMovementPose(float udt, bool grounded)
+        {
+            if (model == null) return;
+            var state = new MovementPose.State
+            {
+                grounded = grounded,
+                sliding = motor != null && motor.IsSliding,
+                wallRunning = motor != null && motor.IsWallRunning,
+                dashing = motor != null && motor.IsDashing,
+                wallNormalLocal = motor != null && motor.IsWallRunning
+                    ? motor.transform.InverseTransformDirection(motor.WallRunNormal) : Vector3.zero,
+                verticalVelocity = motor != null ? motor.Velocity.y : 0f,
+            };
+            Pose target = MovementPose.Compute(state);
+            moveOffset = Pose.Lerp(moveOffset, target, Mathf.Clamp01(MoveOffsetFollow * udt));
+            model.localPosition += moveOffset.pos;
+            model.localRotation *= Quaternion.Euler(moveOffset.euler);
         }
 
         void ApplyPose(Pose p)
@@ -265,8 +308,19 @@ namespace VibeGame1
             t = 0f;
             while (t < swing)
             {
-                current = Pose.Lerp(wind, end, EaseOut(t / swing));
-                ApplyPose(current); t += Time.deltaTime; yield return null;
+                // A straight Pose.Lerp cuts a CHORD through the strike — the blade teleports along a
+                // line from wind to end. SwingArc bows the position off that chord (same half-sine shape
+                // as GuardArc below, generalised to whatever direction this swing actually travels), and
+                // the rotation is given a small LEAD over the position so the tip visibly arrives before
+                // the wrist — together they read as a blade sweeping rather than sliding.
+                float k = EaseOut(t / swing);
+                Vector3 pos = Vector3.Lerp(wind.pos, end.pos, k) + SwingArc(wind.pos, end.pos, k);
+                Quaternion rot = Quaternion.Slerp(Quaternion.Euler(wind.euler), Quaternion.Euler(end.euler),
+                    Mathf.Clamp01(k * SwingRotationLead));
+                model.localPosition = pos;
+                model.localRotation = rot;
+                current = new Pose(pos, rot.eulerAngles);
+                t += Time.deltaTime; yield return null;
             }
             // Land the arc EXACTLY on swingEnd before the ribbon closes: EndStrike takes its final
             // sample from the pose that is applied right now, and a ribbon whose newest point is a
@@ -411,6 +465,44 @@ namespace VibeGame1
         /// </summary>
         const float GuardArcOut = 0.07f;
         static Vector3 GuardArc(float k) => Vector3.right * (GuardArcOut * Mathf.Sin(k * Mathf.PI));
+
+        /// <summary>
+        /// How far (metres) the STRIKE bows off the straight wind→end chord at its midpoint, as a
+        /// fraction of the chord's own length — so a short dagger flick and a long maul haul both bow
+        /// by the same proportion of their own travel rather than one authored constant over- or
+        /// under-shooting depending on the weapon's reach. Same half-sine shape as <see cref="GuardArc"/>,
+        /// generalised from a fixed camera-right bow to whatever direction THIS swing actually travels.
+        /// </summary>
+        public const float SwingArcOut = 0.30f;
+
+        /// <summary>
+        /// The strike's ROTATION reaches <c>end</c> ahead of its POSITION — a whip's tip arrives before
+        /// the wrist that threw it. 1.0 would bring position and rotation home together, which reads as
+        /// a rigid rod rotating in place rather than a blade travelling. This is the smallest lead that
+        /// visibly separates the two; timing is untouched, only the path between the two authored poses.
+        /// </summary>
+        public const float SwingRotationLead = 1.35f;
+
+        /// <summary>
+        /// The bow itself: perpendicular to the chord, in the plane facing the camera (chord × forward),
+        /// so the arc sweeps ACROSS the frame — the readable axis — rather than toward or away from the
+        /// lens. A chord parallel to the view axis (a pure thrust) has no such perpendicular in that
+        /// plane, so it bows along world-up instead, which still reads as an arc rather than collapsing
+        /// to nothing.
+        /// </summary>
+        /// <summary>Public and static purely so <c>Assets/Editor/Tests</c> can pin the arc maths
+        /// directly, the same reason this file's other pose helpers stay pure functions of their
+        /// inputs. Not part of any gameplay-facing API.</summary>
+        public static Vector3 SwingArc(Vector3 from, Vector3 to, float k)
+        {
+            Vector3 chord = to - from;
+            float len = chord.magnitude;
+            if (len < 0.001f) return Vector3.zero;
+            Vector3 dir = chord / len;
+            Vector3 perp = Vector3.Cross(dir, Vector3.forward);
+            perp = perp.sqrMagnitude < 0.0001f ? Vector3.up : perp.normalized;
+            return perp * (len * SwingArcOut * Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI));
+        }
 
         IEnumerator GuardReleaseCo(float fall)
         {

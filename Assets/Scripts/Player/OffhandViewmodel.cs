@@ -468,7 +468,45 @@ namespace VibeGame1
             transform.localPosition = curPos;
             transform.localRotation = curRot;
 
+            ApplyMovementPose(TimeScaleController.PlayerDelta);
+
+            // Written AFTER the pose (including the movement offset above), so the light never lags a
+            // frame behind the hand it belongs to.
             DriveTipLight(udt);
+        }
+
+        // ---- movement pose (BACKLOG 2b, "arms react to movement") -----------------------------------
+
+        Pose moveOffset;
+
+        /// <summary>Same follow speed as WeaponViewmodel's twin of this method — the two hands must not
+        /// drift out of step with each other while airborne/wall-running/sliding.</summary>
+        const float MoveOffsetFollow = 9f;
+
+        /// <summary>
+        /// Sums <see cref="MovementPose"/>'s output onto this transform AFTER the pose/sway above have
+        /// already been written this frame. See <see cref="WeaponViewmodel.ApplyMovementPose"/> for the
+        /// full contract — this is the offhand's copy of the same additive term, so THRUST (a deliberate
+        /// snap, "no interpolation window of its own") is untouched: it is not in <see cref="poseOverride"/>
+        /// state here, it is a small offset summed on top, same as sway already is during a thrust
+        /// (<c>sway * 0.3f</c> above).
+        /// </summary>
+        void ApplyMovementPose(float udt)
+        {
+            var state = new MovementPose.State
+            {
+                grounded = motor != null && motor.IsGrounded,
+                sliding = motor != null && motor.IsSliding,
+                wallRunning = motor != null && motor.IsWallRunning,
+                dashing = motor != null && motor.IsDashing,
+                wallNormalLocal = motor != null && motor.IsWallRunning
+                    ? motor.transform.InverseTransformDirection(motor.WallRunNormal) : Vector3.zero,
+                verticalVelocity = motor != null ? motor.Velocity.y : 0f,
+            };
+            Pose target = MovementPose.Compute(state);
+            moveOffset = Pose.Lerp(moveOffset, target, Mathf.Clamp01(MoveOffsetFollow * udt));
+            transform.localPosition += moveOffset.pos;
+            transform.localRotation *= Quaternion.Euler(moveOffset.euler);
         }
 
         /// <summary>
