@@ -66,8 +66,8 @@ namespace VibeGame1.EditorTools
             // shipped pattern (T1_Causeway.max.x 1.5, T1_Rail_R spans 1.5..1.7) and it is not cosmetic: a
             // rail standing on the deck eats a capsule radius of take-off room either side of its 0.2 m.
             // T1_Rail_L follows the widened causeway to its new west edge -3.5, so it spans -3.7..-3.5.
-            new Reshape("T1_Rail_L", new Vector3(-3.6f, 2.325f, 54f), new Vector3(0.2f, 0.65f, 22f),
-                        "the causeway's west rail follows the widened deck out to its new edge, and drops below a sliding eyeline"),
+            new Reshape("T1_Rail_L", new Vector3(-4.6f, 2.325f, 54f), new Vector3(0.2f, 0.65f, 22f),
+                        "the causeway's west rail follows the widened deck out to its new edge, and sits below a sliding eyeline"),
             new Reshape("T1_Rail_R", new Vector3(1.6f, 2.325f, 54f), new Vector3(0.2f, 0.65f, 22f),
                         "the east rail drops so the causeway is slid with the east perch and its bolt in view"),
             new Reshape("T2_Bridge_Rail_L", new Vector3(-2.1f, 20.325f, 150f), new Vector3(0.2f, 0.65f, 10f),
@@ -81,14 +81,20 @@ namespace VibeGame1.EditorTools
             // 3 m wide over 22 m was the level's defining pinch and it was not a chosen one. It widens to
             // 5 m WESTWARD ONLY (max.x stays 1.5): the wall-run corridor on the east — T1_Wall_Causeway's
             // west face at x 3.4, run line x 2.95, standoff 1.0 m — does not move by a millimetre.
-            new Reshape("T1_Causeway", new Vector3(-1f, 1.5f, 54f), new Vector3(5f, 1f, 22f),
-                        "22 m of 3 m-wide deck is a corridor, not a causeway; 5 m is enough to steer a slide and to choose a side"),
+            new Reshape("T1_Causeway", new Vector3(-1.5f, 1.5f, 54f), new Vector3(6f, 1f, 22f),
+                        "3 m -> 5 m (pass 1) -> 6 m: 22 m of deck at 4.4:1 still read as a trench; at 3.7:1 with a 0.65 m rail it reads as a bridge"),
             // The slide gate has to keep spanning the deck it gates (CheckLintel.spansTheDeck: the lintel's
             // x range must contain the deck's), so it grows with it: 5 m -> 7 m, recentred on the new deck.
             // Heights are untouched, so clearance stays 1.30 m — a slide fits, standing does not, and the
             // 1.60 m top is still jumpable. It costs time, never access.
-            new Reshape("T1_Fallen_Obelisk", new Vector3(-1f, 3.7f, 63f), new Vector3(7f, 0.8f, 1.2f),
-                        "the slide gate follows the deck out so it still spans it"),
+            new Reshape("T1_Fallen_Obelisk", new Vector3(-1.5f, 3.7f, 49f), new Vector3(7f, 0.8f, 1.2f),
+                        "MEASURED: at z 63 the gate stood 1.4 m behind the causeway's take-off edge and was the level's " +
+                        "single worst piece of geometry - 5 clean launch points out of 20 onto T1_Stone_5, and a causeway " +
+                        "you could see NOTHING from (0 route decks visible ahead, blocked by this slab from six vantage " +
+                        "points running back to the spawn). At z 49 it is the first thing on the deck instead of the last: " +
+                        "the exit hop goes to 20/25, the causeway sees 3 decks ahead, and the gate is read from T1_Stone_3 " +
+                        "onward instead of arriving in your face. z 52 measures identically and was rejected - it blocks " +
+                        "T1_Perch_W's bolt line onto the causeway (the bolt passes z 49 at y 4.35, 0.25 m over this slab's top)."),
             // MEASURED, and the reason this entry exists at all: with the causeway recentred on x -1, the
             // bolt line from T1_Perch_W's muzzle (-7.5, 5.5, 44) to the causeway's chest point (-1, 3.2, 54)
             // enters the old obelisk's slab (x -5.1..-3.9) at z 49.5, y 4.2 and is BLOCKED. Moved to
@@ -117,12 +123,24 @@ namespace VibeGame1.EditorTools
             // on the WRONG side of an obstacle the hop loses launch points while the gap number improves.
             // Every entry below is measured hop by hop against the shipped asset (Tools/level_arc_offline.py),
             // not argued from the gap alone.
-            new Reshape("T2_L1", new Vector3(7f, 4.5f, 116f), new Vector3(4.8f, 1f, 5f), "the spiral's first pad; 1.0 m of standoff left to T2_Wall_East's run line"),
+            new Reshape("T2_L1", new Vector3(7f, 4.5f, 115.5f), new Vector3(4.8f, 1f, 8f),
+                        "the spiral's first pad, and the landing for the level's WORST hop: T2_Entry -> T2_L1 was a 4.54 m " +
+                        "diagonal off an 8 m deck with 6 clean launch points out of 25. Grown 5 -> 8 m deep, in BOTH " +
+                        "directions on purpose - south (z 113.5 -> 111.5) shortens the entry gap to 2.57 m and takes the hop " +
+                        "to 13/25; north (118.5 -> 119.5) pays back the take-off room that growing south costs the NEXT hop, " +
+                        "so T2_L1 -> T2_L2 holds at 20/25 instead of falling to 15. x is untouched: max.x 9.4 keeps the " +
+                        "1.1 m standoff LevelSpan2Tests pins against T2_Wall_East's run line."),
             new Reshape("T2_L2", new Vector3(7.25f, 6f, 124f), new Vector3(4.5f, 1f, 5f), "east only: min.x 5.0 is the buttress's face"),
-            new Reshape("T2_L3", new Vector3(0f, 7.5f, 131f), new Vector3(5f, 1f, 5f), "the north turn of the spiral"),
+            new Reshape("T2_L3", new Vector3(0f, 7.5f, 131f), new Vector3(7f, 1f, 5f),
+                        "TURN BALCONY: 7 x 5, the north turn of the first lap. T2_L2 -> T2_L3 11 -> 16 clean points, " +
+                        "T2_L3 -> T2_L4 13 -> 14."),
             new Reshape("T2_L4", new Vector3(-7f, 9f, 124f), new Vector3(4.8f, 1f, 5f), "the west wall's mount ledge; 1.1 m of standoff left"),
             new Reshape("T2_L5", new Vector3(-7f, 10.5f, 116f), new Vector3(4.8f, 1f, 5f), "clear of T2_Perch_W in plan (z 109-112)"),
-            new Reshape("T2_L6", new Vector3(0f, 12f, 111f), new Vector3(5f, 1f, 5f), "the south turn, over the west perch"),
+            new Reshape("T2_L6", new Vector3(0f, 12f, 111f), new Vector3(5f, 1f, 7f),
+                        "TURN BALCONY, the south turn, over the west perch - grown in Z ONLY. Measured: at 7 m WIDE it " +
+                        "collapses both its gaps to 1.10 m, which is a step and not a hop; at 7 m DEEP it holds both gaps " +
+                        "at 2.10 m and still takes T2_L5 -> T2_L6 21 -> 23 and T2_L6 -> T2_L7 21 -> 23. A deck grows toward " +
+                        "the arc that LANDS on it, not toward the one that leaves it."),
             new Reshape("T2_L7", new Vector3(7f, 13.5f, 116f), new Vector3(4.8f, 1f, 5f), "the second lap"),
             new Reshape("T2_L8", new Vector3(7.25f, 15f, 124f), new Vector3(4.5f, 1f, 5f), "east only, and the buttress chimney's exit ledge — a bigger target for the climb"),
             // L9 is the north turn of the SECOND lap and stands directly over L3, the north turn of the
@@ -131,8 +149,98 @@ namespace VibeGame1.EditorTools
             // tower's north-east corner) and growing L8 alone made it WORSE — 10 clean take-off points
             // out of 25 in the shipped asset, 8 with L8 grown, 13 with L9 matched to L3. Matching it also
             // makes the two laps read as the same turn seen twice, which is what a spiral is for.
-            new Reshape("T2_L9", new Vector3(0f, 16.5f, 131f), new Vector3(5f, 1f, 5f),
-                        "the second lap's north turn, matched to T2_L3 directly below it"),
+            new Reshape("T2_L9", new Vector3(0f, 16.5f, 131f), new Vector3(7f, 1f, 5f),
+                        "TURN BALCONY, matched to T2_L3 directly below it - the two laps must read as the same turn seen " +
+                        "twice, which is what a spiral is for. T2_L8 -> T2_L9 (the spiral's hardest hop) 13 -> 17 clean " +
+                        "points, T2_L9 -> T2_L10 24 -> 25."),
+
+            // ---- T2: the spire. THE MEASURED SIGHTLINE FIX FOR THE SPIRAL.
+            // A "moves visible ahead" probe (eye at deck centre + 1.7, target at the next decks' centre + 0.5, over
+            // Tools/level_arc_offline.py's own line_clear) named T2_Tower as the FIRST BLOCKER from eight of the
+            // spiral's eleven vantage points: L1, L2, L3 and L7 could each see exactly ONE deck ahead. A 5 x 5 core
+            // in a helix 19 m across is a wall you circle. At 4 x 4 the probe gives L7 four decks ahead instead of
+            // one, L5 four instead of three and L3 two instead of one. 3 x 3 was measured too: it buys nothing more
+            // and it opens the buttress chimney to 2.7 m, past the 2.6 m a wall push crosses in 0.22 s.
+            // It narrows in X ONLY, 5 -> 4, and that is deliberate: X is where the whole sightline gain lives
+            // (measured, 4x5 and 4x4 both give 3.00 mean moves-ahead, 5x4 only 2.84), while Z is the axis the
+            // buttress chimney's DEPTH is measured on. So the chimney keeps its 2.5 m depth bit-for-bit and
+            // only its width moves, 1.7 -> 2.2 m: still inside the 1.5-3 m contract, still under the 2.6 m a
+            // push crosses. The tower carries no deck, so nothing stands on what it loses.
+            //
+            // THE ONE THING IN THIS PASS THAT COULD NOT BE PROVEN OFFLINE, and the fallback if it breaks.
+            // LevelArcClearanceTests.Buttress_ClimbsToTheExitLedge simulates the real wall-push arc through
+            // this chimney and there is no offline mirror of ClimbChimney. If it fails, change the 4f below
+            // to 4.5f: that puts the chimney at 1.95 m, a quarter of a metre from the shipped 1.70 m, and
+            // the sightline still measures 2.84 against the shipped 2.45. Nothing else in this table depends
+            // on the tower.
+            new Reshape("T2_Tower", new Vector3(0f, 12f, 124f), new Vector3(4f, 20f, 5f),
+                        "the spiral's core was the spiral's blindfold; a 5 m wall in a 19 m helix -> 4 m"),
+
+            // ---- T3: the first pillar is the landing, not the test.
+            // T3_Entry -> T3_Pillar_1 was 10 clean launch points out of 25 onto a 2.5 m square 20 m up. Pillars 2
+            // and 3 stay at 2.5 m ON PURPOSE - the pillar run is the level's precision beat and the only place it
+            // asks for a placed foot - but a beat has to be ENTERED, and entering it should not be the hardest jump
+            // in it. 3.5 m takes the entry to 15/25 and leaves P2 -> P3, the 4.72 m signature leap, untouched.
+            new Reshape("T3_Pillar_1", new Vector3(0f, 15.5f, 198f), new Vector3(3.5f, 12f, 3.5f),
+                        "the entry landing of the pillar run; 2 and 3 keep their 2.5 m because that is their job"),
+
+            // ---- T3: the span was the causeway's problem, unfixed, one span later.
+            // 4 m wide over 22 m (5.5:1) carrying two water sheets you SKATE, a slide gate and the turn onto the
+            // steps. Widened to 4.8 m, which is every millimetre available: T3_Wall_Landing_S.min.x is 2.5 and
+            // LevelSpan3Tests forbids the two touching, and T3_Fallen_Lintel spans x +/-2.5 and must CONTAIN the
+            // deck, so +/-2.4 leaves 0.1 m of margin at both pins. Neutral on every hop and every sightline: this
+            // one is bought purely in room to steer.
+            new Reshape("T3_Span", new Vector3(0f, 24f, 226f), new Vector3(4.8f, 1f, 22f),
+                        "the last long deck still at 4 m; +20% room to skate, out of the only 0.8 m going spare"),
+
+            // ---- THE ARENA DOORWAYS: 6 m -> 9 m.
+            // Every arena is entered and left through a 6 m slot in a 4 m wall, and the probe named
+            // Wall_T1_N_R as the first blocker from BOTH T1_Stone_5 and T1_Arena: standing in a 26 m room you
+            // could see one deck ahead, because the next span was behind a letterbox. The arena floors are the
+            // only wide space in the level and the doors were throwing that space away. Measured at 9 m:
+            // T1_Arena -> T2_Entry goes 13 -> 21 clean launch points, T1_Arena sees three decks ahead instead
+            // of one, and T2_L10 sees four instead of two (it is looking through the T2 arena's south door at
+            // the spiral's own exit). Each wall keeps its outer end and its length changes; the arena's
+            // footprint does not move. The GATES and the arena TRIGGERS widen with them - see Gates - or a
+            // player entering at x 4 walks past the trigger and the fight never starts.
+            new Reshape("Wall_T1_S_L", new Vector3(-8.75f, 6f, 73.75f), new Vector3(8.5f, 4f, 0.5f), "T1 arena south door 6 -> 9 m"),
+            new Reshape("Wall_T1_S_R", new Vector3(8.75f, 6f, 73.75f), new Vector3(8.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T1_N_L", new Vector3(-8.75f, 6f, 100.25f), new Vector3(8.5f, 4f, 0.5f), "T1 arena north door: the one the probe caught"),
+            new Reshape("Wall_T1_N_R", new Vector3(8.75f, 6f, 100.25f), new Vector3(8.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T2_S_L", new Vector3(-9.25f, 22f, 155.75f), new Vector3(9.5f, 4f, 0.5f), "T2 arena is 28 m wide, so its walls are 9.5 m"),
+            new Reshape("Wall_T2_S_R", new Vector3(9.25f, 22f, 155.75f), new Vector3(9.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T2_N_L", new Vector3(-9.25f, 22f, 184.25f), new Vector3(9.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T2_N_R", new Vector3(9.25f, 22f, 184.25f), new Vector3(9.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T3_S_L", new Vector3(-8.75f, 30f, 256.75f), new Vector3(8.5f, 4f, 0.5f), "T3 arena south door"),
+            new Reshape("Wall_T3_S_R", new Vector3(8.75f, 30f, 256.75f), new Vector3(8.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T3_N_L", new Vector3(-8.75f, 30f, 283.25f), new Vector3(8.5f, 4f, 0.5f), "as above"),
+            new Reshape("Wall_T3_N_R", new Vector3(8.75f, 30f, 283.25f), new Vector3(8.5f, 4f, 0.5f), "as above"),
+            // The boss arena's SOUTH door only. Its north wall's slot opens onto nothing and widening it would
+            // just be a bigger hole in the back of the last room.
+            new Reshape("Wall_Boss_S_L", new Vector3(-11.75f, 30f, 300.75f), new Vector3(14.5f, 4f, 0.5f), "the boss door, seen from 16 m of approach"),
+            new Reshape("Wall_Boss_S_R", new Vector3(11.75f, 30f, 300.75f), new Vector3(14.5f, 4f, 0.5f), "as above"),
+        };
+
+        /// <summary>
+        /// The arena gates and triggers, widened with the doorways above. A gate is matched BY
+        /// <c>gateName</c> and only its X is written, so this is absolute and idempotent like everything else
+        /// here, and the sink/rise positions and the material are untouched. The TRIGGER matters as much as the
+        /// gate: it is a 6 m box in the mouth of the arena, and a 9 m door with a 6 m trigger is a door you can
+        /// walk through at x 4 without the fight ever starting. Boss_Gate is in the list; its arena has no exit
+        /// gate, and the north doorways of the boss room are deliberately left at 6 m.
+        /// </summary>
+        public struct GateWidth
+        {
+            public string gateName; public float width; public bool exitToo;
+            public GateWidth(string g, float w, bool e) { gateName = g; width = w; exitToo = e; }
+        }
+
+        public static readonly GateWidth[] Gates =
+        {
+            new GateWidth("T1_Gate", 9f, true),
+            new GateWidth("T2_Gate", 9f, true),
+            new GateWidth("T3_Gate", 9f, true),
+            new GateWidth("Boss_Gate", 9f, false),
         };
 
         /// <summary>
@@ -149,7 +257,19 @@ namespace VibeGame1.EditorTools
         /// unlit on the vfx team's veto: at 0.65 m their top edge sits at a sliding player's eye height,
         /// and four emissive bars across the middle of the frame is exactly where the alert tell is read.
         /// </summary>
-        public static readonly string[,] TrimKey = { { "T2_Bridge", "NeonYellow" } };
+        public static readonly string[,] TrimKey =
+        {
+            { "T2_Bridge", "NeonYellow" },
+            // The vfx team's call on "the spiral is eleven identical gold squares". Three deck SHAPES with
+            // three jobs is the fix; three HUES is not, because colour in this level is the SPAN word (which
+            // tile am I in, read at 20-40 m) and role is a silhouette word (read at 2-8 m, where trim lives).
+            // Give role a hue and the player holds two mappings for one channel. But T2_L2 and T2_L8 are not
+            // a third role - they are the MOUTH and the EXIT of the buttress chimney, the spiral's wall-jump
+            // shortcut, and this level already says "an alternate line off the main span is cyan" on every
+            // wall-run piece. So they wear the word they already belong to. No new material.
+            { "T2_L2", "NeonCyan" },
+            { "T2_L8", "NeonCyan" },
+        };
 
         /// <summary>
         /// ROUTE BEACONS. The torch budget was spent on the four arenas (4-6 each) and the run got almost
@@ -173,22 +293,44 @@ namespace VibeGame1.EditorTools
         /// </summary>
         public static readonly TorchDef[] RouteBeacons =
         {
-            new TorchDef { name = "Torch_Beacon_T1_Causeway_1", basePosition = new Vector3(-3.2f, 2f, 51f) },
-            new TorchDef { name = "Torch_Beacon_T1_Causeway_2", basePosition = new Vector3(-3.2f, 2f, 57f) },
+            // The causeway's west edge moved -3.5 -> -4.5 with the deck, so these follow it: a beacon 1.3 m
+            // INSIDE a 6 m deck is a post in the middle of the road, and the whole point of the pair is that
+            // they mark the edge you are steering along.
+            new TorchDef { name = "Torch_Beacon_T1_Causeway_1", basePosition = new Vector3(-4.2f, 2f, 51f) },
+            new TorchDef { name = "Torch_Beacon_T1_Causeway_2", basePosition = new Vector3(-4.2f, 2f, 57f) },
             // The spiral, second half of each lap: L1 and L2 are already read from the entry pair and the
             // buttress torch, and beaconing them tips the L5/L6/L7 stack over the limit.
-            new TorchDef { name = "Torch_Beacon_T2_L3", basePosition = new Vector3(-2.2f, 8f, 132.8f) },
+            // L3 and L9 grew from 5 m to 7 m wide, so their beacons follow the new west edge (-3.5).
+            new TorchDef { name = "Torch_Beacon_T2_L3", basePosition = new Vector3(-3.2f, 8f, 132.8f) },
             new TorchDef { name = "Torch_Beacon_T2_L4", basePosition = new Vector3(-8.8f, 9.5f, 122.2f) },
             new TorchDef { name = "Torch_Beacon_T2_L5", basePosition = new Vector3(-8.8f, 11f, 114.2f) },
             new TorchDef { name = "Torch_Beacon_T2_L7", basePosition = new Vector3(8.8f, 14f, 117.6f) },
             new TorchDef { name = "Torch_Beacon_T2_L8", basePosition = new Vector3(8.9f, 15.5f, 125.6f) },
-            new TorchDef { name = "Torch_Beacon_T2_L9", basePosition = new Vector3(-1.7f, 17f, 132.5f) },
+            new TorchDef { name = "Torch_Beacon_T2_L9", basePosition = new Vector3(-3.2f, 17f, 132.5f) },
             new TorchDef { name = "Torch_Beacon_T2_L10", basePosition = new Vector3(6.7f, 18.5f, 137.5f) },
             // T3: on the pillars, at the OUTER corner of the top face — a 2.5 m square you land on at
             // speed gets nothing in the middle of it — every 8 m rather than every pillar.
             new TorchDef { name = "Torch_Beacon_T3_Pillar_1", basePosition = new Vector3(-1f, 21.5f, 197.2f) },
             new TorchDef { name = "Torch_Beacon_T3_Pillar_3", basePosition = new Vector3(-4f, 23.5f, 206.9f) },
             new TorchDef { name = "Torch_Beacon_T3_Pillar_4", basePosition = new Vector3(-1.2f, 24.5f, 214f) },
+
+            // ---- THE ALTERNATE LINES, which were invisible.
+            // Every span in this level already HAS a second way through - the wall runs, proven by
+            // LevelSpan1/2/3Tests and by the buttress chimney tests - and not one of their four landing decks
+            // carried a single torch. A route the player cannot see is not a route, and "there is only one
+            // line" was never true here; it was only ever unlit. Trim is the near instrument and these decks
+            // are already trimmed cyan; the far instrument is the ember, the only object licensed to bloom.
+            //
+            // The vfx team's two corrections, taken: (1) the mark goes at the corner nearest where the
+            // DECISION is made, not the leading corner - a mark at the far end is behind you by the time it
+            // could act; (2) it is NOT a different colour. A cold ember over a warm point light breaks the
+            // warm-means-fire rule and an emissive over 1.05 is an unlicensed bloom exception. It differs
+            // from a route beacon by GRAMMAR: route beacons come in a rhythm of pairs on the line you are
+            // already on, and these stand ALONE, off the line, at a different height.
+            new TorchDef { name = "Torch_Beacon_Alt_T1_Landing", basePosition = new Vector3(6.1f, 2.5f, 60f) },
+            new TorchDef { name = "Torch_Beacon_Alt_T2_East", basePosition = new Vector3(8.6f, 8f, 134f) },
+            new TorchDef { name = "Torch_Beacon_Alt_T2_West", basePosition = new Vector3(-9.1f, 12.5f, 104f) },
+            new TorchDef { name = "Torch_Beacon_Alt_T3_S", basePosition = new Vector3(8f, 23f, 207.5f) },
         };
 
         // ---------------------------------------------------------------- the perches
@@ -309,6 +451,19 @@ namespace VibeGame1.EditorTools
                         if (pf != null && pf.name == TrimKey[i, 0]) pf.trimMaterialKey = TrimKey[i, 1];
             }
 
+            // The arena gates and triggers follow the widened doorways. Matched by gateName, X only, absolute.
+            int gated = 0;
+            if (def.arenas != null)
+                foreach (var g in Gates)
+                    foreach (var a in def.arenas)
+                        if (a != null && a.gateName == g.gateName)
+                        {
+                            a.gateSize = new Vector3(g.width, a.gateSize.y, a.gateSize.z);
+                            a.triggerSize = new Vector3(g.width, a.triggerSize.y, a.triggerSize.z);
+                            if (g.exitToo) a.exitGateSize = new Vector3(g.width, a.exitGateSize.y, a.exitGateSize.z);
+                            gated++;
+                        }
+
             // Perches: remove ours, re-add. Named with "_Perch_" so nothing else can collide.
             var platforms = new List<PlatformDef>(def.platforms ?? new PlatformDef[0]);
             platforms.RemoveAll(p => p != null && p.name != null && p.name.Contains("_Perch_"));
@@ -356,9 +511,10 @@ namespace VibeGame1.EditorTools
             def.torches = torches.ToArray();
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
-                                 "{3} balloons (T3 arc), {4} water sheets, {5} route beacons; {6} platforms and {7} torches total.",
+                                 "{3} balloons (T3 arc), {4} water sheets, {5} route beacons, {6} arena doors widened; " +
+                                 "{7} platforms and {8} torches total.",
                                  reshaped, Perches.Length, moved, balloons.Count, waters.Count, RouteBeacons.Length,
-                                 def.platforms.Length, def.torches.Length);
+                                 gated, def.platforms.Length, def.torches.Length);
         }
     }
 }

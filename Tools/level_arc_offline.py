@@ -8,6 +8,7 @@ shipped Player.prefab and the level asset, never typed in twice.
 Usage:  python Tools/level_arc_offline.py            # measures the shipped asset
         python Tools/level_arc_offline.py --after     # applies the openness reshapes first
         python Tools/level_arc_offline.py --torches   # the torch light budget, with and without the beacons
+        python Tools/level_arc_offline.py --sight     # HOW MANY MOVES AHEAD you can see, shipped vs reshaped
 """
 import io
 import math
@@ -438,8 +439,72 @@ def report_torches(after):
         print("  %-32s %d light(s) reach it%s" % (name, n, "   OVER BUDGET" if n > 4 else ""))
     print("  worst cluster %d  ->  %s" % (rows[0][0], "OVER BUDGET" if over else "inside the 4-light limit"))
 
+# ----------------------------------------------------------------- the sightline probe
+# "Open" is a measurement, not a mood, and this is the one that matters most for a speedrun level:
+# standing on a deck, HOW MANY of the decks you are about to run can you actually see? A level whose
+# answer is 1 is a corridor however wide its decks are, because the player is being told the route one
+# box at a time. The probe stands the eye at the deck's centre 1.7 m up (standing height off the
+# shipped CharacterController) and looks at each following route deck's centre 0.5 m up - a foot-level
+# target, because what you need to see is the SURFACE, not the airspace over it - and counts how many
+# it can reach in a row before something opaque gets in the way. It stops at 6 because past that the
+# answer is "the rest of the level" and stops being informative.
+#
+# It found three things the arc report could not: T1_Fallen_Obelisk, a slide gate parked on the
+# causeway's exit edge, was the first blocker from SIX consecutive vantage points and left the causeway
+# itself seeing nothing at all; T2_Tower, a 5 m core in a 19 m helix, was the first blocker from eight
+# of the spiral's eleven; and the arenas' 6 m doorways were throwing away the only wide rooms in the
+# level. All three are fixed in the second openness pass.
+
+SIGHT_AHEAD = 6
+
+def route_order():
+    out, seen = [], set()
+    for a, b in BASE_ROUTE:
+        for n in (a, b):
+            if n not in seen: seen.add(n); out.append(n)
+    return out
+
+def sightlines(boxes):
+    order = route_order()
+    idx = dict((b.name, i) for i, b in enumerate(boxes))
+    rows, total = [], 0
+    for i, n in enumerate(order):
+        if n not in idx: continue
+        a = boxes[idx[n]]
+        eye = (a.center[0], a.top + 1.7, a.center[2])
+        ahead, blocker, far = 0, None, 0.0
+        for j in range(i + 1, min(i + 1 + SIGHT_AHEAD, len(order))):
+            m = order[j]
+            if m not in idx: break
+            b = boxes[idx[m]]
+            tgt = (b.center[0], b.top + 0.5, b.center[2])
+            ok, who = line_clear(eye, tgt, boxes, set([idx[n], idx[m]]))
+            if not ok: blocker = who; break
+            ahead += 1
+            far = max(far, math.sqrt(sum((tgt[k] - eye[k]) ** 2 for k in range(3))))
+        total += ahead
+        rows.append((n, ahead, far, blocker))
+    return total / float(len(rows)), rows
+
+def report_sight():
+    before = load_boxes()
+    after = load_boxes(); apply_reshapes(after)
+    mb, rb = sightlines(before)
+    ma, ra = sightlines(after)
+    print("MOVES VISIBLE AHEAD (of the next %d route decks)" % SIGHT_AHEAD)
+    print("  shipped asset %.2f  ->  after the reshapes %.2f" % (mb, ma))
+    print()
+    for (n, a0, d0, b0), (_, a1, d1, b1) in zip(rb, ra):
+        mark = "  " if a0 == a1 else ("^ " if a1 > a0 else "v ")
+        print("  %s%-16s %d -> %d  (%5.1f -> %5.1f m)  blocker %s -> %s"
+              % (mark, n, a0, a1, d0, d1, b0 or "-", b1 or "-"))
+
+
 def main():
     after = "--after" in sys.argv
+    if "--sight" in sys.argv:
+        report_sight()
+        return
     if "--torches" in sys.argv:
         report_torches(True)
         print()

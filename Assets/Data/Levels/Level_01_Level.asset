@@ -63,14 +63,14 @@ MonoBehaviour:
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Causeway
-    center: {x: -1, y: 1.5, z: 54}
-    size: {x: 5, y: 1, z: 22}
+    center: {x: -1.5, y: 1.5, z: 54}
+    size: {x: 6, y: 1, z: 22}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Rail_L
-    center: {x: -3.6, y: 2.325, z: 54}
+    center: {x: -4.6, y: 2.325, z: 54}
     size: {x: 0.2, y: 0.65, z: 22}
     materialKey: NeonCyan
     trim: 0
@@ -98,7 +98,7 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Fallen_Obelisk
-    center: {x: -1, y: 3.7, z: 63}
+    center: {x: -1.5, y: 3.7, z: 49}
     size: {x: 7, y: 0.8, z: 1.2}
     materialKey: Stone
     trim: 1
@@ -154,29 +154,29 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T1_S_L
-    center: {x: -8, y: 6, z: 73.75}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: -8.75, y: 6, z: 73.75}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T1_S_R
-    center: {x: 8, y: 6, z: 73.75}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: 8.75, y: 6, z: 73.75}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T1_N_L
-    center: {x: -8, y: 6, z: 100.25}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: -8.75, y: 6, z: 100.25}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T1_N_R
-    center: {x: 8, y: 6, z: 100.25}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: 8.75, y: 6, z: 100.25}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
@@ -190,7 +190,7 @@ MonoBehaviour:
     isStatic: 1
   - name: T2_Tower
     center: {x: 0, y: 12, z: 124}
-    size: {x: 5, y: 20, z: 5}
+    size: {x: 4, y: 20, z: 5}
     materialKey: Ground
     trim: 1
     trimMaterialKey: NeonYellow
@@ -203,8 +203,8 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T2_L1
-    center: {x: 7, y: 4.5, z: 116}
-    size: {x: 4.8, y: 1, z: 5}
+    center: {x: 7, y: 4.5, z: 115.5}
+    size: {x: 4.8, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
@@ -214,11 +214,11 @@ MonoBehaviour:
     size: {x: 4.5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
-    trimMaterialKey: NeonYellow
+    trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_L3
     center: {x: 0, y: 7.5, z: 131}
-    size: {x: 5, y: 1, z: 5}
+    size: {x: 7, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
@@ -239,7 +239,7 @@ MonoBehaviour:
     isStatic: 1
   - name: T2_L6
     center: {x: 0, y: 12, z: 111}
-    size: {x: 5, y: 1, z: 5}
+    size: {x: 5, y: 1, z: 7}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
@@ -256,11 +256,11 @@ MonoBehaviour:
     size: {x: 4.5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
-    trimMaterialKey: NeonYellow
+    trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_L9
     center: {x: 0, y: 16.5, z: 131}
-    size: {x: 5, y: 1, z: 5}
+    size: {x: 7, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
@@ -350,29 +350,29 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T2_S_L
-    center: {x: -8.5, y: 22, z: 155.75}
-    size: {x: 11, y: 4, z: 0.5}
+    center: {x: -9.25, y: 22, z: 155.75}
+    size: {x: 9.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T2_S_R
-    center: {x: 8.5, y: 22, z: 155.75}
-    size: {x: 11, y: 4, z: 0.5}
+    center: {x: 9.25, y: 22, z: 155.75}
+    size: {x: 9.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T2_N_L
-    center: {x: -8.5, y: 22, z: 184.25}
-    size: {x: 11, y: 4, z: 0.5}
+    center: {x: -9.25, y: 22, z: 184.25}
+    size: {x: 9.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T2_N_R
-    center: {x: 8.5, y: 22, z: 184.25}
-    size: {x: 11, y: 4, z: 0.5}
+    center: {x: 9.25, y: 22, z: 184.25}
+    size: {x: 9.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
@@ -386,7 +386,7 @@ MonoBehaviour:
     isStatic: 1
   - name: T3_Pillar_1
     center: {x: 0, y: 15.5, z: 198}
-    size: {x: 2.5, y: 12, z: 2.5}
+    size: {x: 3.5, y: 12, z: 3.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
@@ -414,7 +414,7 @@ MonoBehaviour:
     isStatic: 1
   - name: T3_Span
     center: {x: 0, y: 24, z: 226}
-    size: {x: 4, y: 1, z: 22}
+    size: {x: 4.8, y: 1, z: 22}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
@@ -546,29 +546,29 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T3_S_L
-    center: {x: -8, y: 30, z: 256.75}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: -8.75, y: 30, z: 256.75}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T3_S_R
-    center: {x: 8, y: 30, z: 256.75}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: 8.75, y: 30, z: 256.75}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T3_N_L
-    center: {x: -8, y: 30, z: 283.25}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: -8.75, y: 30, z: 283.25}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_T3_N_R
-    center: {x: 8, y: 30, z: 283.25}
-    size: {x: 10, y: 4, z: 0.5}
+    center: {x: 8.75, y: 30, z: 283.25}
+    size: {x: 8.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
@@ -616,15 +616,15 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_S_L
-    center: {x: -11, y: 30, z: 300.75}
-    size: {x: 16, y: 4, z: 0.5}
+    center: {x: -11.75, y: 30, z: 300.75}
+    size: {x: 14.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Wall_Boss_S_R
-    center: {x: 11, y: 30, z: 300.75}
-    size: {x: 16, y: 4, z: 0.5}
+    center: {x: 11.75, y: 30, z: 300.75}
+    size: {x: 14.5, y: 4, z: 0.5}
     materialKey: Ground
     trim: 0
     trimMaterialKey: NeonPink
@@ -713,6 +713,7 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
+  ramps: []
   spawns:
   - name: Spawn_T1_GruntA
     prefabKey: pshooter_enemy01
@@ -901,11 +902,11 @@ MonoBehaviour:
   - name: Torch_Boss_Gate_R
     basePosition: {x: 6, y: 28, z: 303}
   - name: Torch_Beacon_T1_Causeway_1
-    basePosition: {x: -3.2, y: 2, z: 51}
+    basePosition: {x: -4.2, y: 2, z: 51}
   - name: Torch_Beacon_T1_Causeway_2
-    basePosition: {x: -3.2, y: 2, z: 57}
+    basePosition: {x: -4.2, y: 2, z: 57}
   - name: Torch_Beacon_T2_L3
-    basePosition: {x: -2.2, y: 8, z: 132.8}
+    basePosition: {x: -3.2, y: 8, z: 132.8}
   - name: Torch_Beacon_T2_L4
     basePosition: {x: -8.8, y: 9.5, z: 122.2}
   - name: Torch_Beacon_T2_L5
@@ -915,7 +916,7 @@ MonoBehaviour:
   - name: Torch_Beacon_T2_L8
     basePosition: {x: 8.9, y: 15.5, z: 125.6}
   - name: Torch_Beacon_T2_L9
-    basePosition: {x: -1.7, y: 17, z: 132.5}
+    basePosition: {x: -3.2, y: 17, z: 132.5}
   - name: Torch_Beacon_T2_L10
     basePosition: {x: 6.7, y: 18.5, z: 137.5}
   - name: Torch_Beacon_T3_Pillar_1
@@ -924,6 +925,14 @@ MonoBehaviour:
     basePosition: {x: -4, y: 23.5, z: 206.9}
   - name: Torch_Beacon_T3_Pillar_4
     basePosition: {x: -1.2, y: 24.5, z: 214}
+  - name: Torch_Beacon_Alt_T1_Landing
+    basePosition: {x: 6.1, y: 2.5, z: 60}
+  - name: Torch_Beacon_Alt_T2_East
+    basePosition: {x: 8.6, y: 8, z: 134}
+  - name: Torch_Beacon_Alt_T2_West
+    basePosition: {x: -9.1, y: 12.5, z: 104}
+  - name: Torch_Beacon_Alt_T3_S
+    basePosition: {x: 8, y: 23, z: 207.5}
   pedestals:
   - name: WandPedestal_Start
     groundPosition: {x: 0, y: 0, z: -2}
@@ -963,61 +972,61 @@ MonoBehaviour:
   arenas:
   - enabled: 1
     gateName: T1_Gate
-    gateSize: {x: 6, y: 4, z: 0.5}
+    gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
     gateOpenPosition: {x: 0, y: -0.5, z: 74.25}
     gateClosedPosition: {x: 0, y: 6, z: 74.25}
     triggerName: T1_ArenaTrigger
     triggerPosition: {x: 0, y: 6, z: 78}
-    triggerSize: {x: 6, y: 4, z: 2}
+    triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: Spawn_Legendary_Ninja
     hasExitGate: 1
     exitGateName: T1_Gate_Exit
-    exitGateSize: {x: 6, y: 4, z: 0.5}
+    exitGateSize: {x: 9, y: 4, z: 0.5}
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 6, z: 99.75}
     exitGateOpenPosition: {x: 0, y: -0.5, z: 99.75}
   - enabled: 1
     gateName: T2_Gate
-    gateSize: {x: 6, y: 4, z: 0.5}
+    gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
     gateOpenPosition: {x: 0, y: 15.5, z: 156.25}
     gateClosedPosition: {x: 0, y: 22, z: 156.25}
     triggerName: T2_ArenaTrigger
     triggerPosition: {x: 0, y: 22, z: 160}
-    triggerSize: {x: 6, y: 4, z: 2}
+    triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: Spawn_Legendary_Knight
     hasExitGate: 1
     exitGateName: T2_Gate_Exit
-    exitGateSize: {x: 6, y: 4, z: 0.5}
+    exitGateSize: {x: 9, y: 4, z: 0.5}
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 22, z: 183.75}
     exitGateOpenPosition: {x: 0, y: 15.5, z: 183.75}
   - enabled: 1
     gateName: T3_Gate
-    gateSize: {x: 6, y: 4, z: 0.5}
+    gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
     gateOpenPosition: {x: 0, y: 23.5, z: 257.25}
     gateClosedPosition: {x: 0, y: 30, z: 257.25}
     triggerName: T3_ArenaTrigger
     triggerPosition: {x: 0, y: 30, z: 261}
-    triggerSize: {x: 6, y: 4, z: 2}
+    triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: Spawn_Legendary_Spellsword
     hasExitGate: 1
     exitGateName: T3_Gate_Exit
-    exitGateSize: {x: 6, y: 4, z: 0.5}
+    exitGateSize: {x: 9, y: 4, z: 0.5}
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 30, z: 282.75}
     exitGateOpenPosition: {x: 0, y: 23.5, z: 282.75}
   - enabled: 1
     gateName: Boss_Gate
-    gateSize: {x: 6, y: 4, z: 0.5}
+    gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
     gateOpenPosition: {x: 0, y: 23.5, z: 301.25}
     gateClosedPosition: {x: 0, y: 30, z: 301.25}
     triggerName: Boss_ArenaTrigger
     triggerPosition: {x: 0, y: 30, z: 305}
-    triggerSize: {x: 6, y: 4, z: 2}
+    triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: 
     hasExitGate: 0
     exitGateName: ExitGate

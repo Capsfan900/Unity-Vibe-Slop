@@ -154,6 +154,41 @@ Same class of trap on a rail: a rail's inner face belongs **flush with the deck 
 hanging outside**. A 0.2 m rail standing *on* the deck costs a capsule radius of take-off room either
 side of it, which is a whole sampled column of launch points on a narrow deck.
 
+The corollary, learned in the second openness pass: **a deck can be grown on BOTH sides.** `T2_L1` had to
+come south to shorten the level's worst hop (`T2_Entry → T2_L1`, 6 clean points of 25) and that cost the
+next hop five points — so it grew north 1 m as well, which handed the take-off room straight back.
+`T2_Entry → T2_L1` 6 → **13** and `T2_L1 → T2_L2` holds at 20. Never pay for a landing with a take-off if
+the deck has a free edge in the other direction.
+
+And the mirror of it: **grow along the axis the gap is NOT measured on.** `T2_L6` at 7 m wide collapsed
+both its gaps to 1.10 m — a step, not a hop, a dead beat in the middle of a climb. At 7 m *deep* it is
+the same 35 m² of balcony, both gaps hold at 2.10 m, and both hops still improve (21 → 23 each way).
+
+### The other number: MOVES VISIBLE AHEAD
+
+`python Tools/level_arc_offline.py --sight` stands the eye at each route deck's centre 1.7 m up, looks at
+the next six decks' surfaces, and counts how many it can see in a row before something opaque intervenes.
+**A level whose answer is 1 is a corridor however wide its decks are**, because the route is being handed
+to the player one box at a time. It is the measurement that turns "this feels cramped" into a name and a
+number, and it caught three things the arc report structurally cannot see:
+
+- a **slide gate parked on its deck's exit edge** (`T1_Fallen_Obelisk` at z 63) was the first blocker from
+  six consecutive vantage points, and left the 22 m causeway itself seeing **nothing at all**. Moved to
+  the deck's entry third it is read from three decks back instead of arriving in your face — and the exit
+  hop off that deck went 5 clean points of 20 to **20 of 25**, because the slab had been standing 1.4 m
+  behind the take-off edge;
+- a **5 m core in a 19 m helix** (`T2_Tower`) was the first blocker from eight of the spiral's eleven
+  decks. At 4 m it is 2.45 → 3.00 for the whole level;
+- **6 m doorways in 26 m arena walls**. The arena floors are the only wide rooms in the level and the
+  doors were throwing that away. At 9 m, `T1_Arena → T2_Entry` goes 13 clean points to 21.
+
+When you widen an arena doorway, widen its **gate and its trigger with it** (`ArenaDef.gateSize`,
+`exitGateSize`, `triggerSize`) — a 9 m door with a 6 m trigger is a door you walk through at x 4 while the
+fight never starts.
+
+A blocker the probe names is not automatically a bug. Two slide gates and four pillars are *supposed* to
+be in the way; that is what a gate and a pillar are. Read the name, then decide.
+
 ---
 
 ## 4 · Feel (the in-game editor)

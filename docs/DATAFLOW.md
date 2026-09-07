@@ -1804,7 +1804,22 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   side of an obstacle costs clean launch points while the gap number improves (measured on `T2_L8 → T2_L9`:
   gap 4.24 → 3.91 but 10 → 8 clean points; fixed by growing the LANDING deck `T2_L9` instead, 3.20 / 13).
   `Tools/level_arc_offline.py` parses those tables straight out of the C# and measures every hop, the
-  torch density and the pinned x-coordinates without the editor; `--after`, `--torches`.
+  torch density and the pinned x-coordinates without the editor; `--after`, `--torches`, `--sight`.
+- **`Apply` also writes the arena gates** (second openness pass, 2026-09-07). `LevelDefinitionAuthoring.Gates`
+  matches a `LevelDefinition.ArenaDef` by `gateName` and writes only the X of `gateSize`, `triggerSize` and
+  (where the arena has one) `exitGateSize` — absolute and idempotent like the rest. It exists because the
+  arena doorways widened 6 m → 9 m and **a doorway, its gate and its trigger are one measurement**: a 9 m
+  door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
+- **`--sight` is the openness measurement, and it sees what `AnalyzeHop` structurally cannot.** It stands
+  the eye at each route deck's centre + 1.7 m, looks at the next six decks' surfaces (+ 0.5 m), and counts
+  how many are visible in a row before an opaque box intervenes. Level_01 measured **2.45 mean moves
+  visible ahead** after the first openness pass and **3.00** after the second. The three things it named
+  that no hop analysis could: a slide gate parked on its deck's exit edge (`T1_Fallen_Obelisk` at z 63 —
+  first blocker from six consecutive decks, and the causeway itself saw *nothing*; it was also standing
+  1.4 m behind that deck's take-off edge, worth 5 clean launch points of 20); a 5 m tower core inside a
+  19 m helix (first blocker from eight of the spiral's eleven decks); and 6 m doorways in the 26–28 m
+  arena walls. A named blocker is not automatically a bug — two slide gates and four pillars are supposed
+  to be in the way.
 - **The runtime editor and `8. Build Level From Definition` share ONE piece factory.** A piece that renders
   differently in the two is a bug in the factory, not in either caller. `LevelEditorTests.RuntimeAndEditorFactoriesAgree`
   builds a small document both ways and compares names and positions.
