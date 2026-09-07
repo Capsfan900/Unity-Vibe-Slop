@@ -11,6 +11,56 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## A modal dialog in Unity deadlocks the MCP bridge and looks exactly like a lost bridge
+
+**2026-09-07.** `SandboxBuilder.Build()` was called over MCP. It returned `success:false, message:null`,
+and from that moment **every** MCP call — `execute_code`, `read_console`, even the `editor/state` resource —
+returned `Unity session not ready for '<tool>' (ping not answered); please retry`. That is the same string
+the bridge produces when it has genuinely lost its startup handshake, so the obvious next move is the
+documented fix for that (save a script to force a domain reload, or Tools → MCP Bootstrap → Reconnect
+Bridge) — and it would have done nothing here. Polling for two and a half minutes never cleared it.
+
+**Root cause.** `SandboxBuilder.cs:67` calls `EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()`.
+The generators that must run before it (`DataFactory` → `PrefabFactory` → `HudBuilder`) leave the open scene
+dirty, so Unity put up a modal **"Scene(s) Have Been Modified"** window and blocked its own main thread
+waiting for a click. The bridge answers pings on that thread, so it goes silent — the editor is not broken,
+it is waiting for a human.
+
+**How to tell the two apart in one call, without guessing.** Measure Unity's CPU over ten seconds: a
+compiling or baking editor burns CPU, an editor blocked on a modal sits at ~0. Then enumerate its top-level
+windows — `EnumWindows` filtered to the editor's PID via `GetWindowThreadProcessId` — and read the titles.
+A window called "Scene(s) Have Been Modified" (or any other dialog) IS the answer. Note that
+`Get-Process ... Responding` reports **True** for a modal-blocked editor, so it proves nothing here.
+
+**Fix.** The dialog window can be forced visible with `SetWindowPos(hwnd, HWND_TOPMOST, …)` and
+screenshotted with `CopyFromScreen` to read its buttons before clicking anything — worth doing, because a
+blind Enter could hit "Don't Save". Escape did not dismiss it. Clicking **Save** freed the bridge and the
+generator ran to completion.
+
+**Invariant.** **Save the scene before running any generator that changes scenes** (7 `SandboxBuilder`, and
+9 `MainMenuBuilder` for the same reason) and the dialog never appears. And when every MCP call says
+`ping not answered`, **look at Unity's windows before you touch the bridge** — the reconnect procedure is
+for a bridge that is actually down, and running it against a modal wastes the time the modal is already
+costing.
+
+---
+
+## The photograph tools leave the editor in an empty `Untitled` scene
+
+**2026-09-07.** After `WeaponShots.Shoot()` the user reported the editor "showing an untitled view" and
+"no cameras rendering". Both are true and neither is damage: the capture tools open a scratch scene to shoot
+into, and an empty scene has no camera, so the Game view says exactly that.
+
+**Root cause.** Nothing is wrong. `Assets/Scenes/Level_01.unity` was never touched, and hard rule 4 means
+there is nothing hand-authored to lose in the scratch scene either.
+
+**Invariant.** **Reopen the working scene after any `Photograph …` / `Film …` tool** —
+`EditorSceneManager.OpenScene("Assets/Scenes/Level_01.unity", OpenSceneMode.Single)` — rather than leaving
+the user looking at an empty Game view and wondering what a session just deleted. Confirm it with a camera
+count in the same call.
+
+---
+
 ## The feature suite run against a paused world reports 49 plausible failures
 
 **2026-09-07.** A play-mode feature run reported **720 passed / 49 failed / 2 skipped**. The failure list

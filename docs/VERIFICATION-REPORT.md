@@ -10,7 +10,31 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
-### Latest run — 2026-09-07, after the package removal and the stripping change
+### Latest run — 2026-09-07, after the four-lane batch was generated (commit `57626eb`)
+
+| Suite | Result | Notes |
+|---|---|---|
+| `FeatureTests`, play mode | **777 / 777 pass, 0 failed, 0 skipped** | **Re-run this session**, against the generated batch. Taken with **both** `GameManager.I != null` **and** `Time.timeScale == 1` asserted in the same call that started it (`warm=True ts=1`). One earlier run of the same build reported `Trail_ClosesAfterStrike` failing; it passes 3/3 in isolation and 777/777 on the re-run — see the flake note below. |
+| EditMode, quick | **607 / 607 pass** (7.9 s) | 2026-09-07, after the two test-side fixes in `57626eb`. |
+| EditMode, full | **745 tests, 743 pass / 2 failed** (271.7 s) | 2026-09-07, before those fixes. Both failures were in the batch's own new test files and were **test-side, not system-side** — see below. The count rose 722 → 745 because the batch added `MovementPoseTests`, `WeaponSwingArcTests` and `HitReadTests`. |
+| `VibeGame1/Health Check` | 0 errors, 1756 known warnings | 2026-09-07, after the generators. 1748 before; the +8 are the new HUD ARM MOVEMENT row's own null-sprite lines. |
+
+**The two EditMode failures, and why neither was a bug in the game.**
+`WeaponSwingArcTests.ZeroAtBothEndpoints` asserted exact `Vector3` equality on a half-sine endpoint —
+`Mathf.Sin(Mathf.PI)` is `-8.7e-8` in single precision, and NUnit's `Vector3` comparison is `Equals` (exact)
+rather than the `==` epsilon, so it failed on a value that is zero for every purpose the arc has. It now
+asserts a `1e-5` magnitude tolerance. `MovementPoseTests` expected falling and rising to carry
+opposite-signed tilts; `MovementPose` does not work that way **on purpose** — a fall is a drop plus a
+pull-back (position only), an ascent is a muzzle-up tilt (rotation only), so `falling.euler.x` is `0` and
+that product could never be negative. The test now asserts the behaviour the file documents and is renamed
+`Rising_TiltsUpAndFallingDoesNot`.
+
+**A known flake, recorded so the next session does not chase it.** `Trail_ClosesAfterStrike` samples on
+realtime (`WaitRealtime`) while `AttackCo` advances on `Time.deltaTime`. On a loaded or unfocused editor the
+coroutine falls behind realtime and the ribbon can still be open at the 1.00 s sample. It is a test-harness
+timing assumption, not a trail bug.
+
+### Previous run — 2026-09-07, after the package removal and the stripping change
 
 | Suite | Result | Notes |
 |---|---|---|

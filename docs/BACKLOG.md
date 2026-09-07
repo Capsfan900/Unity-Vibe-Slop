@@ -176,6 +176,13 @@ prefab's own camera and can pose the arms by name (`RebuildAndShoot()` regenerat
 
 One intermittent remains, a staging race rather than a game bug:
 
+- `Trail_ClosesAfterStrike` (2026-09-07) — failed once in a full run, passes 3/3 in isolation and
+  777/777 on the re-run. The test samples on **realtime** (`WaitRealtime`) while `AttackCo` advances on
+  `Time.deltaTime`, so a loaded or unfocused editor lets the coroutine fall behind and the ribbon is still
+  open at the 1.00 s sample. The fix, if it recurs, is to sample against the coroutine's own progress
+  rather than against a wall clock — not to widen the window, which would stop the test proving the ribbon
+  closes at all.
+
 - `Movement_LandsAndGrounds` — failed once on a first run after entering play mode, never since.
 - `Flask_DrinkCoroutineAndInterruptOnHit` — observed `noHeal=False` once (the heal landing before the
   interrupt), green on every run since. Watch it; if it recurs, the fix is to sequence the interrupt
@@ -408,3 +415,36 @@ Fable systems and this is a UI/behaviour change, not a build fix.
 Worth knowing regardless: launching a Unity player with `-screen-width/-screen-height/-screen-fullscreen`
 **persists those values** to `HKCU:\Software\vibegame1\vibegame1`, so they affect every later launch with no
 flags. Do not smoke-test a build with forced resolution flags.
+
+---
+
+## The Sunbreaker reads olive, not gold (opened 2026-09-07)
+
+**The state.** `hammer.neon` shipped as `#A8D12E` in `57626eb` (hue ~75°). It was moved there from `#E0661A`
+(hue ~23°) because the old amber sat **~5° from the enemy bolt**, and in a parry game the player's own
+weapon must not compete with the one thing that has to read fastest. `#A8D12E` clears the bolt by 47°,
+satisfying the ≥45° rule the wand set already holds.
+
+**The problem, photographed under the real pipeline this session, not guessed:** it reads olive-lime. A
+weapon called the *Sunbreaker* looks like a garden tool.
+
+**Why there is no easy answer.** The bolt occupies the warm end of the wheel. Every hue that reads as gold,
+amber or brass is inside 45° of it. Hue separation and "warm" are mutually exclusive for this weapon —
+which is why this is a decision and not a bug.
+
+**The three shapes it could take:**
+
+1. **Keep `#A8D12E`.** The rule holds, the read is unambiguous, and the name becomes the odd thing.
+   Cheapest, and defensible: readability beats flavour in a parry game.
+2. **Go brass-warm (~`#D9A441`, hue ~40°) and separate by VALUE and SATURATION instead of hue.** The bolt
+   is a saturated emissive; a desaturated warm metal at lower emissive brightness can still be told apart
+   at speed. This deliberately suspends the ≥45° rule for one weapon, so it needs the reason written into
+   `MaterialFactory`/`DataFactory` beside the value, or a later pass will "fix" it back.
+3. **Rename the weapon** to match the colour it now is, and leave the hue alone.
+
+**Whichever wins, TWO places change together** — `DataFactory`'s `hammer.neon` **and** the hardcoded copy at
+`PrefabFactory.cs:266` driving the viewmodel `EnergyGlow.tint`, because `Energise` does not read
+`WeaponData.neon`. They are linked by a comment only. Then re-run generators 3 **and** 4 as one operation
+(rule 9), and re-photograph with `WeaponShots.Shoot()` — it renders with the real pipeline.
+
+**Fable data. Parked on the user's word.**
