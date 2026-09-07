@@ -11,7 +11,12 @@ namespace VibeGame1
         Teleport,
         // Appended 2026-09-06 (audio pass): four systems built the last two days shipped with no sound
         // at all. See AudioManager's trim table for why each sits where it does in the mix.
-        Refuse, Detonate, Tension, Spill
+        Refuse, Detonate, Tension, Spill,
+        // Appended 2026-09-06 (weapon rework, weapon-audio pass): every weapon shared Sfx.Swing / Sfx.Hit
+        // regardless of weight -- a dagger and a hammer sounded identical connecting. These four give the
+        // light and heavy ends of the roster their own transient/mechanical/sub/body/tail layering; Sword
+        // keeps the original Swing/Hit as the mid-weight default. See WeaponAudio.cs for the selection.
+        SwingLight, SwingHeavy, HitLight, HitHeavy
     }
 
     /// <summary>
@@ -57,6 +62,10 @@ namespace VibeGame1
                 case Sfx.Detonate: return Detonate();
                 case Sfx.Tension: return Tension();
                 case Sfx.Spill: return Spill();
+                case Sfx.SwingLight: return SwingLight();
+                case Sfx.SwingHeavy: return SwingHeavy();
+                case Sfx.HitLight: return HitLight();
+                case Sfx.HitHeavy: return HitHeavy();
             }
             return Click();
         }
@@ -679,6 +688,112 @@ namespace VibeGame1
                 d[i] = SoftClip(glug + splash);
             }
             return Make(name, d, 0.6f);
+        }
+
+        // ------------------------------------------------------------------ per-weapon weight (2026-09-06 weapon audio pass)
+
+        /// <summary>
+        /// The dagger's swing: thin, fast, dry. No sub-bass at all — smallness is sold by the ABSENCE of
+        /// low end, not by turning the sound down (per the brief: a weak-sounding weapon needs a missing
+        /// layer diagnosed, never a volume bump). A quick metallic "shick" (the mechanical layer — steel
+        /// leaving line, not a body swinging it) rides just ahead of a short bright air-slice body. Gone in
+        /// well under a fifth of a second, matching the dagger's 0.22 s attackDuration and 4-hit combo.
+        /// </summary>
+        static AudioClip SwingLight()
+        {
+            const string name = "SwingLight";
+            const float dur = 0.16f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = Mathf.Clamp01(t / dur);
+                float shick = t < 0.02f ? noise.Next(Mathf.Lerp(6000f, 9000f, t / 0.02f)) * (1f - t / 0.02f) * 1.1f : 0f;
+                float shape = Mathf.Sin(k * Mathf.PI);
+                float whistle = noise.Next(Mathf.Lerp(1800f, 3600f, shape)) * shape * shape * 2.2f;
+                d[i] = SoftClip(shick + whistle) * Env(t, 0.004f, dur * 0.5f);
+            }
+            return Make(name, d, 0.7f);
+        }
+
+        /// <summary>
+        /// The hammer's swing: the mechanical layer comes FIRST and is deliberately the loudest part of
+        /// the front half — a strained low creak that telegraphs the weight before the wind even starts,
+        /// which is what makes a hammer read as dangerous through its long 0.86 s attackDuration rather
+        /// than merely slow (per the brief: a mechanical sound before the strike builds more tension than
+        /// the strike itself). Sub and body follow, both building toward the strike rather than static.
+        /// </summary>
+        static AudioClip SwingHeavy()
+        {
+            const string name = "SwingHeavy";
+            const float dur = 0.5f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float creakWindow = dur * 0.35f;
+                float creak = t < creakWindow
+                    ? Mathf.Sin(TwoPi * Mathf.Lerp(70f, 45f, t / creakWindow) * t) * (1f - t / creakWindow) * 0.6f
+                    : 0f;
+                float subf = Mathf.Lerp(35f, 55f, k);
+                phase += TwoPi * subf / Rate;
+                float sub = Mathf.Sin(phase) * (k * k) * 1.3f;
+                float shape = Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI);
+                float wind = noise.Next(Mathf.Lerp(90f, 500f, shape)) * shape * 3f;
+                d[i] = SoftClip(creak + sub + wind) * Env(t, 0.02f, dur * 0.6f);
+            }
+            return Make(name, d, 0.85f);
+        }
+
+        /// <summary>
+        /// The dagger's hit: a puncture, not a crunch — a thin sharp transient with almost no sub-bass, so
+        /// a chain of fast stabs never blurs into the hammer's register. Distinct from Sfx.HitHeavy on the
+        /// same axis Sfx.SwingLight is distinct from Sfx.SwingHeavy: absence of low end sells small.
+        /// </summary>
+        static AudioClip HitLight()
+        {
+            const string name = "HitLight";
+            const float dur = 0.11f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float puncture = noise.Next(Mathf.Lerp(7000f, 2000f, k)) * Env(t, 0.0004f, 0.02f) * 2.4f;
+                float tik = Mathf.Sin(TwoPi * Mathf.Lerp(2400f, 900f, k) * t) * Env(t, 0.0008f, 0.03f) * 0.6f;
+                d[i] = SoftClip(puncture + tik);
+            }
+            return Make(name, d, 0.75f);
+        }
+
+        /// <summary>
+        /// The hammer's hit: the consequence layer the dagger deliberately lacks — a wide broadband crunch
+        /// over a real sub boom, with a rumbling tail so a landed swing keeps announcing itself after the
+        /// hitstop ends. A distinct register from Sfx.Hit (the sword's mid-weight default) so no two of
+        /// the three weapons share a "connected" read.
+        /// </summary>
+        static AudioClip HitHeavy()
+        {
+            const string name = "HitHeavy";
+            const float dur = 0.55f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            var tailN = new LowpassNoise(Seed(name) + 5);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float crunch = noise.Next(Mathf.Lerp(3200f, 250f, Mathf.Clamp01(t / 0.09f))) * Env(t, 0.0006f, 0.08f) * 3f;
+                float sub = Mathf.Sin(TwoPi * 42f * t) * Env(t, 0.003f, 0.28f) * 1.6f;
+                float tail = tailN.Next(Mathf.Lerp(300f, 70f, k)) * Env(t, 0.03f, 0.4f) * 1.8f;
+                d[i] = SoftClip(crunch + sub + tail);
+            }
+            return Make(name, d, 0.95f);
         }
 
         // ------------------------------------------------------------------ ambient loop

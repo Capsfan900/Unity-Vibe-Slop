@@ -185,7 +185,32 @@ namespace VibeGame1.EditorTools
             new Spec("M_Lightning",     Color.black,    Hex("#7FD4FF") * 3.5f),
             new Spec("M_Item",          Color.black,    Color.white * 1.2f),
             new Spec("M_Spark",         Color.black,    Color.white * 2.4f),
-            new Spec("M_WeaponCore",    Hex("#08070C"), Color.black),
+            // ---- The weapon's MASS -------------------------------------------------------------
+            // Every non-emissive part of every viewmodel: guard, quillons, grip, pommel, the maul's head
+            // and cheeks and spike. In other words, EXACTLY the parts that make a hammer read as a
+            // hammer instead of as a glowing stick — the archetype lives in the silhouette, and the
+            // silhouette lives in these parts.
+            //
+            // WAS #08070C: 0.0025 linear luminance. That is the last survivor of the mistake this file
+            // already fixed twice (M_Ground "darker than any real material", M_Enemy "a flat black
+            // cutout with no interior"). Two consequences, both visible in every frame of play:
+            //   1. against a world whose own structural albedos sit at 0.013-0.082, the mass parts were
+            //      DARKER than the background they are supposed to be silhouetted against — the weapon
+            //      read as the emissive segments alone, floating, with no object holding them;
+            //   2. it sat 3.6x BELOW M_Gauntlet (0.0091), which inverts the hierarchy this file states
+            //      two entries down: the hands are meant to be "the darkest lit surface on screen -
+            //      below the weapon". The glove was brighter than the weapon it was gripping.
+            // Now a cold gunmetal at 0.0313 linear — 3.4x the glove, just under M_Stone (0.0334), so a
+            // weapon reads as a dense object in front of a wall and never as a light. Nothing emits:
+            // the hot channel on a weapon belongs to the blade (M_Energy, driven by EnergyGlow) and to
+            // the Pyre embers, and mass that glowed would compete with both.
+            //
+            // Smoothness 0.45 for the same reason M_Enemy and M_SentryGhost carry theirs: this course is
+            // backlit, and on a matte near-black surface ambient alone renders a bevelled guard as one
+            // flat shape. A specular highlight is the only channel a non-emissive surface has to say
+            // "metal, and curved" — and it is what makes the maul's head read as a block of steel
+            // rather than as a dark rectangle.
+            new Spec("M_WeaponCore",    Hex("#2B313C"), Color.black, 0.45f),
             // ---- Viewmodel arms ----------------------------------------------------------------
             // Gauntleted, not bare skin. The hands sit at the BOTTOM of the visual hierarchy - below the
             // weapon, below the enemy, below the trim - so they are deliberately the darkest lit surface

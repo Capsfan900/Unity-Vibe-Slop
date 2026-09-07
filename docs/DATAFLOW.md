@@ -293,10 +293,12 @@ InputReader.AttackPressed → WeaponController.Update() → TryAttack()   ← pu
     staggered/drinking/parrying? → refuse
     staggered enemy in range?    → ExecuteInteractor.TryExecute() instead   (see Riposte)
     else StartSwing() → coroutine:
+        AudioManager.Play(WeaponAudio.SwingSfx(w), ...)   ← weight-picked (2026-09-06 weapon-audio pass)
         wait hitDelay → Physics.OverlapSphere(cam + fwd*hitOffset, hitRadius, EnemyMask)
             → Health.TakeDamage(baseDamage × comboMult × PlayerStats.DamageMultiplier)
             → Posture.Add(weapon.postureDamage)
-            → hit spark, hitstop, shake
+            → WeaponImpactFx.Hit(point, cam.forward, w, isFinisher)   ← presentation only
+            → hitstop, shake, AudioManager.Play(WeaponAudio.HitSfx(w), ...)
         combo window → next swing
 ```
 
@@ -304,6 +306,16 @@ InputReader.AttackPressed → WeaponController.Update() → TryAttack()   ← pu
 - Player→enemy hits are instantaneous sphere queries (no projectiles, no hitbox colliders). This shape is
   deliberately server-authority-friendly.
 - Damage scales through `PlayerStats.DamageMultiplier(weapon)`, never hard-coded.
+- `WeaponAudio.SwingSfx` / `.HitSfx` pick `Sfx.Swing`/`Sfx.Hit` (sword, mid-weight, real CC0 clips) vs the
+  synthesis-only `Sfx.SwingLight`/`Sfx.HitLight` (dagger) or `Sfx.SwingHeavy`/`Sfx.HitHeavy` (hammer) purely
+  from `WeaponData.hitStopSeconds` — no per-weapon branch, no new data field.
+- **The hit confirm is `WeaponImpactFx`, and it is drawn ONLY through `SlashFx`** (2026-09-06 weapon-look
+  pass). Flare + a spark fan thrown back out of the wound + a shockwave ring for the maul alone; every
+  size, count, speed and spread is interpolated from `WeaponImpactFx.Mass(w)`, which is
+  `InverseLerp(0.22, 0.86, attackDuration)` — derived from the shipped ladder, never a new data field.
+  It replaced an inline unpooled lit sphere at `neon * 4` (peak **3.51** on the hammer, louder than the
+  alert tell). Peak is now exactly **1.0**: `SlashFx` normalises, so a hit you LANDED cannot bloom.
+  Pinned by `Assets/Editor/Tests/WeaponImpactVfxTests.cs`.
 
 ---
 
@@ -415,6 +427,14 @@ WeaponTrail.LateUpdate      (same GameObject as WeaponViewmodel — the pose is 
 **Shipped values** — written explicitly by `PrefabFactory` on `ViewmodelRoot` (rule 9): 12 points,
 3 subdivisions per frame, head width 0.030 m, width curve `1 → 0.5 @0.3 → 0.18 @0.65 → 0.03`,
 fade 0.11 s, peak channel **1.15**.
+
+**Those two are the SWORD's values, and the mass curve bends them around it** (2026-09-06 weapon-look
+pass). `WeaponTrail.ApplyMass` multiplies the authored width and fade by `WidthScale`/`FadeScale` of
+`WeaponImpactFx.Mass(w)`, so the ribbon carries the weapon's weight in the one channel guaranteed to be
+on screen at contact: dagger x0.60 / x0.80 (0.018 m, 0.088 s — a whip), sword x1.00 (0.030 m, 0.110 s —
+unchanged, it is the reference), hammer x1.76 / x1.38 (0.053 m, 0.152 s — a slab that hangs a beat).
+The authored fields are never written to, so `FeatureTests > Trail_WidthCapped / _FadeIsShort` still read
+the shipped numbers; the products are pinned by `WeaponImpactVfxTests`.
 
 **Invariants**
 - **Camera space, not world space — this is why there is no `TrailRenderer`.** A `TrailRenderer` emits in

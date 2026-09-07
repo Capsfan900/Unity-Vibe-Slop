@@ -17,3 +17,13 @@ All audio in `Assets/Resources/Audio/` is **CC0 (public domain)** — no attribu
 | Click | UI Audio | Kenney | https://kenney.nl/assets/ui-audio |
 
 Everything else (fallbacks when a folder is empty) is synthesized at runtime in `Assets/Scripts/Feel/ProceduralSfx.cs`.
+
+**2026-09-06 weapon-audio pass.** `Sfx.SwingLight`, `Sfx.SwingHeavy`, `Sfx.HitLight`, `Sfx.HitHeavy` (the
+dagger's and hammer's own swing/hit voices — see `docs/ARCHITECTURE.md` "Audio") ship **synthesis-only, no
+new clip files**: no CC0 source was verified for a distinct light-puncture / heavy-crunch pair in the time
+available, and per the project's own rule a synthesized sound that can be tuned to the exact weight is the
+safer default over an unverified download. The sword keeps its existing real clips (`Swing`, `Hit` rows
+above). A future pass could source real CC0 replacements for the light/heavy pair — candidates are the
+unused remainder of qubodup's *Swishes Sound Pack* (light, thin whooshes) and a blunt/mace-impact CC0 pack
+for the heavy hit — but every file must be licence-verified on its own page before it lands here, per the
+table's existing discipline.

@@ -8,6 +8,9 @@ namespace VibeGame1
     public class WeaponController : MonoBehaviour
     {
         public WeaponData[] loadout;
+        /// <summary>LEGACY, unused since the hit confirm moved to <see cref="WeaponImpactFx"/>: the old
+        /// spark was a lit sphere that needed a material of its own. <c>PrefabFactory</c> still assigns
+        /// it, so the field stays until that assignment is retired in the same pass.</summary>
         public Material hitSparkMaterial;
 
         public int Index { get; private set; }
@@ -108,7 +111,7 @@ namespace VibeGame1
         IEnumerator SwingCo(WeaponData w, int combo)
         {
             if (viewmodel != null) viewmodel.PlayAttack(combo, w.attackDuration, w.hitDelay);
-            AudioManager.Play(Sfx.Swing, 0.7f, combo % 2 == 0 ? 1f : 1.15f);
+            AudioManager.Play(WeaponAudio.SwingSfx(w), 0.7f, combo % 2 == 0 ? 1f : 1.15f);
             yield return new WaitForSeconds(w.hitDelay);
             DoHit(w, combo);
             yield return new WaitForSeconds(Mathf.Max(0.01f, w.attackDuration - w.hitDelay));
@@ -137,30 +140,18 @@ namespace VibeGame1
                 Vector3 point = hits[i].ClosestPoint(center);
                 e.Health.TakeDamage(new DamageInfo { damage = dmg, postureDamage = w.postureDamage, point = point, direction = cam.forward, source = gameObject });
                 e.Posture.Add(w.postureDamage);
-                SpawnSpark(point, w.neon);
+                // Presentation only — every number, shape and colour lives in WeaponImpactFx, which
+                // draws it through the pooled, 1.0-normalised SlashFx primitives. The finisher flag is
+                // the SAME real state the audio below already pitches down for.
+                WeaponImpactFx.Hit(point, cam.forward, w, combo == w.comboLength - 1);
                 any = true;
             }
             if (any)
             {
                 TimeScaleController.I.HitStop(w.hitStopSeconds);
                 if (CameraShake.I) CameraShake.I.Small();
-                AudioManager.Play(Sfx.Hit, 0.9f, combo == w.comboLength - 1 ? 0.8f : 1f);
+                AudioManager.Play(WeaponAudio.HitSfx(w), 0.9f, combo == w.comboLength - 1 ? 0.8f : 1f);
             }
-        }
-
-        void SpawnSpark(Vector3 pos, Color color)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Destroy(go.GetComponent<Collider>());
-            go.transform.position = pos;
-            go.transform.localScale = Vector3.one * 0.35f;
-            var r = go.GetComponent<Renderer>();
-            if (hitSparkMaterial != null) r.sharedMaterial = hitSparkMaterial;
-            var mpb = new MaterialPropertyBlock();
-            mpb.SetColor("_EmissionColor", color * 4f);
-            mpb.SetColor("_BaseColor", color);
-            r.SetPropertyBlock(mpb);
-            go.AddComponent<Spark>();
         }
 
         public void CancelAttack()
@@ -171,17 +162,5 @@ namespace VibeGame1
             if (viewmodel != null && !(parry != null && parry.IsActive)) viewmodel.Interrupt();
         }
 
-        /// <summary>Tiny self-destructing hit spark.</summary>
-        class Spark : MonoBehaviour
-        {
-            float t;
-            void Update()
-            {
-                t += Time.unscaledDeltaTime;
-                float k = 1f - t / 0.22f;
-                transform.localScale = Vector3.one * (0.35f + (1f - k) * 0.5f) * Mathf.Max(0f, k);
-                if (t >= 0.22f) Destroy(gameObject);
-            }
-        }
     }
 }

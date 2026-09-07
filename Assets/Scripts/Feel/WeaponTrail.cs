@@ -6,9 +6,14 @@ namespace VibeGame1
     /// The swing arc, drawn as a ribbon behind the blade tip — and ONLY during the strike leg of the
     /// attack, so the trail doubles as the player's read on the active window.
     ///
-    /// <para><b>Why this exists.</b> The weapons are a short dagger family (0.27–0.32 m of blade above
-    /// the fist) and this project has no motion blur, so a 0.22 s arc is a dozen frames of a small object
+    /// <para><b>Why this exists.</b> The roster spans 0.32 m (needle) to 0.72 m (maul) of weapon above
+    /// the fist and this project has no motion blur, so a 0.22 s arc is a dozen frames of a small object
     /// moving fast and nothing smears. The trail is the standard device for making that arc legible.</para>
+    ///
+    /// <para><b>And it carries the weapon's WEIGHT.</b> Width and fade are bent around the authored
+    /// values by <see cref="WeaponImpactFx.Mass"/> — see the block of constants below. Before that the
+    /// maul and the needle drew the same 30 mm streak dying over the same 0.11 s, which made the one
+    /// channel guaranteed to be on screen at contact say nothing about what was in the hand.</para>
     ///
     /// <para><b>LOCAL SPACE, NOT WORLD SPACE — this is the whole reason there is no <c>TrailRenderer</c>
     /// here.</b> A <c>TrailRenderer</c> emits its points in world space, which is correct for a sword in
@@ -55,6 +60,49 @@ namespace VibeGame1
         [Tooltip("Peak HDR channel. Above the 1.05 bloom threshold so it glows; under ~1.25 where ACES " +
                  "desaturates saturated colour toward orange. NEVER raise toward the alert tell (3.00).")]
         public float brightness = 1.15f;
+
+        // ---------------------------------------------------------------- weight, in the ribbon
+        //
+        // THE RIBBON USED TO BE THE SAME RIBBON FOR EVERY WEAPON. headWidth and fadeSeconds are
+        // serialised once by PrefabFactory and the component never knew which weapon was swinging, so a
+        // 0.86 s maul and a 0.22 s needle drew an identical 30 mm streak that died in an identical
+        // 0.11 s. That is the one channel in the whole swing that is guaranteed to be on screen at the
+        // moment of contact, and it was saying nothing about the weapon in the hand.
+        //
+        // These are MULTIPLIERS on the authored values, not replacements: rule 9 keeps the shipped
+        // numbers in PrefabFactory, and the mass curve only bends them around it. Both curves are fitted
+        // so the SWORD — mass 0.34, the generalist everything else is compared against — lands within
+        // 0.5% of the values that shipped. The reference does not move; the two ends spread around it.
+        //
+        //   dagger  x0.60 -> 0.018 m,  0.088 s   a whip: gone inside its own 0.116 s follow-through
+        //   sword   x1.00 -> 0.030 m,  0.110 s   unchanged, deliberately
+        //   hammer  x1.76 -> 0.053 m,  0.152 s   a slab that hangs a beat, which IS the follow-through
+
+        /// <summary>Width multiplier at the light end of <see cref="WeaponImpactFx.Mass"/>.</summary>
+        public const float WidthScaleLight = 0.60f;
+        /// <summary>Width multiplier at the heavy end. Capped so the hammer's ribbon stays a blade edge
+        /// (~9% of screen height at the viewmodel's ~0.5 m) and never becomes a banner across the frame;
+        /// FeatureTests' Trail_WidthCapped guards the authored value, WeaponImpactVfxTests the product.</summary>
+        public const float WidthScaleHeavy = 1.76f;
+        /// <summary>Fade multiplier at the light end. The needle's whole post-strike leg is 0.116 s, so
+        /// the flat 0.11 s ribbon was still on screen as the next flick began; 0.088 s is honest.</summary>
+        public const float FadeScaleLight = 0.80f;
+        /// <summary>Fade multiplier at the heavy end. 0.152 s still dies inside the maul's 0.288 s
+        /// post-strike leg, so the ribbon never claims a hitbox that has closed.</summary>
+        public const float FadeScaleHeavy = 1.38f;
+
+        public static float WidthScale(float mass) =>
+            Mathf.Lerp(WidthScaleLight, WidthScaleHeavy, Mathf.Clamp01(mass));
+        public static float FadeScale(float mass) =>
+            Mathf.Lerp(FadeScaleLight, FadeScaleHeavy, Mathf.Clamp01(mass));
+
+        float widthScale = 1f;
+        float fadeScale = 1f;
+
+        /// <summary>Head width actually drawn this swing — the authored width times the mass curve.</summary>
+        public float CurrentHeadWidth { get { return headWidth * widthScale; } }
+        /// <summary>Fade actually used this swing.</summary>
+        public float CurrentFadeSeconds { get { return Mathf.Max(0.01f, fadeSeconds * fadeScale); } }
 
         WeaponViewmodel viewmodel;
         LineRenderer line;
@@ -115,7 +163,18 @@ namespace VibeGame1
         {
             hue = w != null ? SlashFx.NormaliseColor(w.neon) : Color.white;
             hueSet = w != null;
+            ApplyMass(w);
             Clear();
+        }
+
+        /// <summary>Bend the authored width and fade around the equipped weapon's mass. One source of
+        /// truth for "how heavy is this thing": <see cref="WeaponImpactFx.Mass"/>, derived from the
+        /// shipped attackDuration ladder, so the ribbon and the impact can never disagree.</summary>
+        void ApplyMass(WeaponData w)
+        {
+            float m = WeaponImpactFx.Mass(w);
+            widthScale = WidthScale(m);
+            fadeScale = FadeScale(m);
         }
 
         /// <summary>
@@ -130,7 +189,12 @@ namespace VibeGame1
             if (!hueSet)
             {
                 var wc = GetComponentInParent<WeaponController>();
-                if (wc != null && wc.Current != null) { hue = SlashFx.NormaliseColor(wc.Current.neon); hueSet = true; }
+                if (wc != null && wc.Current != null)
+                {
+                    hue = SlashFx.NormaliseColor(wc.Current.neon);
+                    hueSet = true;
+                    ApplyMass(wc.Current);
+                }
             }
             Clear();
             emitting = true;
@@ -173,7 +237,7 @@ namespace VibeGame1
             if (emitting) { Sample(); peak = count; }
             else if (fade > 0f)
             {
-                fade -= Time.unscaledDeltaTime / Mathf.Max(0.01f, fadeSeconds);
+                fade -= Time.unscaledDeltaTime / CurrentFadeSeconds;
                 // RETRACT FROM THE TAIL, the way a real trail dies: the oldest end catches up to where
                 // the blade left off instead of the whole ribbon dimming in place. A ribbon that only
                 // dims stays the same length for its whole dissolve and sits over the fight for an
@@ -216,7 +280,7 @@ namespace VibeGame1
         {
             if (line.positionCount != count) line.positionCount = count;
             for (int i = 0; i < count; i++) line.SetPosition(i, points[i]);
-            line.widthMultiplier = headWidth * Mathf.Clamp01(fade);
+            line.widthMultiplier = CurrentHeadWidth * Mathf.Clamp01(fade);
 
             // Square the fade: the last third of the dissolve is nearly gone, which is what stops a
             // dying trail from sitting on the enemy for an extra beat. Matches SlashFx.

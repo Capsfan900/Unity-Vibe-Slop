@@ -442,6 +442,69 @@ as a ghost rather than as a white pill, that four wisps at 0.10 are visible at a
 that the hem waves rather than wobbles, and that a 3.6 m aura at 1.45 still reads at 30 m — all
 **reasoned from arithmetic, not seen**. The budget is the honest part; the look needs one human playtest.
 
+### 3.10 The melee hit confirm was the loudest thing in the game, and the weapon had no body ✅ 2026-09-06
+
+**Finding, this audit (the weapon-look lane of the weapon rework).** Three faults, all of them in the one
+effect the player sees more than any other.
+
+- **The hit confirm skipped `SlashFx` entirely and out-shouted every alarm.** `WeaponController.SpawnSpark`
+  built a fresh `GameObject.CreatePrimitive(Sphere)` per hit — unpooled, a collider created and destroyed,
+  a new `MaterialPropertyBlock` and a new component every time — and drew it at `WeaponData.neon * 4`.
+  The hammer's hue peaks at 0.878, so **a routine chip hit rendered at 3.51**: above the unblockable alert
+  tell (3.00), above the deathblow mark (2.60), and above `EnemyVisuals.ParryGlow` (3.20), the deflect body
+  flash that is supposed to be the loudest moment in the game. Every other impact in the project goes
+  through `SlashFx`, which normalises to exactly 1.0 — including the deflect's *own* flare and sparks — so
+  the single effect that bypassed it was also the brightest, and the loudness hierarchy carried no
+  information. It broke all three of `SlashFx`'s stated rules in one object: it read through BRIGHTNESS,
+  it EXPANDED as a blob (0.35 → 0.85 m round sphere), and it carried no DIRECTION.
+  **Shipped:** `Assets/Scripts/Feel/WeaponImpactFx.cs`. Flare + a spark fan thrown back out of the wound
+  (the same rule `PlayerCombat.SparkAt` uses for a blow landing on you) + a shockwave ring **for the maul
+  alone** — Sekiro's own split is the precedent, sparks for a block, sparks *and* a shockwave for the big
+  one. Peak **1.0**, by construction rather than by constant. A hit you must REACT to blooms; a hit you
+  LANDED does not.
+- **Nothing about the impact knew which weapon threw it.** One 0.35 m sphere for a 0.22 s needle and a
+  0.86 s maul. Every size, count, speed and spread now comes off `WeaponImpactFx.Mass(w)` =
+  `InverseLerp(0.22, 0.86, attackDuration)` — derived from the shipped ladder, **not** a new data field,
+  so a retuned weapon retunes its impact and the two can never disagree. The debris deliberately gets
+  SLOWER as the weapon gets heavier (9 → 6 m/s): `SlashFx` pulls sparks at −16 m/s², so slow debris falls
+  in a visibly heavier arc. Do not "fix" that inversion.
+- **The swing ribbon was the same ribbon for every weapon.** `headWidth` 0.030 m and `fadeSeconds` 0.11 are
+  serialised once by `PrefabFactory` and `WeaponTrail` never knew what was swinging — so the one channel
+  guaranteed to be on screen at the moment of contact said nothing about the weapon in the hand. The mass
+  curve now multiplies the authored values (rule 9: the numbers stay in the factory) and is fitted so the
+  **sword lands within 0.5% of what shipped**: dagger 0.018 m / 0.088 s, sword 0.030 / 0.110, hammer
+  0.053 / 0.152. The dagger's fade is the truthfulness fix in that row — its whole post-strike leg is
+  0.116 s, so a flat 0.11 s ribbon was still on screen as the next flick began.
+- **The weapon's MASS was darker than the glove holding it.** `M_WeaponCore` — guard, quillons, grip,
+  pommel, the maul's head, cheeks and spike, i.e. exactly the parts that make an archetype read in
+  silhouette — shipped at `#08070C`, **0.0025 linear luminance**. That is the last survivor of the mistake
+  this document already records twice (`M_Ground` "darker than any real material", `M_Enemy` "a flat black
+  cutout"), and it had two consequences: the mass parts were darker than the 0.013–0.082 world they are
+  silhouetted against, so the weapon read as its emissive segments floating with no object holding them;
+  and it sat **3.6x below `M_Gauntlet`** (0.0091), inverting the hierarchy `MaterialFactory` states in its
+  own comments ("the hands sit at the bottom … below the weapon"). Now a cold gunmetal `#2B313C` at
+  0.0313 — 3.4x the glove, just under `M_Stone` — with smoothness 0.45, because on a backlit course a
+  specular highlight is the only channel a non-emissive surface has to say "metal, and curved". Nothing
+  emits: the hot channel on a weapon belongs to the blade and the Pyre embers.
+
+**What this pass could not check, stated plainly.** Nobody looked at the screen. That 0.42 m of flare
+reads as a maul hit at 2.5 m, that an 18 mm dagger ribbon is still visible, and that a 0.031-albedo hilt
+separates from a 0.016-albedo wall are **reasoned from arithmetic, not seen**. Pinned by
+`Assets/Editor/Tests/WeaponImpactVfxTests.cs` (11 assertions across peak, ladder, shockwave gating,
+ribbon weight and the albedo hierarchy).
+
+**Still open in this lane, and both need another owner's file:**
+
+1. **The Sunbreaker is AMBER, and amber is the bolt.** `Hammer.neon` (0.878, 0.400, 0.102) and its
+   `Energise` tint sit ~5° of hue from `Projectile.HotCore` (1.6, 0.95, 0.38). The trail draws that hue at
+   1.15 across the frame on every strike, so a maul swing paints the screen the colour the player is
+   trained to read as "deflect this". Rule 10 licenses warm for fire, and a Pyre weapon has a claim — but
+   the collision is with the one object that can kill you at 32 m/s. Needs `DataFactory` (`neon`) and
+   `PrefabFactory` (`Energise`), which this lane does not own.
+2. **Every non-blade part of every weapon shares ONE material.** Head, guard, grip and pommel are all
+   `M_WeaponCore`, so there is no value break between the steel and the leather — the head reads as an
+   extension of the haft. `MaterialFactory` can add the key; only `PrefabFactory` can assign it.
+
 ---
 
 ## 4. Standing rules for this project's effects

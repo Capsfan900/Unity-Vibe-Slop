@@ -44,7 +44,13 @@ namespace VibeGame1
             { Sfx.Thunder, 1f }, { Sfx.ItemPickup, 0.6f }, { Sfx.ItemUse, 0.7f },
             { Sfx.Teleport, 0.7f },
             // 2026-09-06 audio pass additions, all under Sfx.ParryCue's 0.75:
-            { Sfx.Refuse, 0.5f }, { Sfx.Detonate, 0.7f }, { Sfx.Tension, 0.35f }, { Sfx.Spill, 0.55f }
+            { Sfx.Refuse, 0.5f }, { Sfx.Detonate, 0.7f }, { Sfx.Tension, 0.35f }, { Sfx.Spill, 0.55f },
+            // 2026-09-06 weapon-audio pass: light/heavy swing+hit variants, mixed alongside their
+            // Sfx.Swing (0.45) / Sfx.Hit (0.8) siblings rather than under ParryCue's stricter line --
+            // like Hit, Stagger (0.8) and PostureBreak (0.9) before them, a connecting weapon blow is a
+            // discrete consequence event, not a background layer, and the two rarely land in the same
+            // instant as the enemy telegraph they would need to mask.
+            { Sfx.SwingLight, 0.45f }, { Sfx.SwingHeavy, 0.55f }, { Sfx.HitLight, 0.75f }, { Sfx.HitHeavy, 0.85f }
         };
 
         /// <summary>The configured mix level for <paramref name="s"/>, or the PlayInternal default if

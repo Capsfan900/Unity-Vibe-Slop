@@ -1150,6 +1150,22 @@ now layers `Sfx.Spill` on top of the ordinary `Sfx.Hurt` (`FlaskAbility.Interrup
 reads as more than an ordinary hit. All four are synthesized only (`ProceduralSfx.cs`) — no new clip
 files — and mixed under `Sfx.ParryCue`'s trim.
 
+**2026-09-06 weapon-audio pass — the roster shared one swing and one hit.** Every weapon's `WeaponController`
+call played the exact same `Sfx.Swing` / `Sfx.Hit` regardless of which was equipped, so a dagger and a
+hammer connected with an identical sound — "if a weapon sounds weak, do not just turn it up" applied in
+reverse: nothing was missing from any one sound, the roster was missing three separate voices. `WeaponAudio`
+(`Feel/WeaponAudio.cs`) is a pure function of `WeaponData.hitStopSeconds` — the field that already encodes
+how much force a weapon commits (Dagger 0.03, Sword 0.06, Hammer 0.11) — into a light / mid / heavy band,
+so any future weapon gets weight-appropriate audio from its own data with no new per-weapon code. The sword
+keeps the original `Sfx.Swing` / `Sfx.Hit` (real CC0 clips, see `CREDITS.md`) as the mid-weight default; the
+dagger gets `Sfx.SwingLight` / `Sfx.HitLight` (thin, dry, no sub-bass — a puncture, not a crunch) and the
+hammer gets `Sfx.SwingHeavy` / `Sfx.HitHeavy` (a strained mechanical creak fires *ahead of* the wind, before
+the swing even lands, plus real sub-bass and a rumbling tail). All four are synthesis-only — no new clip
+files, mixed alongside their `Swing`/`Hit` siblings rather than under `ParryCue`'s stricter line, matching
+the precedent `Sfx.Hit` (0.8) and `Sfx.Stagger` (0.8) already set. `WeaponController.SwingCo` / `.DoHit` now
+call `WeaponAudio.SwingSfx(w)` / `.HitSfx(w)` in place of the hardcoded enum values — the only two lines
+touched outside `Feel/`. See `Assets/Editor/Tests/WeaponAudioTests.cs`.
+
 ---
 
 ## Input
