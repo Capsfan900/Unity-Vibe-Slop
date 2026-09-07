@@ -10,6 +10,14 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Latest run — 2026-09-07, after the package removal and the stripping change
+
+| Suite | Result | Notes |
+|---|---|---|
+| `FeatureTests`, play mode | **777 / 777 pass, 0 failed, 0 skipped** (60.7 s) | **Re-run this session**, closing the last inherited claim. Taken with **both** `GameManager.I != null` **and** `Time.timeScale == 1` asserted in the same call that started it (`warm=True timeScale=1 playing=True scene=Level_01`). Confirms that removing six packages and raising managed stripping to `High` regressed nothing behavioural. |
+| EditMode, full | 722 / 722 | 2026-09-07, earlier the same day, also after the package removal. |
+| `VibeGame1/Health Check` | 0 errors, 1748 known warnings | 2026-09-07, earlier the same day. |
+
 ### Builds — 2026-09-07, both targets now proven
 
 Neither suite runs the built player, so a build is only ever proven by producing it and launching it.

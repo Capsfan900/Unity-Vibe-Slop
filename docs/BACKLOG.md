@@ -265,6 +265,38 @@ this is **open, not hidden**: run `DeathblowFraming` against each `Legendary_*` 
 now names the offending renderer) and either move the stagger pose, the stand-off, or the mark height per
 body in `MiniBossFactory`.
 
+**Measured 2026-09-07, and it rules out the two obvious suspects.** All seven `Legendary_*` prefabs were
+probed at rest, in the editor with no play mode, with the eye at 1.6 m and the standoff the test actually
+uses (`Min(stabStandoff * scale, range)` = 2.20 m at x1, 3.50 m at x2.2). **Nothing is inside the camera and
+nothing is even close to the 0.5 m framing floor:**
+
+| Body | nearest at x1.0 | nearest at x2.2 | nearest renderer |
+|---|---|---|---|
+| Halberdier | 1.13 m | **1.15 m** (tightest of the set) | `EnemyMesh` |
+| Revenant | 1.36 | 1.64 | `EnemyMesh` |
+| Spellsword | 1.55 | 2.06 | `EnemyMesh` |
+| Knight / Drillmaster | 1.58 | 2.15 | `EnemyMesh` |
+| **Ninja** | **1.86** | **2.75** | **`Body`** |
+| Marionette | 1.98 | 3.01 | `EnemyMesh` |
+
+So the reported `nearest=0.00 m, cameraInsideBody=True` is **not resting geometry, and the Ninja is the
+second-roomiest body of the seven**. The stagger pose is not the cause either: `EnemyVisuals.StaggerEuler`
+is `-13 deg` and `StaggerSag` is `-0.14` in z — it leans the body BACK, away from the lens, which is the fix
+that already landed. Whatever fails is therefore **live-only**. The leading candidate is that
+`DeathblowFraming` computes its stand point from `dummy.transform.position` and only then waits 0.35 s
+realtime for the pose to settle, so a body still closing distance during that wait ends up nearer than the
+standoff it was measured for. Note also that the Ninja is the only one of the seven whose nearest renderer
+is a primitive `Body` rather than a forge `EnemyMesh`, so it is built down a different path.
+
+**Next step is a live repro, and it needs a deliberate spawn:** `Level_01` now has **zero** enemies in play
+mode (the parkour pivot removed the filler spawns), so the failure cannot be reproduced by entering play
+mode on the shipped level. Spawn a `Legendary_Ninja` in the sandbox, break its posture, and read the
+`Deathblow_StaggerPoseClearsNearPlane_*` failure message — it names the offending renderer.
+
+**Correction to the line above:** `markHeight = 1.28` is the **Drillmaster's** spec, not the Ninja's, and
+only five of the seven bodies carry an explicit `markHeight` in `MiniBossFactory` (the rest fall back to the
+`1.45` default at line 180). Confirm which body owns which value before moving any of them.
+
 ## 6. Smaller open questions
 
 - **A rear watch region on the Legendaries — PARKED by the user, 2026-09-06:** *"save that for later, the
