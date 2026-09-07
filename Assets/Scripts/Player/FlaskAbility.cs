@@ -76,6 +76,10 @@ namespace VibeGame1
             if (!IsDrinking) return;
             interrupted = true;
             if (viewmodel != null) viewmodel.Interrupt();
+            // 2026-09-06 audio pass: PlayerCombat plays Sfx.Hurt for the hit that caused this regardless of
+            // whether a drink was in progress, so a punished heal sounded exactly like an ordinary hit --
+            // the charge you just lost had no sound of its own. Layers on top of, never instead of, Hurt.
+            AudioManager.Play(Sfx.Spill, 0.7f, 1.1f, 0.04f);
         }
     }
 }

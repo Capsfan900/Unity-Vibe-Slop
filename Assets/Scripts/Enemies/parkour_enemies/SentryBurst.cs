@@ -120,7 +120,11 @@ namespace VibeGame1
             SlashFx.Flare(chest, BurstHue, BurstFlareSize, BurstFlareSeconds);
             SlashFx.Ring(chest, Vector3.up, BurstHue, BurstRingRadius, BurstRingSeconds);
             SlashFx.Sparks(chest, Vector3.up, BurstHue, BurstSparkCount, BurstSparkSpeed, BurstSparkSpread);
-            AudioManager.Play(Sfx.Thunder, 0.6f, 1.5f, 0.05f);
+            // Sfx.Detonate, not Sfx.Thunder (2026-09-06 audio pass): Thunder is the Stormbreak item and
+            // must stay the loudest thing in the game. A sentry can detonate several times a level; reusing
+            // the ultimate's sound here would burn out its impact the first time it happens near a player
+            // who has not even earned Stormbreak yet.
+            AudioManager.Play(Sfx.Detonate, 0.85f, 1.1f, 0.05f);
             if (CameraShake.I != null) CameraShake.I.Small();
 
             // Forced on a living body (tests, the harness): through the ordinary death path so souls, the kill

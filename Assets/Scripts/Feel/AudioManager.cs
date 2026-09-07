@@ -22,15 +22,39 @@ namespace VibeGame1
         const int PoolSize = 12;
 
         readonly Dictionary<Sfx, AudioClip[]> library = new Dictionary<Sfx, AudioClip[]>();
-        readonly Dictionary<Sfx, float> trim = new Dictionary<Sfx, float>
+
+        /// <summary>
+        /// The mix table. EXHAUSTIVE over every Sfx except Drone (which is never played through the pool --
+        /// it is only ever the raw ambient-bed fallback clip): rule 9 applied to audio. A value missing here
+        /// silently took the 0.7 PlayInternal default, which is how Sfx.Teleport shipped un-mixed (found in
+        /// the 2026-09-06 audio pass). AudioTests.TrimTableIsExhaustive pins that this can't happen again.
+        ///
+        /// <para><b>Headroom discipline:</b> Sfx.ParryCue at 0.75 is the single most important sound in the
+        /// game (fires 0.28 s before every impact) and nothing new added here may sit at or above it. The
+        /// four 2026-09-06 additions (Refuse, Detonate, Tension, Spill) are all held under that line —
+        /// Tension in particular is a passive notification and must be the quietest thing in the table.</para>
+        /// </summary>
+        static readonly Dictionary<Sfx, float> trim = new Dictionary<Sfx, float>
         {
             { Sfx.Tick, 0.55f }, { Sfx.Swing, 0.45f }, { Sfx.Dash, 0.5f }, { Sfx.Jump, 0.4f }, { Sfx.Click, 0.35f },
             { Sfx.Souls, 0.5f }, { Sfx.Roar, 0.9f }, { Sfx.Parry, 0.9f }, { Sfx.Hit, 0.8f }, { Sfx.Checkpoint, 0.6f },
             { Sfx.Death, 0.8f }, { Sfx.Heal, 0.7f }, { Sfx.Stagger, 0.8f }, { Sfx.Hurt, 0.9f }, { Sfx.Execute, 1f },
             { Sfx.Ultimate, 0.9f }, { Sfx.Block, 0.8f },
             { Sfx.ParryCue, 0.75f }, { Sfx.Footstep, 0.3f }, { Sfx.Land, 0.5f }, { Sfx.PostureBreak, 0.9f },
-            { Sfx.Thunder, 1f }, { Sfx.ItemPickup, 0.6f }, { Sfx.ItemUse, 0.7f }
+            { Sfx.Thunder, 1f }, { Sfx.ItemPickup, 0.6f }, { Sfx.ItemUse, 0.7f },
+            { Sfx.Teleport, 0.7f },
+            // 2026-09-06 audio pass additions, all under Sfx.ParryCue's 0.75:
+            { Sfx.Refuse, 0.5f }, { Sfx.Detonate, 0.7f }, { Sfx.Tension, 0.35f }, { Sfx.Spill, 0.55f }
         };
+
+        /// <summary>The configured mix level for <paramref name="s"/>, or the PlayInternal default if
+        /// (deliberately never) unset. Public so AudioTests can pin the table's shape without a scene.</summary>
+        public static float Trim(Sfx s) => trim.TryGetValue(s, out var t) ? t : 0.7f;
+
+        /// <summary>True only if <paramref name="s"/> has a deliberately authored row in the mix table --
+        /// as opposed to <see cref="Trim"/>'s 0.7 fallback, which cannot tell "authored at 0.7" apart from
+        /// "never set". AudioTests uses this to pin that the table stays exhaustive.</summary>
+        public static bool HasExplicitTrim(Sfx s) => trim.ContainsKey(s);
 
         AudioSource[] pool;
         int next;

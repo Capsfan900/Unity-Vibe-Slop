@@ -92,6 +92,7 @@ namespace VibeGame1
             ItemsChanged = null; ItemPickedUp = null; ItemUsed = null; RiposteLanded = null;
             StaminaChanged = null;
             StaminaRefused = null;
+            PromptFlash = null;
         }
     }
 }

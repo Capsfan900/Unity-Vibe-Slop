@@ -89,6 +89,9 @@ namespace VibeGame1
 
         void OnEnable()
         {
+            // Not gated on motor: a refused input still deserves a sound even if this component somehow
+            // has no motor to read (defensive; should never happen on the Player prefab).
+            GameEvents.StaminaRefused += OnStaminaRefused;
             if (motor == null) return;
             motor.OnJumped += OnJumped;
             motor.OnLanded += OnLanded;
@@ -104,6 +107,7 @@ namespace VibeGame1
 
         void OnDisable()
         {
+            GameEvents.StaminaRefused -= OnStaminaRefused;
             if (motor == null) return;
             motor.OnJumped -= OnJumped;
             motor.OnLanded -= OnLanded;
@@ -261,6 +265,22 @@ namespace VibeGame1
         }
 
         /// <summary>
+        /// A dash, wall run, wall jump or slide refused for lack of stamina (2026-09-06, audio pass).
+        /// <see cref="FirstPersonMotor.TrySlide"/> and its siblings already name the refusal on
+        /// <c>GameEvents.StaminaRefused</c> and <c>StaminaView</c> already flashes the bar red for it --
+        /// but nothing played a sound, so the press read as dropped input rather than denied. A small
+        /// pitch step per action keeps them tellable apart without adding a new mechanic.
+        /// </summary>
+        void OnStaminaRefused(StaminaAction what)
+        {
+            float pitch = what == StaminaAction.Slide ? 0.8f
+                        : what == StaminaAction.WallJump ? 0.85f
+                        : what == StaminaAction.WallRun ? 0.9f
+                        : 1f;   // Dash
+            AudioManager.Play(Sfx.Refuse, 0.7f, pitch, 0.03f);
+        }
+
+        /// <summary>
         /// Build the two effect objects on first use. Not in Awake, because both want values off
         /// <c>GameManager.I.feel</c> (rule 9 — the asset is the shipped value, not the field
         /// initialiser) and the manager is not guaranteed to exist that early. Not on the prefab either:
@@ -387,12 +407,12 @@ namespace VibeGame1
             AudioManager.Play(Sfx.ParryCue, 0.55f, 1.5f, 0.02f);
             AudioManager.Play(Sfx.Swing, 0.28f, 1.9f, 0.04f);
             if (CameraFX.I != null) CameraFX.I.FovKick(feel != null ? feel.perfectFovKick : 3f);
-            float hold = feel != null ? feel.perfectPromptSeconds : 0.6f;
-            GameEvents.RaisePromptFlash("PERFECT", 0.9f);   // a flash, so it hands the standing cue back (2026-09-06)
-            perfectPromptUntil = Time.unscaledTime + hold;
+            // A FLASH, not a standing prompt: PromptView draws it over whatever cue is standing and hands
+            // that cue back when it expires. It used to be raised on the standing channel and cleared with an
+            // empty string 0.6 s later, which wiped any live "GRAPPLE [DASH]" or "SURGE" for good, because
+            // every standing writer is edge-triggered and never re-raises the same string (2026-09-06).
+            GameEvents.RaisePromptFlash("PERFECT", feel != null ? feel.perfectPromptSeconds : 0.6f);
         }
-
-        float perfectPromptUntil = -1f;
 
         /// <summary>The jump sound, pitched up and harder: it must read as a DIFFERENT jump, or a player
         /// cannot tell a wall jump fired from a jump that silently did not.</summary>
@@ -407,14 +427,6 @@ namespace VibeGame1
         void Update()
         {
             float udt = Time.unscaledDeltaTime;
-
-            // The PERFECT stamp clears itself. Only the prompt line's most recent owner sees its text, so
-            // a surge countdown that re-raises every second simply takes the line back.
-            if (perfectPromptUntil > 0f && Time.unscaledTime >= perfectPromptUntil)
-            {
-                perfectPromptUntil = -1f;
-                GameEvents.RaisePromptChanged("");
-            }
 
             // footsteps by distance travelled, so they stay in step with actual speed
             if (motor != null && motor.IsGrounded && GameManager.IsPlaying)

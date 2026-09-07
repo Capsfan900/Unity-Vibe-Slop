@@ -8,7 +8,10 @@ namespace VibeGame1
         // Appended (never reorder — folder names under Resources/Audio/Sfx/ follow these names)
         ParryCue, Footstep, Land, PostureBreak,
         Thunder, ItemPickup, ItemUse,
-        Teleport
+        Teleport,
+        // Appended 2026-09-06 (audio pass): four systems built the last two days shipped with no sound
+        // at all. See AudioManager's trim table for why each sits where it does in the mix.
+        Refuse, Detonate, Tension, Spill
     }
 
     /// <summary>
@@ -50,6 +53,10 @@ namespace VibeGame1
                 case Sfx.ItemPickup: return ItemPickupChime();
                 case Sfx.ItemUse: return ItemUseSwell();
                 case Sfx.Teleport: return Teleport();
+                case Sfx.Refuse: return Refuse();
+                case Sfx.Detonate: return Detonate();
+                case Sfx.Tension: return Tension();
+                case Sfx.Spill: return Spill();
             }
             return Click();
         }
@@ -574,6 +581,104 @@ namespace VibeGame1
                 d[i] = SoftClip((tone + air) * env * 1.4f);
             }
             return Make(name, d, 0.75f);
+        }
+
+        /// <summary>
+        /// A stamina action DENIED (2026-09-06, audio pass): dash, wall run, wall jump and now the slide
+        /// all refuse silently at the code level and only flash the HUD (GameEvents.StaminaRefused). A
+        /// refused input with no sound reads as a dropped one. Deliberately dull and LOW -- a mechanism
+        /// trying to engage and failing -- so it never competes with ParryCue's bright 1600 Hz band; the
+        /// two must never be mistaken for each other under stress.
+        /// </summary>
+        static AudioClip Refuse()
+        {
+            const string name = "Refuse";
+            var d = Buffer(0.14f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float clunk = Mathf.Sin(TwoPi * 95f * t) * Env(t, 0.001f, 0.03f) * 0.9f;
+                float rattle = noise.Next(Mathf.Lerp(700f, 180f, Mathf.Clamp01(t / 0.1f))) * Env(t, 0.001f, 0.05f) * 1.3f;
+                d[i] = SoftClip(clunk + rattle);
+            }
+            return Make(name, d, 0.55f);
+        }
+
+        static readonly float[] DetonateRatios = { 1f, 1.5f, 2.0f, 2.83f };
+        static readonly float[] DetonateAmps = { 1f, 0.55f, 0.4f, 0.22f };
+
+        /// <summary>
+        /// A parkour sentry detonating (2026-09-06): a REWARD, not the storm. It shares no material with
+        /// Sfx.Thunder on purpose -- Thunder is the Stormbreak item and must stay the loudest thing in the
+        /// game; reusing it here for a routine posture break/kill would happen many times a level and burn
+        /// out its impact. Bright and magical (rising tone + a burst), matching the violet-white VFX hue
+        /// rather than Thunder's dark boom.
+        /// </summary>
+        static AudioClip Detonate()
+        {
+            const string name = "Detonate";
+            const float dur = 0.55f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            float phase = 0f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float f = Mathf.Lerp(220f, 60f, k * k);
+                phase += TwoPi * f / Rate;
+                float body = Partials(t, 340f, DetonateRatios, DetonateAmps, 0.16f, 0.9f) * Env(t, 0.002f, 0.2f);
+                float sub = Mathf.Sin(phase) * Env(t, 0.004f, 0.3f) * 0.6f;
+                float shimmer = t < 0.04f ? noise.Next(8000f) * (1f - t / 0.04f) * 1.6f : 0f;
+                d[i] = SoftClip(body * 1.2f + sub + shimmer);
+            }
+            return Make(name, d, 0.85f);
+        }
+
+        /// <summary>
+        /// The near-break "one more deflect" read, made audible (2026-09-06): a single dry creak fired
+        /// the instant an enemy's posture crosses EnemyPostureBar.NearBreakRatio, not a repeating
+        /// heartbeat -- a beat that fired every ~0.22 s per near-break enemy would spam the one-shot pool
+        /// in any fight with more than one target near the edge. Quiet and short on purpose: it is a
+        /// notification, and it must never compete with ParryCue.
+        /// </summary>
+        static AudioClip Tension()
+        {
+            const string name = "Tension";
+            var d = Buffer(0.09f);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float creak = Mathf.Sin(TwoPi * Mathf.Lerp(2200f, 1500f, t / 0.09f) * t) * Env(t, 0.001f, 0.03f) * 0.6f;
+                float grit = noise.Next(3000f) * Env(t, 0.0005f, 0.02f) * 0.8f;
+                d[i] = SoftClip(creak + grit);
+            }
+            return Make(name, d, 0.45f);
+        }
+
+        /// <summary>
+        /// A flask charge lost to a punish (2026-09-06): Interrupt() fires this ALONGSIDE the ordinary
+        /// Sfx.Hurt PlayerCombat already plays for the hit that caused it, so a punished heal reads as
+        /// "I got hit AND I wasted the charge" instead of an ordinary hit. A short liquid spill (a falling
+        /// tone plus a splash of noise), not a repeat of Hurt's thump.
+        /// </summary>
+        static AudioClip Spill()
+        {
+            const string name = "Spill";
+            const float dur = 0.32f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(Seed(name));
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float k = t / dur;
+                float glug = Mathf.Sin(TwoPi * Mathf.Lerp(500f, 140f, k) * t) * Env(t, 0.005f, 0.14f) * 0.7f;
+                float splash = noise.Next(Mathf.Lerp(3400f, 900f, k)) * Env(t, 0.01f, 0.2f) * 1.6f;
+                d[i] = SoftClip(glug + splash);
+            }
+            return Make(name, d, 0.6f);
         }
 
         // ------------------------------------------------------------------ ambient loop

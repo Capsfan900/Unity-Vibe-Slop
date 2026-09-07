@@ -46,6 +46,7 @@ namespace VibeGame1
         float shown;          // smoothed fill
         float flash;          // 0..1 white flash on break
         bool visible = true;
+        bool wasNearBreak;     // 2026-09-06 audio pass: edge-detects the near-break threshold below
 
         void Awake()
         {
@@ -110,12 +111,19 @@ namespace VibeGame1
             // NEAR-BREAK (2026-09-06, Sekiro's orange flash): from 80% the fill beats toward white,
             // harder the closer it is. "One more deflect" has to be readable before the break, or the
             // break is a surprise rather than a payoff you were chasing.
-            if (!broken && shown >= NearBreakRatio)
+            bool isNearBreak = !broken && shown >= NearBreakRatio;
+            if (isNearBreak)
             {
                 float k = BarView.NearBreakStrength(shown, NearBreakRatio);   // the ONE formula, shared with the HUD bars
                 float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * NearBreakHz * Mathf.PI * 2f);
                 c = Color.Lerp(c, Color.white, 0.55f * k * beat);
             }
+            // AUDIO (2026-09-06 pass): the beat above was pure visual until now, so a player not looking at
+            // this exact enemy's health bar got no warning at all that it was one hit from breaking. Fires
+            // ONCE on the rising edge, not every beat cycle -- a repeating tick per near-break enemy would
+            // spam the shared one-shot pool the moment two of them crossed the line in the same fight.
+            if (isNearBreak && !wasNearBreak) AudioManager.Play(Sfx.Tension, 0.8f, 1f, 0.04f);
+            wasNearBreak = isNearBreak;
             c = Color.Lerp(c, Color.white, flash);
             Tint(fillRenderer, c, broken ? 6f : 3f);
 
