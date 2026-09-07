@@ -1,0 +1,101 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Legendary_FlurryBrawler
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
+  displayName: THE FLURRY BRAWLER
+  maxHP: 190
+  maxPosture: 160
+  postureRegen: 6
+  postureRegenDelay: 3
+  staggerSeconds: 4
+  moveSpeed: 5.2
+  turnSpeed: 340
+  aggroRange: 16
+  attackRange: 1.9
+  attackCooldown: 0.25
+  parryRecoilSeconds: 0.28
+  aggression: 0.8
+  flaskPunishChance: 0.7
+  windupTurnMultiplier: 0.3
+  stepSpeedMultiplier: 0.6
+  stepAcceleration: 8
+  stepDeadzone: 0.9
+  comboBreathSeconds: 0.35
+  readyDistanceMultiplier: 1.5
+  preferredRange: 2
+  commitTolerance: 0.3
+  repositionDeadzone: 0.4
+  backStepSpeedMultiplier: 0.35
+  strafeSpeedMultiplier: 0.45
+  lungeMinDistance: 0.9
+  shootsProjectiles: 0
+  rangedOnly: 0
+  projectileAttack: {fileID: 0}
+  projectileInterval: 1.6
+  projectileSpeed: 32
+  projectileMinRange: 10
+  projectileMaxRange: 30
+  projectileLead: 0.8
+  projectileHomingDegPerSec: 0
+  parriedProjectileDamage: 30
+  parriedProjectilePosture: 40
+  parrySpeedGain: 6
+  parrySurgeStep: 0
+  parrySurgeMaxStacks: 0
+  parrySurgeSeconds: 1.5
+  soulValue: 480
+  bodyColor: {r: 0.94509804, g: 0.92941177, b: 0.89411765, a: 1}
+  emission: {r: 1.3560785, g: 1.9, b: 0.44705883, a: 1.9}
+  scale: 1
+  moveset: {fileID: 11400000, guid: 79a8c5fb3d2f6164da5ee388f7bc0406, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+    - {fileID: 11400000, guid: 091649f9ed2f86d47962e73130b4fa27, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 6641020dade2b2f47970f1161bafbde6, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+    - {fileID: 11400000, guid: 6641020dade2b2f47970f1161bafbde6, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 47068fd468519ae43b8018a21cb4d7fe, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 47068fd468519ae43b8018a21cb4d7fe, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: eae91ea0effd36b4db1351ffc1c0cbc1, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+    - {fileID: 11400000, guid: eae91ea0effd36b4db1351ffc1c0cbc1, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 6baab504a7926c34a8dece731ebfe9d8, type: 2}
+    - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+    - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 6baab504a7926c34a8dece731ebfe9d8, type: 2}
+    - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 6baab504a7926c34a8dece731ebfe9d8, type: 2}

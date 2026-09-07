@@ -454,6 +454,49 @@ is the anti-turtle: the one unblockable, so simply holding guard is never a comp
 at 0.62. It does **not** hold the Marionette's beat identity, and that is deliberate — a visible stumble
 after a deflect is the reward here, not a metronome that must not drift.
 
+### The Flurry Brawler — the volume prototype (2026-09-07)
+
+`Legendary_FlurryBrawler`. **A prototype and a sandbox exhibit**, like the other three: a pad at
+x −22 / z −26 (the west end of the second row), a wake switch (`FLURRY BRAWLER`), and in no
+`LevelDefinition` and no `LevelRegistry`. The fourth forge body (`Assets/Enemies/FlurryBrawler.fbx`,
+24 clips), and the first UNARMED one.
+
+**Its job in one sentence:** an unarmed brawler that fights in VOLUME — four-beat strings thrown at a
+0.73 s beat, whose only openings are the breath between phrases and the end of the flurry.
+
+**It does not duplicate a roster job.** The Marionette is a metronome you HOLD, the Halberdier answers
+DISTANCE, the Revenant is a body you READ; this one teaches *stay on the beat through a string, and do
+not swing inside it*. Its beat is deliberately **above** the Marionette's 0.69 s floor: 0.732 s cold and
+0.72 s once a deflect streak has pushed the combo gap onto its 0.10 s floor, so the fastest thing this
+enemy can ever throw still clears the parry contract, and the fastest cadence in the game stays the
+Marionette's.
+
+**The economy.** With the sword (`parryPostureDamage 25`) a deflected jab or cross is 28.75 and a
+deflected FLURRY is 50, so the signature string `jab, cross, jab, FLURRY` is 136.25 of a **160** posture
+bar: hold a whole phrase and one more clean beat breaks it, and nothing less does. 190 HP is low for a
+duellist on purpose — a player who cannot hold the rhythm can block (worth zero posture, so it never
+breaks it) and cash the flurry's 0.86 s effective recovery for damage instead. The unblockable **kick**
+is the price of turtling; the unblockable **shoulder charge** (3.90 m of the clip's own measured travel,
+gated to ≥ 3.6 m) is the price of backing off.
+
+**Eight attacks, eight clips, every one named on the attack** (`EnemyAttackData.clip`) — the Halberdier's
+rule, because a generated clip is unreachable through the pipeline's canonical mapping. Two of those
+clips carry more punches than blows (`Burst2`, `Burst4`): the extra punches are anticipation and
+follow-through, and the parry rides the cue exactly as it does on the Marionette's whirl.
+
+**Its travel is measured, never read off the sidecar.** `FlurryBrawler.clips.json` records SOURCE
+motion, and on this body the export factor is not the Halberdier's uniform ~1.3× — the attack and step
+clips measure 1.18–1.24× OVER the sidecar while Walk and Run measure 0.90× UNDER it. Every
+`lungeDistance` is the Hips travel measured on the imported clip (`Tools/measure_forge_fbx.py`) and
+`FlurryBrawlerDataTests.EveryLungeIsTheClipsOwnTravel` holds the two together. `Burst4`'s 0.21 m of
+travel is LATERAL and ships as a lunge of **0**: `PuppetVisuals.CompensateTravel` cancels the pose's XZ
+so the mesh never leaves the capsule that gets hit.
+
+**No blade trail.** `EnemyWeaponTrail` sweeps a strip from the `RightHand` bone to `weaponFxPos`, which
+is right for an axe head that really sits there and wrong twice over on a brawler: the marker is a fist,
+and `Jab2`, `Uppercut` and `Burst4` are all anchored on the LEFT wrist. A two-handed trail would be a
+change to `EnemyWeaponTrail` and is a lead call, not something an enemy smuggles in.
+
 ### The Argent Halberdier — the reach prototype
 
 `Legendary_Halberdier`. **A prototype and a sandbox exhibit**, like the other two: a pad at x 0.75

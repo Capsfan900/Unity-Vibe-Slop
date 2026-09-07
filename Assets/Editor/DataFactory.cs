@@ -1449,6 +1449,245 @@ namespace VibeGame1.EditorTools
             drill.combos = drill.moveset.ToComboArray();
             EditorUtility.SetDirty(drill);
 
+            // --- FlurryBrawler: THE FLURRY BRAWLER. PROTOTYPE. -------------------------------------
+            //
+            // The fourth ai_skelly_tool body and the roster's first FLURRY enemy. Sandbox pad only
+            // (x -22, z -26, the second row); in no LevelDefinition and no LevelRegistry, like the
+            // Marionette, the Revenant and the Halberdier.
+            //
+            // ===== ONE SENTENCE ===================================================================
+            // An unarmed, wide-shouldered brawler that fights in VOLUME: four-beat strings thrown at a
+            // 0.73 s beat, and the only openings are the breath between phrases and the end of the
+            // flurry.
+            //
+            // ===== WHAT THE PLAYER LEARNS =========================================================
+            // The Marionette is a metronome you HOLD (one pass, one interval, forever); the Halberdier
+            // answers DISTANCE; the Revenant is a body you READ. This one teaches the third thing a
+            // deflect game has to teach: STAY ON THE BEAT THROUGH A STRING, AND DO NOT SWING INSIDE IT.
+            // Its strings are four hits long and its beat is 0.73 s -- fast, but deliberately NOT the
+            // Marionette's 0.69 s floor, which stays that fight's superlative. A player who tries to
+            // trade mid-string eats the rest of it; a player who deflects the whole signature and one
+            // more beat breaks its posture outright (the arithmetic is below); a player who blocks
+            // instead survives but never progresses the break, and the KICK comes for them.
+            // The tempo break is HAMMERFIST -- 0.95 s of wind-up dropped into a 0.46 s rhythm.
+            //
+            // ===== ITS TRAVEL IS MEASURED, NOT READ OFF THE SIDECAR ================================
+            // FlurryBrawler.clips.json records SOURCE travel; the tool scales it onto the rig at export,
+            // and on THIS body the factor is not the Halberdier's uniform ~1.3x -- the attack and step
+            // clips measure 1.18-1.24x OVER the sidecar while Walk and Run measure 0.90x UNDER it. So
+            // every lungeDistance below is the Hips travel MEASURED on the imported clip in Blender
+            // (Tools/measure_forge_fbx.py): ShoulderCharge 3.68 (sidecar 3.12), Jab1 0.21 (0.185), and
+            // everything else under 0.1 m, which ships as 0. BrawlerDataTests.EveryLungeIsTheClipsOwn-
+            // Travel re-reads the clip and holds the data to it, so neither can drift alone.
+            // Burst4's 0.21 m of travel is LATERAL (dx -0.21, dz +0.02): it shuffles off your centre
+            // line inside the flurry. That is presentation only -- PuppetVisuals.CompensateTravel
+            // cancels the pose's XZ so the mesh stays over its collider -- so the lunge is 0 and the
+            // drift is never allowed to become a hitbox that has left the capsule.
+            //
+            // ===== RANGES ARE A FIST'S, NOT A BLADE'S =============================================
+            // The Halberdier's lesson, applied before it could become a bug: the hand bone sits 0.75 m
+            // out from the shoulder in rest and the punches reach ~0.6-1.0 m past the pelvis, so with
+            // the player's 0.4 m capsule and the impact test's 0.5 m slack the honest reach is
+            // ~1.9-2.2 m. Ranges are 2.2-2.6 and the commit band is preferredRange 2.0 +
+            // commitTolerance 0.3 = 2.3 m: this enemy fights INSIDE the Halberdier's band, close enough
+            // that its shoulders fill the frame, which is the whole read. lungeMinDistance 0.9 (the
+            // roster's usual 1.2 would stop a 2.2 m jab before it arrived), and that is also what keeps
+            // the 3.68 m charge from ending inside the player: 0.9 m clears both capsules (0.45 + 0.4).
+            //
+            // ===== THE BEAT, AND WHY IT CANNOT SHORTEN ============================================
+            // A hit inside a combo arrives windup + gap + impactDelay + strikeDuration after the last,
+            // where gap = max(0.10, comboGap x lerp(1, 0.45, aggression) - parryStreak x 0.03). At
+            // aggression 0.80 the jab's 0.20 gap scales to 0.112, and ONE deflect takes it under the
+            // 0.10 floor -- so the beat is 0.46 + 0.112 + 0.04 + 0.12 = 0.732 s cold and 0.72 s for a
+            // player on a streak, and it can never go below that however well the fight is going.
+            // Both numbers clear the 0.69 s parry contract floor (ARCHITECTURE -> The Pale Marionette).
+            //
+            // ===== THE ECONOMY: THE SIGNATURE PLUS ONE BEAT =======================================
+            // With the sword (parryPostureDamage 25, the calibration constant) a deflected jab or cross
+            // is 25 x 1.15 = 28.75 and a deflected FLURRY is 25 x 2.0 = 50. The signature string
+            // jab-cross-jab-FLURRY deflected clean is 136.25 of a 160 posture bar, so ONE more clean
+            // beat of any kind breaks it and nothing less does: you cannot break this enemy without
+            // holding a whole phrase. 190 HP, low for a duellist, so the block-and-punish route stays
+            // real for a player who cannot hold it -- block is worth zero posture, so it never breaks
+            // the enemy, it only survives the phrase.
+            //
+            // ===== AGGRESSIVE, AND THE PUNISH IS THE END OF THE FLURRY ============================
+            // aggression 0.80: recovery x0.48, cooldown x0.44, gaps x0.56, and >= 0.5 keeps it swinging
+            // through a deflect. The FLURRY's 1.80 s raw recovery is 0.86 s in play -- the biggest
+            // opening this enemy offers and the only one inside its own band -- with comboBreath 0.35
+            // as the floor aggression may not compress. Nothing here touches a wind-up: every tell is
+            // >= 0.46 s and the cue still fires 0.28 s before impact.
+            //
+            // ===== WIND-UP SILHOUETTES: NOT AUTHORED, ON PURPOSE ==================================
+            // Eight attacks, eight clips (the Halberdier's rule): the clip is the silhouette and the
+            // cone-derived lean is the fallback. Author a pose only if a photograph shows two aliasing.
+            var brJab = Attack("Brawler_Jab", a =>
+            {
+                // THE BEAT. Lead hand, 0.46 s tell -- one hundredth over the 0.45 floor, because the
+                // whole fight is this interval repeated and there is no room above it. Small damage: a
+                // jab that hurt would make the string lethal rather than demanding.
+                a.clip = "Jab1";
+                a.windup = 0.46f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.45f;
+                a.range = 2.20f; a.coneDeg = 45f; a.damage = 11f; a.lungeDistance = 0.20f;  // measured Hips travel
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
+            });
+            var brCross = Attack("Brawler_Cross", a =>
+            {
+                // The rear hand, thrown across the body: a WIDER cone than the jab (65 vs 45) so
+                // sidestepping the jab does not also answer the cross. The clip stays put in the art,
+                // so it stays put here.
+                a.clip = "Jab2";
+                a.windup = 0.48f; a.impactDelay = 0.04f; a.strikeDuration = 0.12f; a.recovery = 0.50f;
+                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
+            });
+            var brUpper = Attack("Brawler_Uppercut", a =>
+            {
+                // The rising blow that ends the jab-jab-cross string. Half a beat slower than the jab
+                // and a narrower cone: it comes UP the middle, so it is the one hit in the string a
+                // player crowding inside the guard eats first.
+                a.clip = "Uppercut";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.70f;
+                a.range = 2.35f; a.coneDeg = 50f; a.damage = 19f; a.lungeDistance = 0f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.4f;
+            });
+            var brOneTwo = Attack("Brawler_OneTwo", a =>
+            {
+                // ONE ATTACK, TWO PUNCHES OF ART. Burst2 throws a lead hand and then drives a right
+                // straight through the contact frame; the first punch is the anticipation and the
+                // second is the blow, so the tell is a punch rather than a pose. The cue still fires
+                // 0.28 s before the blow that counts, which is the only thing the parry rides on
+                // (ARCHITECTURE -> the Marionette: "the parry rides entirely on the cue flash").
+                // Its contact sits at 0.55 s of a 0.71 s clip, so windup + impactDelay = 0.55 plays the
+                // clip at x1.00 -- the one attack here whose art needs no stretch at all.
+                a.clip = "Burst2";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.60f;
+                a.range = 2.40f; a.coneDeg = 55f; a.damage = 17f; a.lungeDistance = 0f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.3f;
+            });
+            var brFlurry = Attack("Brawler_Flurry", a =>
+            {
+                // THE SIGNATURE AND THE PUNISH WINDOW. Four punches of art, one blow, the widest cone
+                // in the set (110 deg -- you cannot walk around it) and the biggest deflect payoff on
+                // any mini-boss (x2.0 = 50 posture with the sword). It pays for that with 1.80 s of raw
+                // recovery, 0.86 s in play: the fight's one real opening, and it is at the END of the
+                // phrase, so the reward for holding the rhythm is the chance to answer.
+                a.clip = "Burst4";
+                a.windup = 0.72f; a.impactDelay = 0.05f; a.strikeDuration = 0.24f; a.recovery = 1.80f;
+                a.range = 2.60f; a.coneDeg = 110f; a.damage = 24f; a.lungeDistance = 0f;   // its 0.21 m is LATERAL
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 2.0f;
+            });
+            var brHammer = Attack("Brawler_Hammerfist", a =>
+            {
+                // THE TEMPO BREAK, and the one attack on an AUTHORED clip chosen for exactly that:
+                // AttackOverhead is 0.92 s of full-body chop where every other clip here is under 0.75,
+                // so the break is visible in the silhouette and not only in the count. 0.95 s of
+                // wind-up dropped into a 0.46 s rhythm is what punishes a player parrying the beat
+                // instead of the body. The step into it is data (0.55 m): the authored clip is
+                // rotation-only, exactly as on the Halberdier's three authored cuts.
+                a.clip = "AttackOverhead";
+                a.windup = 0.95f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 1.40f;
+                a.range = 2.45f; a.coneDeg = 70f; a.damage = 34f; a.lungeDistance = 0.55f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.8f;
+            });
+            var brKick = Attack("Brawler_Kick", a =>
+            {
+                // THE ANTI-TURTLE, unblockable. Blocking a flurry is the obvious cheese -- it costs the
+                // enemy no posture, so a turtled player could sit inside the string forever. This is
+                // the price of that and only that: short, cheap, and it lands on nobody who is moving.
+                a.clip = "AttackKick";
+                a.windup = 0.70f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.95f;
+                a.range = 2.45f; a.coneDeg = 55f; a.damage = 16f; a.lungeDistance = 0.45f;
+                a.comboGap = 0.28f; a.unblockable = true;
+            });
+            var brCharge = Attack("Brawler_Charge", a =>
+            {
+                // THE ANSWER TO DISTANCE, unblockable, and a COMBO OPENER. The clip really carries
+                // 3.68 m of Hips travel (measured; the sidecar says 3.12), so backing out of the band
+                // buys a shoulder and then a string, never a breath. Gated to >= 3.6 m by the moveset
+                // so it is never thrown point-blank, and lungeMinDistance stops it 0.9 m short, clear
+                // of both capsules. Past ~6.3 m it closes and whiffs, and the phrase carries on from
+                // wherever it stopped -- which is still on top of you. Pink alert tell: steel does not
+                // answer this one, moving does.
+                a.clip = "ShoulderCharge";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 1.10f;
+                a.range = 2.60f; a.coneDeg = 40f; a.damage = 22f; a.lungeDistance = 3.90f;
+                // 3.90 is what UNITY'S IMPORTED CLIP walks the Hips, which is the only number that
+                // matters: CompensateTravel moves the body by the imported curve, not by the source.
+                // THREE figures existed for this one motion and all three differ --
+                //   clips.json forward_m  3.123  (SOURCE travel, before the export scales it)
+                //   Blender on the FBX    3.68   (Tools/measure_forge_fbx.py, start->end Hips XZ)
+                //   Unity's imported clip 3.90   (what EveryLungeIsTheClipsOwnTravel reads)
+                // Shipping the Blender number failed that test by 0.22 m. Measure in the ENGINE.
+                a.comboGap = 0.26f; a.unblockable = true;
+            });
+
+            var brawler = GetOrCreate<EnemyData>(EnemyPaths.Data("Legendary_FlurryBrawler"));
+            brawler.displayName = "THE FLURRY BRAWLER";
+            // 190 HP: low for a duellist on purpose (the Marionette's 170 is the precedent), because the
+            // block-and-punish route has to be a real way to win for a player who cannot hold the beat.
+            // 160 posture is the signature string plus one beat -- see the economy above.
+            brawler.maxHP = 190f; brawler.maxPosture = 160f; brawler.postureRegen = 6f;
+            brawler.postureRegenDelay = 3f;
+            // Stagger 4.0 s: 2.2x the flurry's 1.80 s recovery, so breaking it is unmistakably a bigger
+            // prize than catching the end of a phrase.
+            brawler.staggerSeconds = 4f;
+            // 5.2 m/s: quick, but NOT the Halberdier's 5.8 -- that body's whole claim is the chase, and
+            // this one closes with the shoulder instead.
+            brawler.moveSpeed = 5.2f; brawler.turnSpeed = 340f; brawler.aggroRange = 16f;
+            brawler.attackRange = 1.9f;
+            brawler.attackCooldown = 0.25f;
+            brawler.parryRecoilSeconds = 0.28f; brawler.aggression = 0.80f;
+            // LOW windup turn: a string that tracked you would make circling -- the answer to the wide
+            // flurry -- stop working at exactly the moment volume makes it matter.
+            brawler.windupTurnMultiplier = 0.30f; brawler.stepSpeedMultiplier = 0.60f;
+            brawler.stepAcceleration = 8f; brawler.stepDeadzone = 0.90f;
+            // 0.35 s of breath, the floor aggression may not compress. Bigger than the Halberdier's
+            // 0.22 because a four-beat string with no breath after it is a wall, not a phrase.
+            brawler.comboBreathSeconds = 0.35f; brawler.readyDistanceMultiplier = 1.5f;
+            brawler.preferredRange = 2.0f; brawler.commitTolerance = 0.3f;
+            brawler.repositionDeadzone = 0.40f;
+            // It CIRCLES rather than backs off: strafe 0.45 against the roster's 0.3, backstep 0.35.
+            brawler.backStepSpeedMultiplier = 0.35f; brawler.strafeSpeedMultiplier = 0.45f;
+            brawler.lungeMinDistance = 0.9f;
+            brawler.soulValue = 480;
+            // NEAR-WHITE body: it ships an albedo texture like the Halberdier, and EnemyVisuals
+            // multiplies _BaseColor into it every frame, so the tint has to stay white or it stains the
+            // paint. ACID GREEN accent, over the bloom threshold and a hue nothing else in the roster
+            // owns (the Ninja and the Marionette are teal, the Halberdier and the Drillmaster cold
+            // blue, the Revenant and the Penitent ember, the Chorister violet).
+            brawler.bodyColor = Hex("#F1EDE4"); brawler.emission = Hex("#B6FF3C") * 1.9f;
+            // 1.0: it is already the WIDEST body in the roster (2.02 m in X against the Marionette's
+            // 1.75) and 2.36 m tall in its own bounds. Its read is width and closeness, not height, and
+            // a brawler that towers stops being a brawler.
+            brawler.scale = 1f;
+            brawler.flaskPunishChance = 0.7f;
+            brawler.shootsProjectiles = false; brawler.rangedOnly = false;
+            // THE PHRASES. Inside 3.4 m it is STRINGS -- the signature is jab, cross, jab, FLURRY, and
+            // the tempo breaks are the hammerfist and the uppercut, both on their own cooldowns so
+            // neither becomes the rhythm. The kick is gated to 2.8 m (it only answers a player standing
+            // inside the guard). From 3.6 m the CHARGE is the answer to distance and two of its three
+            // entries chain straight into pressure; the third runs to the aggro edge as a pure closer
+            // that may whiff and still leaves it on top of you.
+            brawler.moveset = Moveset("Legendary_FlurryBrawler_Moveset", "The Flurry Brawler", new[]
+            {
+                Entry("jab, cross, jab, FLURRY (the signature string)",   4f,   0f,   3.4f, brJab, brCross, brJab, brFlurry),
+                Entry("jab, cross (the beat)",                            3f,   0f,   3.4f, brJab, brCross),
+                Entry("jab, jab, cross, UPPERCUT",                        2f,   0f,   3.4f, brJab, brJab, brCross, brUpper),
+                Entry("one-two (the fast pair)",                          1.5f, 0f,   3.4f, brOneTwo),
+                Entry("cross, one-two",                                   1.2f, 0f,   3.4f, brCross, brOneTwo),
+                EntryCd("jab, jab, HAMMERFIST (fast, fast, SLOW)",        1.5f, 0f,   3.4f, 7f, brJab, brJab, brHammer),
+                EntryCd("HAMMERFIST (the tempo break)",                   1f,   0f,   3.4f, 6f, brHammer),
+                EntryCd("FLURRY alone (the punish window)",               1f,   0f,   3.4f, 5f, brFlurry),
+                EntryCd("KICK (unblockable, anti-turtle)",                1.2f, 0f,   2.8f, 5f, brKick),
+                EntryCd("cross into the KICK",                            1f,   0f,   2.8f, 5f, brCross, brKick),
+                Entry("CHARGE into jab, cross (unblockable opener)",      4f,   3.6f, 6.5f, brCharge, brJab, brCross),
+                Entry("CHARGE into the FLURRY",                           3f,   3.6f, 6.5f, brCharge, brFlurry),
+                Entry("SHOULDER CHARGE (unblockable, to the aggro edge)", 1.5f, 3.6f, 16f,  brCharge),
+            });
+            brawler.combos = brawler.moveset.ToComboArray();
+            EditorUtility.SetDirty(brawler);
+
             // ---------------- Weapons ----------------
             //
             // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette

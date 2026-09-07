@@ -42,6 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
+        static GameObject pLegBrawler;
         static GameObject pSentryGrunt, pSentryHeavy, pSurgeTurret;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
@@ -807,6 +808,15 @@ namespace VibeGame1.EditorTools
             // and inside the wall). Its switch sits between the rows on the player's side.
             Box("Pad_Legendary_Drillmaster", new Vector3(14f, padY, z - 8f), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
             var sDrill = Spawner("Spawn_Legendary_Drillmaster", new Vector3(14f, spawnY, z - 8f), pLegDrillmaster, false, root);
+            // THE FLURRY BRAWLER (2026-09-07): the roster's first flurry enemy, and the fourth forge
+            // prototype. The southern row is full and its west end is at the wall (the Revenant's pad
+            // at x -28 is already 2 m off it), so it takes the WEST END OF THE SECOND ROW: x -22,
+            // z -26. That is 5.75 m clear of the sentry pad at x -14 and 5.75 m clear of the west
+            // wall, it is 34 m from the player spawn -- more than twice its 16 m aggro, so the arena
+            // is quiet on load -- and it is the only free spot where a 16 m aggro cannot reach another
+            // duellist's pad once woken. Its switch sits between the rows, on the player's side.
+            Box("Pad_Legendary_FlurryBrawler", new Vector3(-22f, padY, z - 8f), new Vector3(4.5f, 1f, 4.5f), mBoss, root);
+            var sBrawler = Spawner("Spawn_Legendary_FlurryBrawler", new Vector3(-22f, spawnY, z - 8f), pLegBrawler, false, root);
             // parkour_enemies: one SENTRY on the second row behind the Grunt pad, so a bolt, a deflect boost
             // and the sentry dash can be studied without leaving the arena. The pill Grunt/Heavy pads in
             // the front row stay MELEE (the user's "little pill guys for combat").
@@ -838,6 +848,7 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Revenant", new Vector3(-28f, FloorTop, switchZ), sRevenant, "EMBER REVENANT", root);
             Switch("Wake_Legendary_Halberdier", new Vector3(0.75f, FloorTop, switchZ), sHalberdier, "ARGENT HALBERDIER", root);
             Switch("Wake_Legendary_Drillmaster", new Vector3(14f, FloorTop, z - 8f + 3.2f), sDrill, "DRILLMASTER", root);
+            Switch("Wake_Legendary_FlurryBrawler", new Vector3(-22f, FloorTop, z - 8f + 3.2f), sBrawler, "FLURRY BRAWLER", root);
             Switch("Wake_pshooter_enemy01", new Vector3(-14f, FloorTop, z - 8f + 3.2f), sSentry, "SENTRY", root);
             for (int i = 0; i < turretX.Length; i++)
                 Switch("Wake_pshooter_enemy03_" + (i + 1), new Vector3(turretX[i], FloorTop, z - 8f + 3.2f),
@@ -1013,7 +1024,7 @@ namespace VibeGame1.EditorTools
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
                                               pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
-                                              pSentryGrunt, pSentryHeavy, pSurgeTurret };
+                                              pSentryGrunt, pSentryHeavy, pSurgeTurret, pLegBrawler };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -1029,6 +1040,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("pshooter_enemy01"),
                 LoadEnemyData("pshooter_enemy02"),
                 LoadEnemyData("pshooter_enemy03"),
+                LoadEnemyData("Legendary_FlurryBrawler"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1074,6 +1086,7 @@ namespace VibeGame1.EditorTools
             pLegRevenant = LoadPrefab("Legendary_Revenant");
             pLegHalberdier = LoadPrefab("Legendary_Halberdier");
             pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
+            pLegBrawler = LoadPrefab("Legendary_FlurryBrawler");
             pSentryGrunt = LoadPrefab("pshooter_enemy01");
             pSentryHeavy = LoadPrefab("pshooter_enemy02");
             pSurgeTurret = LoadPrefab("pshooter_enemy03");

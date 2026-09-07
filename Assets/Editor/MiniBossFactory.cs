@@ -67,6 +67,10 @@ namespace VibeGame1.EditorTools
             // SHOWCASE (2026-09-06). Sandbox pad only, second row. The Knight silhouette in slate and cold
             // blue; every soulslike combat feature of the day on one body. See DataFactory, THE DRILLMASTER.
             BuildMiniBoss("Legendary_Drillmaster", EnemyDataDir + "/Legendary_Drillmaster.asset", Silhouette.Knight);
+            // PROTOTYPE. Sandbox pad only (x -22, z -26). The roster's first FLURRY enemy: unarmed,
+            // eight attacks on eight generated clips, four-beat strings on a 0.73 s beat. See
+            // DataFactory, THE FLURRY BRAWLER.
+            BuildMiniBoss("Legendary_FlurryBrawler", EnemyDataDir + "/Legendary_FlurryBrawler.asset", Silhouette.FlurryBrawler);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -78,10 +82,10 @@ namespace VibeGame1.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
-            Debug.Log("[MiniBossFactory] Built 7 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 8 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler }
 
         // ------------------------------------------------------------------ the rig
 
@@ -427,6 +431,74 @@ namespace VibeGame1.EditorTools
                         idleClip = "IdleCombat",
                         // It does not whirl. No spinPrefix, so PuppetVisuals plays every attack
                         // square-on and the whirl code never runs for this body.
+                        spinClip = "",
+                        spinPrefix = ""
+                    };
+
+                case Silhouette.FlurryBrawler:
+                    return new ModelSpec
+                    {
+                        fbx = "FlurryBrawler.fbx",
+                        // HOVERS? No -- it SINKS. Every number below is measured (VibeGame1/Probe Forge
+                        // Models plus Tools/measure_forge_fbx.py), and this is the one that would have
+                        // been silently wrong if it had been assumed: the mesh spans y -0.23..2.13, so
+                        // 0.23 m of boot hangs BELOW the rig origin and the body would stand buried to
+                        // the ankle on a collider whose base is y = 0. The lift is on the VISUAL, never
+                        // on NavMeshAgent.baseOffset -- that would move the agent, the capsule and the
+                        // distance/cone impact test with it (the model-swap contract, rule 3).
+                        yLift = 0.23f,
+                        // Faces +Z: 2.02 m wide in X against 1.80 deep in Z, and the arm chain runs
+                        // along X. That width is the SILHOUETTE -- it is the broadest body in the
+                        // roster, and at its 2.0 m preferred range the shoulders fill the frame.
+                        yaw = 0f,
+                        // The one number here derived from the BOUNDS rather than from a per-slice
+                        // measurement: the mesh centre sits at z +0.24 while every bone lies between
+                        // z 0.00 (Hips, Spine) and z 0.24 (RightHand), so the body mass is a fifth of a
+                        // metre ahead of the capsule, exactly the Halberdier's problem. -0.20 puts the
+                        // chest back over the thing that gets hit. Eyeball it at 4b against the capsule
+                        // gizmo before trusting it further than that.
+                        zShift = -0.20f,
+                        // Head bone measured at y 1.71, z 0.20; the eye rides the brow at z 0.38. It is
+                        // a ROUND port, not a slot: the Halberdier's blue visor slit and the Revenant's
+                        // narrow eye are both bars, so a disc is a different read at a glance, and
+                        // EnemyVisuals drives it from Posture.Ratio -- the eye burning acid-green is
+                        // this fight's break meter, seen without looking at the bar.
+                        eyePos = new Vector3(0f, 1.70f, 0.38f),
+                        eyeSize = new Vector3(0.20f, 0.20f, 0.09f),
+                        eyeRound = true,
+                        // RightUpperArm (0.15, 1.59, 0.14) and RightHand (0.34, 0.62, 0.24) from the
+                        // probe, in the take's first (Idle) pose, exactly as the Halberdier's were.
+                        // handPos is hand minus shoulder.
+                        armPos = new Vector3(0.15f, 1.59f, 0.14f),
+                        handPos = new Vector3(0.19f, -0.97f, 0.10f),
+                        // THE FIST, not a blade. This body carries VFX_WeaponTip_L/R bones but no weapon
+                        // mesh, and in the rest pose VFX_WeaponTip_R sits 1.15 m out to the SIDE -- a
+                        // cue spark thrown from there would come off empty air a metre from the punch.
+                        // So the FX marker is a hand's breadth ahead of the knuckles, along the way the
+                        // punch travels.
+                        weaponFxPos = new Vector3(0.06f, 0.02f, 0.16f),
+                        // The CHEST bone (1.40), clear of the head at 1.71 and of the eye at 1.70.
+                        markHeight = 1.40f,
+                        albedo = "FlurryBrawler_albedo.png",
+                        // NO BLADE TRAIL, deliberately. EnemyWeaponTrail sweeps a strip from the
+                        // RightHand bone to weaponFxPos, which is right for an axe head that really
+                        // sits there and wrong twice over here: the marker is a fist rather than a
+                        // blade, and half this enemy's punches (Jab2, Uppercut, Burst4) are anchored on
+                        // the LEFT wrist, so a right-hand-only strip would trail the wrong arm through
+                        // the signature flurry. A two-handed trail is a change to EnemyWeaponTrail and
+                        // therefore a lead call, not something to smuggle in with an enemy.
+                        bladeTrail = false,
+                        note = "broad unarmed brawler; 2.02 m across the shoulders, boots 0.23 m below the rig origin",
+
+                        animated = true,
+                        // The canonical clips back the pipeline mapping only. Every one of this enemy's
+                        // eight attacks NAMES its own clip (EnemyAttackData.clip), so these are the
+                        // fallback for an attack that forgets to -- and the model ships both.
+                        attackClip = "AttackSwing",
+                        heavyClip = "AttackOverhead",
+                        idleClip = "IdleCombat",
+                        // It does not whirl: the flurry is entirely inside Burst4, and a spin prefix
+                        // would turn the body under a clip that is already turning itself.
                         spinClip = "",
                         spinPrefix = ""
                     };
