@@ -406,12 +406,17 @@ namespace VibeGame1.EditorTools
             // turret. Not 8 (x1.96): past ~x1.6 the level's jump arcs and the motor's air control stop being
             // something a human can aim, and the run-out at the bottom of a ramp becomes a coin flip.
             turret.parrySurgeMaxStacks = 5;
-            // One stack falls every 2 s of not parrying. Not 1.2: the bolt metronome is 1.1 s and the travel
-            // between two turrets on a ramp is a second or two, so a shorter timer would bleed a stack
-            // between two honest parries. Not 4: five stacks would then survive 20 s, long enough to carry
-            // the whole ramp's boost into the next span, and a reward that outlives its span is just a buff.
-            // Full ladder from the top with no further parries: 5 x 2 = 10 s to walk back to x1.00.
-            turret.parrySurgeSeconds = 2f;
+            // One stack falls every 1.5 s of not parrying (was 2 s; settled 2026-09-06 against the reworked
+            // level). Grant RESETS the drop timer, so any player inside a turret's 1.1 s bolt metronome never
+            // decays at all -- the timer only ever governs the run-out AFTER the last turret. At 2 s that
+            // run-out was 10 s, long enough to carry a full x1.60 ladder out of the span it was earned on,
+            // which is the definition of a buff rather than a reward. 1.5 s makes it 7.5 s: still a carry,
+            // no longer a free span. Not 1.2 (the level pass's suggestion): 0.1 s of slack over the 1.1 s
+            // metronome means a parry that lands a fraction late bleeds a stack, and the ladder stops
+            // reading as 'keep parrying' and starts reading as random. 1.5 leaves 0.4 s of slack, which also
+            // covers the one-to-two-second gap between two turrets on a ramp on all but the slowest line.
+            // Full ladder from the top with no further parries: 5 x 1.5 = 7.5 s to walk back to x1.00.
+            turret.parrySurgeSeconds = 1.5f;
 
             // Cheap: it dies to a touch and it is meant to be taken in rows of five or more.
             turret.soulValue = 15;

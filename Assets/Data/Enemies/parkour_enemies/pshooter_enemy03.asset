@@ -52,7 +52,7 @@ MonoBehaviour:
   parrySpeedGain: 9
   parrySurgeStep: 0.12
   parrySurgeMaxStacks: 5
-  parrySurgeSeconds: 2
+  parrySurgeSeconds: 1.5
   soulValue: 15
   bodyColor: {r: 0.43529412, g: 0.4862745, b: 0.5411765, a: 1}
   emission: {r: 0.59294116, g: 0.6917647, b: 0.7764706, a: 0.9}

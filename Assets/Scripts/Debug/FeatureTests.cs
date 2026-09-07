@@ -1989,16 +1989,32 @@ namespace VibeGame1
             float tossY = combat.transform.position.y;
             float peakY = tossY;
             float riseTimer = 0f;
+            // DIAGNOSTIC (2026-09-06). This check reported 4.3 m once, against a motor that measures 5.36 m
+            // for the same Launch(18, 2) driven by hand in play mode -- and passed at 5.3 m on every run
+            // since, so that red was staging noise, not lost height. The fields stay because they make the
+            // ONE failure mode that would be real self-evident: the jump cut is suspended only WHILE
+            // hanging, so a window that shuts at v1 finishes the rise under
+            // gravity * (1 + jumpCutGravityMultiplier) and lands near 4.3 m. hangClosedAtVy = -999 means
+            // the window stayed open the whole way up and the shortfall was measurement, not the motor.
+            float vyAtHangClose = -999f;
+            float hangCloseAfter = -1f;
             while (riseTimer < 0.9f)
             {
                 peakY = Mathf.Max(peakY, combat.transform.position.y);
+                if (vyAtHangClose < -900f && !motor.IsHanging)
+                {
+                    vyAtHangClose = motor.Velocity.y;
+                    hangCloseAfter = riseTimer;
+                }
                 riseTimer += Time.unscaledDeltaTime;
                 yield return null;
             }
             // 4.5 m is the old toss (a nominal 3.3, a felt 1.9 once the jump cut ate it) plus a margin:
             // a pass that quietly loses the height fails here, not in a playtest.
             Check("Flare_TossRisesHigherThanAJump", peakY - tossY > 4.5f,
-                "rise=" + (peakY - tossY).ToString("0.0") + " m from y=" + tossY.ToString("0.0"));
+                "rise=" + (peakY - tossY).ToString("0.0") + " m from y=" + tossY.ToString("0.0")
+                + " hangClosedAtVy=" + vyAtHangClose.ToString("0.0") + " after=" + hangCloseAfter.ToString("0.00")
+                + "s peakAbs=" + peakY.ToString("0.0"));
 
             // Still in the air a second and a half later, unless the floor legally ended the window.
             yield return WaitRealtime(0.7f);

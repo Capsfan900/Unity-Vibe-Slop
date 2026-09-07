@@ -114,7 +114,7 @@ namespace VibeGame1
         public int parrySurgeMaxStacks;
         [Tooltip("Seconds of NOT parrying before ONE stack falls off. Stacks are lost one at a time, never " +
                  "all at once, so a missed turret costs a step rather than the whole ramp.")]
-        public float parrySurgeSeconds = 2f;
+        public float parrySurgeSeconds = 1.5f;
 
         [Header("Reward")]
         public int soulValue = 40;
