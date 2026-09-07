@@ -11,6 +11,41 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## The feature suite run against a paused world reports 49 plausible failures
+
+**2026-09-07.** A play-mode feature run reported **720 passed / 49 failed / 2 skipped**. The failure list
+looked like a serious multi-system regression: Hitstop, TimeScale, Pause, every Stamina check, every Flare
+check, WallRunLive, Posture regen, combo advance, the wand pedestal, the trail, lock-on assist. Nothing had
+changed in any of those systems.
+
+**Root cause.** `Time.timeScale` was **0** for the whole run — the world was paused. Every one of the 49 is
+a timing test reading a stopped clock, and they fail in a cascade that reads exactly like real breakage:
+`Hitstop_BaselineWorldScale [actual=0 expected=1]`, `Stamina_ThreeDashesFromFull [dashes=0 stamina=100]`,
+`Flare_TossesUp [velY=0.0]`, `WallRunLive_ShedsGrit [peak motes alive=0 over a 0.00 s run]`. With the clock
+stopped nothing can move, so the suite measures nothing and reports it as failure. `Time.timeScale` read
+back as `1` immediately after the run, which is what confirmed it.
+
+The session had followed the known domain-reload rule — enter play, exit, re-enter, and check
+`GameManager.I != null` — and that check passed. It is necessary and **not sufficient**: it proves the
+session is warm, not that the world is running.
+
+**Fix.** Assert the clock in the same call that starts the suite, so a paused world refuses to produce a
+report at all:
+
+    return UnityEngine.Time.timeScale < 0.99f
+        ? "REFUSED: world is paused (timeScale=" + UnityEngine.Time.timeScale + ")"
+        : VibeGame1.EditorTools.FeatureTestRunner.Start();
+
+**Invariant. A feature-suite result is only evidence if `Time.timeScale == 1` at the moment it started.**
+Check the clock, not just the singleton. And when a run comes back with a large, broad failure set that
+spans unrelated systems, suspect the harness before the game — read two or three failure payloads first:
+if they all say `0`, `0.00 s` or `unchanged`, nothing ran.
+
+A second, dumber cost from the same run: a poll loop written as `grep -qi "running"` matches
+`running=False` as happily as `running=True`, so it never terminates. Match `running=False` explicitly.
+
+---
+
 ## `execute_menu_item` over MCP reports success and does nothing
 
 **2026-09-06.** The surge-turret pass was verified by running `VibeGame1/3. Create Data` and

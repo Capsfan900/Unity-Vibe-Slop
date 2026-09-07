@@ -10,6 +10,39 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Latest run — 2026-09-07, verifying the three-lane weapon pass (`73fd3bd`)
+
+Measured this session from the user's open editor. Tree clean at `73fd3bd`.
+
+| Suite | Result | Notes |
+|---|---|---|
+| EditMode, full | **722 / 722 pass, 0 failed, 0 skipped** (222.5 s) | Confirms the one red the weapon pass shipped on (721/722) is genuinely closed. That red was a bad assertion in the VFX lane's own new test — it asserted every weapon's hue normalises to exactly 1.0, but `SlashFx.Normalise` is a **ceiling**, so Rosethorn's `#5FD66A` correctly stays at 0.839. The fix in `79e5a1f` is now verified, not assumed. Last test to finish: `WeaponSilhouetteTests.TheTip_StaysInFrame_WhereContactIsRead`. |
+| `VibeGame1/Health Check` | **PASS — 0 errors**, 1748 warnings | Run inside `execute_code` and read off the private `errors`/`warnings` lists, because a filtered `read_console` returns tens of thousands of characters (the check logs all warnings as ONE entry). Every warning is the known UGUI/TMP optional-null-ref noise: 816 `HUD.prefab :: TextMeshPro`, 360 `MainMenu.prefab :: TextMe…`, 336 `HUD.prefab :: Button.m_Se…`, 24+24 Slider, and single-digit tails on the two `Legendary_*` prefabs and `pshooter_enemy03`. **Nothing weapon-related.** The count moved 1744 → 1748 only because the weapon pass added prefab content of the same shape. |
+| `FeatureTests`, play mode | **777 / 777 pass, 0 failed, 0 skipped** | Run on `Level_01` after enter → exit → re-enter, with **both** `GameManager.I != null` **and** `Time.timeScale == 1` asserted before starting. The weapon pass is now fully verified against the behavioural suite. |
+
+**The gap is now closed — but the failed first attempt is worth keeping.** The documented trap is that the first
+run after a domain reload lies. This session hit a *different* one worth recording: a run was taken against a
+**paused world**. It reported 720 passed / 49 failed / 2 skipped, and every one of the 49 is a timing test
+reading a stopped clock — `Hitstop_BaselineWorldScale [actual=0 expected=1]`, `TimeScale_MinimumOfRequestsWins
+[actual=0 expected=0.2]`, `Pause_ReleaseRestores [actual=0]`, and then the whole downstream cascade: every
+Stamina check (`dashes=0`, `stamina 100 → 100`), every Flare check (`velY=0.0`, `rise=0.0 m`), every
+WallRunLive check (`over a 0.00 s run`), Posture regen, combo advance, the wand pedestal, the trail, the
+lock-on assist. **None of these 49 is a real regression** — with `Time.timeScale` at 0 nothing can move, so
+the suite is measuring nothing. `Time.timeScale` read back as **1** immediately afterwards, confirming the
+diagnosis. The re-run was refused (`ERROR: Feature tests need play mode`) because play mode had exited. A later run the
+same session, with the clock asserted first, returned **777 / 777 / 0** — confirming that all 49 were harness
+artefacts and nothing in the weapon pass regressed anything.
+
+The lesson, and it generalises past the domain-reload rule already in HANDOFF: **assert `Time.timeScale == 1`
+in the same call that starts the suite.** `GameManager.I != null` proves the session is warm; it does not
+prove the world is running. A paused run does not error — it produces a plausible-looking 49-failure report
+that costs a session real time to disbelieve.
+
+**Nothing in the weapon pass has been played by a human**, and that is unchanged by this session. Specifically
+unproven: whether Rosethorn at 9 base damage reads as a breaker or just as weak; whether the Sunbreaker's
+mechanical creak reads as tension or as input latency; whether the new pooled, capped `WeaponImpactFx` hit
+confirm reads at all now that it is no longer the brightest thing on screen.
+
 ### Latest run — 2026-09-06, after the five team passes and the prompt owner key
 
 | Suite | Result | Notes |

@@ -20,9 +20,10 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | [docs/LEVEL-AUTHORING-TUTORIAL.md](docs/LEVEL-AUTHORING-TUTORIAL.md) | **Making a level.** Author it as a data asset in the Unity editor, prove it with the arc report and tests, use the in-game editor (F10) only to feel and tweak. |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | **Adding a level, enemy, moveset or item.** Content is data — ScriptableObjects plus a menu item, not new code. |
 | [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md) | Session start/end checklist and token discipline. |
-| `/dashboard` | **Seeing everything at once.** Builds `Tools/dashboard/out/index.html`: every doc, the change log, test results, systems map, search. |
+| `/dashboard` | **Seeing everything at once.** Builds `Tools/dashboard/out/index.html`: every doc, the change log, test results, systems map, search. **Currently disabled** in `.claude/settings.local.json` — drop its `skillOverrides` entry to use it. |
 | [docs/LEVEL-EDITOR.md](docs/LEVEL-EDITOR.md) | **The in-game level editor** (F10): keys, files, PLAY, EXPORT, and how it shares the campaign's piece factory. |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **Picking up where the last chat stopped.** Rewritten every session: what is in flight, uncommitted, and what to do first. |
+| [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | **Cutting a playtest build or sharing a link.** `BuildRunner`, GitHub Pages (WebGL) and Releases (Windows), one-time GitHub settings, tracing a bug report to a build SHA. |
 | [docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md) | What is proven vs unproven, current test results, and what still needs a human playtest. |
 | [docs/multiplayer-system-design.md](docs/multiplayer-system-design.md) | Networking or backend work. Design only, not implemented. |
 | [README.md](README.md) | Human-facing overview: controls, how to add content. |
@@ -103,11 +104,17 @@ Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 | Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
 | Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
 
-Current: EditMode **558/558** (full, 2026-09-05 10:5x; quick set 420/420), feature suite **747 / 747 / 0 skipped** (2026-09-05, fresh session on the reworked Level_01 with 32 m/s bolts) from a fresh play-mode session on Level_01 ([report](docs/VERIFICATION-REPORT.md)). The EditMode suite
-grew from 32 in one session and covers shipped-asset arithmetic for the Marionette, the Revenant and the
-wands, the lock-on control law, the parry impulse, the Pyre arc and level jump-arc clearance. **A session that has been recompiled under
-is not a fresh one** — a domain reload wipes every static without re-running `Awake`, so `GameManager.I`
-is null and the suite reports failures that are not real. Check `GameManager.I != null` first.
+**Current counts live in [docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md), never here** — a number
+copied into this always-loaded file goes stale silently and then lies to every session. The EditMode suite
+covers shipped-asset arithmetic for the Marionette, the Revenant and the wands, the lock-on control law, the
+parry impulse, the Pyre arc and level jump-arc clearance.
+
+**Two ways a play-mode run lies, both of which have cost a session real time.** A session that has been
+recompiled under is not a fresh one — a domain reload wipes every static without re-running `Awake`, so
+`GameManager.I` is null and the suite reports failures that are not real. And a run taken against a
+**paused world** reports ~49 plausible failures across unrelated systems, because every timing test is
+reading a stopped clock. Check **both** `GameManager.I != null` **and** `Time.timeScale == 1` before you
+believe any result.
 
 `DebugHarness` and `FeatureTests` parry on a state transition — frame-perfect information no human has.
 They prove the state machine, **never** that the game feels good or is fair.
