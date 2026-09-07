@@ -157,14 +157,26 @@ InputReader → FirstPersonMotor.Update()
                capsule 1.8 → 0.9 m, boost +5 x fade x 0.6^chain (cap 22), bleeds at 2/s to a floor of 8
                  fade = (22 - speed)/(22 - 11): full at a sprint, nothing at the cap
                  chain = slides started within 1.2 s of the last one ENDING: 5, 3, 1.8, 1.1 ...
-               SLOPE (2026-09-07, ramps): hv += TraversalMath.SlopeAccel(GroundNormal, slideSlopeAccel 0.85) dt,
-                 applied BEFORE the friction bleed. GroundNormal is written in OnControllerColliderHit during
+               SLOPE (2026-09-07, ramps): TraversalMath.DrySlideStep applies the original
+                 hv += SlopeAccel(GroundNormal, slideSlopeAccel 0.85) dt, then friction, on flat/uphill/air contact.
+                 Only an actually grounded slide moving downhill on a slope within cc.slopeLimit sustains:
+                 no dry friction, gravity adds speed up to existing slideMaxSpeed 22, duration renewed to
+                 now + slideMaxDuration 0.9. Carry already above 22 is preserved but gains no further speed.
+                 Flat/uphill exit immediately resumes ordinary friction and expiry with that remaining tail.
+                 Water, steering, slide-jump and dash cancellation keep their existing paths.
+                 GroundNormal is written in OnControllerColliderHit during
                  cc.Move -- the most UPWARD contact of the frame with normal.y > 0.2, so a wall brushed while
                  sliding down a ramp is not read as ground. The term is gravity projected onto the ground
                  plane, flattened to XZ, and is EXACTLY zero on a flat floor: every span authored before ramps
-                 existed is an axis-aligned box, so nothing tuned on the flat can drift. Uphill is not a
-                 special case -- velocity opposes the same vector, so a slide bleeds and dies early on a climb.
-                 slideSlopeAccel = 0 restores the pre-ramp motor without a code change. SlopeSlideTests.
+                 existed is an axis-aligned box, so nothing tuned on the flat can drift. Uphill opposes the
+                 same gravity vector and keeps the original friction, so it bleeds and dies early on a climb.
+                 DownhillSnapY extends only the grounded downhill slide's displacement to the contacted
+                 plane at this frame's horizontal destination, plus groundSnapDistance. This keeps the
+                 1:4 slope grounded when 20 fps travel exceeds the old fixed snap. It never writes vel.y;
+                 rising, jump/dash cancellation, water, air and flat/uphill movement retain the original snap.
+                 slideSlopeAccel = 0 restores the pre-ramp motor without a code change.
+                 SlopeSlideTests + DownhillSlideTests cover shipped tuning and 20/60/240 fps arithmetic;
+                 LevelDescentProbe checks actual controller contact and the uninterrupted descent in play.
     WALL JUMP  8 x SphereCastNonAlloc fan → vel.y = 11, +12 m/s along the wall normal; costs 12 stamina
     WALL RUN   no binding; entered by arriving — see "Movement — wall run" below
     now += dt                                 ← the motor's OWN clock; every timer reads it
@@ -1832,15 +1844,16 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   re-adds the table, the same remove-ours-then-re-add discipline as the perches, so a ramp dropped in by the
   F10 editor and exported back survives a re-run of `8a`. Five ramps, 7.3–15.4°, all `materialKey "Stone"`.
   Three design facts that are not obvious from `RampDef` and cost measurement to learn:
-  **(1) Level_01 has no descent** — deck by deck it climbs monotonically y 0 → 28 — so the new
-  `slideSlopeAccel` term can only ever BLEED in this level and a ramp's job here is continuity, not speed;
+  **(1) These five connectors climb** — the route before the final descent rises from y 0 → 28 — so
+  their `slideSlopeAccel` term bleeds a climbing slide and their job is continuity;
   **(2) a ramp is not a kicker**, because a `CharacterController` leaving the top edge gains no vertical, so
   a ramp that stops short of its deck is just a jump with a shorter run-up; **(3) a ramp occludes exactly
   like a slab** — the 4 m `T2_L8 → T2_L9` ramp stood inside `T2_Perch_E`'s bolt line onto `T2_L9`, and the
   west-swung alternative cut `T2_Tower` and cost three sightlines, so the shipped one is 3 m wide and lands
   at z 129.3, under the bolt.
-- **`LevelArcAnalyzer.BoxesFrom` (line 59) reads `def.platforms` only, so no shipped test or report sees a
-  ramp.** Nothing can fail because of one, and nothing proves one either. `Tools/level_arc_offline.py` grew
+- **`LevelArcAnalyzer.BoxesFrom` (line 59) reads `def.platforms` only.** Ballistic hop analysis remains
+  blind to ramps; `LevelRampPlacementTests` and `LevelDescentReport` check their geometry separately.
+  `Tools/level_arc_offline.py` grew
   an oriented-box `RampBox` (exact slab test for bolt lines and sightlines; the arc sweep treats the capsule
   as axis-aligned in ramp-local space, an error ≤ 1 − cos 15.4° of capsule height, and counts an arc that
   touches a ramp on the way down as an ARRIVAL because a body that lands on a slope is on the route). Run it
@@ -1850,6 +1863,19 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   (where the arena has one) `exitGateSize` — absolute and idempotent like the rest. It exists because the
   arena doorways widened 6 m → 9 m and **a doorway, its gate and its trigger are one measurement**: a 9 m
   door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
+- **Final descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` ends with `ApplyDescent`: a 10 m wide
+  entry at y 28 feeds `T4_Ramp_Descent` (48 m run, 12 m drop), then a 24.4 m run-out at y 16.
+  Three `Spawn_T4_Surge_*` entries use the existing `pshooter_enemy03` prefab on side pads at
+  z 324/342/360, 18 m apart. Live interception moved the row 8 m past its first draft: the original
+  opening bolt could chase behind the player and never arrive. The last beat now rides the run-out.
+  `Boss_Arena` is the translation anchor: its geometry, spawn, pickup, torches and gate/trigger move as
+  one unit to z 390 / deck y 16. `Checkpoint_4` remains on the final boss approach; kill bounds extend
+  to z 450. The two south walls receive final absolute positions because the earlier `Reshapes` pass
+  resets them to their original coordinates. Applying twice does not accumulate translation or duplicate content.
+  `LevelDescentReport` supplements the platform-only ballistic analyser with exact oriented ramp/box
+  segment tests for sliding/standing bolt lines and crest-to-run-out preview, sampling the shipped ramp's
+  base, run, rise and heading. Existing ramp placement
+  tests now inspect every shipped ramp. This is geometry evidence, not homing/timing or feel evidence.
 - **`--sight` is the openness measurement, and it sees what `AnalyzeHop` structurally cannot.** It stands
   the eye at each route deck's centre + 1.7 m, looks at the next six decks' surfaces (+ 0.5 m), and counts
   how many are visible in a row before an opaque box intervenes. Level_01 measured **2.45 mean moves

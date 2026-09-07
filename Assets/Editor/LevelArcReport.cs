@@ -107,6 +107,7 @@ namespace VibeGame1.EditorTools
             sb.AppendLine("LEVEL ARC REPORT — " + def.displayName + " (" + boxes.Count + " boxes)");
             sb.AppendLine();
             sb.Append(A.Describe(p));
+            sb.AppendLine(LevelDescentReport.Build(def));
             sb.AppendLine();
 
             var braking = new[] { A.AirControl.None, A.AirControl.Brake };

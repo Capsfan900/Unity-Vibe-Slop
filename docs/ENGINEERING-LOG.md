@@ -3148,3 +3148,39 @@ with reordered `fileID`s and identical content — a ~1300-line diff that means 
 prefab diff is substantive before committing it (`git diff -U0 | grep -v fileID | sort | uniq -c`: churn
 shows as equal `+`/`-` counts of identical lines). Revert pure churn so a real prefab change is visible in
 the history.
+
+---
+
+## 2026-09-07 — A repeated level pass detached the boss doorway from its arena
+
+**Symptom.** The full EditMode suite found the final descent overlapping `Wall_Boss_S_L` after the
+level authoring generator ran twice. The boss arena itself was correctly at its new lower position.
+
+**Root cause.** `Apply` first resets the south walls through its absolute `Reshapes` table. The later
+descent pass translates boss objects relative to `Boss_Arena`; on repeat, that anchor is already at the
+destination, so the translation is zero and the two reset walls remain at the original location.
+
+**Fix.** `ApplyDescent` places those walls at final absolute coordinates after translating the arena.
+Regression tests check the shipped doorway against the arena floor and boundary, exercise migration from
+the original arena position, and compare repeated authoring results.
+
+**Invariant.** An anchor-based translation is idempotent only when earlier passes preserve every child's
+coordinate frame. A child reset by an earlier absolute pass needs a final absolute placement too.
+
+## 2026-09-07 — A long downhill ramp outlasted the dry slide's contract
+
+**Symptom.** The authored 48 m descent could not support one continuous slide under shipped friction 2,
+end speed 8 and duration 0.9 s. Gravity's small slope contribution did not overcome the friction, and the
+duration expired regardless. At 20 fps, 22 m/s also crosses 1.1 m horizontally per frame: a 1:4 slope drops
+0.275 m, more than the ordinary 0.12 m ground snap.
+
+**Fix, explicitly approved.** A slide moving downhill while actually grounded on a walkable slope
+skips dry friction and renews its duration, adding gravity up to the existing slide speed cap. Flat,
+uphill and airborne branches retain their original slope-then-friction arithmetic. Only that grounded
+downhill branch extends the displacement to follow its contacted plane; vertical velocity stays owned by
+the existing gravity/jump logic. Leaving the hill restores ordinary expiry and friction with a fresh tail,
+as leaving water already does. Setting `slideSlopeAccel` to zero disables the whole addition.
+
+**Invariant.** A sustained slope needs both a speed/duration contract and controller contact at the
+lowest supported frame rate. A cached coyote normal cannot sustain an airborne slide; ground snap cannot
+override jump velocity. Pure tests cover the arithmetic; actual collider behavior requires the live probe.

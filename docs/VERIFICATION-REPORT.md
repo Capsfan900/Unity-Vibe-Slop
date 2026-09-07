@@ -10,7 +10,36 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
-### Latest run — 2026-09-07, after the four-lane batch was generated (commit `57626eb`)
+### Final descent pass — 2026-09-07
+
+| Check | Result | Evidence and limits |
+|---|---|---|
+| FeatureTests, fresh Play session | **777 / 777 pass, 0 failed, 0 skipped** | `GameManager.I != null` and `Time.timeScale == 1` checked in the starting call. Local report: `TestResults/descent/features-final.txt`. |
+| EditMode, full | **831 / 831 pass, 0 failed, 0 skipped** (230.8 s) | Final source and regenerated asset; job `8eb5c8550b5a4693b3916ab98cc7f055`. Includes all shipped ramps, descent placement, repeated generation, downhill arithmetic and ground-snap tests. |
+| Health Check | **0 errors, 1764 warnings** | After final generation and scene/NavMesh rebuild. Warnings remain; this is not a warning-free project. |
+| Level arc and descent report | **PASS** | Every authored traversal has a clean arc. Descent probes use shipped geometry and exact ramp intersections; they establish clearance, not projectile timing or fairness. |
+| Generator idempotence | **PASS** | Two successive final authoring runs produced identical serialized level data. |
+| Live neutral slide and jump | **PASS** | One slide from before the crest covers the full 48 m descent and ends on the run-out; peak 19.56 m/s. Separate mid-ramp jump cancels sliding and leaves the ground. |
+| Live neutral slide, 20 fps | **PASS** | Final generated level, peak 19.16 m/s, longest frame 54 ms, slide ends on run-out at z352.53. |
+| Live three-turret parries, 60 fps | **PASS: 1/1/1 surges** | Final generated level; each turret fired once and granted one surge. Slide ended at z360.90. Peak 33.94 m/s includes the existing parry impulse before the next motor clamp. |
+
+**Probe limitation:** an uncapped run missed all three automatic parries. The probe's
+`EditorApplication.update` callback can run at roughly 8 Hz in the background, which can skip its
+120 ms forecast trigger even while game frames are fast. The first missed shot caused sideways
+knockback and disrupted subsequent encounters. The same saved level passed at capped 60 fps.
+This supports a polling limitation, not a claim that high-frame-rate human combat is proven.
+Both local logs are retained as `parry-final-generated.txt` (uncapped failure) and
+`parry-final-60fps.txt` (pass). A future robust probe should drive parries on the game update loop;
+do not widen the gameplay parry window to accommodate editor polling. Frame-rate and VSync settings
+were restored after testing; Play mode was stopped. Final console readback contained zero errors.
+
+The three-turret encounter uses the existing Surge Turret at z324/342/360. Earlier intermediate
+verification exposed a boss doorway wall being reset by the old openness pass; the final authoring
+places both south walls absolutely, and the regenerated level passes the full suite. Automated parry
+probes use bolt forecasts unavailable to a human and cannot establish cue readability or encounter
+fairness. Previous player build results below predate this change; no new player build was cut.
+
+### Previous run — 2026-09-07, after the four-lane batch was generated (commit `57626eb`)
 
 | Suite | Result | Notes |
 |---|---|---|
@@ -71,7 +100,7 @@ so it no longer dirties the tree. `ProjectSettings.asset` also goes dirty after 
 enforces `webGLTemplate: PROJECT:Playtest`, `webGLCompressionFormat: 1` (gzip) and
 `webGLDecompressionFallback: 1` by design.
 
-### Latest run — 2026-09-07, verifying the three-lane weapon pass (`73fd3bd`)
+### Previous run — 2026-09-07, verifying the three-lane weapon pass (`73fd3bd`)
 
 Measured this session from the user's open editor. Tree clean at `73fd3bd`.
 
@@ -104,7 +133,7 @@ unproven: whether Rosethorn at 9 base damage reads as a breaker or just as weak;
 mechanical creak reads as tension or as input latency; whether the new pooled, capped `WeaponImpactFx` hit
 confirm reads at all now that it is no longer the brightest thing on screen.
 
-### Latest run — 2026-09-06, after the five team passes and the prompt owner key
+### Previous run — 2026-09-06, after the five team passes and the prompt owner key
 
 | Suite | Result | Notes |
 |---|---|---|

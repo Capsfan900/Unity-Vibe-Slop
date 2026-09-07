@@ -7,7 +7,7 @@ using A = VibeGame1.EditorTools.LevelArcAnalyzer;
 namespace VibeGame1.Tests
 {
     /// <summary>
-    /// <b>The five ramps in Level_01, checked against the four things a ramp can silently get wrong.</b>
+    /// <b>All shipped ramps in Level_01, checked against four things a ramp can silently get wrong.</b>
     ///
     /// <para>These exist because <c>LevelArcAnalyzer.BoxesFrom</c> reads <c>def.platforms</c> ONLY (line 59),
     /// so a ramp is invisible to the arc report and to every <c>Level*Tests</c> fixture: nothing in the
@@ -44,19 +44,11 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(def, "Level_01_Level.asset is missing");
         }
 
-        /// <summary>The authored table, as <c>RampDef</c>s, so the derived geometry is the shipped code's.</summary>
+        /// <summary>The shipped slopes, including the descent outside the small-connector table.</summary>
         static RampDef[] Authored()
         {
-            var src = LevelDefinitionAuthoring.Ramps;
-            var made = new RampDef[src.Length];
-            for (int i = 0; i < src.Length; i++)
-                made[i] = new RampDef
-                {
-                    name = src[i].name, basePosition = src[i].basePosition, width = src[i].width,
-                    run = src[i].run, rise = src[i].rise, yaw = src[i].yaw,
-                    thickness = LevelDefinitionAuthoring.RampThickness,
-                };
-            return made;
+            // Check SHIPPED slopes, including the descent; the small-connector table is not the level.
+            return def.ramps;
         }
 
         /// <summary>The asset holds what the table authors — proof the pass reached the disk (rule 9).</summary>

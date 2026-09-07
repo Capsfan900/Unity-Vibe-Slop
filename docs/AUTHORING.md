@@ -116,9 +116,8 @@ rules it follows:
   on the final fall). Orbs stay more than a body clear of every deck top or a runner pops them.
 - **A RAMP replaces a hop with a run, and only where the measurement allows it** (2026-09-07). Five of them,
   `LevelDefinitionAuthoring.Ramps`, all authored as a rise over a run and none steeper than 15.4°. Two facts
-  govern every one. **Level_01 has no descent** — it climbs monotonically from y 0 to y 28 — so no ramp in it
-  can pay a downhill slide, and a ramp's job here is CONTINUITY (the run never leaves the ground), never speed
-  gained. And **a ramp is not a kicker**: a `CharacterController` leaving a ramp's top edge keeps its horizontal
+  govern these connectors. **The route before the final descent climbs** from y 0 to y 28, so their job is
+  CONTINUITY (the run never leaves the ground). And **a ramp is not a kicker**: a `CharacterController` leaving a ramp's top edge keeps its horizontal
   velocity and gains no vertical, so a ramp that stops short of the next deck is only a jump with a shorter
   run-up — every ramp meets its deck at both ends, with 0.2 m of overlap or better. Three of the four flat
   +0.5 m stepping-stone hops become grades (7.3°, 7.5°, 11.8°) and two of the spiral's eleven identical
@@ -128,6 +127,12 @@ rules it follows:
   into `T2_Tower` and cost three sightlines. `T1_Stone_2 → T1_Stone_3` was left as a jump on purpose: any
   ramp across it cuts through `T1_Fast_1`, the slide-jump tech deck, and hands the base kit a free walk onto
   the one line that is supposed to be gated. `T3_Span → T3_Step_1` was left alone too — see §1c.
+- **The final descent follows T3.** `ApplyDescent` adds a sixth ramp: 48 m of horizontal run, 12 m down,
+  10 m wide, joining the y 28 entry to a 24.4 m run-out at y 16. Three existing surge turrets stand on side
+  pads 18 m apart. The boss arena, doorway, trigger, spawn, pickups and lights move together to the lower
+  approach; `Checkpoint_4` stays before its gate. `LevelDescentReport` checks bolt and preview sightlines
+  against the shipped ramp slabs. Geometry checks do not prove a continuous slide or projectile timing;
+  those require the live motor probe.
 - **Water lines lie ON a deck** (sheet bottom within 6 cm of the top, inside the deck in plan, unit flow):
   the T1 fast slide deck (a slide on water never decays, so the slide-jump leaves at full carry) and the
   T3 span after the lintel, whose last sheet flows toward `T3_Step_1` — a line that turns the run.

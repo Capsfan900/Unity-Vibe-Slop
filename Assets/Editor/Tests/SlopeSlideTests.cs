@@ -144,8 +144,8 @@ namespace VibeGame1.Tests
             Assert.Greater(gained, 1.5f,
                 "under ~1.5 m/s over a whole slide a ramp is not worth steering onto");
             Assert.Less(gained, 8f,
-                "a single 0.9 s slide must not hand out more than the dash does; slideFriction and " +
-                "slideMaxDuration are the only other brakes and neither scales with the hill");
+                "a single 0.9 s interval must not hand out more than the dash does; sustained downhill " +
+                "speed is separately bounded by slideMaxSpeed");
         }
 
         // ------------------------------------------------------------------ robustness
@@ -216,6 +216,126 @@ namespace VibeGame1.Tests
                 for (int i = 0; i < steps; i++) v += a * dt;
                 Assert.AreEqual((a * total).magnitude, v.magnitude, 1e-3f, steps + " steps");
             }
+        }
+    }
+
+    /// <summary>The sustained descent under shipped tuning; the scene probe owns actual controller contact.</summary>
+    public class DownhillSlideTests
+    {
+        FirstPersonMotor motor;
+        float slopeLimit;
+        readonly Vector3 normal = new Vector3(0f, 1f, 0.25f).normalized;
+
+        [OneTimeSetUp] public void LoadShippedMotor()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player.prefab");
+            Assert.IsNotNull(prefab);
+            motor = prefab.GetComponent<FirstPersonMotor>();
+            slopeLimit = prefab.GetComponent<CharacterController>().slopeLimit;
+            Assert.IsNotNull(motor);
+        }
+
+        bool Sustains(Vector3 v, Vector3 n, bool grounded = true)
+        {
+            return TraversalMath.SustainsDownhillSlide(v, n, motor.slideSlopeAccel, slopeLimit, grounded);
+        }
+
+        Vector3 Step(Vector3 v, Vector3 n, float dt, bool downhill)
+        {
+            return TraversalMath.DrySlideStep(v, n, motor.slideSlopeAccel, motor.slideFriction, motor.slideMaxSpeed, dt, downhill);
+        }
+
+        [TestCase(20)] [TestCase(60)] [TestCase(240)]
+        public void FlatUphillAndAirborneRetainExactLegacyArithmetic(int fps)
+        {
+            foreach (var n in new[] { Vector3.up, normal })
+                foreach (bool grounded in new[] { false, true })
+                {
+                    Vector3 velocity = Vector3.back * 16f;
+                    for (int frame = 0; frame < fps; frame++)
+                    {
+                        bool downhill = Sustains(velocity, n, grounded);
+                        Assert.IsFalse(downhill);
+                        // Use the same multiplication as the legacy motor, including float rounding.
+                        Vector3 exact = velocity + TraversalMath.SlopeAccel(n, motor.slideSlopeAccel) * (1f / fps);
+                        exact *= Mathf.Max(0f, 1f - motor.slideFriction * (1f / fps));
+                        velocity = Step(velocity, n, 1f / fps, downhill);
+                        Assert.AreEqual(exact, velocity);
+                    }
+                }
+        }
+
+        [Test] public void SustainNeedsActualDownhillContactAndEnabledSlopeTuning()
+        {
+            Assert.IsTrue(Sustains(Vector3.forward * 16f, normal));
+            Assert.IsFalse(Sustains(Vector3.forward * 16f, normal, false), "cached air/coyote normal");
+            Assert.IsFalse(Sustains(Vector3.right * 16f, normal), "traversing across the slope");
+            Assert.IsFalse(Sustains(Vector3.back * 16f, normal), "uphill");
+            Assert.IsFalse(Sustains(Vector3.zero, normal), "stationary");
+            foreach (var n in new[] { Vector3.up, Vector3.zero, Vector3.down, Vector3.forward, new Vector3(0f, 1f, 2f).normalized })
+                Assert.IsFalse(Sustains(Vector3.forward * 16f, n), "nonwalkable or flat " + n);
+            Assert.IsFalse(TraversalMath.SustainsDownhillSlide(Vector3.forward * 16f, normal, 0f, slopeLimit, true));
+        }
+
+        [TestCase(20)] [TestCase(60)] [TestCase(240)]
+        public void OneSlideCrosses48MetresThenEndsOnTheRunOut(int fps)
+        {
+            float dt = 1f / fps, now = 0f, distance = 0f, endsAt = motor.slideMaxDuration;
+            Vector3 velocity = Vector3.forward * 16f;
+            while (distance < 48f && now < 5f)
+            {
+                now += dt;
+                bool downhill = Sustains(velocity, normal);
+                Assert.IsTrue(downhill);
+                velocity = Step(velocity, normal, dt, downhill);
+                endsAt = now + motor.slideMaxDuration;
+                Assert.Greater(velocity.magnitude, motor.slideEndSpeed);
+                Assert.LessOrEqual(velocity.magnitude, motor.slideMaxSpeed + 0.001f);
+                distance += velocity.z * dt;
+            }
+            Assert.GreaterOrEqual(distance, 48f);
+            Assert.Greater(now, motor.slideMaxDuration, "the route needs more than the old duration");
+            float exitTime = now, runOut = 0f;
+            do
+            {
+                now += dt;
+                Assert.IsFalse(Sustains(velocity, Vector3.up));
+                velocity = Step(velocity, Vector3.up, dt, false);
+                runOut += velocity.z * dt;
+            } while (velocity.magnitude > motor.slideEndSpeed && now < endsAt);
+            Assert.LessOrEqual(now - exitTime, motor.slideMaxDuration + dt);
+            Assert.Less(runOut, 12f, "original friction should end the slide within the 24.4 m run-out");
+        }
+
+        [Test] public void AddedSpeedIsCappedButExternalCarryIsPreserved()
+        {
+            Assert.That(Step(Vector3.forward * (motor.slideMaxSpeed - 0.1f), normal, 1f, true).magnitude,
+                Is.EqualTo(motor.slideMaxSpeed).Within(0.0001f));
+            float carry = motor.slideMaxSpeed + 3f;
+            Assert.That(Step(Vector3.forward * carry, normal, 1f, true).magnitude, Is.EqualTo(carry).Within(0.0001f));
+        }
+
+        [Test] public void DownhillSpeedAgreesAt20_60_240Fps()
+        {
+            foreach (int fps in new[] { 20, 60, 240 })
+            {
+                Vector3 velocity = Vector3.forward * 16f;
+                for (int i = 0; i < fps * 2; i++) velocity = Step(velocity, normal, 1f / fps, true);
+                float expected = 16f + TraversalMath.SlopeAccel(normal, motor.slideSlopeAccel).z * 2f;
+                Assert.That(velocity.z, Is.EqualTo(expected).Within(0.002f), fps + " fps");
+            }
+        }
+
+        [TestCase(20)] [TestCase(60)] [TestCase(240)]
+        public void DownhillSnapFollowsThePlaneIncludingControllerSkin(int fps)
+        {
+            Vector3 displacement = new Vector3(0f, -motor.groundSnapDistance, motor.slideMaxSpeed / fps);
+            float planeY = -displacement.z * 0.25f;
+            float snapY = TraversalMath.DownhillSnapY(displacement, normal, motor.groundSnapDistance);
+            Assert.LessOrEqual(snapY, planeY - motor.groundSnapDistance + 0.0001f);
+            Assert.That(TraversalMath.DownhillSnapY(displacement, Vector3.up, motor.groundSnapDistance), Is.EqualTo(displacement.y));
+            Assert.That(TraversalMath.DownhillSnapY(displacement, normal, 0f), Is.EqualTo(displacement.y));
+            Assert.That(TraversalMath.DownhillSnapY(displacement, Vector3.forward, motor.groundSnapDistance), Is.EqualTo(displacement.y));
         }
     }
 }

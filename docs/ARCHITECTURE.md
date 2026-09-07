@@ -239,6 +239,11 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   at `2/s` to a floor of `8 m/s` — **4.0 m in 0.35 s**, measured, and identical from 20 fps to 400 fps. The
   capsule drops `1.8 → 1.0 m`, so a slide passes under geometry a standing player cannot. Average speed over
   the slide (11.5 m/s) is barely above a run: **the slide is not the reward, the jump out of it is.**
+- **Downhill slide exception (2026-09-07).** On actual contact with a walkable downhill slope, the motor
+  sustains the slide and applies slope acceleration without dry friction. Acceleration caps at the
+  greater of the existing slide ceiling and carried speed; it does not manufacture extra overspeed.
+  A displacement-only ground snap follows the contacted plane. Flat ground, uphill travel, water and
+  airborne travel keep their existing rules, and jumping still cancels immediately.
 - **Slide-jump is the tech.** Jumping cancels a slide without touching horizontal speed, so a slide-jump
   leaves the ground at **15.8 m/s against a run's 11**, and clears **12.6 m against 8.8 m** with the jump key
   held. Skill expression is entirely in *when* you cancel: press early and you keep 16 m/s, ride the slide to

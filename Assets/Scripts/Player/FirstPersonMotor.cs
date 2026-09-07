@@ -50,7 +50,7 @@ namespace VibeGame1
         [Tooltip("Speed ADDED on entry, on top of whatever you were already carrying. A slide is a " +
                  "reward for entering it fast, not a way to get fast from a standstill.")]
         public float slideBoost = 5f;
-        [Tooltip("Hard ceiling on entry speed, so a dash landing cannot be laundered into a rocket.")]
+        [Tooltip("Ceiling on slide entry and speed added by a downhill slope. Existing faster carry is preserved.")]
         public float slideMaxSpeed = 22f;
         [Tooltip("Below this you cannot start a slide — it is a momentum move, not a crouch.")]
         public float slideMinEntrySpeed = 5f;
@@ -59,12 +59,12 @@ namespace VibeGame1
         public float slideFriction = 2f;
         [Tooltip("The slide ends when it decays to this. Still above a walk, so you exit with something.")]
         public float slideEndSpeed = 8f;
-        [Tooltip("Hard cap on one slide, so a downhill slide can never run forever.")]
+        [Tooltip("Dry slide duration. Renewed while descending a walkable slope, as on water; the ordinary tail resumes on exit.")]
         public float slideMaxDuration = 0.9f;
         [Tooltip("How much of gravity's along-slope pull a slide feels, as a fraction. 0 = slopes do " +
                  "nothing and a slide behaves exactly as it did before ramps existed; 1 = a frictionless " +
-                 "ramp. The slide is still capped by slideMaxDuration and still bled by slideFriction, " +
-                 "so this decides how much a hill PAYS, not how long you keep it.")]
+                 "ramp. Downhill contact sustains the slide without friction, adding speed up to slideMaxSpeed. " +
+                 "Flat and uphill slides keep their ordinary friction and duration.")]
         public float slideSlopeAccel = 0.85f;
         public float slideCooldown = 0.3f;
         [Tooltip("CharacterController height while sliding. The stand height is read off the collider " +
@@ -1113,17 +1113,15 @@ namespace VibeGame1
                             float sp0 = hv.magnitude;
                             hv = Vector3.MoveTowards(hv, wish.normalized * sp0, slideSteerAccel * dt);
                         }
-                        // THE HILL. Gravity's component ALONG the ground plane, which is exactly zero
-                        // on a flat floor - so every span built before ramps existed behaves
-                        // bit-for-bit as it did, and this cannot regress geometry nobody re-authored.
-                        // Downhill it adds; uphill the same term subtracts and a slide dies early on a
-                        // climb. Applied BEFORE friction so the hill and the bleed compose in the
-                        // honest order: you gain, then you are taxed on what you now have.
-                        hv += TraversalMath.SlopeAccel(GroundNormal, slideSlopeAccel) * dt;
+                        // The downhill branch requires actual floor contact, never a cached coyote
+                        // normal. Flat/uphill retain the original slope-then-friction arithmetic.
+                        bool downhill = TraversalMath.SustainsDownhillSlide(hv, GroundNormal, slideSlopeAccel,
+                                                                           cc.slopeLimit, IsGrounded && vel.y <= 0f);
+                        hv = TraversalMath.DrySlideStep(hv, GroundNormal, slideSlopeAccel, slideFriction,
+                                                       slideMaxSpeed, dt, downhill);
+                        if (downhill) slideEndsAt = now + slideMaxDuration;
 
-                        hv *= Mathf.Max(0f, 1f - slideFriction * dt);
-
-                        bool spent = hv.magnitude <= slideEndSpeed || now >= slideEndsAt;
+                        bool spent = !downhill && (hv.magnitude <= slideEndSpeed || now >= slideEndsAt);
                         if (spent && !EndSlide())
                         {
                             // A ceiling is holding us down. Keep enough speed to crawl clear rather
@@ -1299,6 +1297,12 @@ namespace VibeGame1
             Vector3 disp = vel * dt;
             if (IsGrounded && vel.y <= 0f && groundSnapDistance > 0f && disp.y > -groundSnapDistance)
                 disp.y = -groundSnapDistance;
+            // At 20 fps a 22 m/s slide travels 1.1 m across a frame: a 1:4 hill drops 0.275 m,
+            // beyond the ordinary 0.12 m snap. Follow that plane plus the usual contact margin.
+            // Jump/dash/cancel/water and flat/uphill movement keep the original displacement.
+            if (sliding && !IsDashing && !inWater && vel.y <= 0f &&
+                TraversalMath.SustainsDownhillSlide(hv, GroundNormal, slideSlopeAccel, cc.slopeLimit, IsGrounded))
+                disp.y = TraversalMath.DownhillSnapY(disp, GroundNormal, groundSnapDistance);
             // NEAR-MISS LANDING (forgiveness). Falling, not sliding or wall running, with the feet about
             // to pass just under a ledge top that lies ahead along the carried velocity: lift the body so
             // the next sweep lands on it. Bounded per frame, adds no velocity, ignores walls (a wall side

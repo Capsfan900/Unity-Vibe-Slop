@@ -433,6 +433,26 @@ the `VibeGame1/Build/…` menu items over MCP, they only log. Publish with `Tool
 Release). Full runbook, one-time GitHub settings and how to trace a bug report to a build SHA:
 [docs/DISTRIBUTION.md](DISTRIBUTION.md).
 
+## Final-descent verification (2026-09-07)
+
+`LevelDescentReport.Build(def)` supplements the platform-only ballistic arc report with exact
+oriented ramp/box sightline checks. It reads the shipped ramp geometry. The eight
+`LevelDescentTests` and expanded `LevelRampPlacementTests` cover migration, repeat generation,
+doorway alignment, ramp endpoints and geometry obstruction.
+
+In a fresh, unpaused Level_01 Play session, call `VibeGame1.EditorTools.LevelDescentProbe.Start(false)`
+then `.Poll()`: one entry impulse and one `TrySlide`, followed by the real motor without injected
+movement. It records speed, grounding and where the slide ends. `Start(true)` additionally allows
+the three real turrets to fire and uses forecast-driven automatic parries; success requires all three
+to grant surge. This proves integration, never human fairness. The probe temporarily protects health,
+restores the prior invulnerability flag, returns the player, clears its projectiles and respawns the three
+turrets. Health protection is OFF for the parry variant (invulnerability bypasses attack resolution).
+`Start(false, true)` checks a mid-ramp jump cancellation. Live movement/jump input aborts the probe.
+The automatic-parry driver uses `EditorApplication.update`, which can poll too slowly when unfocused
+to observe its 120 ms trigger. The final saved encounter passed at capped 60 fps, while an uncapped
+run missed the first parry and cascaded into knockback. Treat an uncapped failure as inconclusive;
+see VERIFICATION-REPORT for both runs. Restore any temporary frame-rate/VSync settings after testing.
+
 ## Subagent teams (2026-09-06)
 
 Five project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to

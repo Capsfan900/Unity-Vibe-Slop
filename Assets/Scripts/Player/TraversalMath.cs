@@ -72,6 +72,42 @@ namespace VibeGame1
             return Vector3.Angle(groundNormal.normalized, Vector3.up);
         }
 
+        /// <summary>Only contact with a walkable slope, moving down its fall line, sustains a dry slide.
+        /// Actual grounded state is required: coyote time must not turn a departed ledge into a hill.</summary>
+        public static bool SustainsDownhillSlide(Vector3 velocity, Vector3 groundNormal, float scale,
+                                                float slopeLimit, bool grounded)
+        {
+            if (!grounded || groundNormal.sqrMagnitude < 1e-6f) return false;
+            if (SlopeDegrees(groundNormal) > slopeLimit) return false;
+            velocity.y = 0f;
+            return Vector3.Dot(velocity, SlopeAccel(groundNormal, scale)) > 0.001f;
+        }
+
+        /// <summary>The original dry-slide arithmetic unless the body is descending a walkable slope.
+        /// Downhill adds gravity without friction, capped at the existing slide ceiling; carried speed
+        /// earned elsewhere is preserved, but the hill cannot increase it beyond that ceiling.</summary>
+        public static Vector3 DrySlideStep(Vector3 velocity, Vector3 groundNormal, float scale, float friction,
+                                          float speedCap, float dt, bool downhill)
+        {
+            if (downhill)
+            {
+                float ceiling = Mathf.Max(speedCap, velocity.magnitude);
+                return Vector3.ClampMagnitude(velocity + SlopeAccel(groundNormal, scale) * dt, ceiling);
+            }
+            velocity += SlopeAccel(groundNormal, scale) * dt;
+            velocity *= Mathf.Max(0f, 1f - friction * dt);
+            return velocity;
+        }
+
+        /// <summary>Follow the contacted downhill plane as displacement, without writing vertical
+        /// velocity. The motor calls this only for a grounded, non-rising downhill slide.</summary>
+        public static float DownhillSnapY(Vector3 displacement, Vector3 groundNormal, float contactMargin)
+        {
+            if (groundNormal.y <= 0.0001f || contactMargin <= 0f) return displacement.y;
+            float planeY = -(displacement.x * groundNormal.x + displacement.z * groundNormal.z) / groundNormal.y;
+            return planeY < 0f ? Mathf.Min(displacement.y, planeY - contactMargin) : displacement.y;
+        }
+
         public static Vector3 Launch(Vector3 vel, float upSpeed)
         {
             return Launch(vel, upSpeed, float.PositiveInfinity);

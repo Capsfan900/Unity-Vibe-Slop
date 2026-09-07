@@ -31,9 +31,9 @@ namespace VibeGame1.EditorTools
     ///
     /// <para><b>The ramp pass (2026-09-07).</b> A third, additive pass: the level's first sloped geometry,
     /// five <see cref="RampDef"/>s that turn four hops into runs. See <see cref="Ramps"/> for each one's
-    /// numbers, its derived angle and its job. Two facts shaped all five. <b>Level_01 has no descent</b> —
-    /// it climbs monotonically from y 0 to y 28 — so no ramp here can pay a downhill slide, and a ramp's
-    /// job in this level is continuity, never speed. And <b>a ramp is not a kicker</b>: a
+    /// numbers, its derived angle and its job. These five connectors climb from y 0 toward y 28;
+    /// their job is continuity. <see cref="ApplyDescent"/> adds the final 48 m descent after T3.
+    /// <b>A ramp is not a kicker</b>: a
     /// <c>CharacterController</c> leaving a ramp's top gets no vertical impulse, so a ramp that stops short
     /// of the next deck is only a jump with a shorter run-up. Every ramp here meets its deck at both ends.</para>
     /// </summary>
@@ -640,11 +640,80 @@ namespace VibeGame1.EditorTools
                 torches.Add(new TorchDef { name = b.name, basePosition = b.basePosition });
             def.torches = torches.ToArray();
 
+            ApplyDescent(def);
+
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
                                  "{8} platforms and {9} torches total.",
                                  reshaped, Perches.Length, moved, balloons.Count, waters.Count, def.ramps.Length,
                                  RouteBeacons.Length, gated, def.platforms.Length, def.torches.Length);
+        }
+
+        /// <summary>The final descent and its existing surge-turret encounter. Absolute, re-runnable data.</summary>
+        public static void ApplyDescent(LevelDefinition def)
+        {
+            var platforms = new List<PlatformDef>(def.platforms);
+            var boss = platforms.Find(p => p.name == "Boss_Arena");
+            if (boss == null) throw new System.InvalidOperationException("Descent requires Boss_Arena.");
+            // Derive the translation from the current anchor: a second application moves nothing.
+            Vector3 shift = new Vector3(0f, 15.5f, 390f) - boss.center;
+            foreach (var p in platforms)
+                if (p.name.Contains("Boss")) p.center += shift;
+            // Apply's earlier Reshapes restores these two walls to the original arena coordinates.
+            // Give them their final absolute positions even when the arena anchor has already moved.
+            foreach (var p in platforms)
+            {
+                if (p.name == "Wall_Boss_S_L") p.center = new Vector3(-11.75f, 18f, 370.75f);
+                if (p.name == "Wall_Boss_S_R") p.center = new Vector3(11.75f, 18f, 370.75f);
+            }
+            foreach (var s in def.spawns)
+                if (s.name == "Spawn_Boss") s.position += shift;
+            foreach (var p in def.pickups)
+                if (p.name.Contains("Boss")) p.position += shift;
+            foreach (var t in def.torches)
+                if (t.name.StartsWith("Torch_Boss_")) t.basePosition += shift;
+            foreach (var a in def.arenas)
+                if (a.gateName == "Boss_Gate")
+                {
+                    a.gateOpenPosition += shift; a.gateClosedPosition += shift;
+                    a.triggerPosition += shift;
+                    if (a.hasExitGate) { a.exitGateOpenPosition += shift; a.exitGateClosedPosition += shift; }
+                }
+            foreach (var c in def.checkpoints)
+                if (c.name == "Checkpoint_4") c.position = new Vector3(0f, 16f, 361f);
+
+            platforms.RemoveAll(p => p.name.StartsWith("T4_") || p.name.StartsWith("Boss_Approach_Rail_"));
+            var approach = platforms.Find(p => p.name == "Boss_Approach");
+            approach.center = new Vector3(0f, 15.5f, 358.8f);
+            approach.size = new Vector3(10f, 1f, 24.4f);
+            platforms.Add(new PlatformDef { name = "T4_Entry", center = new Vector3(0f, 27.5f, 291f),
+                size = new Vector3(10f, 1f, 16f), materialKey = "Platform", trim = true });
+
+            var ramps = new List<RampDef>(def.ramps);
+            ramps.RemoveAll(r => r.name == "T4_Ramp_Descent");
+            var descent = new RampDef { name = "T4_Ramp_Descent", basePosition = new Vector3(0f, 28f, 298.8f),
+                width = 10f, run = 48f, rise = -12f, thickness = 0.5f, materialKey = "Stone" };
+            ramps.Add(descent);
+            def.ramps = ramps.ToArray();
+
+            var spawns = new List<SpawnDef>(def.spawns);
+            spawns.RemoveAll(s => s.name.StartsWith("Spawn_T4_Surge_"));
+            for (int i = 0; i < 3; i++)
+            {
+                // Live interception needed another 8 m of lead for the opening shot. Keep the row's
+                // 18 m rhythm, with its last beat on the run-out rather than beside a fleeing player.
+                float z = 324f + 18f * i;
+                float y = descent.basePosition.y + descent.rise * Mathf.Clamp01((z - descent.basePosition.z) / descent.run);
+                platforms.Add(new PlatformDef { name = "T4_TurretPad_" + (i + 1),
+                    center = new Vector3(6.7f, y - 0.5f, z), size = new Vector3(3f, 1f, 3f),
+                    materialKey = "Stone", trim = true, trimMaterialKey = "NeonPink" });
+                spawns.Add(new SpawnDef { name = "Spawn_T4_Surge_" + (i + 1), prefabKey = "pshooter_enemy03",
+                    position = new Vector3(6.7f, y + 0.1f, z), yaw = 210f });
+            }
+            def.spawns = spawns.ToArray();
+            def.platforms = platforms.ToArray();
+            def.killZone.center = new Vector3(0f, -30f, 200f);
+            def.killZone.size = new Vector3(200f, 2f, 500f);
         }
     }
 }
