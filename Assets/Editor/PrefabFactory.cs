@@ -45,7 +45,9 @@ namespace VibeGame1.EditorTools
             BuildEnemy("Enemy_Heavy", EnemyPaths.Data("Heavy"), false);
             BuildEnemy("Boss", EnemyPaths.Data("Boss"), true);
             // parkour_enemies: the span sentries (same body, violet, ProjectileShooter, never melee).
-            BuildEnemy("pshooter_enemy01", EnemyPaths.Data("pshooter_enemy01"), false);
+            // pshooter_enemy01 is the GHOST (2026-09-06, user-directed): the same rig, the same timings,
+            // the same collider — a different body. See BuildGhostBody.
+            BuildEnemy("pshooter_enemy01", EnemyPaths.Data("pshooter_enemy01"), false, true);
             BuildEnemy("pshooter_enemy02", EnemyPaths.Data("pshooter_enemy02"), false);
 
             AssetDatabase.SaveAssets();
@@ -727,7 +729,16 @@ namespace VibeGame1.EditorTools
             // to it and tosses you up. Rule 9: written here, not left to the initialiser.
             var flareGrapple = root.AddComponent<FlareGrapple>();
             flareGrapple.range = 30f; flareGrapple.coneDeg = 20f; flareGrapple.pullSeconds = 0.35f;
-            flareGrapple.tossUpSpeed = 14f; flareGrapple.tossFovKick = 8f;
+            // 2026-09-06 (the user): higher, and about two seconds of hangtime, ONLY that. 18 m/s against
+            // gravity -30 is a 5.4 m rise (14 was a nominal 3.3 m and, with the jump cut applied to a toss
+            // nobody pressed jump for, a felt 1.9 m); the 2 s window slows the FALL only and is closed early
+            // by a landing, a dash, a wall jump, a wall run or another pull.
+            // The motor half of the toss (rule 9). The window LENGTH is the grapple's; the motor owns the
+            // shape: 0.22 x gravity while FALLING inside it (-9.9 m/s^2 after the fall multiplier), and a
+            // hard cap so no caller can ask for a hover.
+            motor.hangGravityScale = 0.22f;
+            motor.hangSecondsCap = 2.5f;
+            flareGrapple.tossUpSpeed = 18f; flareGrapple.tossHangSeconds = 2f; flareGrapple.tossFovKick = 8f;
             flareGrapple.hue = new Color(0.85f, 0.7f, 1f);
             // The toss's player-anchored read (vfx-art-team pass, 2026-09-06): a ring at the feet and a g-force chroma pulse.
             flareGrapple.tossChroma = 0.16f; flareGrapple.tossChromaSeconds = 0.25f; flareGrapple.tossRingRadius = 1.4f;
@@ -1040,7 +1051,27 @@ namespace VibeGame1.EditorTools
 
         // ------------------------------------------------------------------ D. enemies
 
-        static void BuildEnemy(string name, string dataPath, bool isBoss)
+        /// <summary>
+        /// Everything <see cref="EnemyVisuals"/> needs bound, whichever body was built. Two bodies exist —
+        /// the pill and the ghost — and the ONLY thing that differs between them is geometry: the arm rig,
+        /// the pivots, the markers, the posture bar, the collider and every timing are identical, which is
+        /// the whole reason a body can be swapped without touching a single combat number.
+        /// </summary>
+        class EnemyBodyParts
+        {
+            public Renderer body;
+            public Renderer eye;
+            public Renderer secondEye;      // ghost only; EnemyVisuals holds one eye, SentryGhostVisual mirrors it
+            public Renderer weapon;         // null on the ghost: it has no blade
+            public Transform armPivot;
+            public Transform weaponPivot;
+            public Transform floatRoot;     // ghost only
+            public Transform[] hem;         // ghost only
+        }
+
+        static void BuildEnemy(string name, string dataPath, bool isBoss) { BuildEnemy(name, dataPath, isBoss, false); }
+
+        static void BuildEnemy(string name, string dataPath, bool isBoss, bool ghost)
         {
             var root = new GameObject(name);
             root.layer = Layers.Enemy;
@@ -1091,12 +1122,62 @@ namespace VibeGame1.EditorTools
             var flash = visual.AddComponent<EmissiveFlash>();
 
             var lungeRoot = Empty("LungeRoot", visual.transform, Vector3.zero);
-            var body = Prim(PrimitiveType.Capsule, "Body", lungeRoot.transform, new Vector3(0f, 1f, 0f), new Vector3(0.9f, 1f, 0.9f), bodyMat);
-            var eye = Prim(PrimitiveType.Cube, "Eye", lungeRoot.transform, new Vector3(0f, 1.55f, 0.4f), new Vector3(0.3f, 0.12f, 0.15f), Mat("M_EnemyEye"));
+            EnemyBodyParts parts = ghost
+                ? BuildGhostBody(lungeRoot.transform, bodyMat)
+                : BuildPillBody(lungeRoot.transform, bodyMat);
+
+            var alert = Prim(PrimitiveType.Cube, "Alert", visual.transform, new Vector3(0f, 2.5f, 0f), new Vector3(0.25f, 0.25f, 0.25f), Mat("M_AlertTell"));
+            alert.SetActive(false);
+
+            visuals.body = parts.body;
+            visuals.eye = parts.eye;
+            visuals.weapon = parts.weapon;
+            visuals.lungeRoot = lungeRoot.transform;
+            visuals.armPivot = parts.armPivot;
+            visuals.weaponPivot = parts.weaponPivot;
+            visuals.alertMarker = alert;
+            visuals.deathblowMarker = BuildDeathblowMarker(visual.transform);
+            flash.renderers = parts.weapon != null
+                ? new[] { parts.body, parts.weapon }
+                : new[] { parts.body };
+
+            if (ghost)
+            {
+                // Rule 9: every number the float, the hem and the mist run on is written HERE, never left
+                // to a field initialiser that a prefab built yesterday would never see.
+                var gv = visual.AddComponent<SentryGhostVisual>();
+                gv.floatRoot = parts.floatRoot;
+                gv.hem = parts.hem;
+                gv.mirrorEye = parts.secondEye;
+                gv.bobAmplitude = 0.07f; gv.bobHz = 0.42f;
+                gv.secondaryAmplitude = 0.018f; gv.secondaryHz = 0.93f;
+                gv.swayAmplitude = 0.03f; gv.rollDegrees = 2.5f;
+                gv.hemWaveDegrees = 9f; gv.hemWaveHz = 0.62f;
+                gv.mistCount = 4;
+                gv.mistRadius = 0.62f; gv.mistRadiusSpread = 0.22f;
+                gv.mistLowHeight = 0.55f; gv.mistHighHeight = 1.55f;
+                gv.mistSize = 0.34f; gv.mistFlatten = 0.62f;
+                gv.mistOrbitSeconds = 7.5f; gv.mistBobAmplitude = 0.14f; gv.mistBreathHz = 0.31f;
+            }
+
+            // ---- posture bar: small enemies only; the boss has the HUD bar -------------------------
+            if (!isBoss) BuildPostureBar(visual.transform);
+
+            Save(root, $"{PrefabDir}/{name}.prefab");
+        }
+
+        /// <summary>
+        /// The original pill: capsule torso, one cube eye, and the shoulder/hand/blade arm rig. Unchanged —
+        /// the Grunt, the Heavy, the Boss and pshooter_enemy02 all still get exactly this.
+        /// </summary>
+        static EnemyBodyParts BuildPillBody(Transform lungeRoot, Material bodyMat)
+        {
+            var body = Prim(PrimitiveType.Capsule, "Body", lungeRoot, new Vector3(0f, 1f, 0f), new Vector3(0.9f, 1f, 0.9f), bodyMat);
+            var eye = Prim(PrimitiveType.Cube, "Eye", lungeRoot, new Vector3(0f, 1.55f, 0.4f), new Vector3(0.3f, 0.12f, 0.15f), Mat("M_EnemyEye"));
 
             // ---- arm rig: shoulder -> upper arm -> forearm/hand -> weapon --------------------------
             // Rotating the shoulder swings the whole limb, so wind-ups read from the silhouette.
-            var shoulder = Empty("ArmPivot", lungeRoot.transform, new Vector3(0.5f, 1.45f, 0f));
+            var shoulder = Empty("ArmPivot", lungeRoot, new Vector3(0.5f, 1.45f, 0f));
             Prim(PrimitiveType.Cube, "UpperArm", shoulder.transform, new Vector3(0f, -0.28f, 0f), new Vector3(0.17f, 0.56f, 0.17f), bodyMat);
 
             var hand = Empty("WeaponPivot", shoulder.transform, new Vector3(0f, -0.56f, 0f));
@@ -1105,23 +1186,100 @@ namespace VibeGame1.EditorTools
             var weapon = Prim(PrimitiveType.Cube, "Weapon", hand.transform, new Vector3(0f, -0.45f, 0.42f), new Vector3(0.12f, 0.14f, 1.35f), bodyMat);
             weapon.transform.localRotation = Quaternion.Euler(8f, 0f, 0f);
 
-            var alert = Prim(PrimitiveType.Cube, "Alert", visual.transform, new Vector3(0f, 2.5f, 0f), new Vector3(0.25f, 0.25f, 0.25f), Mat("M_AlertTell"));
-            alert.SetActive(false);
+            return new EnemyBodyParts
+            {
+                body = body.GetComponent<Renderer>(),
+                eye = eye.GetComponent<Renderer>(),
+                weapon = weapon.GetComponent<Renderer>(),
+                armPivot = shoulder.transform,
+                weaponPivot = hand.transform,
+            };
+        }
 
-            visuals.body = body.GetComponent<Renderer>();
-            visuals.eye = eye.GetComponent<Renderer>();
-            visuals.weapon = weapon.GetComponent<Renderer>();
-            visuals.lungeRoot = lungeRoot.transform;
-            visuals.armPivot = shoulder.transform;
-            visuals.weaponPivot = hand.transform;
-            visuals.alertMarker = alert;
-            visuals.deathblowMarker = BuildDeathblowMarker(visual.transform);
-            flash.renderers = new[] { visuals.body, visuals.weapon };
+        /// <summary>
+        /// THE GHOST (2026-09-06, user-directed: "make it like a blush ghost that looks like a cartoon ghost
+        /// and is floating and glowing with wispy mist around it"). pshooter_enemy01 only.
+        ///
+        /// <para><b>Read the conflicts before changing a number here.</b></para>
+        /// <list type="bullet">
+        /// <item><b>Cold, not blush.</b> The 2026-09-06 palette rule is that warm means a combat tell or it
+        /// means fire, and nothing else. A pink body would have put an ENEMY in the tells' colour family,
+        /// on the one enemy the player reads at 25 m down a span while an amber bolt flies at them. The
+        /// ghost is a pale COLD blue-white; it separates from the near-black world by VALUE (albedo 0.855
+        /// against a wall's 0.016 — ~50x) rather than by hue, which is the strongest separation available
+        /// and the one that survives at distance. It is also deliberately NOT violet: violet means "use
+        /// this" (the flare), and the Sentry used to squat on that hue for no reason.</item>
+        /// <item><b>Floating is VISUAL only.</b> Everything below hangs off <c>FloatRoot</c>, a child of
+        /// <c>LungeRoot</c>. The root, the <c>CharacterController</c> capsule, the <c>NavMeshAgent</c>, the
+        /// deathblow height (1.45, inside the shell) and the world posture bar are untouched. The hem hangs
+        /// to y=0.24 so the silhouette still covers most of the 2 m capsule; the visible body does NOT sit
+        /// in the air above its own hitbox.</item>
+        /// <item><b>Silhouette first.</b> A rounded dome over a five-tatter wavy hem is legible as a
+        /// three-frame shape at 25 m; the face is not, and is not meant to be. The FACING read at distance
+        /// is the two ember eye sockets (M_EnemyEye, under the bloom cap), which is the same warm pinprick
+        /// every other enemy uses. The mouth is a close-range detail and goes sub-pixel past ~10 m, which
+        /// costs nothing because it carries no information.</item>
+        /// <item><b>The body is OPAQUE.</b> A see-through ghost is the obvious idea and it is the wrong one
+        /// here: transparency destroys exactly the silhouette this enemy is read by, and adds a sorting
+        /// cost per instance. The ghost read is bought with the emission floor, the wavy hem and the mist.</item>
+        /// </list>
+        /// </summary>
+        static EnemyBodyParts BuildGhostBody(Transform lungeRoot, Material bodyMat)
+        {
+            var ghostMat = Mat("M_SentryGhost");
+            var eyeMat = Mat("M_EnemyEye");
+            var floatRoot = Empty("FloatRoot", lungeRoot, Vector3.zero);
 
-            // ---- posture bar: small enemies only; the boss has the HUD bar -------------------------
-            if (!isBoss) BuildPostureBar(visual.transform);
+            // The shell. A capsule squashed to 1.06 wide x 1.24 tall, centred at 1.30 — a rounded dome that
+            // spans 0.68..1.92, i.e. the top two thirds of the 2 m collider.
+            var body = Prim(PrimitiveType.Capsule, "Body", floatRoot.transform, new Vector3(0f, 1.30f, 0f),
+                            new Vector3(1.06f, 0.62f, 1.06f), ghostMat);
 
-            Save(root, $"{PrefabDir}/{name}.prefab");
+            // The hem: five tatters of DIFFERENT lengths on a 0.33 ring, each on its own pivot so SentryGhostVisual
+            // can wave them independently. Equal lengths read as a skirt; unequal ones read as torn cloth.
+            var hemRoot = Empty("Hem", floatRoot.transform, new Vector3(0f, 0.80f, 0f));
+            float[] hemLen = { 0.50f, 0.42f, 0.56f, 0.44f, 0.52f };
+            var hem = new Transform[hemLen.Length];
+            for (int i = 0; i < hemLen.Length; i++)
+            {
+                float a = i * (360f / hemLen.Length) * Mathf.Deg2Rad;
+                var pivot = Empty("Tatter" + i, hemRoot.transform, new Vector3(Mathf.Sin(a) * 0.33f, 0f, Mathf.Cos(a) * 0.33f));
+                pivot.transform.localRotation = Quaternion.Euler(0f, i * (360f / hemLen.Length), 6f);
+                Prim(PrimitiveType.Capsule, "Cloth", pivot.transform, new Vector3(0f, -hemLen[i] * 0.5f, 0f),
+                     new Vector3(0.30f, hemLen[i] * 0.5f, 0.30f), ghostMat);
+                hem[i] = pivot.transform;
+            }
+
+            // The face. Two oval sockets half-sunk into the shell at the surface radius (0.527 at this
+            // height), so they read as HOLES rather than as beads stuck on the front.
+            var eyeL = Prim(PrimitiveType.Sphere, "EyeL", floatRoot.transform, new Vector3(-0.20f, 1.45f, 0.47f), new Vector3(0.20f, 0.25f, 0.14f), eyeMat);
+            var eyeR = Prim(PrimitiveType.Sphere, "EyeR", floatRoot.transform, new Vector3(0.20f, 1.45f, 0.47f), new Vector3(0.20f, 0.25f, 0.14f), eyeMat);
+            Prim(PrimitiveType.Sphere, "Mouth", floatRoot.transform, new Vector3(0f, 1.12f, 0.47f), new Vector3(0.17f, 0.22f, 0.12f), Mat("M_Enemy"));
+
+            // ---- arm rig: IDENTICAL PIVOTS to the pill, so every authored wind-up pose lands where it
+            // always did. Only the geometry changed: two rounded nubs and NO blade. A ghost carrying a
+            // 1.35 m cube sword was the thing that made the old body read as a placeholder.
+            var shoulder = Empty("ArmPivot", floatRoot.transform, new Vector3(0.5f, 1.45f, 0f));
+            Prim(PrimitiveType.Capsule, "UpperArm", shoulder.transform, new Vector3(0f, -0.24f, 0f), new Vector3(0.19f, 0.24f, 0.19f), ghostMat);
+            var hand = Empty("WeaponPivot", shoulder.transform, new Vector3(0f, -0.48f, 0f));
+            Prim(PrimitiveType.Capsule, "ForeArm", hand.transform, new Vector3(0f, -0.18f, 0f), new Vector3(0.16f, 0.19f, 0.16f), ghostMat);
+
+            // A static mirror nub on the other side. It never animates — the RIGHT arm is the telegraph and
+            // a second moving arm would blur that read — but without it the ghost is visibly lopsided.
+            var armL = Prim(PrimitiveType.Capsule, "ArmL", floatRoot.transform, new Vector3(-0.52f, 1.22f, 0f), new Vector3(0.19f, 0.22f, 0.19f), ghostMat);
+            armL.transform.localRotation = Quaternion.Euler(0f, 0f, 22f);
+
+            return new EnemyBodyParts
+            {
+                body = body.GetComponent<Renderer>(),
+                eye = eyeL.GetComponent<Renderer>(),
+                secondEye = eyeR.GetComponent<Renderer>(),
+                weapon = null,
+                armPivot = shoulder.transform,
+                weaponPivot = hand.transform,
+                floatRoot = floatRoot.transform,
+                hem = hem,
+            };
         }
 
         /// <summary>

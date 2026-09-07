@@ -323,7 +323,14 @@ namespace VibeGame1.EditorTools
             sentryGrunt.name = "pshooter_enemy01";
             sentryGrunt.displayName = "Sentry";
             sentryGrunt.shootsProjectiles = true; sentryGrunt.rangedOnly = true; sentryGrunt.flaskPunishChance = 0f;
-            sentryGrunt.bodyColor = Hex("#2A2340"); sentryGrunt.emission = Hex("#5A2BD0") * 1.2f;
+            // THE GHOST (2026-09-06, user-directed body redesign; see PrefabFactory.BuildGhostBody).
+            // bodyColor is written into the SHELL's _BaseColor by EnemyVisuals, so it must be the same
+            // value as M_SentryGhost's albedo or the shell and the hem would be two different colours.
+            // emission is NOT a body glow — EnemyVisuals normalises it into `accent`, which tints the
+            // parry flash 25%. It used to be violet #5A2BD0, which both squatted on the flare's "use
+            // this" hue and dragged a quarter of the deflect flash off bone-white; a pale cold near-white
+            // leaves EnemyVisuals.ParryGlow reading as the steel-on-steel it is meant to be.
+            sentryGrunt.bodyColor = Hex("#A9C2DA"); sentryGrunt.emission = Hex("#BFD8F2") * 0.9f;
             EditorUtility.SetDirty(sentryGrunt);
 
             var sentryHeavy = GetOrCreate<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
@@ -331,7 +338,11 @@ namespace VibeGame1.EditorTools
             sentryHeavy.name = "pshooter_enemy02";
             sentryHeavy.displayName = "Heavy Sentry";
             sentryHeavy.shootsProjectiles = true; sentryHeavy.rangedOnly = true; sentryHeavy.flaskPunishChance = 0f;
-            sentryHeavy.bodyColor = Hex("#2E2838"); sentryHeavy.emission = Hex("#6A2BE0") * 1.2f;
+            // The Heavy Sentry keeps the PILL body (it is a different creature, and two ghosts of
+            // different sizes would read as one enemy at range) but loses the violet for the same reason
+            // the ghost did: a body must not wear the flare's hue. Dark cold slate, still the darkest
+            // thing on a perch, so the pale ghost and the dark heavy separate by value at a glance.
+            sentryHeavy.bodyColor = Hex("#25303F"); sentryHeavy.emission = Hex("#8FB6E0") * 1.0f;
             EditorUtility.SetDirty(sentryHeavy);
 
             var boss = GetOrCreate<BossData>(EnemyPaths.Data("Boss"));

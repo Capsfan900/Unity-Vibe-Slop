@@ -306,6 +306,142 @@ real monitor is a claim this pass could only reason about, not measure — there
 screenshot the span from spawn distance without driving the editor, which is out of this agent's scope.
 Tests below pin the *numbers*, not the *look*.
 
+### 3.8 The world went COLD, and the tells did not ✅ 2026-09-06
+
+**The ask, verbatim.** *"make the vfx team change the main color scheme to blue. and a bunch of planets in
+the background that glow and have rings like saturn. not too many just enough to spice up the scene."*
+An art-direction change the user authorised explicitly, so it is not an invention — but the readability
+contract underneath it is not negotiable and the pass is built around protecting it.
+
+**The one decision that decides whether a palette flip succeeds.** Complementary contrast — warm on cool —
+is the highest-contrast pair on the wheel and the standard device for making a gameplay object read
+against a world ([Pixune](https://pixune.com/blog/color-theory-in-game-art-basics-and-complementary/),
+[nastyrodent](https://nastyrodent.com/color-theory-for-game-art/)). Turning the tells blue along with the
+world would have thrown that away to satisfy a colour request. So the rule this pass establishes is:
+
+> **In this game, WARM means exactly two things and nothing else: a combat tell, or fire. Cold is the world.**
+
+| Went cold | Stayed warm, deliberately |
+|---|---|
+| fog / ambient sky / equator / ground / the key light | the enemy bolt (`Projectile.HotCore`, amber 1.6) |
+| every structural albedo and three of four trims | the alert tell (`M_AlertTell`, pink-red 3.00) |
+| the whole sky: dome, nebulae, stars, silhouette | the parry cue spark (`EnemyVisuals.CueSpark`, bone) |
+| **the eclipse corona rim** (`#FFD9A8` → `#C9E2FB`) | the enemy eye (`M_EnemyEye`, under the bloom cap) |
+| the slide's grit dust (`SlideFx.gritHue`) | **fire = safety**: `M_Torch`, `M_Checkpoint` — the Dark Souls / Elden Ring bonfire read |
+
+Two effects moved *against* the world rather than with it, and both are the point of the pass:
+
+- **`EnemyVisuals.ParryGlow` went WARM**, `(0.78, 0.88, 1.0)` → `(1.0, 0.92, 0.80)`, peak unmoved at 3.2.
+  A blue-white flash on a blue world reads as "the frame got brighter for a frame"; a bone-white one with
+  a warm edge reads as **steel struck steel**, which is what a deflect is. Same peak, same duration,
+  opposite temperature. This is the single loudest moment in the game and it now owns a colour the world
+  cannot imitate.
+- **`SentryFlare.Core` went more MAGENTA**, `(1.18, 0.88, 1.6)` → `(1.30, 0.78, 1.6)`, peak unmoved at 1.6
+  and the halo's 0.4 untouched, so the 2.0 ACES ceiling is exactly where it was. It stays violet rather
+  than going cold, because its blue channel is now the *world's* dominant channel — the red lift is what
+  restores the gap. The three-way language survives: **amber = answer this, violet = use this, cold = the
+  world, which says nothing.**
+
+**Hue changed; light level did not.** Every environment colour was fitted to the Rec.709 **linear
+luminance** of the blood-red value it replaced (equator .2045, sky .1348, ground .0110, key .1896;
+structural albedos .0157 / .0334 / .0821 / .0130). That is how a palette flip avoids silently re-tuning
+enemy readability: the equator term is the only light on a backlit torso, and it is exactly as bright as
+it was. Pinned by `SkyEclipseTests.TheColdPassChangedHueAndNotLightLevel`.
+
+**The trim set had to move, and the reason is a lie the old palette was telling.** Tile 3 shipped as
+EMBER `#C4400F` — the enemy bolt's own hue. A static level trim sharing a hue family with the one thing
+you must deflect at 32 m/s is a readability tax paid on every span. Tile 4 was crimson, which against a
+BLUE world becomes the loudest thing on a wall and reads as the alert tell at a glance. Both are gone:
+gold ~52° / ghost green ~142° / ice cyan ~186° / azure ~222°. Weakest pair is cyan vs azure at ~36°,
+separated by luminance and saturation, and reported as such rather than hidden.
+
+**The planets are scenery and are constructed so they can never be anything else.** Four of them, two
+ringed, baked into the *same mesh and the same two materials* as the rest of the sky — no extra draw call,
+which matters because WebGL is a shipped target. "Glow" is a soft alpha gradient plus a lit-to-shadow
+terminator across the body, never an emissive: every vertex is capped at `Starfield.PlanetPeakCeiling`
+0.55 and lives in submesh 0, whose material tint is exactly 1.0, so a planet **physically cannot** reach
+the 1.05 bloom threshold, let alone the corona's 1.35 or the bolt's 1.6. All four sit at pitch ≥ 40° and
+> 44° of arc from the eclipse centre (outside its halo), so none can ever sit behind a bolt the player is
+trying to read.
+
+**The rings sort themselves with no depth buffer.** The sky writes no depth, so overlap is resolved purely
+by index order — which is deterministic where alpha sorting is not. Each planet is emitted in five passes:
+halo → the ring's FAR half → the body → the ring's NEAR half. The far half is the arc above the centre
+line, which is what passes behind the planet from a viewer at the dome's centre; the opaque body paints
+over it, and the near half then crosses the lit limb. That is the entire Saturn read, bought with ordering.
+
+**What this pass could not check, stated plainly.** Nobody looked at the screen. Every colour here is
+arithmetic — luminance parity, channel ratios, angular separations — and the claims that a cold slate wall
+still reads as a wall, that the ice-cyan and azure trims separate at 30 m, and that four planets is
+"enough to spice up the scene" rather than too many are **reasoned, not seen**. They need one human
+playtest.
+
+### 3.9 The Sentry is a cartoon ghost, and the flare is bigger by giving up brightness ✅ 2026-09-06
+
+**The ask, verbatim.** *"redesign the looks of the parkour enemy1 make it like a blush ghost that looks
+like a cartoon ghost and is floating and glowing with wispy mist around it. Also take a pass on the flare
+and make it bigger and look more polished."*
+
+**Blush or bluish — the call, and why.** Read as **bluish**. A pink body would have put an *enemy* in the
+tells' colour family on the one enemy read at 25 m down a span while an amber bolt crosses it, which
+section 4 rule 10 forbids for exactly this reason. The ghost is a pale **cold blue-white**
+(`M_SentryGhost` albedo `#A9C2DA`, 0.855 peak) and it separates from the world by **VALUE, not hue**:
+every structural albedo in the game sits at 0.013–0.082, so the ghost is ~50x brighter than the wall
+behind it. Value survives distance, fog and peripheral vision in a way a hue shift does not. It is also
+deliberately **not violet** — violet means "use this" and belongs to the flare; the Sentry used to wear
+`#5A2BD0` for no reason, and that has been retired on both sentries.
+
+**The construction.** `PrefabFactory.BuildGhostBody` (pshooter_enemy01 only; `BuildPillBody` is unchanged
+and still builds every other enemy):
+
+| Part | What | Why |
+|---|---|---|
+| Shell | capsule, 1.06 x 1.24 m, centred 1.30 | a rounded dome, legible as a three-frame shape at 25 m |
+| Hem | **five** capsule tatters, lengths 0.42–0.56, on a 0.33 ring, each on its own pivot | unequal lengths read as torn cloth; equal ones read as a skirt. Waves ±9° at 0.62 Hz |
+| Face | two oval sockets half-sunk at the surface radius, `M_EnemyEye` (ember, under the cap), plus a dark mouth | the sockets are the FACING read at range; the mouth is close-range detail that goes sub-pixel past ~10 m and carries no information |
+| Arms | two rounded nubs on the **identical pivots** (0.5, 1.45, 0), **no blade** | every authored wind-up pose lands exactly where it did. A ghost holding a 1.35 m cube sword was what made the old body read as a placeholder |
+| Float | `FloatRoot` under `LungeRoot`: ±0.07 m at 0.42 Hz, a 0.018 m second harmonic, ±0.03 sway, ±2.5° roll | **the root, the capsule, the agent and the deathblow height (1.45) never move.** The hem hangs to y=0.24, so the silhouette still covers the collider — it does not float above its own hitbox |
+| Mist | **four** additive spheres, one shared material, counter-rotating 7.5 s orbits, breathing in SIZE | see below |
+
+**"Glowing" versus "an enemy never glows" — the reconciliation.** The ghost is **luminous without
+blooming**. See section 4 rule 9, amended above: 0.35 lit + 0.28 floor + 4 x 0.10 mist = **1.03** against
+the 1.05 threshold, so it *cannot* bloom by construction. The floor goes through `SetAura`, which means it
+is modulated by `chargeDark` — the ghost dims as it winds up and returns as it strikes, a truthful extra
+tell that came free with using the sanctioned channel.
+
+**What the mist costs, exactly.** No particle system, no `TrailRenderer`, no per-frame allocation, and no
+property block at all: it breathes in **size**, because on a dim additive blob a size change is visible
+and a brightness change is not. Four transform writes per ghost per frame plus one shared additive
+material (SRP-batched). It reaches 0.85 m from the centre line, so at 3 m it is an atmosphere rather than
+a screen wipe. **And it structurally cannot hide the bolt**: additive light only ever ADDS, so an amber
+bolt seen through the haze is still an amber bolt. An alpha mist could have dimmed the thing the player
+must parry.
+
+**The flare, bigger by 22% and 38% — and dimmer.** Core 1.15 → **1.40 m**, aura 2.6 → **3.6 m**, peak
+1.6 → **1.45**. Four things make it read as finished rather than merely larger, and one candidate was
+rejected as a lie:
+
+- **A two-step falloff.** One additive sphere has a hard, obviously spherical edge. Two concentric shells
+  (`Halo` 2.30 m @ 0.24, `Outer` 3.60 m @ 0.12) give the aura a step, which is what reads as a soft bloom
+  and as a rim against the sky.
+- **Two rates on one object.** The outer shell breathes at ~0.5 Hz against the core's 3.7 Hz flicker: a
+  hot centre that trembles inside an aura that swells. **A rotation was rejected** — an untextured
+  additive sphere spinning looks exactly like an untextured additive sphere not spinning.
+- **An arrival and a death.** `SpawnPop` snaps from 0.18x through a ~6% overshoot to 1 over 0.18 s
+  (anticipation, snap, settle); `DeathContract` collapses the last 0.35 s, which is **after** the flare
+  stops being grappleable, so the shape never eats the window. A natural expiry stays **silent** —
+  nothing happened, so nothing announces itself. `Consume()` — a real event — now throws a ring as well
+  as sparks, the same three-part shape `SentryBurst` uses.
+- **The trail stopped lying.** It was two points: head, and head minus the *current velocity*, i.e. a
+  straight tangent drawn along a parabolic path, pointing at a place the flare had never been. It is now
+  a six-point recorded history in a ring buffer (allocation-free) that curves with the arc. Pinned by
+  `FlareTests.TheTrailIsARecordedArcNotAStraightTangent`, which measures the 0.20 m the tangent missed by.
+
+**What this pass could not check, stated plainly.** Nobody looked at the screen. That a pale ghost reads
+as a ghost rather than as a white pill, that four wisps at 0.10 are visible at all rather than invisible,
+that the hem waves rather than wobbles, and that a 3.6 m aura at 1.45 still reads at 30 m — all
+**reasoned from arithmetic, not seen**. The budget is the honest part; the look needs one human playtest.
+
 ---
 
 ## 4. Standing rules for this project's effects
@@ -336,17 +472,49 @@ Tests below pin the *numbers*, not the *look*.
    - the enemy bolt, `Projectile.HotCore` (1.6, 0.95, 0.38 — amber) — a shot you must deflect at 32 m/s
      while running has to be the brightest threat on the span. Pinned by
      `ProjectileTests.TheBoltIsTheOneGlowInTraversal`.
-   - the sentry flare, `SentryFlare.Core` (1.18, 0.88, 1.6 — violet-white) plus its additive
-     `SentryFlare.Halo` (peak 0.4) — a grapple point you have to *find* at 30 m against a dark sky. The
-     two overlap additively, so they are budgeted together: 1.6 + 0.4 = the 2.0 ACES ceiling exactly.
+   - the sentry flare, `SentryFlare.Core` — **now 1.45, deliberately BELOW the bolt** (2026-09-06 polish
+     pass) — plus its two additive shells, `Halo` (0.24) and `Outer` (0.12). All three overlap, so all
+     three are budgeted together: 1.45 + 0.24 + 0.12 = **1.81**, under the 2.0 ACES ceiling.
      Pinned by `FlareTests.TheFlareIsATellSoItMayBloom` and
      `FlareTests.TheCoreAndHaloTogetherStayUnderTheAcesCeiling`.
 
+   **The hierarchy between those two changed, and it is now one-directional: the BOLT is the brightest
+   thing on a span (1.6) and the FLARE is the biggest (3.6 m of aura).** They used to sit at the same
+   1.6 on the argument that hue alone should carry flare-vs-bolt. Growing the flare while holding that
+   peak would have let a grapple point out-read the one object that can kill the player, so the peak came
+   down to pay for the size. **Brightness says "answer this now"; area says "come and find this."**
+
    Equal peaks are the point: brightness says "this matters," **hue** says which — amber for "answer
-   this," violet for "use this." The rule survives because the SHOOTER still never glows until deflected,
+   this," violet for "use this," and since the 2026-09-06 cold pass **cold blue says nothing at all,
+   because cold blue is the world**.
+
+   **Amended 2026-09-06 (the ghost pass).** The old wording was "an enemy body never glows until it is
+   deflected." That ban is now a **budget**, because the user asked for a glowing ghost and the art call
+   wins: an enemy body may be **LUMINOUS but never BLOOM**. `SentryGhostVisual` states the whole thing as
+   arithmetic — lit albedo 0.35 + emission floor 0.28 + all four mist wisps 4 x 0.10 = **1.03**, under the
+   1.05 threshold — and it goes through `EnemyVisuals.SetAura`, the one sanctioned door into that channel,
+   so it is still modulated by `chargeDark` and the ghost visibly *inhales* its own light on a wind-up.
+   What the old rule was protecting is untouched: the deflect spike is 3.2, eleven times the floor and the
+   opposite temperature, so light that BLOOMS on a body still means "you deflected". Pinned by
+   `GhostTests.TheGhostIsLuminousAndCannotBloom`.
+
+   The rule survives because nothing on an enemy may cross 1.05,
    `SlashFx` still normalises everything it makes to 1.0, and each exception is a named constant with a
    test rather than a widened cap. Anything else that wants to glow argues against this rule, not around
    it — and anything additive stacked on an exception must be budgeted into the same 2.0 ceiling.
+
+10. **Warm is reserved. The world is cold.** (2026-09-06.) Warm light in this game means a combat tell or
+    it means fire, which means safety — and nothing else. The backdrop is not allowed to speak either
+    language, which is why the eclipse corona went cold with the sky rather than staying a huge static
+    warm bloom that the amber bolt has to fly across. A new effect that wants to be warm is claiming to
+    be combat information; if it is not, it is cold.
+
+11. **Nothing in the sky may compete with a tell, and the guarantee should be structural, not a number.**
+    The sky's entire LDR field sits on a material tinted exactly 1.0 and vertex colours clamp at 1.0, so
+    the planets, the rings, the stars and the whole dome *cannot* cross the bloom threshold no matter how
+    they are tuned. `Starfield.PlanetPeakCeiling` (0.55) states the intent on top of that; the submesh is
+    what enforces it. Prefer a construction that makes a mistake impossible over a constant that a later
+    pass can quietly raise.
 
 ---
 
@@ -360,3 +528,6 @@ Tests below pin the *numbers*, not the *look*.
 - [Creating Stylized VFX in Unity — 80.lv](https://80.lv/articles/creating-stylized-vfx-in-unity)
 - [From Realism to Stylization: Game VFX Production — 80.lv](https://80.lv/articles/from-realism-to-stylization-game-vfx-production)
 - [Sword & Melee Weapon Animation guide — Mocap Online](https://mocaponline.com/blogs/mocap-news/sword-melee-animation-guide)
+- [Understanding Color Theory in Game Art — Pixune](https://pixune.com/blog/color-theory-in-game-art-basics-and-complementary/)
+- [Color Theory for Game Art: The Production Application Guide — Nasty Rodent](https://nastyrodent.com/color-theory-for-game-art/)
+- [Designing for Difficulty: Readability in ARPGs — Game Developer](https://www.gamedeveloper.com/game-platforms/designing-for-difficulty-readability-in-arpgs)

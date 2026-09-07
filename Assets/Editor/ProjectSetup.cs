@@ -207,18 +207,23 @@ namespace VibeGame1.EditorTools
             grain.intensity.Override(0.26f);
             grain.response.Override(0.8f);
 
-            // White balance — cold moonlight tint.
+            // White balance — removes the leftover warm cast now that the palette is cold.
             var wb = GetOrAdd<WhiteBalance>(profile);
             wb.active = true;
-            // Eclipse light is warm, not moonlit. Positive temperature pushes the whole frame amber-red.
-            wb.temperature.Override(14f);
-            wb.tint.Override(6f);
+            // COLD PASS: was +14/+6, which pushed the whole frame amber-red. The palette itself now
+            // carries the blue (ambient, fog, materials, sky), so white balance only needs to remove
+            // the leftover warm cast - NOT to add more blue on top. -6 is deliberately small: a heavy
+            // negative temperature would also desaturate the amber bolt and the pink-red alert tell,
+            // and those two warm tells being saturated against a cold world is the entire readability
+            // argument for the pass. Tint 0: no magenta or green push, so bone stays bone.
+            wb.temperature.Override(-6f);
+            wb.tint.Override(0f);
 
             foreach (var component in profile.components)
                 if (component != null) EditorUtility.SetDirty(component);
             EditorUtility.SetDirty(profile);
 
-            log.Add("Volume profile: Bloom 1.05/0.60/0.62, ACES, Vignette 0.27/0.5, ChromaticAberration 0, ColorAdjustments c20/s-14/e+0.15, FilmGrain 0.26, WhiteBalance +14/+6");
+            log.Add("Volume profile: Bloom 1.05/0.60/0.62, ACES, Vignette 0.27/0.5, ChromaticAberration 0, ColorAdjustments c20/s-14/e+0.15, FilmGrain 0.26, WhiteBalance -6/0");
         }
 
         static T GetOrAdd<T>(VolumeProfile profile) where T : VolumeComponent
@@ -265,21 +270,39 @@ namespace VibeGame1.EditorTools
         // -------------------------------------------------------- scene settings
 
         // ---- shipped environment palette (rule 9: asserted by SkyEclipseTests) --------------------
-        // The Eclipse pass: every environment colour moved from blue-violet to blood red at MATCHED
-        // luminance - hue changed, light level untouched - so enemy readability (the equator's 0.15
-        // linear-luminance floor in FeatureTests) is preserved by construction, not by luck.
+        // THE COLD PASS (2026-09-06, user-directed). Every environment colour moved from blood red to
+        // deep cold blue at MATCHED Rec.709 LINEAR LUMINANCE - hue changed, light level untouched -
+        // exactly the way the Eclipse pass moved them from blue-violet to red. That is not a stylistic
+        // nicety: FeatureTests.Lighting_EquatorLitsVerticals enforces a 0.15 linear-luminance floor on
+        // the only term that lights a backlit enemy torso, and every structural albedo was tuned
+        // against these three numbers. Matching luminance means enemy readability survives the hue
+        // change by CONSTRUCTION, not by luck.
+        //
+        // WHAT DID NOT GO BLUE, AND WHY. The attack TELLS stay warm: the bolt core (1.6 amber), the
+        // alert tell (M_AlertTell, pink-red at 3.0), the enemy cue spark (bone) and the deflect sparks.
+        // Warm on cold is the highest-contrast pair in the wheel, so a cold world makes every one of
+        // them MORE legible, not less - it is free readability. Fire also keeps its meaning: torches
+        // and the checkpoint stay ember, the Dark Souls bonfire read - warm means safety in a cold world.
+        // Turning the tells blue with the world would have destroyed the game's readability to satisfy
+        // a palette request.
 
-        /// <summary>Fog and camera clear. Was #0C0912 blue-violet; distance now reads as red haze.</summary>
-        public static readonly Color VoidColor = Hex("#1A0708");
-        /// <summary>Trilight sky term - platform TOPS. Was #3E4A6B x1.35 (lin lum .130); now .135.</summary>
-        public static readonly Color AmbientSky = Hex("#6B4045") * 1.35f;
-        /// <summary>Trilight equator - EVERY vertical face and every backlit enemy torso. Was #7A5540
-        /// x1.35 (lin lum .209); now .204, still comfortably over FeatureTests' 0.15 floor.</summary>
-        public static readonly Color AmbientEquator = Hex("#82503A") * 1.35f;
-        /// <summary>Trilight ground bounce. Undersides stay heavy so shapes keep weight.</summary>
-        public static readonly Color AmbientGround = Hex("#1F1010") * 1.35f;
-        /// <summary>The dying sun behind the arena. Was #C9663A; nudged toward blood.</summary>
-        public static readonly Color KeyLightColor = Hex("#C9542E");
+        /// <summary>Fog and camera clear. Was #1A0708 blood; distance now reads as cold blue haze.
+        /// Linear luminance 0.0039 - identical to the red it replaces.</summary>
+        public static readonly Color VoidColor = Hex("#060D18");
+        /// <summary>Trilight sky term - platform TOPS. Was #6B4045 x1.35 (lin lum .1348); now .1348
+        /// exactly, as moonlight instead of dusty rose. Footing legibility is unmoved.</summary>
+        public static readonly Color AmbientSky = Hex("#344C78") * 1.35f;
+        /// <summary>Trilight equator - EVERY vertical face and every backlit enemy torso. Was #82503A
+        /// x1.35 (lin lum .2045); now .2045 exactly, cold slate. Still 1.36x over FeatureTests'
+        /// 0.15 floor, which is the number that decides whether an enemy is a readable shape.</summary>
+        public static readonly Color AmbientEquator = Hex("#3F5E88") * 1.35f;
+        /// <summary>Trilight ground bounce, deep indigo. Was #1F1010 x1.35 (lin lum .0110); now .0110.
+        /// Undersides stay heavy so shapes keep weight.</summary>
+        public static readonly Color AmbientGround = Hex("#0E1326") * 1.35f;
+        /// <summary>The one directional. Was the dying blood sun #C9542E (lin lum .1896); now a pale
+        /// cold sun at .1896. Same modelling, same rim on every platform edge, opposite temperature -
+        /// and it is now the COMPLEMENT of every warm tell it backlights.</summary>
+        public static readonly Color KeyLightColor = Hex("#5A79AD");
 
         static void SetupSceneEnvironment(List<string> log)
         {
@@ -290,10 +313,11 @@ namespace VibeGame1.EditorTools
                 return;
             }
 
-            // The Eclipse: a world drowned in red under a dead sun, low and enormous behind the arena.
+            // The Eclipse: a world drowned in COLD light under a dead sun, low and enormous behind
+            // the arena.
             //
-            // FOG. Dark blood-red (was #0C0912 blue-violet) so distance reads as red haze and agrees
-            // with the Starfield dome's blood horizon. The 45-240 range is unchanged - fog is not the
+            // FOG. Deep blue-black (was #1A0708 blood) so distance reads as cold haze and agrees
+            // with the Starfield dome's midnight-blue horizon. The 45-240 range is unchanged - fog is not the
             // backdrop, the sky is. Combat distances (3-8m) are still completely unfogged.
             var voidColor = VoidColor;
             RenderSettings.fog = true;
@@ -306,8 +330,8 @@ namespace VibeGame1.EditorTools
             // AMBIENT. This is what actually lights the level - the sky mesh is unlit geometry and
             // contributes no illumination on its own, so the backdrop only "lights the level" if the
             // ambient agrees with it. Trilight is three-way by surface normal and costs nothing:
-            //   sky      cool starlight from above - lifts platform TOPS, the surfaces you land on
-            //   equator  warm ember from the eclipse - lifts VERTICAL faces, which is most of the level
+            //   sky      moonlight from above - lifts platform TOPS, the surfaces you land on
+            //   equator  cold eclipse light - lifts VERTICAL faces, which is most of the level
             //   ground   near-black bounce, so undersides stay heavy and shapes keep their weight
             // Replaces a flat #2E1F18 that lit every face identically and read as flat grey mush.
             //
@@ -326,8 +350,8 @@ namespace VibeGame1.EditorTools
             // 1.0 - measured, not assumed. The multiplier therefore has to live in the COLOURS, which
             // are HDR: Color * f is the only knob that actually does anything in this mode.
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            // Was cool starlight #3E4A6B x1.35 - under a blood sky, platform tops now catch a dusty
-            // rose-red at the same linear luminance (.130 -> .135), so footing legibility is unmoved.
+            // Was blood #6B4045 x1.35 - under a cold sky, platform tops now catch moonlight at the
+            // EXACT same linear luminance (.1348 -> .1348), so footing legibility is unmoved.
             RenderSettings.ambientSkyColor = AmbientSky;
             // x1.35. The equator carries every vertical face AND every enemy: an enemy walking toward
             // the eclipse is BACKLIT, so the side facing the player receives no key light at all and
@@ -336,10 +360,11 @@ namespace VibeGame1.EditorTools
             // lands the ground at ~36/255, a ~1.6x lift that makes structure legible without
             // flattening it, and every emissive is untouched (the gate measured 154.1 -> 155.2 and the
             // alert tell 204 -> 211 across the whole pass).
-            // Hue nudged red (#7A5540 -> #82503A) at matched luminance (.209 -> .204): every enemy
-            // body renders at the same 8-10/255 it was tuned to, just under a redder cast.
+            // Hue moved cold (#82503A -> #3F5E88) at EXACTLY matched luminance (.2045 -> .2045):
+            // every enemy body renders at the same 8-10/255 it was tuned to, under a colder cast. A
+            // backlit torso is the single hardest read in the game and this term is all it gets.
             RenderSettings.ambientEquatorColor = AmbientEquator;
-            // Was #191424 violet; now dark maroon at the same near-black weight.
+            // Was #1F1010 maroon; now deep indigo at the same near-black weight (.0110).
             RenderSettings.ambientGroundColor = AmbientGround;
             RenderSettings.ambientIntensity = 1f;   // no-op in Trilight; kept explicit, see above
             // No skybox on purpose: the gameplay camera is built with SolidColor clear flags, so a skybox
@@ -360,7 +385,7 @@ namespace VibeGame1.EditorTools
                 // Raised with the ambient rather than instead of it: ambient alone flattens, because
                 // Trilight gives every vertical face the same value regardless of which way it faces.
                 light.intensity = 1.05f;
-                light.color = KeyLightColor;                  // dying blood-ember sun, not moonlight
+                light.color = KeyLightColor;                  // pale cold sun: the COMPLEMENT of every warm tell
                 light.shadows = LightShadows.Soft;
                 EditorUtility.SetDirty(light);
                 EditorUtility.SetDirty(light.transform);
@@ -380,7 +405,7 @@ namespace VibeGame1.EditorTools
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
-            log.Add($"Scene '{scene.name}': fog 45-240 #1A0708 (blood), Trilight ambient sky#6B4045x1.35/eq#82503Ax1.35/gnd#1F1010x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low blood-ember sun 1.05 #C9542E {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
+            log.Add($"Scene '{scene.name}': fog 45-240 #060D18 (cold), Trilight ambient sky#344C78x1.35/eq#3F5E88x1.35/gnd#0E1326x1.35 (ambientIntensity is a no-op in Trilight), no skybox (Starfield is geometry), low pale-cold sun 1.05 #5A79AD {(lightFound ? "configured" : "NOT found")}, main camera background {(cameraFound ? "set" : "skipped (none in scene)")}");
         }
 
         // ---------------------------------------------------------------- utils

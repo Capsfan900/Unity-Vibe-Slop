@@ -8,17 +8,26 @@ namespace VibeGame1.Tests
 {
     /// <summary>
     /// The Berserk Eclipse sky, asserted as shipped values (rule 9): an enormous black solar disc ringed
-    /// by burning light over a world drowned in red — without ever walking into the two documented traps.
+    /// by burning light over a world drowned in COLD light — without ever walking into the documented traps.
     ///
-    /// Trap 1, ACES: above ~1.25 intensity the tonemapper desaturates a saturated red toward ORANGE.
-    /// The whole red field therefore lives in LDR vertex colours on a material tinted exactly 1.0 — it
-    /// physically cannot cross the knee — and only the near-white corona rim rides an HDR material over
-    /// the 1.05 bloom threshold, where desaturating toward white is what burning should do anyway.
+    /// 2026-09-06 COLD PASS. The user asked for a blue world and a handful of ringed planets. Every
+    /// environment colour moved from blood red to deep blue at MATCHED Rec.709 linear luminance, and the
+    /// tests below pin that parity, not the hex — a future hue pass may move the hue again, but if it
+    /// moves the LIGHT it will fail here rather than in a playtest.
+    ///
+    /// Trap 1, ACES: above ~1.25 intensity the tonemapper desaturates a saturated colour. The whole
+    /// field therefore lives in LDR vertex colours on a material tinted exactly 1.0 — it physically
+    /// cannot cross the knee — and only the near-white corona rim rides an HDR material over the 1.05
+    /// bloom threshold, where desaturating toward white is what burning should do anyway.
     ///
     /// Trap 2, readability: the sky is the backdrop every enemy silhouette is read against. The Trilight
     /// equator term is the only light on a backlit enemy torso; FeatureTests enforces a 0.15
     /// linear-luminance floor on the LIVE RenderSettings, and this suite enforces the same floor on the
     /// factory constant so a bad value fails in EditMode, before anyone plays it.
+    ///
+    /// Trap 3, new with the cold pass: the SKY MUST NEVER SPEAK THE COMBAT LANGUAGE. Warm means exactly
+    /// two things in this game — an attack tell, or fire (a torch, a checkpoint). So the corona went cold
+    /// with everything else, and the planets are capped far under it. Both are pinned below.
     /// </summary>
     public class SkyEclipseTests
     {
@@ -60,7 +69,7 @@ namespace VibeGame1.Tests
                 // The field's tint is exactly 1.0 and vertex colours clamp at 1.0, so no tuning of the
                 // red field can ever reach the 1.05 bloom threshold or the ~1.25 ACES desat knee.
                 Assert.LessOrEqual(fieldPeak, 1.0001f,
-                    "the red field must stay LDR or ACES turns it orange and it smears in bloom");
+                    "the field must stay LDR or ACES desaturates it and it smears in bloom");
                 Assert.Greater(rimPeak, 1.05f,
                     "the corona rim is supposed to cross the bloom threshold — it is the burning light");
                 Assert.AreEqual(Starfield.CoronaHdrBoost, rimPeak, 0.0001f,
@@ -69,7 +78,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void DomeIsRedNotPurple()
+        public void DomeIsColdBlue()
         {
             RunOnBuiltSky((mesh, mats) =>
             {
@@ -81,10 +90,11 @@ namespace VibeGame1.Tests
                 float r = 0f, g = 0f, b = 0f;
                 for (int i = 0; i < domeVerts; i++) { r += cols[i].r; g += cols[i].g; b += cols[i].b; }
 
-                // The old violet dome had b > r everywhere. Blood red means red decisively dominant
-                // over BOTH other channels, not merely warmer.
-                Assert.Greater(r, b * 2.0f, "dome mean red must dominate blue — this is the whole ask");
-                Assert.Greater(r, g * 2.0f, "red over green, or the field greys out under ACES");
+                // The user's ask, stated as an assertion: blue decisively dominant over BOTH other
+                // channels, not merely cooler. Blue over green is a smaller ratio than blue over red on
+                // purpose — a blue with no green in it renders as flat ultramarine, not as night.
+                Assert.Greater(b, r * 1.8f, "dome mean blue must dominate red — this is the whole ask");
+                Assert.Greater(b, g * 1.2f, "blue over green, or the field reads teal rather than midnight");
             });
         }
 
@@ -93,7 +103,7 @@ namespace VibeGame1.Tests
         {
             RunOnBuiltSky((mesh, mats) =>
             {
-                // The disc ships #0D0304: reads as black beside the burning rim, but keeps ~2/255 under
+                // The disc ships #03050A: reads as black beside the burning rim, but keeps ~2/255 under
                 // an 8-10/255 enemy body so an overlap is dim-on-dark, not shape-into-void.
                 Color[] cols = mesh.colors;
                 int discVerts = 0;
@@ -101,10 +111,10 @@ namespace VibeGame1.Tests
                 {
                     Color c = cols[i];
                     float peak = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
-                    if (c.a >= 0.999f && peak > 0.001f && peak < 0.07f && c.r > c.g) discVerts++;
+                    if (c.a >= 0.999f && peak > 0.001f && peak < 0.07f && c.b > c.r) discVerts++;
                 }
                 Assert.GreaterOrEqual(discVerts, 40,
-                    "expected the dead-sun disc: near-black (but never float-zero) red-leaning vertices");
+                    "expected the dead-sun disc: near-black (but never float-zero) blue-leaning vertices");
             });
         }
 
@@ -136,13 +146,71 @@ namespace VibeGame1.Tests
         // ---------------------------------------------------------------- environment palette
 
         [Test]
-        public void EnvironmentPaletteIsBloodRed()
+        public void EnvironmentPaletteIsCold()
         {
-            Assert.Greater(ProjectSetup.VoidColor.r, ProjectSetup.VoidColor.b * 2f, "fog must be red, not violet");
-            Assert.Greater(ProjectSetup.AmbientSky.r, ProjectSetup.AmbientSky.b, "sky ambient must lean red");
-            Assert.GreaterOrEqual(ProjectSetup.AmbientGround.r, ProjectSetup.AmbientGround.b, "ground bounce must not lean violet");
-            Assert.Greater(ProjectSetup.KeyLightColor.r, ProjectSetup.KeyLightColor.g, "key light is a dying red sun");
-            Assert.Greater(ProjectSetup.KeyLightColor.g, ProjectSetup.KeyLightColor.b, "ember, not magenta");
+            Assert.Greater(ProjectSetup.VoidColor.b, ProjectSetup.VoidColor.r * 2f, "fog must be cold blue, not blood");
+            Assert.Greater(ProjectSetup.AmbientSky.b, ProjectSetup.AmbientSky.r, "sky ambient must lean blue");
+            Assert.Greater(ProjectSetup.AmbientEquator.b, ProjectSetup.AmbientEquator.r, "the equator lights every wall and every enemy; it carries the palette");
+            Assert.Greater(ProjectSetup.AmbientGround.b, ProjectSetup.AmbientGround.r, "ground bounce must not lean warm");
+            Assert.Greater(ProjectSetup.KeyLightColor.b, ProjectSetup.KeyLightColor.r, "the key is a pale cold sun");
+            Assert.Greater(ProjectSetup.KeyLightColor.g, ProjectSetup.KeyLightColor.r, "blue through green, not violet");
+        }
+
+        [Test]
+        public void TheColdPassChangedHueAndNotLightLevel()
+        {
+            // The single most important property of the pass. Every structural albedo, the enemy
+            // readability floor and the 0.010 linear albedo floor in FeatureTests were all tuned against
+            // the ambient's LUMINANCE. These are the luminances the blood-red palette shipped with; the
+            // cold replacements were fitted to them to four decimal places, so nothing downstream had to
+            // be re-tuned. If a later pass moves a hue it must land here too, or something the player
+            // needs to see got darker without anyone noticing.
+            Assert.AreEqual(0.2045f, Lum(ProjectSetup.AmbientEquator.linear), 0.0025f,
+                "equator luminance must match the value every enemy body colour was tuned against");
+            Assert.AreEqual(0.1348f, Lum(ProjectSetup.AmbientSky.linear), 0.0025f,
+                "sky luminance must match — this is what makes platform TOPS readable on a landing");
+            Assert.AreEqual(0.0110f, Lum(ProjectSetup.AmbientGround.linear), 0.0025f,
+                "ground bounce luminance must match, or undersides lose their weight");
+            Assert.AreEqual(0.1896f, Lum(ProjectSetup.KeyLightColor.linear), 0.0025f,
+                "the key light must cast exactly as much light as the dying red sun did");
+        }
+
+        [Test]
+        public void TheWorldWentColdButTheTellsDidNot()
+        {
+            // The whole readability argument for a blue world: warm on cold is the highest-contrast pair
+            // in the wheel, so every warm TELL got easier to read, not harder. If a future palette pass
+            // takes the tells cold with the world it destroys the game's combat readability to satisfy a
+            // colour request — this test is the tripwire for exactly that.
+            Assert.Greater(Projectile.HotCore.r, Projectile.HotCore.b * 3f,
+                "the enemy bolt is AMBER and must stay amber against a cold world");
+            Assert.Greater(Projectile.HotCore.r, 1.05f,
+                "the bolt is a documented bloom exception — the brightest threat on the span");
+            Assert.Greater(Projectile.CueCore.r, Projectile.CueCore.b,
+                "the bolt's deflect cue flashes warm-bone, never cold");
+            // The key light is the complement of the tell. That is not decoration: it is why the tell reads.
+            Assert.Greater(ProjectSetup.KeyLightColor.b, ProjectSetup.KeyLightColor.r,
+                "world cold, tells warm — if both ends drift the same way the contrast is gone");
+        }
+
+        [Test]
+        public void TheFlareStaysVioletAndKeepsItsBudget()
+        {
+            // The flare is the one tell that is neither amber nor bone, and the cold pass deliberately
+            // did NOT take it blue: its blue channel is now the world's dominant channel, so it was
+            // pushed toward magenta instead. Nothing in the cold palette has a strong red channel, so red
+            // is what separates "use this" from "that is a wall".
+            Assert.Greater(SentryFlare.Core.b, SentryFlare.Core.g, "still violet, never cyan");
+            Assert.Greater(SentryFlare.Core.r, SentryFlare.Core.g,
+                "magenta lift: the red channel is what a cold world cannot imitate");
+            float peak = Mathf.Max(SentryFlare.Core.r, Mathf.Max(SentryFlare.Core.g, SentryFlare.Core.b));
+            // 2026-09-06: this pinned 1.6 until the flare pass traded brightness for SIZE (core 1.15 -> 1.40 m,
+            // aura 2.6 -> 3.6 m, peak 1.6 -> 1.45). Both are deliberate and they disagreed, so the assertion is
+            // now the RULE the two passes actually share: the bolt is the brightest thing (it can kill you), the
+            // flare is the biggest (it is a tool). FlareTests owns the exact value.
+            Assert.Greater(peak, 1.05f, "the flare is still a documented bloom exception");
+            Assert.LessOrEqual(peak, Projectile.HotCorePeak + 1e-4f,
+                "the flare must never out-shine the bolt: threat reads brighter than tool");
         }
 
         [Test]
@@ -158,14 +226,126 @@ namespace VibeGame1.Tests
         [Test]
         public void PlatformTopsKeepTheirFootingLight()
         {
-            // The old cool sky term measured ~0.130 linear; the red replacement ships ~0.135. This band
-            // guards both directions: dimmer costs landing legibility, much brighter flattens the frame.
+            // Blue-violet measured ~0.130, blood red ~0.1348, and the cold pass ships the same 0.1348.
+            // This band guards both directions: dimmer costs landing legibility, much brighter flattens
+            // the frame. TheColdPassChangedHueAndNotLightLevel pins the exact value; this pins the range.
             float lum = Lum(ProjectSetup.AmbientSky.linear);
             Assert.That(lum, Is.InRange(0.10f, 0.18f),
                 "sky ambient luminance drifted — this term is what makes platform TOPS readable");
         }
 
+        // ---------------------------------------------------------------- planets
+
+        [Test]
+        public void ThereAreAFewPlanets_NotASolarSystem()
+        {
+            Assert.AreEqual(Starfield.PlanetCount, Starfield.Planets.Length,
+                "the advertised count and the shipped table drifted apart");
+            Assert.That(Starfield.PlanetCount, Is.InRange(3, 5),
+                "\"a bunch... not too many just enough to spice up the scene\" — the user, 2026-09-06");
+        }
+
+        [Test]
+        public void PlanetsAreSceneryAndCanNeverCompeteWithATell()
+        {
+            // The sky's brightness order is fixed and this is the bottom of it: planets < the corona rim
+            // (CoronaHdrBoost 1.35) < the enemy bolt (1.6) and the sentry flare (1.6) < the deathblow
+            // mark (2.6) < the alert tell (3.0). A "glow" on a planet is a soft gradient and a lit limb,
+            // never an emissive — nothing in the backdrop may read as a thing to act on.
+            Assert.Less(Starfield.PlanetPeakCeiling, Starfield.CoronaHdrBoost,
+                "a planet must sit clearly under the one sky element allowed to bloom");
+            Assert.Less(Starfield.PlanetPeakCeiling, 1.05f,
+                "under the bloom threshold outright: scenery does not glow");
+
+            foreach (var planet in Starfield.Planets)
+            {
+                Assert.LessOrEqual(Peak(planet.lit), Starfield.PlanetPeakCeiling + 0.0001f,
+                    "planet lit limb over the ceiling");
+                Assert.LessOrEqual(Peak(planet.shadow), Starfield.PlanetPeakCeiling + 0.0001f,
+                    "planet shadow limb over the ceiling");
+                Assert.LessOrEqual(Peak(planet.ringColor), Starfield.PlanetPeakCeiling + 0.0001f,
+                    "ring dust over the ceiling");
+                Assert.Greater(Peak(planet.lit), Peak(planet.shadow) * 2f,
+                    "without a real lit-to-shadow range a planet reads as a flat coin, not a sphere");
+                Assert.Greater(planet.lit.b, planet.lit.r,
+                    "planets belong to the cold world, not to the warm tells");
+            }
+        }
+
+        [Test]
+        public void AtLeastTwoPlanetsHaveSaturnRings()
+        {
+            int ringed = 0;
+            foreach (var planet in Starfield.Planets)
+            {
+                if (planet.ringOuter <= planet.ringInner || planet.ringAlpha <= 0f) continue;
+                ringed++;
+                Assert.Greater(planet.ringInner, 1.05f,
+                    "the ring must clear the body or it is a halo, not a ring");
+                Assert.Greater(planet.ringOuter, planet.ringInner * 1.2f,
+                    "a band this thin is sub-pixel at sky distance");
+                Assert.That(planet.ringFlatten, Is.InRange(0.10f, 0.55f),
+                    "face-on reads as a target reticle, edge-on as a scratch — Saturn sits around 0.3");
+            }
+            Assert.GreaterOrEqual(ringed, 2, "the user asked for rings like Saturn on at least a couple");
+        }
+
+        [Test]
+        public void PlanetsStayOutOfTheFightingSightline()
+        {
+            // Bolts, enemy silhouettes and the parry cue are all read near eye level, and the eclipse is
+            // the level's focal image. A planet parked in either place would sit behind something the
+            // player has 0.28 s to answer. High in the dome, and outside the eclipse halo's ~44 degree
+            // radius (2.3x the 38 degree disc, halved).
+            Vector3 eclipse = DirectionOf(0f, Starfield.DefaultEclipsePitchDeg);
+            foreach (var planet in Starfield.Planets)
+            {
+                Assert.GreaterOrEqual(planet.pitchDeg, 40f,
+                    "a planet below 40 degrees drops into the band where bolts and heads are read");
+                float sep = Vector3.Angle(eclipse, DirectionOf(planet.yawDeg, planet.pitchDeg));
+                Assert.Greater(sep, 44f,
+                    "planet sits inside the eclipse halo and crowds the level's focal image");
+                Assert.Less(planet.diameterDeg, Starfield.DefaultEclipseDiameterDeg * 0.3f,
+                    "the eclipse must stay the biggest thing in the sky by a wide margin");
+            }
+        }
+
+        [Test]
+        public void ThePlanetsCostNoExtraDrawCall()
+        {
+            // They are baked into the same mesh and the same two materials as the rest of the sky. A
+            // per-planet renderer would be four more draw calls and four more materials on WebGL, which
+            // is a shipped build target. Two submeshes in, two submeshes out.
+            RunOnBuiltSky((mesh, mats) =>
+            {
+                Assert.AreEqual(2, mats.Length, "the sky is still exactly two materials");
+                Assert.AreEqual(2, mesh.subMeshCount, "the sky is still exactly two submeshes");
+
+                // Every planet vertex lives in submesh 0, whose tint is 1.0 — so no colour anywhere in
+                // the field, planets included, can reach the bloom threshold. Checked on the built mesh
+                // rather than on the table, because that is where a stray bright vertex would hide.
+                float worst = 0f;
+                foreach (var c in mesh.colors) worst = Mathf.Max(worst, Peak(c));
+                Assert.LessOrEqual(worst, 1.0001f,
+                    "a vertex colour over 1.0 in the LDR field — the sky can only bloom via the rim material");
+            });
+        }
+
         // ---------------------------------------------------------------- helpers
+
+        static float Peak(Color c)
+        {
+            return Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+        }
+
+        /// <summary>Mirrors Starfield's own yaw/pitch convention (0 = +Z), which is private.</summary>
+        static Vector3 DirectionOf(float yawDeg, float pitchDeg)
+        {
+            float yaw = yawDeg * Mathf.Deg2Rad;
+            float pitch = pitchDeg * Mathf.Deg2Rad;
+            float c = Mathf.Cos(pitch);
+            return new Vector3(Mathf.Sin(yaw) * c, Mathf.Sin(pitch), Mathf.Cos(yaw) * c).normalized;
+        }
 
         delegate void SkyAssert(Mesh mesh, Material[] mats);
 

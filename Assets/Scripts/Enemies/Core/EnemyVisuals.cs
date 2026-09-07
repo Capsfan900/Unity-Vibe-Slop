@@ -62,18 +62,31 @@ namespace VibeGame1
         // enemy's BASE colour. Emission is reserved so that light on an enemy means "you deflected",
         // never "an attack is happening".
         //
-        // TWO exceptions, and they are different in kind:
+        // THREE exceptions, and they are different in kind:
         //   1. A successful parry (Recoil) — a bright SPIKE. Still the loudest light in the fight.
         //   2. A burning enemy (EmberAura, via SetAura) — a dim, CONSTANT floor, and one that is
         //      modulated by chargeDark like everything else, so a body on fire still visibly inhales
         //      on a wind-up. A floor and a spike coexist without either becoming ambiguous; a floor
         //      as bright as the spike would have destroyed the deflect read, which is why the aura
         //      ships well under it. Anything that wants an enemy to glow goes through SetAura.
+        //   3. The Sentry GHOST (SentryGhostVisual, also via SetAura) — 2026-09-06, user-directed.
+        //      Same channel, same modulation, same discipline: its floor peaks at 0.28 and its whole
+        //      body — lit albedo + floor + all four mist wisps — is budgeted to 1.03, under the 1.05
+        //      bloom threshold. So the rule is no longer "an enemy never glows"; it is "an enemy is
+        //      never allowed to BLOOM". Only a deflect (3.2) and the authored tells cross that line,
+        //      and that is what keeps light-on-a-body meaning what it has always meant.
         static readonly Color CueTint = new Color(0.82f, 0.80f, 0.76f);   // base-colour snap (NOT emission)
         static readonly Color CueTintUnblockable = new Color(0.75f, 0.10f, 0.12f);
         static readonly Color CueSpark = new Color(1f, 0.93f, 0.78f);     // world FX, additive, not on the enemy
         static readonly Color CueSparkUnblockable = new Color(1f, 0.12f, 0.18f);
-        static readonly Color ParryGlow = new Color(0.78f, 0.88f, 1f) * 3.2f; // the ONLY enemy emission
+        // THE ONLY ENEMY EMISSION, and it went WARM in the 2026-09-06 cold pass. It used to be a
+        // blue-white (0.78, 0.88, 1.0) chosen against a blood-red world. Under a cold blue world a
+        // blue-white flash at 3.2 reads as "the world got brighter for a frame"; a bone-white one
+        // with a warm edge reads as STEEL STRUCK STEEL, which is what a deflect is. Same peak (3.2 —
+        // not one photon added), same duration, opposite temperature, and it is now the complement
+        // of everything around it. This is the same reason Sekiro's deflect spark is a white-hot
+        // burst rather than a tint of the environment.
+        static readonly Color ParryGlow = new Color(1f, 0.92f, 0.80f) * 3.2f;
         static readonly Color StaggerTint = new Color(0.42f, 0.32f, 0.24f);   // base-colour pulse, still no glow
 
         // ---- the posture-break pose ---------------------------------------------------------------

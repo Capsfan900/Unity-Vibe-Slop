@@ -39,10 +39,19 @@ namespace VibeGame1.EditorTools
 
         static Spec[] Table => new[]
         {
-            // ECLIPSE PALETTE.
-            //   STONE  near-black, faintly warm       - everything structural
-            //   BONE   ash neutral                    - platform tops (footing legibility, never trim)
+            // COLD ECLIPSE PALETTE (2026-09-06, user-directed: "change the main colour scheme to blue").
+            //   STONE  near-black, faintly COLD       - everything structural
+            //   BONE   cold ash neutral               - platform tops (footing legibility, never trim)
             //   TRIM   four separable accent hues     - the level's per-tile identity
+            // Every structural albedo below moved from warm to cold at MATCHED Rec.709 linear
+            // luminance, the same discipline ProjectSetup applies to ambient: hue changed, light level
+            // untouched, so FeatureTests' albedo floor (0.010 linear) and the tell-vs-world contrast
+            // ratio (tell >= 20x the brightest structural albedo) both hold by construction.
+            //
+            // WHAT STAYS WARM, DELIBERATELY. In a cold world, warm means ONE of two things and nothing
+            // else: a combat tell (M_AlertTell, the bolt, the cue spark) or FIRE, which means safety
+            // (M_Torch, M_Checkpoint - the Dark Souls bonfire read). Warm on cold is the highest-contrast
+            // pair there is, so making the world blue makes every tell easier to read, not harder.
             // The level is four tiles and their identity is carried by TRIM COLOUR, so the four accents
             // must be separable at a glance and at distance: teal / gold / ember / red. ALL FOUR
             // navigational trims are held under the desaturation ceiling (peak channel <= 1.25) so they
@@ -54,16 +63,28 @@ namespace VibeGame1.EditorTools
             // #151011 -> #262023. The old value was ~0.008 LINEAR reflectance - darker than any real
             // material - and it covers most of the structural surface area, so the whole world was one
             // multiplicative near-zero (dark ambient x dark albedo) with nothing for light to land on.
-            new Spec("M_Ground",        Hex("#262023"), Color.black),                 // stone
-            new Spec("M_Platform",      Hex("#56504A"), Hex("#56504A") * 0.10f),      // ash, lifted so footing reads
-            new Spec("M_NeonPink",      Color.black,    Hex("#C4400F") * 1.15f),      // TILE 3 - EMBER accent
-            new Spec("M_NeonCyan",      Color.black,    Hex("#1FB9D6") * 1.00f),      // TILE 1 - cold ghost teal
-            new Spec("M_NeonYellow",    Color.black,    Hex("#D8C22A") * 0.85f),      // TILE 2 - brass gold
-            // TILE 4. It used to be #FF2A10 * 2.2 - far over the bloom threshold, where the tonemapper
-            // desaturates it: an HDR red that far up renders ORANGE and was indistinguishable from the
-            // ember boss court. Pure hue, held near 1.1, keeps it saturated crimson and separates tile 4
-            // from tile 3. It is NAVIGATION ONLY - it no longer drives the unblockable tell.
-            new Spec("M_NeonRed",       Color.black,    Hex("#FF1010") * 1.10f),
+            new Spec("M_Ground",        Hex("#1B222E"), Color.black),                 // cold stone (lin lum .0157, was #262023 .0157)
+            new Spec("M_Platform",      Hex("#475262"), Hex("#475262") * 0.10f),      // cold ash (lin lum .0821, was #56504A .0821)
+            // TILE 3. Was EMBER #C4400F x1.15 - the worst collision in the old palette, because ember
+            // IS the enemy bolt's hue (Projectile.HotCore, amber at 1.6). A static level trim must never
+            // share a hue family with the one thing the player has to deflect at 32 m/s. Now deep AZURE:
+            // cold, saturated, and ~200 degrees of hue away from the bolt.
+            new Spec("M_NeonPink",      Color.black,    Hex("#2F6BFF") * 0.95f),      // TILE 3 - azure
+            new Spec("M_NeonCyan",      Color.black,    Hex("#35DCEC") * 1.00f),      // TILE 1 - ice cyan, lifted so it still separates from a blue world
+            // TILE 2. The ONE warm navigational accent kept, and dimmed 0.85 -> 0.75 so the brightness
+            // gap to the nearest warm TELL is over 2x (0.635 peak against the bolt's 1.6). Brass is a
+            // metal, not a light: it never blooms, never moves and never appears above a head.
+            new Spec("M_NeonYellow",    Color.black,    Hex("#D8C22A") * 0.75f),      // TILE 2 - brass gold
+            // TILE 4. Twice retired: first from #FF2A10 x 2.2 (over the bloom threshold, where ACES
+            // desaturated it to orange), then from crimson #FF1010 x 1.10. Crimson had to go with the
+            // cold pass: against a BLUE world a saturated red trim is the loudest thing on a wall, and
+            // red is spoken for by the alert tell (M_AlertTell, pink-red at 3.00) and the unblockable
+            // cue tint. A player glancing at a red edge 30 m away must not have to ask whether it is an
+            // attack. Now GHOST GREEN - cold-leaning, owned by no tell, and the four trims stay spread
+            // (gold ~52, green ~142, cyan ~186, azure ~222 degrees). Weakest surviving pair is cyan vs
+            // azure at ~36 degrees, separated by luminance and saturation rather than hue.
+            // NAVIGATION ONLY - it drives no tell.
+            new Spec("M_NeonRed",       Color.black,    Hex("#3FE07A") * 0.95f),
             // ---- Combat tell -------------------------------------------------------------------
             // The unblockable / alert cube above an enemy's head. This is the OPPOSITE brief to a trim:
             // the player has ~0.45 s to react to it, so it must be among the loudest things on screen
@@ -123,21 +144,44 @@ namespace VibeGame1.EditorTools
             // the enemy from a measured 0.0 to 8.8, but a matte surface still had no shape within the
             // silhouette. Note M_Enemy's BASE COLOUR is overridden per-enemy by EnemyData.bodyColor via
             // a MaterialPropertyBlock; smoothness is not, so it applies to every enemy in the game.
-            new Spec("M_Enemy",         Hex("#1F1D24"), Color.black, 0.34f),
+            new Spec("M_Enemy",         Hex("#1A1E29"), Color.black, 0.34f),   // cold (lin lum .0130, was #1F1D24 .0130)
+            // The eye stays EMBER, and it is the one warm thing ON an enemy. It is under the 1.05
+            // bloom threshold so it never glows ("enemies do not glow" survives), and against a cold
+            // body on a cold world a warm pinprick is the cheapest "something is alive there" cue in
+            // the game. It says an enemy EXISTS - the same warm-means-combat language as the tells; it
+            // never says an attack is coming.
             new Spec("M_EnemyEye",      Hex("#180400"), Hex("#FF5A18") * 0.9f),       // faint ember, findable in the dark
-            new Spec("M_Boss",          Hex("#0D0709"), Color.black),
+            // ---- The Sentry ghost (2026-09-06, user-directed) -----------------------------------
+            // pshooter_enemy01's shell, hem and nub arms. It is the ONE pale character surface in the
+            // game, and that is the whole design: everything structural sits at 0.013-0.082 albedo, so a
+            // body at 0.855 separates from the world by ~50x in VALUE, which reads at 25 m down a span
+            // where a hue difference would not. COLD, because warm means a combat tell or fire
+            // (ANIMATION-VFX section 4 rule 10) and an enemy body may be neither; and not violet, because
+            // violet means "use this" and belongs to the flare.
+            // THE EMISSION HERE IS THE HEM AND THE ARMS ONLY. EnemyVisuals owns the SHELL's emission via
+            // a property block (SentryGhostVisual.ShellEmissionPeak 0.28, through SetAura). 0.16 keeps the hem
+            // luminous without it stacking past the cap under the mist: 0.35 lit + 0.16 + 4 x 0.10 = 0.91.
+            // Smoothness 0.18, well under M_Enemy's 0.34: a pale surface needs far less specular help to
+            // show curvature, and a glossy ghost reads as plastic.
+            new Spec("M_SentryGhost",         Hex("#A9C2DA"), Hex("#8FB6E0") * 0.16f, 0.18f),
+            new Spec("M_Boss",          Hex("#08090E"), Color.black),   // cold near-black
             new Spec("M_Weapon_Sword",  Hex("#0A0C10"), Hex("#9FB4C6") * 0.9f),
             new Spec("M_Weapon_Hammer", Hex("#120C06"), Hex("#D0722A") * 1.0f),
             new Spec("M_Weapon_Dagger", Hex("#0B0F0A"), Hex("#8FBE86") * 0.9f),
             new Spec("M_Weapon_Dev",    Hex("#08120A"), Hex("#7FE79A") * 1.1f),
-            new Spec("M_Checkpoint",    Color.black,    Hex("#C4400F") * 1.5f),       // ember: something happens here
-            new Spec("M_Bloodstain",    Color.black,    Hex("#B8D08A") * 1.1f),
-            new Spec("M_Gate",          Hex("#090607"), Hex("#C4400F") * 0.8f),
-            new Spec("M_Torch",         Hex("#2A1206"), Hex("#FF7A1A") * 1.15f),      // flame, not a white slab
+            // KEPT WARM ON PURPOSE. In a cold world a warm light is a bonfire: Dark Souls and Elden
+            // Ring train the player to hunt exactly this hue when they are lost. It is not a tell - it
+            // is static, at a fixed place, and never demands an action inside the 0.28 s cue window.
+            new Spec("M_Checkpoint",    Color.black,    Hex("#C4400F") * 1.5f),       // ember: safety, the one warm beacon
+            new Spec("M_Bloodstain",    Color.black,    Hex("#B8D08A") * 1.1f),   // pale sage, unchanged: dim, on the ground, desaturated enough not to read as the tile-4 green
+            // A gate is structure, not fire: cold now, so the only ember light in the level is a torch
+            // or a checkpoint and the player can trust that read.
+            new Spec("M_Gate",          Hex("#060809"), Hex("#2E7ACF") * 0.8f),
+            new Spec("M_Torch",         Hex("#2A1206"), Hex("#FF7A1A") * 1.15f),      // flame - warm on purpose, see M_Checkpoint
             // #1E1819 -> #3A3134. Walls, pillars and obelisks - i.e. VERTICAL faces, which Trilight
             // ambient lights with the equator term only. Kept just above M_Ground so a wall separates
             // from the floor it meets.
-            new Spec("M_Stone",         Hex("#3A3134"), Color.black),
+            new Spec("M_Stone",         Hex("#2A3443"), Color.black),   // cold (lin lum .0334, was #3A3134 .0334)
             new Spec("M_Lightning",     Color.black,    Hex("#7FD4FF") * 3.5f),
             new Spec("M_Item",          Color.black,    Color.white * 1.2f),
             new Spec("M_Spark",         Color.black,    Color.white * 2.4f),
@@ -148,7 +192,7 @@ namespace VibeGame1.EditorTools
             // on screen. The first pass was a warm mid-brown (#2C2522) which, lit by the arena, read as
             // pale WOOD and made the knuckles the brightest object in the frame. Dark cold leather now:
             // still above STONE (#151011) so the fist keeps a silhouette, but ~40% darker than before.
-            new Spec("M_Gauntlet",      Hex("#1B1719"), Hex("#1B1719") * 0.12f),
+            new Spec("M_Gauntlet",      Hex("#16181D"), Hex("#16181D") * 0.12f),   // cold leather, matched weight
             // Knuckle and cuff banding - the only thing that says HAND rather than dark blob. COOL steel,
             // not warm tan: the warm version read as wood banding, and a cool grey also separates the
             // hand from the warm ember world. Sits just above the leather and far under the weapon
@@ -164,7 +208,11 @@ namespace VibeGame1.EditorTools
             new Spec("M_Balloon",       Hex("#3A2A10"), Hex("#FFC24A") * 0.95f, 0.4f),
             // Water: a cold translucent film (alpha in Configure), lit, a little glossy so the sky term
             // skims it. Emission just enough to read in the dark, far under the bloom threshold.
-            new Spec("M_Water",         new Color(0.16f, 0.42f, 0.70f, 0.55f), Hex("#2A6FB0") * 0.35f, 0.7f),
+            // Water was already the one cold surface, which is exactly why the cold pass makes it a
+            // problem: cold water on a cold world stops separating. Pushed toward CYAN (away from the
+            // world's slate-azure) and its emission lifted 0.35 -> 0.45, still 2.3x under the bloom
+            // threshold. A traversal surface the player must recognise mid-air cannot read as floor.
+            new Spec("M_Water",         new Color(0.18f, 0.55f, 0.72f, 0.55f), Hex("#2FA8C8") * 0.45f, 0.7f),
 
             // ---- Eclipse backdrop -------------------------------------------------------------
             // The disc is PURE BLACK with no emission on purpose. Linear fog blends distant geometry
@@ -172,11 +220,13 @@ namespace VibeGame1.EditorTools
             // silhouette. A bright object out there would just wash to fog colour.
             new Spec("M_EclipseDisc",   Color.black,    Color.black),
             // The corona sits just behind the disc rim. Bright enough to survive partial fogging at
-            // ~80 units and still read as a burning edge.
-            new Spec("M_EclipseCorona", Color.black,    Hex("#FF5A12") * 6f),
-            // Sky band on the horizon behind the disc: deep blood, low intensity so it glows without
-            // blooming into a smear.
-            new Spec("M_EclipseSky",    Hex("#12040A"), Hex("#5E0F12") * 1.1f),
+            // ~80 units and still read as a burning edge. COLD now, matching Starfield's corona: a warm
+            // corona would be a huge static warm bloom in the sky, and the amber bolt has to fly across
+            // that sky and stay legible.
+            new Spec("M_EclipseCorona", Color.black,    Hex("#4C9EE0") * 6f),
+            // Sky band on the horizon behind the disc: deep midnight blue, low intensity so it glows
+            // without blooming into a smear.
+            new Spec("M_EclipseSky",    Hex("#050A14"), Hex("#12335E") * 1.1f),
         };
 
         [MenuItem("VibeGame1/2. Create Materials")]

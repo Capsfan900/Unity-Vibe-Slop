@@ -53,7 +53,11 @@ namespace VibeGame1
         public float gritHeight = 0.12f;
         [Tooltip("Dim warm grey. Peak channel is forced to 0.55 at build — dust, not fire, and far " +
                  "under the 1.05 bloom threshold so it adds no glow to the frame at all.")]
-        public Color gritHue = new Color(0.68f, 0.60f, 0.50f, 1f);
+        // Dust takes the colour of the light that falls on it, and the key light is a pale COLD sun
+        // now (ProjectSetup.KeyLightColor). Warm grit under a cold key was the one lie in this
+        // effect after the palette pass — and worse, in a cold world warm means combat, so a slide
+        // was spraying the tells' colour every time the player did the most common thing they do.
+        public Color gritHue = new Color(0.56f, 0.62f, 0.72f, 1f);
         public float gritBrightness = 0.55f;
 
         [Header("Scrape")]
