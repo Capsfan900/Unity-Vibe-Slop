@@ -547,3 +547,17 @@ that the hem waves rather than wobbles, and that a 3.6 m aura at 1.45 still read
 - [Understanding Color Theory in Game Art — Pixune](https://pixune.com/blog/color-theory-in-game-art-basics-and-complementary/)
 - [Color Theory for Game Art: The Production Application Guide — Nasty Rodent](https://nastyrodent.com/color-theory-for-game-art/)
 - [Designing for Difficulty: Readability in ARPGs — Game Developer](https://www.gamedeveloper.com/game-platforms/designing-for-difficulty-readability-in-arpgs)
+
+## Fog is the sky bleeding in, never a hole punched in it (A5, 2026-09-06)
+
+`RenderSettings.fogColor` must sit between the dome's zenith (`#060A17`, lin lum .0032) and its horizon
+band (`#13233F`, .0170), and **above a shadowed stone face** (~.009 linear), so distance *lightens* dark
+surfaces instead of eating them. Shipped: `#0E1C34`, 36 -> 170 m. Two traps. `fogStartDistance`'s floor is
+the **eclipse halo's corners at 31.2 m**, not the quoted 25 m dome radius — the halo is a flat disc of
+lateral radius 19.8 m parked 24.1 m down the eclipse axis. And fog must never reach a landing target:
+every hop in Level_01 lands inside 12 m, so 36 keeps foot placement at fog factor zero. Pinned by four
+tests in `SkyEclipseTests`.
+
+**Measured, so expectations stay honest:** at the 91 m approach the change moves 0.8% of the frame
+(dark pixels .0893 -> .0966, sky pixel-identical). Most of any frame is either fog-immune sky or geometry
+inside 36 m, so linear fog in this level is a *route-preview* instrument, not an atmosphere one.
