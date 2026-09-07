@@ -267,6 +267,14 @@ body in `MiniBossFactory`.
 
 ## 6. Smaller open questions
 
+- **A rear watch region on the Legendaries — PARKED by the user, 2026-09-06:** *"save that for later, the
+  rear region."* Item F of `docs/plans/soulslike-report-gap-analysis-2026-09-06.md`: an enemy that punishes
+  you for circling behind it. The doubt that put it here is first person — you strafe around a Legendary's
+  back and it whips out a rear attack whose wind-up was behind your camera, so the tell can only ever be a
+  sound. Shapes if it comes back: cut it; keep it with a distinct directional audio wind-up; or duels only,
+  where you are already reading one enemy closely. **Do not build it, cost it or re-ask** — it waits for the
+  user to raise it. Nothing else in the duel work (A per-move cooldowns, B AI LOD, C the delayed attack) is
+  blocked on it.
 - **Boss framing at deathblow range.** A 2.2x-scale boss's torso is a wall across the middle of the shot.
   This is the `preferredRange`/`range` tension, not the stagger pose. Untouched deliberately — changing
   either affects every fight. **Numbers as of 2026-09-06:** `boss.preferredRange` is **4.6** (this line

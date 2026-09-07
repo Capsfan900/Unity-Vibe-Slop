@@ -93,17 +93,16 @@ the Grunt and Heavy pads for melee.
 
 ## Open questions for the user
 
-**Three of the four are ANSWERED (2026-09-06) — do not re-ask them.**
+**All four are settled (2026-09-06) — three answered, one deferred. Do not re-ask them.**
 
 1. ~~Should reflected bolts ever kill a sentry outright, or only ever open it?~~ **They kill, and already do.**
    The user: *"this system is already in place it kills the enemy and they explode with the flare."* A span
    IS clearable at range; the dash line is the faster, showier one, not the only one.
 2. ~~Should the flare grapple cost anything?~~ **No — free.** The user: *"does nothing its free."* The two
    deflects that earned it are the whole price. Do not spend stamina or the dash cooldown on it.
-3. **STILL OPEN — and it needs describing before it can be answered.** A "rear watch region" is item F of
-   `docs/plans/soulslike-report-gap-analysis-2026-09-06.md`: an enemy that punishes you for circling behind
-   it. The user asked what it meant. Put it to them in play terms — "you strafe around a Legendary's back
-   and it whips a rear attack you never saw the wind-up for, because the wind-up is behind your camera" —
-   and do not build F until they have called it.
+3. ~~Is a rear watch region fair in first person?~~ **DEFERRED, not refused.** The user, after hearing what
+   it meant: *"save that for later, the rear region."* Item F of the soulslike gap analysis sits in BACKLOG
+   until they raise it themselves. Nothing in the duels is blocked on it — A, B and C are the next combat
+   work and none of them touch it.
 4. ~~An owner key on the standing prompt slot?~~ **Yes, and it is BUILT** (`c0ed46d`, item 0b above).
 

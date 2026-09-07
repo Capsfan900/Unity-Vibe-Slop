@@ -129,9 +129,9 @@ Only worth doing once a span demonstrably fires enough bolts to matter. Listed s
    posture-full-breaks-immediately the final answer for this game?
 2. Should the flask interrupt (D) exist at all, or is drinking meant to be safe in a speedrun where the real
    cost is already the time it takes?
-3. Is a rear watch-region (F) fair in first person, where the punishing enemy is behind the camera?
-   *(2026-09-06: put to the user, who asked what it meant — it needs describing in play terms before it can
-   be answered. Still open; do not build F until it is.)*
+3. ~~Is a rear watch-region (F) fair in first person?~~ **DEFERRED by the user, 2026-09-06: "save that for
+   later, the rear region."** Not a no — a not-now. Do not build F, do not cost it, and do not put the
+   question again unless the user raises it. It waits in BACKLOG.
 4. May a session raise `EnemyController.Aggression` (a Fable property, `EnemyController.cs:86`) for item G, or
    should HP-scaled aggression live in `BossController` only?
 
