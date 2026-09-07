@@ -39,6 +39,7 @@ namespace VibeGame1
         public Button breakPostureButton;
         [Tooltip("Flips WandPedestal.DevMenuEnabled. Label is rewritten to the live state on every refresh.")]
         public Button wandPedestalButton;
+        public Button armMovementButton;
 
         [Header("Enemies")]
         public Button killNearbyButton;
@@ -90,6 +91,7 @@ namespace VibeGame1
             Wire(giveSoulsButton, GiveSouls);
             Wire(breakPostureButton, BreakPosture);
             Wire(wandPedestalButton, ToggleWandPedestal);
+            Wire(armMovementButton, ToggleArmMovement);
             Wire(killNearbyButton, KillNearby);
             Wire(staggerNearbyButton, StaggerNearby);
             Wire(resetEnemiesButton, ResetEnemies);
@@ -257,6 +259,17 @@ namespace VibeGame1
             RefreshButtons();
         }
 
+        /// <summary>
+        /// Switches the viewmodel movement channel off and on live (BACKLOG 2b). The user asked for this
+        /// the day the channel was built: it is a FEEL change they may not want, and a feel change you
+        /// cannot turn off mid-run cannot be judged against the version without it.
+        /// </summary>
+        public void ToggleArmMovement()
+        {
+            MovementPose.Enabled = !MovementPose.Enabled;
+            RefreshButtons();
+        }
+
         void BreakPosture()
         {
             var posture = OnPlayer<PlayerPosture>();
@@ -341,6 +354,12 @@ namespace VibeGame1
             {
                 var text = wandPedestalButton.GetComponentInChildren<TMP_Text>();
                 if (text != null) text.text = WandPedestal.DevMenuEnabled ? "WAND PEDESTAL: ON" : "WAND PEDESTAL: OFF";
+            }
+
+            if (armMovementButton != null)
+            {
+                var text = armMovementButton.GetComponentInChildren<TMP_Text>();
+                if (text != null) text.text = MovementPose.Enabled ? "ARM MOVEMENT: ON" : "ARM MOVEMENT: OFF";
             }
         }
 

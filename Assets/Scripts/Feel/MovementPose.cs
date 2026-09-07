@@ -98,8 +98,22 @@ namespace VibeGame1
         /// The whole function. Deterministic, no side effects, safe to call every frame or from a test
         /// with a hand-built <see cref="State"/>.
         /// </summary>
+        /// <summary>
+        /// Dev toggle (F1 -> PLAYER -> ARM MOVEMENT). The user asked for this on 2026-09-07 when the
+        /// channel was built: it is a FEEL change and may not suit the game, so it must be switchable
+        /// off at runtime without a rebuild. False makes <see cref="Compute"/> return
+        /// a zero <see cref="Pose"/>, so the viewmodels smooth back to their unmodified pose rather
+        /// than freezing at whatever offset they were holding.
+        /// </summary>
+        public static bool Enabled = true;
+
         public static Pose Compute(State s)
         {
+            // The dev toggle is checked HERE rather than at the call sites so there is exactly one
+            // place the channel can be switched off, and so the viewmodels' own smoothing carries the
+            // hands back to their unmodified pose instead of dropping them there in one frame.
+            if (!Enabled) return new Pose(Vector3.zero, Vector3.zero);
+
             Vector3 pos = Vector3.zero;
             Vector3 euler = Vector3.zero;
 
