@@ -264,7 +264,18 @@ namespace VibeGame1.EditorTools
             // 2026-09-06 (user): faster, and it never misses -- full lead plus 180 deg/s homing. 40 m/s from 15 m
             // is 0.37 s; the launch still slows inside 14.4 m so the cue is never owed before the bolt exists.
             grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 40f;
-            grunt.projectileMinRange = 3f; grunt.projectileMaxRange = 32f;
+            // BOLT TIMING (2026-09-06 plan, from play: "the projectile just comes in at a bad time ... the
+            // placement and timing of the shots needs to work with the game as well so the player can
+            // actually make the parrys while moving fast"). Two shipped numbers move.
+            // F1, the ARM-UP: the beat is HELD while the line is blocked, so a shooter that has not seen you
+            // for seconds owes a shot and fires it on the FIRST FRAME the line clears -- the frame you crest a
+            // ledge or land. 0.7 s is one cue lead plus a landing; capped at one interval by AcquireBeat.
+            grunt.projectileAcquireDelay = 0.7f;
+            // F5, a LONGER MINIMUM FLIGHT up close: the near edge 3 -> 6 m. With ProjectileShooter.CueMargin
+            // 0.16 a near bolt now shows ~0.44 s of flight instead of 0.36. The cue LEAD is untouched at
+            // 0.28 s -- it is a contract shared with every melee attack, and the plan rejects making it
+            // elastic. Still well inside the melee bodies' 3.6 m reach, so a sentry is never toothless.
+            grunt.projectileMinRange = 6f; grunt.projectileMaxRange = 32f;
             // P1 (combat plan 2026-09-06): a reflected bolt OPENS a sentry, it does not kill it. At 30 damage
             // two reflects were exactly the Grunt's 60 HP, and Health.TakeDamage runs before Posture.Add, so
             // the body died on the frame it would have staggered and the sentry dash never had a target.
@@ -307,7 +318,8 @@ namespace VibeGame1.EditorTools
             heavy.projectileAttack = grunt.projectileAttack;
             heavy.rangedOnly = false; heavy.projectileLead = 1.0f; heavy.projectileHomingDegPerSec = 150f;
             heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 36f;
-            heavy.projectileMinRange = 3f; heavy.projectileMaxRange = 32f;
+            heavy.projectileAcquireDelay = 0.7f;               // F1, the arm-up (see the Grunt above)
+            heavy.projectileMinRange = 6f; heavy.projectileMaxRange = 32f;   // F5, the longer near flight
             heavy.parriedProjectileDamage = 45f; heavy.parriedProjectilePosture = 50f;   // 3 reflects kill: 135 >= 130 HP
             heavy.parrySpeedGain = 9f;
             EditorUtility.SetDirty(heavy);
@@ -383,6 +395,11 @@ namespace VibeGame1.EditorTools
             // its arc at slide speed. 1.1 s. Not 0.7: two bolts overlapping in flight from the same turret
             // gives two cues 0.28 s apart and the parry stops being one clean read.
             turret.projectileInterval = 1.1f;
+            // The arm-up (F1) is inherited at 0.7 s and written explicitly so it is a decision, not a copy:
+            // a turret wakes at 36 m on a descent you can see all the way down, so it acquires you long
+            // before you are in its arc and the breath costs it nothing. Its near edge stays 2.5 m (NOT the
+            // sentries' new 6 m): the last turret on a row must still be parriable as you slide past it.
+            turret.projectileAcquireDelay = 0.7f;
             // Same bolt, same tell, same cue lead as every other bolt in the game -- deliberately NOT a new
             // projectile. 36 m/s (the Heavy Sentry's speed rather than the Grunt's 40) because the turret
             // shoots from further out and the flight must stay readable across the extra 4 m. 240 deg/s of

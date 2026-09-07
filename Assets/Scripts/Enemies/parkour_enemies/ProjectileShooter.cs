@@ -24,10 +24,30 @@ namespace VibeGame1
         PlayerCombat combat;
         FirstPersonMotor motor;
         float nextFireAt;
+        bool acquired;
         static Material boltMat;
 
-        /// <summary>Seconds of flight a bolt keeps beyond the cue lead when the launch has to slow for a near shot.</summary>
-        public const float CueMargin = 0.08f;
+        /// <summary>
+        /// Seconds of flight a bolt keeps beyond the cue lead when the launch has to slow for a near shot.
+        /// F5 of the bolt-timing plan (2026-09-06): 0.08 -> 0.16, so a near bolt shows ~0.44 s of flight
+        /// instead of 0.36. The CUE LEAD itself stays a flat 0.28 s -- the plan rejects a speed-scaled cue,
+        /// because that lead is a contract shared with every melee attack and making it elastic gives the
+        /// loudest signal in the game a variable meaning. Lengthen the FLIGHT, never the promise.
+        /// </summary>
+        public const float CueMargin = 0.16f;
+
+        /// <summary>Seconds after Awake before a sentry's very first beat can land, whatever the epoch says.</summary>
+        public const float FirstBeatDelay = 1f;
+
+        // F4, ONE BEAT PER SPAN: every sentry in a level shares one epoch, and alternate sentries sit a
+        // HALF interval off it, so two perches covering one crest never argue in unison. Statics do not
+        // survive a domain reload with their world, so both are re-seeded on load.
+        static float spanEpoch;
+        static bool spanEpochSet;
+        static int spanIndex;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void ResetSpanBeat() { spanEpochSet = false; spanIndex = 0; }
 
         /// <summary>Bolts fired since spawn. Read by tests and the harness.</summary>
         public int Fired { get; private set; }
@@ -35,16 +55,20 @@ namespace VibeGame1
         void Awake()
         {
             ctrl = GetComponent<EnemyController>();
-            nextFireAt = Time.time + 1f;   // never on the first frame of a spawn
+            if (!spanEpochSet) { spanEpoch = Time.time; spanEpochSet = true; }
+            var spawnData = ctrl != null ? ctrl.data : null;
+            float interval = spawnData != null ? spawnData.projectileInterval : 1.6f;
+            float offset = (spanIndex++ % 2) * interval * 0.5f;
+            // Never on the first frame of a spawn, and on the SPAN's grid rather than this body's (F4).
+            nextFireAt = ProjectileMath.FirstBeat(spanEpoch, Time.time, interval, offset, FirstBeatDelay);
         }
 
         void Update()
         {
             var data = ctrl != null ? ctrl.data : null;
             if (data == null || !data.shootsProjectiles || data.projectileAttack == null) return;
-            if (!ctrl.IsAlive || ctrl.IsStaggered || ctrl.IsCommitted || ctrl.aggroLocked) return;
-            if (ctrl.Current == EnemyController.State.Idle) return;
-            if (Time.time < nextFireAt) return;
+            if (!ctrl.IsAlive || ctrl.Current == EnemyController.State.Idle) { acquired = false; return; }
+            if (ctrl.IsStaggered || ctrl.IsCommitted || ctrl.aggroLocked) return;
 
             if (combat == null) combat = FindAnyObjectByType<PlayerCombat>();
             if (combat == null) return;
@@ -55,14 +79,42 @@ namespace VibeGame1
             float dist = Vector3.Distance(muzzle, chest);
             // The beat is HELD, not skipped, while the player is out of band or out of sight: the next
             // shot lands on the metronome the moment they are back (ProjectileMath.NextBeat).
-            if (!ProjectileMath.InBand(dist, data.projectileMinRange, data.projectileMaxRange)) return;
-            if (!EnemyController.HasLineOfSight(muzzle, combat.transform.position)) return;
+            bool inBand = ProjectileMath.InBand(dist, data.projectileMinRange, data.projectileMaxRange)
+                          && EnemyController.HasLineOfSight(muzzle, combat.transform.position);
+            if (!inBand) { acquired = false; return; }
+
+            // F1, THE ARM-UP (bolt-timing plan 2026-09-06). A held beat that had gone stale used to fire on
+            // the FIRST FRAME the line cleared -- the frame you crest a ledge or land, and two stale perches
+            // covering one crest fired together. On the transition into band the beat is pushed at least
+            // projectileAcquireDelay out: the sentry takes a breath, and its first shot arrives once you are
+            // back on the ground and looking. This is why the band and sight checks now run every frame
+            // instead of behind the beat test.
+            if (!acquired)
+            {
+                acquired = true;
+                nextFireAt = ProjectileMath.AcquireBeat(nextFireAt, Time.time, data.projectileInterval,
+                                                        data.projectileAcquireDelay);
+            }
+            if (Time.time < nextFireAt) return;
 
             // Slow the launch inside the cue distance rather than going quiet: a bolt never arrives
             // before its own cue, and a sentry never stops shooting because you got close.
             float speed = ProjectileMath.LaunchSpeed(dist, data.projectileSpeed, Projectile.CueLead, CueMargin);
             // Lead a runner so the bolt meets them on the way through instead of crossing behind them.
             Vector3 vel = motor != null ? motor.Velocity : Vector3.zero;
+
+            // F3: a perch covers a STRETCH, not a fleeing back. A bolt that would arrive from outside the
+            // parry cone at a receding runner is answered by ParryMath.Evaluate with Hit before timing is
+            // even considered -- not hard, impossible. Refuse to LAUNCH; the beat still advances, so the
+            // skipped shot is never repaid as a burst and the sentry never reads the player's state machine.
+            float cone = GameManager.I != null && GameManager.I.statsData != null
+                       ? GameManager.I.statsData.facingConeDeg : 75f;
+            if (!ProjectileMath.ArrivesInFront(muzzle, chest, vel, speed, cone))
+            {
+                nextFireAt = ProjectileMath.NextBeat(nextFireAt, Time.time, data.projectileInterval);
+                return;
+            }
+
             Vector3 target = ProjectileMath.LeadTarget(muzzle, chest, vel, speed, data.projectileLead);
 
             FireAt(muzzle, target, speed, data);

@@ -42,8 +42,9 @@ MonoBehaviour:
   rangedOnly: 1
   projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
   projectileInterval: 2.4
+  projectileAcquireDelay: 0.7
   projectileSpeed: 36
-  projectileMinRange: 3
+  projectileMinRange: 6
   projectileMaxRange: 32
   projectileLead: 1
   projectileHomingDegPerSec: 150

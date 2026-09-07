@@ -1220,13 +1220,28 @@ EnemyController.Update()  Idle → Chase when dist ≤ WakeRange (= max(aggroRan
                           behind a rail is still seen). A SENTRY (EnemyData.rangedOnly: Grunt, Heavy) in Chase
                           only locomotion.Stop() + FaceTarget: it holds its perch, never commits a combo, and
                           never goes back to sleep. A test may still call BeginCombo on it directly.
+ProjectileShooter.Awake()    F4, ONE BEAT PER SPAN (bolt-timing plan 2026-09-06): the first beat is
+                          ProjectileMath.FirstBeat(shared span epoch, now, interval, offset, FirstBeatDelay 1 s) --
+                          alternate sentries sit a HALF interval off ONE grid, so two perches covering a crest
+                          are a tempo, not two clocks arguing. Both statics re-seed on load.
 ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData.shootsProjectiles)
    gate: awake (Current != Idle), alive, not staggered, not committed (no bolt during a melee wind-up),
-         not aggroLocked, player inside [projectileMinRange 3, projectileMaxRange 32], HasLineOfSight (same three lines)
+         not aggroLocked, player inside [projectileMinRange 6 (turret 2.5), projectileMaxRange 32], HasLineOfSight
+         (same three lines; only cast once the band test passes)
+   → F1, THE ARM-UP: on the out-of-band/blocked → in-band TRANSITION,
+     nextFireAt = ProjectileMath.AcquireBeat(nextFireAt, now, interval, projectileAcquireDelay 0.7) -- the beat is
+     HELD, so a stale one used to fire on the FIRST FRAME the line cleared: the frame you crest a ledge or land.
+     Only ever moves a beat forward, and never by more than one interval.
    → on the METRONOME (ProjectileMath.NextBeat: Grunt 1.6 s, Heavy 2.4 s, no jitter; a held beat stays on the
      grid, a silence longer than one beat re-anchors instead of bursting):
-     speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed 40 / 36, CueLead 0.28, CueMargin 0.08) -- inside 14.4 m the
-             launch slows so every flight is ≥ 0.36 s and the cue is never owed before the bolt exists
+     speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed 40 / 36, CueLead 0.28, CueMargin 0.16) -- inside 17.6 m the
+             launch slows so every flight is ≥ 0.44 s (F5) and the cue is never owed before the bolt exists
+     F3, NO BOLT AT A FLEEING BACK: ProjectileMath.ArrivesInFront(muzzle, chest, motor.Velocity, speed,
+             statsData.facingConeDeg 75) -- predicts the arrival point, takes the bearing it comes FROM there
+             (ParryMath.SourceDirection, the rule the parry itself is judged by) and refuses to LAUNCH when that
+             is outside the cone AND the run is receding (cos >= 0.5 of straight away). The beat still advances,
+             so a refused shot is never repaid as a burst. Crossing the arc, closing, standing and jumping all
+             still get shot at.
      target = ProjectileMath.LeadTarget(muzzle, chest, motor.Velocity (flat), speed, projectileLead 1.0), and in flight
               the bolt HOMES toward the chest at projectileHomingDegPerSec (180 / 150) -- 2026-09-06: a bolt never
               sails past unparriable; core 0.55 m, hitRadius 1.0
@@ -1237,6 +1252,10 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
      beyond 11.5 m; a mid-band shot flies 0.47 s -- answered at a run, never waited for)
 Projectile.Update()  (scaled time: hitstop freezes it)
    straight line; remaining = ProjectileMath.TimeToImpact(dist, speed)
+   → BoltRegistry.Report(id, cue = now + remaining - 0.28 (MaxValue once cued), impact = now + remaining) every frame,
+     Clear() on reflect / spend / destroy -- F2: EnemyController.AnyAttackIncoming and .EarliestCueTime consult the
+     registry as well as the melee list, so a missed bolt parry costs parryMistimeRecovery 0.2 s and not the
+     parryWhiffRecovery 0.5 s mash tax, and ParryController.ClampRecoveryToNextCue works on a span
    → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×2.3 (CueFlareScale) and its core goes white-hot (CueCore)
                                                                         (the same lead every attack gives)
    → within hitRadius of the chest → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
@@ -1252,6 +1271,9 @@ Projectile.Update()  (scaled time: hitstop freezes it)
 **Invariants**
 - **A bolt is an attack** and resolves only through `PlayerCombat.ReceiveAttack` (rule 3). Nothing here writes health or posture on the player.
 - **The flight is the tell, and it is cued at 0.28 s like every attack.** `projectileMinRange / projectileSpeed` must exceed the lead (`ProjectileTests`); at 32 m/s the cue is 9 m out, which is why the band starts at 10 m.
+- **A bolt in flight is an INCOMING ATTACK** (`BoltRegistry`, F2). The two cue helpers on `EnemyController` read it with NO range test — a bolt is already aimed at you, so its arrival time is the question, not its perch's distance. Melee's 6 m `InThreatRange` is untouched.
+- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed** (`ArrivesInFront`, F3). Both are gates on the LAUNCH; neither holds a shot, so the metronome stays a metronome and the enemy never reads the player's state machine (the plan's rejected "comfort blanket").
+- **The cue lead is FLAT at 0.28 s and stays flat.** F5 lengthens the near FLIGHT (`CueMargin` 0.16, near edge 6 m) instead of scaling the lead with speed: the lead is a contract shared with every melee attack, and an elastic one would give the loudest signal in the game a variable meaning.
 - **The bolt is the one glow in traversal.** Every other effect stays under the 1.05 bloom cap; the bolt's core ships at 1.6 (`Projectile.HotCore`, pinned by `TheBoltIsTheOneGlowInTraversal`) because it is the ATTACK'S tell, and the shooter itself still never glows until it is deflected.
 - **A deflect buys speed through the motor** (`AddImpulse`), flattened along the LOOK — aim at the next ledge and deflect (rule 10; MOVEMENT-PRINCIPLES 5 and 6).
 - **One attack at a time**: the shooter never fires inside a melee wind-up or strike, so a tell is never two things.

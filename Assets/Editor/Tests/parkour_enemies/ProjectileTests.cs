@@ -65,7 +65,10 @@ namespace VibeGame1.Tests
                 Assert.IsNotNull(e.projectileAttack, e.name + " has no bolt attack");
                 Assert.Greater(e.projectileAttack.damage, 0f);
                 Assert.IsTrue(e.rangedOnly, e.name + " is a sentry: it never melees on a span (2026-09-06)");
-                Assert.LessOrEqual(e.projectileMinRange, 4f, e.name + ": a sentry keeps shooting all the way in");
+                // 2026-09-07 (bolt-timing plan, F5): the near edge moved 3 -> 6 m so a close bolt shows
+                // ~0.44 s of flight rather than 0.36. Still well inside a Heavy's 3.6 m reach x 2, so the
+                // original promise -- a sentry keeps shooting as you close, it never goes quiet -- stands.
+                Assert.LessOrEqual(e.projectileMinRange, 7f, e.name + ": a sentry keeps shooting all the way in");
                 Assert.GreaterOrEqual(e.projectileMaxRange, 30f, e.name + ": it wakes at the far end of the span");
                 Assert.GreaterOrEqual(e.projectileLead, 0.6f, e.name + ": a runner must MEET the bolt, not outrun it");
                 Assert.Greater(e.projectileHomingDegPerSec, 0f, e.name + ": a bolt that can miss is a parry you were never offered (2026-09-06)");

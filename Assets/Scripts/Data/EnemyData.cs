@@ -86,6 +86,13 @@ namespace VibeGame1
         [Tooltip("The attack the bolt carries: its damage and parryPostureMultiplier. Written by DataFactory.")]
         public EnemyAttackData projectileAttack;
         public float projectileInterval = 1.6f;
+        [Tooltip("THE ARM-UP (bolt-timing plan 2026-09-06, F1). Seconds this enemy must wait after it ACQUIRES " +
+                 "the player -- the frame it comes into band with a clear line -- before its first bolt may " +
+                 "leave. The metronome is held while the line is blocked, so without this a stale beat fires on " +
+                 "the very frame you crest a ledge or land, and two perches covering one crest fire together. " +
+                 "0.7 s is one cue lead plus a landing. Capped at one interval: an acquisition costs at most " +
+                 "one bolt.")]
+        public float projectileAcquireDelay = 0.7f;
         public float projectileSpeed = 32f;
         [Tooltip("Fires only inside this band: far enough that the flight is a readable tell, near enough to matter.")]
         public float projectileMinRange = 10f;

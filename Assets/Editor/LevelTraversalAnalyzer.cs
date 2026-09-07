@@ -55,12 +55,23 @@ namespace VibeGame1.EditorTools
         {
             public string perch, spawn;
             public List<string> covered, blocked, outOfBand;
+            /// <summary>
+            /// Decks this perch covers that the player CANNOT ANSWER while running the route: the
+            /// bearing to the muzzle is more than the parry's facing cone away from the direction the
+            /// route travels, so turning to the bolt means turning off the line. F6 of the bolt-timing
+            /// plan — the point is that bad perch PLACEMENT becomes a measured fault caught by the arc
+            /// report, instead of something a player discovers by dying to it.
+            /// </summary>
+            public List<string> forcedLookAway;
             public string Summary()
             {
-                return string.Format("{0} ({1}): covers {2}; blocked {3}; out of band {4}", perch, spawn,
+                string baseLine = string.Format("{0} ({1}): covers {2}; blocked {3}; out of band {4}", perch, spawn,
                                      covered.Count == 0 ? "-" : string.Join(",", covered.ToArray()),
                                      blocked.Count == 0 ? "-" : string.Join(",", blocked.ToArray()),
                                      outOfBand.Count == 0 ? "-" : string.Join(",", outOfBand.ToArray()));
+                if (forcedLookAway != null && forcedLookAway.Count > 0)
+                    baseLine += "; FORCED LOOK-AWAY " + string.Join(",", forcedLookAway.ToArray());
+                return baseLine;
             }
         }
 
@@ -90,6 +101,75 @@ namespace VibeGame1.EditorTools
                 var others = new List<LevelArcAnalyzer.Box>();
                 for (int i = 0; i < boxes.Count; i++) if (i != ip && i != id) others.Add(boxes[i]);
                 if (LineClear(muzzle, chest, others)) v.covered.Add(d); else v.blocked.Add(d);
+            }
+            return v;
+        }
+
+        /// <summary>
+        /// The angle, in degrees, between the direction the ROUTE travels across
+        /// <paramref name="deckName"/> and the bearing from that deck to the muzzle. Zero means the bolt
+        /// comes from straight ahead; 180 means it comes from directly behind.
+        ///
+        /// <para>The tangent is taken from the hop LEAVING the deck when there is one, because that is
+        /// where the player is looking while standing on it; the arriving hop is the fallback for the
+        /// last deck of a route. Both are flattened to XZ — a bolt from above is still answerable, and
+        /// pitch is not what the facing cone tests.</para>
+        /// </summary>
+        public static float RouteBearingOffsetDeg(IList<LevelArcAnalyzer.Box> boxes, string deckName,
+                                                  Vector3 muzzle, string prevDeck, string nextDeck)
+        {
+            int id = LevelArcAnalyzer.IndexOf(boxes, deckName);
+            if (id < 0) return 0f;
+            var deck = boxes[id];
+            Vector3 chest = new Vector3((deck.min.x + deck.max.x) * 0.5f, deck.max.y + 1.2f, (deck.min.z + deck.max.z) * 0.5f);
+
+            Vector3 tangent = Vector3.zero;
+            int inext = string.IsNullOrEmpty(nextDeck) ? -1 : LevelArcAnalyzer.IndexOf(boxes, nextDeck);
+            if (inext >= 0)
+            {
+                var nb = boxes[inext];
+                tangent = new Vector3((nb.min.x + nb.max.x) * 0.5f - chest.x, 0f, (nb.min.z + nb.max.z) * 0.5f - chest.z);
+            }
+            if (tangent.sqrMagnitude < 1e-4f)
+            {
+                int iprev = string.IsNullOrEmpty(prevDeck) ? -1 : LevelArcAnalyzer.IndexOf(boxes, prevDeck);
+                if (iprev < 0) return 0f;                       // no route context: cannot judge, do not cry wolf
+                var pb = boxes[iprev];
+                tangent = new Vector3(chest.x - (pb.min.x + pb.max.x) * 0.5f, 0f, chest.z - (pb.min.z + pb.max.z) * 0.5f);
+            }
+            if (tangent.sqrMagnitude < 1e-4f) return 0f;
+
+            Vector3 toMuzzle = new Vector3(muzzle.x - chest.x, 0f, muzzle.z - chest.z);
+            if (toMuzzle.sqrMagnitude < 1e-4f) return 0f;
+            return Vector3.Angle(tangent.normalized, toMuzzle.normalized);
+        }
+
+        /// <summary>
+        /// <see cref="AnalyzeShooter"/> plus F6's placement check. <paramref name="routeOf"/> maps a deck
+        /// name to its (previous, next) neighbours on the baseline route; a deck the route does not visit
+        /// is simply not judged, because there is no direction of travel to be wrong about.
+        ///
+        /// <para><paramref name="coneDeg"/> is the parry's own facing cone read off the shipped data, not
+        /// a literal — a report that invents its own threshold lies the moment the data is retuned.</para>
+        /// </summary>
+        public static ShooterVerdict AnalyzeShooterPlacement(IList<LevelArcAnalyzer.Box> boxes, string perchName,
+                                                             string spawnName, IEnumerable<string> decks,
+                                                             float minRange, float maxRange, float coneDeg,
+                                                             System.Func<string, string[]> routeOf)
+        {
+            var v = AnalyzeShooter(boxes, perchName, spawnName, decks, minRange, maxRange);
+            v.forcedLookAway = new List<string>();
+            int ip = LevelArcAnalyzer.IndexOf(boxes, perchName);
+            if (ip < 0 || routeOf == null) return v;
+            var perch = boxes[ip];
+            Vector3 muzzle = new Vector3((perch.min.x + perch.max.x) * 0.5f, perch.max.y + 1.5f, (perch.min.z + perch.max.z) * 0.5f);
+
+            foreach (var d in v.covered)
+            {
+                string[] pn = routeOf(d);
+                if (pn == null) continue;                       // off-route deck: nothing to be wrong about
+                float off = RouteBearingOffsetDeg(boxes, d, muzzle, pn[0], pn[1]);
+                if (off > coneDeg) v.forcedLookAway.Add(d + "(" + off.ToString("0") + "deg)");
             }
             return v;
         }

@@ -63,6 +63,7 @@ namespace VibeGame1
         PlayerLook look;
 
         Vector3 dir;
+        int boltId;      // BoltRegistry key, taken at Fire (F2)
         float speed;
         float age;
         bool cued, reflected, spent;
@@ -73,6 +74,7 @@ namespace VibeGame1
         public void Fire(EnemyController from, EnemyData d, Vector3 direction, float speedMetresPerSecond,
                          PlayerCombat target)
         {
+            boltId = BoltRegistry.NextId();
             shooter = from;
             data = d;
             combat = target;
@@ -157,6 +159,12 @@ namespace VibeGame1
                     transform.localScale = baseScale * CueFlareScale;   // the flare: "press now", the same beat as a body's cue
                     SetCoreColor(CueCore);                      // ...and the core goes white-hot for the same reason
                 }
+                // F2 (bolt-timing plan): this bolt is an INCOMING ATTACK for the player's fairness
+                // machinery -- a missed parry costs the mistime, not the whiff, and recovery is clamped to
+                // end before the next cue. Cleared the instant it is spent or reflected.
+                BoltRegistry.Report(boltId,
+                                    cued ? float.MaxValue : Time.time + Mathf.Max(0f, remaining - CueLead),
+                                    Time.time + Mathf.Max(0f, remaining));
                 if (Vector3.Distance(transform.position, target) <= hitRadius)
                     Arrive();
                 return;
@@ -198,6 +206,7 @@ namespace VibeGame1
             {
                 // Deflected: back it goes, and the deflect buys speed toward the look.
                 reflected = true;
+                BoltRegistry.Clear(boltId);   // flying the other way: no longer incoming
                 dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
                 speed *= reflectSpeedScale;
                 transform.localScale = baseScale;
@@ -217,7 +226,10 @@ namespace VibeGame1
         {
             if (spent) return;
             spent = true;
+            BoltRegistry.Clear(boltId);
             Destroy(gameObject);
         }
+
+        void OnDestroy() { BoltRegistry.Clear(boltId); }
     }
 }

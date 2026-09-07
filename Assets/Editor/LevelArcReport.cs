@@ -150,13 +150,41 @@ namespace VibeGame1.EditorTools
             var gruntData = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy01"));
             float bandLo = gruntData != null ? gruntData.projectileMinRange : 6f;
             float bandHi = gruntData != null ? gruntData.projectileMaxRange : 30f;
+            // F6 (bolt-timing plan): the cone is the PLAYER'S shipped facing cone, never a literal, for
+            // the same reason the band above is the shooter's own data -- a report that invents a
+            // threshold lies the moment the data is retuned.
+            var statsAsset = AssetDatabase.LoadAssetAtPath<PlayerStatsData>("Assets/Data/PlayerStats.asset");
+            float coneDeg = statsAsset != null ? statsAsset.facingConeDeg : 75f;
+
+            // Deck -> (previous, next) on the baseline route, so a covered deck can be judged against the
+            // direction the player is actually travelling when they stand on it.
+            System.Func<string, string[]> routeOf = deck =>
+            {
+                string prev = null, next = null;
+                for (int i = 0; i < BaseRoute.Length; i++)
+                {
+                    if (BaseRoute[i].to == deck) prev = BaseRoute[i].from;
+                    if (BaseRoute[i].from == deck) next = BaseRoute[i].to;
+                }
+                return (prev == null && next == null) ? null : new[] { prev, next };
+            };
+
             sb.AppendLine("SHOOTER PERCHES  (a bolt across the route inside the " + bandLo + "-" + bandHi + " m band, line clear)");
+            sb.AppendLine("  FORCED LOOK-AWAY = the muzzle sits more than the parry's " + coneDeg.ToString("0") +
+                          " deg facing cone off the route's direction of travel, so answering the bolt means");
+            sb.AppendLine("  leaving the line. Not a failure on its own -- it is a PLACEMENT fault to fix by moving the perch.");
+            int lookAway = 0;
             foreach (var pc in LevelDefinitionAuthoring.Perches)
             {
-                var sv = LevelTraversalAnalyzer.AnalyzeShooter(boxes, pc.name, pc.spawn, pc.covers.Split(','), bandLo, bandHi);
+                var sv = LevelTraversalAnalyzer.AnalyzeShooterPlacement(boxes, pc.name, pc.spawn, pc.covers.Split(','),
+                                                                        bandLo, bandHi, coneDeg, routeOf);
                 if (sv.covered.Count == 0) fails++;
+                if (sv.forcedLookAway != null) lookAway += sv.forcedLookAway.Count;
                 sb.AppendLine("  " + (sv.covered.Count == 0 ? "FAIL  " : "      ") + sv.Summary());
             }
+            sb.AppendLine("  " + (lookAway == 0
+                ? "No forced look-away: every covered deck can be answered without leaving the route."
+                : lookAway + " covered deck(s) force the player off the line to answer. Move those perches."));
             sb.AppendLine();
             sb.AppendLine("BALLOON ARC  (pop = " + p.launchCarryCap + " m/s carry + the orb's launch, float " + p.launchFloatSeconds + " s)");
             if (def.balloons != null && def.balloons.Length > 0)

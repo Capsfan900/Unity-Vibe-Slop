@@ -172,7 +172,9 @@ namespace VibeGame1
                 if (!InThreatRange(e, playerPos)) continue;
                 return true;
             }
-            return false;
+            // A bolt in flight is incoming too (bolt-timing plan 2026-09-06, F2). No range test: a bolt is
+            // already aimed at the player, so its ARRIVAL TIME is the question, not how far its perch is.
+            return BoltRegistry.AnyImpactBefore(limit);
         }
 
         /// <summary>Soonest upcoming parry cue, so the player's recovery can be clamped to end before it.</summary>
@@ -189,7 +191,7 @@ namespace VibeGame1
                 if (!InThreatRange(e, playerPos)) continue;
                 best = t;
             }
-            return best;
+            return Mathf.Min(best, BoltRegistry.EarliestCueTime(limit));   // ...and a bolt's cue counts (F2)
         }
 
         /// <summary>

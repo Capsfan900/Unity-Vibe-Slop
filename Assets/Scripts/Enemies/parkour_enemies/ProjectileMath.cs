@@ -85,6 +85,70 @@ namespace VibeGame1
             return next;
         }
 
+        /// <summary>
+        /// F1, the ARM-UP (bolt-timing plan 2026-09-06). The metronome is HELD while the line is blocked
+        /// or the player is out of band, so after seconds out of sight <c>nextFireAt</c> is already in the
+        /// past and the shot leaves on the FIRST FRAME line of sight is established -- the frame you crest
+        /// a ledge or land, and two stale perches covering one crest fire together. On the transition into
+        /// band the beat is pushed to at least <paramref name="delay"/> from now: a sentry that has just
+        /// seen you takes a breath. A shooter whose beat is ALREADY later than the arm-up keeps its beat
+        /// exactly, so a sentry you are already running past is untouched. The arm-up never exceeds one
+        /// interval -- an acquisition can cost at most one bolt.
+        /// </summary>
+        public static float AcquireBeat(float previousBeat, float now, float interval, float delay)
+        {
+            float d = Mathf.Max(0f, delay);
+            if (interval > 0.01f) d = Mathf.Min(d, interval);
+            float armed = now + d;
+            return previousBeat >= armed ? previousBeat : armed;
+        }
+
+        /// <summary>Below this flat speed the player is not "running away" and their velocity is no proxy for
+        /// where they are looking, so <see cref="ArrivesInFront"/> never refuses a shot.</summary>
+        public const float RecedeSpeed = 1f;
+
+        /// <summary>How much of a run has to point AWAY from the shooter before it counts as fleeing:
+        /// cos 60 degrees. A player crossing a perch's arc is still shot at -- that is the span working as
+        /// intended -- and only a back genuinely turned is spared.</summary>
+        public const float RecedeCos = 0.5f;
+
+        /// <summary>
+        /// F3 (bolt-timing plan 2026-09-06): would this bolt arrive at a FLEEING BACK? A runner's flat
+        /// velocity is the honest proxy for where they are facing at impact, so we predict the arrival
+        /// point (the same two-step as <see cref="LeadTarget"/> at full lead), take the bearing the bolt
+        /// comes FROM there (<see cref="ParryMath.SourceDirection"/>, the very rule the parry is judged
+        /// by) and ask whether it is inside the player's cone. False only when the player is also
+        /// RECEDING: a shot across or into a run is fair and still fires. The shooter uses this to refuse
+        /// to LAUNCH -- never to hold a shot, which would make the metronome a slot machine.
+        /// </summary>
+        public static bool ArrivesInFront(Vector3 muzzle, Vector3 chest, Vector3 playerVelocity, float speed, float coneDeg)
+        {
+            Vector3 v = new Vector3(playerVelocity.x, 0f, playerVelocity.z);
+            if (v.magnitude < RecedeSpeed) return true;
+            Vector3 away = new Vector3(chest.x - muzzle.x, 0f, chest.z - muzzle.z);
+            if (away.sqrMagnitude < 1e-6f) return true;
+            if (Vector3.Dot(v.normalized, away.normalized) < RecedeCos) return true;   // closing or crossing the arc
+            Vector3 arrival = LeadTarget(muzzle, chest, v, speed, 1f);
+            Vector3 travel = arrival - muzzle;
+            return ParryMath.IsFacing(v, ParryMath.SourceDirection(travel, muzzle, arrival), coneDeg);
+        }
+
+        /// <summary>
+        /// F4, ONE BEAT PER SPAN (bolt-timing plan 2026-09-06). A sentry's first shot used to be anchored
+        /// to its own spawn frame, so perches built on the same frame argued two identical clocks. The
+        /// first beat is instead taken off a shared level <paramref name="epoch"/> plus a per-sentry
+        /// <paramref name="offset"/> (a half interval, alternating), advanced by whole intervals until it
+        /// is at least <paramref name="minDelay"/> away: a tempo rather than two metronomes in unison.
+        /// </summary>
+        public static float FirstBeat(float epoch, float now, float interval, float offset, float minDelay)
+        {
+            float floor = now + Mathf.Max(0f, minDelay);
+            if (interval <= 0.01f) return floor;
+            float t = epoch + offset;
+            if (t < floor) t += Mathf.Ceil((floor - t) / interval) * interval;
+            return t;
+        }
+
         /// <summary>Unit direction from a point back to the shooter's chest, or forward when degenerate.</summary>
         public static Vector3 ReflectDirection(Vector3 from, Vector3 shooterChest, Vector3 fallback)
         {
