@@ -89,6 +89,40 @@ namespace VibeGame1
         static readonly Color ParryGlow = new Color(1f, 0.92f, 0.80f) * 3.2f;
         static readonly Color StaggerTint = new Color(0.42f, 0.32f, 0.24f);   // base-colour pulse, still no glow
 
+        // ---- the hit reaction scales with the blow, not with a fixed pop ---------------------------
+        // HitFlash() used to be one constant (tintBoost 0.7, decayRate 5.5/s regardless of damage), so an
+        // 88-damage Sunbreaker finisher and a 9-damage dagger jab produced the identical pop and the
+        // player could not tell a heavy landing from a chip. The reaction now scales off damage AS A
+        // FRACTION of the victim's OWN max health (never a raw number -- 20 damage means something
+        // different to a grunt and to a 2.2x boss), read straight off Health.OnDamaged so no other file
+        // has to change (EnemyController and IEnemyPresentation are owned by another lane this pass).
+        // Two axes, per section 1 "impact is a pose, a pause and a sound": INTENSITY (how far the base
+        // colour lerps toward white -- lerp already clamps at 1, so this is the only channel available)
+        // and DURATION (how long it lingers, via the decay rate -- a heavy hit gets to be a pause, not a
+        // flicker). The floor keeps a chip flash intense enough that "a hit that reads as nothing" never
+        // happens (matches the old constant exactly at fraction 0, so a block's un-scaled HitFlash() is
+        // unchanged); the ceiling is reached at HitFlashFractionCeiling of max HP, past which more damage
+        // buys no more pop -- the same "a chip against a boss should not be silent" and "a one-shot
+        // against a grunt should not need to be brighter than white" argument in both directions.
+        public const float HitFlashFloorBoost = 0.70f;
+        public const float HitFlashCeilingBoost = 1.00f;
+        public const float HitFlashFloorDecay = 5.50f;     // 1/s -- a chip clears in ~0.13 s
+        public const float HitFlashCeilingDecay = 2.00f;   // 1/s -- a finisher-scale hit lingers ~0.50 s
+        public const float HitFlashFractionFloor = 0.02f;  // at/under 2% of max HP: floor reaction
+        public const float HitFlashFractionCeiling = 0.30f; // at/over 30% of max HP: ceiling reaction
+
+        /// <summary>
+        /// Pure and static so it is unit-testable without an instance, matching the pattern
+        /// <see cref="PuppetVisuals.ResolveRate(float,float,float)"/> already sets for this project.
+        /// </summary>
+        public static void HitReactionFor(float damageFraction, out float boost, out float decayRate)
+        {
+            float t = Mathf.Clamp01(Mathf.InverseLerp(HitFlashFractionFloor, HitFlashFractionCeiling,
+                Mathf.Max(0f, damageFraction)));
+            boost = Mathf.Lerp(HitFlashFloorBoost, HitFlashCeilingBoost, t);
+            decayRate = Mathf.Lerp(HitFlashFloorDecay, HitFlashCeilingDecay, t);
+        }
+
         // ---- the posture-break pose ---------------------------------------------------------------
         // A broken posture BUCKLES. It leans back off the front foot, sinks as the knees give, and
         // rolls; the arms fling open. Every component is signed so that NOTHING travels toward the
@@ -117,7 +151,13 @@ namespace VibeGame1
         Color accent = Color.white;        // boss phase hue; tints the parry glow only
 
         float tintBoost;                   // 0..1 lightening of the base colour (the cue / hit pop)
+        float tintDecayRate = HitFlashFloorDecay;  // 1/s, set per hit so a heavy blow lingers longer
         Color tintTarget = Color.white;
+        /// <summary>The victim's own <see cref="Health"/>, found up the hierarchy (this component lives on
+        /// a "Visual" child, never the root). Used ONLY to read <see cref="Health.Max"/> for the hit-flash
+        /// fraction; nothing here writes to it. Null-safe throughout -- a presentation with no Health
+        /// sibling (a test double, a non-combat prop) just keeps the old fixed-pop behaviour.</summary>
+        Health hpRef;
         float glowAmount;                  // 0..1 emission, ONLY driven by a successful parry
         Color glowColor = Color.white;
         float chargeDark;                  // 0..1 darkening during a wind-up ("inhale")
@@ -197,6 +237,43 @@ namespace VibeGame1
             currentPose = PoseOverhead;
             if (alertMarker != null) alertMarker.SetActive(false);
             if (deathblowMarker != null) deathblowMarker.SetActive(false);
+
+            // GetComponentInParent, not GetComponent: this class is instantiated on the "Visual" child
+            // (see PrefabFactory), while Health sits on the prefab root next to EnemyController (it is a
+            // RequireComponent there). Subscribed once here rather than in Setup(), which can re-run.
+            hpRef = GetComponentInParent<Health>();
+            if (hpRef != null) hpRef.OnDamaged += OnHealthDamaged;
+        }
+
+        protected virtual void OnDestroy()
+        {
+            if (hpRef != null) hpRef.OnDamaged -= OnHealthDamaged;
+        }
+
+        /// <summary>
+        /// The scaled half of the hit reaction: reads the real blow off <see cref="Health.OnDamaged"/> so
+        /// the fraction is exact, rather than trying to infer it from the parameterless
+        /// <see cref="IEnemyPresentation.HitFlash"/> call <see cref="EnemyController"/> already makes on
+        /// every hit (that call is left exactly as it was -- see contract note on <see cref="HitFlash"/>).
+        /// </summary>
+        void OnHealthDamaged(DamageInfo d)
+        {
+            if (d.damage <= 0f || hpRef == null || slumped) return;
+            ApplyHitFlash(d.damage / Mathf.Max(1f, hpRef.Max));
+        }
+
+        void ApplyHitFlash(float damageFraction)
+        {
+            float boost, decay;
+            HitReactionFor(damageFraction, out boost, out decay);
+            tintBoost = Mathf.Max(tintBoost, boost);
+            // MIN, not overwrite: EnemyController's plain HitFlash() (floor reaction) and this class's own
+            // Health.OnDamaged subscription (the real fraction) fire on the SAME hit, and Unity gives no
+            // guarantee which Awake ran first to decide subscription order. Taking the slower (smaller)
+            // decay rate means whichever call carried the bigger hit always wins the LINGER, regardless of
+            // which one happened to run second and would otherwise have stomped it back to the floor.
+            tintDecayRate = Mathf.Min(tintDecayRate, decay);
+            tintTarget = Color.white;
         }
 
         /// <summary>
@@ -396,14 +473,25 @@ namespace VibeGame1
             StartMotion(LungeCo(-0.5f, 0.25f));
         }
 
-        /// <summary>Took damage. Suppressed while slumped so the stagger pulse keeps reading.</summary>
+        /// <summary>
+        /// Took damage, OR was blocked (no damage). Suppressed while slumped so the stagger pulse keeps
+        /// reading. Kept parameterless -- this is <see cref="IEnemyPresentation.HitFlash"/>'s contract and
+        /// <see cref="EnemyController"/> calls it on both a block and a damaging hit, neither of which
+        /// carries a fraction here.
+        ///
+        /// <para>The DAMAGE-SCALED reaction does not go through this method: <see cref="Awake"/>
+        /// subscribes directly to <see cref="Health.OnDamaged"/> and calls <see cref="ApplyHitFlash"/>
+        /// with the real damage/maxHP fraction, so a heavy blow lingers and a chip barely does (see the
+        /// "hit reaction" block above). This call always applies the FLOOR reaction -- exactly the old
+        /// fixed pop (tintBoost 0.7, decay 5.5/s) -- so a block (which never raises OnDamaged) still
+        /// registers, and a damaging hit gets whichever of the two calls asked for more.</para>
+        /// </summary>
         public virtual void HitFlash()
         {
             if (slumped) return;
             // A pale pop of the BASE colour, not a light. Damage should be felt without competing
             // with the parry glow, which is the only thing allowed to be bright.
-            tintBoost = Mathf.Max(tintBoost, 0.7f);
-            tintTarget = Color.white;
+            ApplyHitFlash(0f);
         }
 
         /// <summary>Posture broken / recovered. The slumped pose plus the deathblow glyph are the
@@ -785,7 +873,12 @@ namespace VibeGame1
             float dt = Time.unscaledDeltaTime;
             bool dirty = false;
 
-            if (tintBoost > 0f) { tintBoost = Mathf.Max(0f, tintBoost - dt * 5.5f); dirty = true; }
+            if (tintBoost > 0f)
+            {
+                tintBoost = Mathf.Max(0f, tintBoost - dt * tintDecayRate);
+                if (tintBoost <= 0f) tintDecayRate = HitFlashFloorDecay;  // ready for the next, independent hit
+                dirty = true;
+            }
             if (glowAmount > 0f) { glowAmount = Mathf.Max(0f, glowAmount - dt * 3.2f); dirty = true; }
             if (slumped) dirty = true;   // the stagger breath animates continuously
 

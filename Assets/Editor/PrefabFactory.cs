@@ -263,7 +263,12 @@ namespace VibeGame1.EditorTools
                 Prim(PrimitiveType.Cube, "TipPoint", root.transform, new Vector3(0f, 1.225f, 0f), new Vector3(0.035f, 0.07f, 0.05f), energy);
                 Prim(PrimitiveType.Cube, "FloatShardA", root.transform, new Vector3(0.25f, 0.98f, 0f), new Vector3(0.05f, 0.05f, 0.05f), energy);
                 Prim(PrimitiveType.Cube, "FloatShardB", root.transform, new Vector3(-0.25f, 0.82f, 0f), new Vector3(0.04f, 0.04f, 0.04f), energy);
-                Energise(root, new Color(0.88f, 0.40f, 0.10f), 0.7f, 0.42f, 0.24f, 2.0f, 34f);
+                // Matches Hammer.neon (#A8D12E) in DataFactory. This used to be a SECOND, hardcoded copy
+                // of the old amber #E0661A, which sat ~5 degrees of hue from the enemy bolt — the player's
+                // own weapon competing with the one thing a parry game needs read fastest. Energise does
+                // not read WeaponData.neon, so the two must be changed together or the viewmodel glows
+                // the old colour while the data says otherwise.
+                Energise(root, new Color(0.658f, 0.820f, 0.180f), 0.7f, 0.42f, 0.24f, 2.0f, 34f);
                 var prefab = Save(root, $"{WeaponDir}/VM_Hammer.prefab");
                 AssignViewmodel("Assets/Data/Weapons/Hammer.asset", prefab);
             }

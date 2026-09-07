@@ -1541,7 +1541,18 @@ namespace VibeGame1.EditorTools
 
             var hammer = GetOrCreate<WeaponData>(WeaponsDir + "/Hammer.asset");
             hammer.displayName = "Sunbreaker";
-            hammer.neon = Hex("#E0661A");
+            // HIT-READ PASS (2026-09-07): was Hex("#E0661A"), hue ~23 deg -- only ~5 deg from
+            // Projectile.HotCore (the enemy bolt, ~28 deg). In a parry game the bolt is the single most
+            // important thing to read and the player's own weapon must not compete with it, exactly the
+            // >=45 deg rule WandDataTests already holds the wand set to. The bolt does not move (it is a
+            // gameplay read other systems depend on); the WEAPON moves.
+            // The band that is both >=45 deg from the bolt (28) AND still reads warm is narrow: true
+            // amber/gold sits at 40-55 deg, inside the forbidden 45 deg radius around the bolt on both
+            // sides (a magenta-red escape collides with the unblockable cue's ~356-358 deg red family
+            // instead). Hex("#A8D12E") sits at hue ~75 deg: ~47 deg clear of the bolt and ~51 deg clear
+            // of Rosethorn's green (~126 deg) -- a bright, heavy brass/gold rather than a pure orange,
+            // which still reads as "Sunbreaker" (sun-forged) without competing with the bolt.
+            hammer.neon = Hex("#A8D12E");
             // THE CRUSHER. baseDamage 46 -> 52 takes the health-damage crown outright (81.6/s against
             // the sword's 73.9, and 88.4 on the 1.7x finisher — twice a sword hit, in one legible beat),
             // and postureDamage 34 -> 26 gives up the hit-posture column entirely (30.2/s, last in the
