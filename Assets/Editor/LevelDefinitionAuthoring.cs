@@ -28,6 +28,14 @@ namespace VibeGame1.EditorTools
     /// deck you are leaving and the one you are arriving on, because the torch budget had all gone to the
     /// arenas and the run was dark. See <see cref="Reshapes"/> for the numbers and the reason each one is
     /// safe.</para>
+    ///
+    /// <para><b>The ramp pass (2026-09-07).</b> A third, additive pass: the level's first sloped geometry,
+    /// five <see cref="RampDef"/>s that turn four hops into runs. See <see cref="Ramps"/> for each one's
+    /// numbers, its derived angle and its job. Two facts shaped all five. <b>Level_01 has no descent</b> —
+    /// it climbs monotonically from y 0 to y 28 — so no ramp here can pay a downhill slide, and a ramp's
+    /// job in this level is continuity, never speed. And <b>a ramp is not a kicker</b>: a
+    /// <c>CharacterController</c> leaving a ramp's top gets no vertical impulse, so a ramp that stops short
+    /// of the next deck is only a jump with a shorter run-up. Every ramp here meets its deck at both ends.</para>
     /// </summary>
     public static class LevelDefinitionAuthoring
     {
@@ -391,6 +399,112 @@ namespace VibeGame1.EditorTools
             new Vector3(-6f, 29.0f, 206.2f),
         };
 
+        // ---------------------------------------------------------------- the ramps (2026-09-07)
+        //
+        // THE LEVEL'S FIRST SLOPED GEOMETRY. `LevelPieceKind.Ramp` landed with a motor that reads the real
+        // ground normal, so a slide now gains speed downhill and BLEEDS it uphill through the same term
+        // (TraversalMath.SlopeAccel, magnitude g*sin*cos*0.85 = 25.5*sin(t)*cos(t) m/s^2 on the shipped
+        // slideSlopeAccel). Two consequences decided every number below:
+        //
+        //   1. LEVEL_01 HAS NO DESCENT. It climbs monotonically from y 0 at the start pad to y 28 in the
+        //      boss room; measured deck by deck, not one route hop in the level goes down. So every ramp
+        //      here is a CLIMB, and not one of them can pay a downhill slide. A ramp's job in this level
+        //      is therefore CONTINUITY - the run never leaves the ground - and never speed gained.
+        //   2. A RAMP IS NOT A KICKER. A CharacterController leaving a ramp's top edge keeps its
+        //      horizontal velocity and gets no vertical impulse, so a ramp that stops short of the next
+        //      deck is just a jump with a shorter run-up. Every ramp here MEETS the deck it serves, base
+        //      and top both overlapping by 0.2 m or more, so the two surfaces are flush and seamless.
+        //
+        // ANGLE IS DERIVED, NEVER AUTHORED (docs/AUTHORING.md 1c): 7.3 / 7.5 / 11.8 / 14.4 / 15.4 deg.
+        // The ceiling is ~35 (a CharacterController's 45 deg slopeLimit turns anything steeper into a
+        // wall on the way up); nothing here is close, because nothing here had the height to spend.
+        //
+        // MATERIAL: "Stone", not "Platform", on the vfx team's call. A ramp cannot wear trim - the trim
+        // builder places world-axis bars and a ramp has no world-axis edges - so it is the only route
+        // piece in the level with no neon edge, and in M_Platform (#475262) at 7 deg against a deck of
+        // the identical hue and value it reads as NOTHING until you are on it. M_Stone (#2A3443) is 2.5x
+        // darker, non-emissive, in the same cold family: it separates on VALUE, which costs no light, no
+        // bloom budget and no place in the trim-hue grammar (T1 cyan / T2 gold / T3 red is the SPAN word
+        // and a ramp must not speak it). The perches are Stone too, but they wear pink trim and hang
+        // beside the course; a trimless dark slab lying between two lit decks cannot be read as a perch.
+        public struct Ramp
+        {
+            public string name; public Vector3 basePosition;
+            public float width, run, rise, yaw; public string why;
+            public Ramp(string n, Vector3 b, float w, float ru, float ri, float y, string wy)
+            { name = n; basePosition = b; width = w; run = ru; rise = ri; yaw = y; why = wy; }
+        }
+
+        public const float RampThickness = 0.5f;
+
+        public static readonly Ramp[] Ramps =
+        {
+            // ---- T1: the stepping stones stop being five identical +0.5 m squares.
+            // Ground_Start -> Stone_1 -> Stone_2 -> Stone_3 -> Stone_4 -> Causeway was the flattest,
+            // most mechanical passage in the level: four hops of exactly +0.5 m, none of them a decision.
+            // Three of the four become grades; the FOURTH is deliberately left as a jump (see the
+            // rejection note under Stone_2 -> Stone_3 below), because it is the only one with a choice
+            // underneath it.
+            //
+            // Stone_1 (top 0.0, z 11.5-16.5) -> Stone_2 (top 0.5, z 20-24) overlap in x 1.5-2.5, so the
+            // ramp runs straight up that band: base 0.2 m inside Stone_1's lip, top 0.2 m onto Stone_2.
+            // 0.5 m over 3.5 m of gap is 7.3 deg and there is no way to make it steeper - a ramp that
+            // stopped short would be a jump with a shorter run-up, not a launch (see above).
+            new Ramp("T1_Ramp_Stone12", new Vector3(2.0f, 0.0f, 16.3f), 3.0f, 3.90f, 0.5f, 0f,
+                     "the opening's second hop becomes a run: you leave the start pad on a jump (the verb the " +
+                     "level teaches first) and then do not touch the air again until the one hop that matters"),
+            // Stone_3 (top 1.0) -> Stone_4 (top 1.5). Yawed 18 deg so the ramp leans back east with the
+            // zigzag and lands on Stone_4's west half, setting up the causeway ramp at x -0.5. The yaw is
+            // also what keeps it off T1_Fast_1 (x -1.25..2.75, z 25-32, top 0.5): at the base end the ramp
+            // sits at x -4.4..-1.6, clear by 0.35 m, and it only crosses x -1.25 north of z 32 where the
+            // water deck has ended. Measured: no solid overlap with any box in the level.
+            new Ramp("T1_Ramp_Stone34", new Vector3(-3.0f, 1.0f, 31.9f), 3.0f, 3.80f, 0.5f, 18f,
+                     "the first half of a two-stage climb into the causeway, and the shape that carries the " +
+                     "zigzag's last turn on the ground instead of in the air"),
+            // Stone_4 -> the causeway, and the best of the three. The two decks share x -2.5..1.5 exactly,
+            // so a 3.8 m ramp centred on x -0.5 is FULLY SUPPORTED at both ends with no overhang anywhere -
+            // the only ramp in the level that is - and it clears T1_Rail_R (min.x 1.5) by 0.1 m. 2.4 m of
+            // run for 0.5 m makes it the steepest of the T1 set at 11.8 deg.
+            // ITS JOB, and the reason it is worth more than the two above: T1_Fallen_Obelisk is a slide
+            // gate 5.8 m past the causeway's south edge (1.30 m of clearance - a slide fits, standing does
+            // not). Arriving by hop you land, stand, and then have to buy a slide inside 5.8 m. Arriving by
+            // ramp you are already grounded and already moving, so the gate is entered out of a run.
+            new Ramp("T1_Ramp_Causeway", new Vector3(-0.5f, 1.5f, 40.8f), 3.8f, 2.40f, 0.5f, 0f,
+                     "the causeway's slide gate stops being something you land in front of and becomes " +
+                     "something you run into"),
+
+            // ---- T2: one grade per lap of the spiral, both at the north turn.
+            // Eleven pads, every rise exactly +1.5 m, was the other half of "eleven identical squares" -
+            // the first half (the pads' footprints) was fixed by the openness pass. These two are the
+            // spiral's two WEAKEST hops, 16/25 and 17/25 clean launch points, and they are the same corner
+            // of the helix one lap apart: L3 and L9 are the two 7 m turn balconies, L9 directly over L3.
+            // A turn is where a runner loses the most speed anyway; doing it on a grade with both feet on
+            // the ground beats doing it as a diagonal hop onto a pad.
+            //
+            // L2 (top 6.5, x 5-9.5) -> L3 (top 8.0, x -3.5..3.5). Yaw 329 leans north-west with the turn.
+            // Base at z 125.6 rather than further south because T2_Buttress (x 4.2-5.0, z 121-124, rising
+            // from y 6.5) is the chimney's face and the ramp's south-west corner would clip it at z < 124.6.
+            // Lands at x 3.0 - the EAST end of the balcony - deliberately: the exit is L3 -> L4 to the
+            // south-west, and landing east leaves the whole 7 m of balcony to arc through.
+            new Ramp("T2_Ramp_L2_L3", new Vector3(6.0f, 6.5f, 125.6f), 4.0f, 5.83f, 1.5f, 329f,
+                     "lap one's north turn is run, not jumped; 14.4 deg, and the only thing in the spiral " +
+                     "that is not a square"),
+            // L8 -> L9, the same turn one lap up, and the hardest piece of geometry in this pass.
+            // MEASURED REJECTIONS, both of them: the same 4 m / 5.83 m / yaw 329 shape as the ramp above,
+            // translated +9 m in y, BLOCKS T2_Perch_E's bolt onto T2_L9 - the muzzle at (13.8, 12.5, 129)
+            // and L9's chest at (0, 18.2, 131) put the bolt inside the slab, and a perch that loses half
+            // its coverage is a perch that is no longer a route piece (rule: a ramp is solid geometry and
+            // occludes exactly like a slab). Swinging the ramp WEST to duck under the bolt instead drives
+            // it into T2_Tower (x -2..2, 20 m tall) and costs three sightlines.
+            // The gap the bolt leaves is a NARROW ramp that lands EARLY: the bolt is still out at x > 10
+            // for z < 129.9, so a 3 m wide ramp landing on L9 at z 129.3 passes under it entirely. Yaw 313
+            // and run 5.45 fit that window; the price is 1 m of width and a slightly steeper 15.4 deg,
+            // which is why the two laps' grades are near-twins rather than twins.
+            new Ramp("T2_Ramp_L8_L9", new Vector3(6.5f, 15.5f, 125.6f), 3.0f, 5.45f, 1.5f, 313f,
+                     "lap two's north turn, threaded between the tower and the east perch's bolt line: " +
+                     "3 m wide and landing early is the only shape that clears both"),
+        };
+
         // ---------------------------------------------------------------- the water lines
         public struct Water
         {
@@ -497,6 +611,22 @@ namespace VibeGame1.EditorTools
                                               launchSpeed = BalloonLaunch, radius = BalloonRadius, respawnSeconds = BalloonRespawn });
             def.balloons = balloons.ToArray();
 
+            // Ramps: remove ours by name, re-add. The level ships with none, and only this pass authors
+            // them, but the removal is by the "_Ramp_" infix rather than wholesale so a ramp dropped in by
+            // the F10 editor and exported back survives a re-run of 8a — the same rule the perches follow.
+            var ramps = new List<RampDef>(def.ramps ?? new RampDef[0]);
+            ramps.RemoveAll(r => r != null && r.name != null && r.name.Contains("_Ramp_"));
+            foreach (var rp in Ramps)
+            {
+                ramps.Add(new RampDef
+                {
+                    name = rp.name, basePosition = rp.basePosition, width = rp.width, run = rp.run,
+                    rise = rp.rise, thickness = RampThickness, yaw = rp.yaw,
+                    materialKey = "Stone", isStatic = true,
+                });
+            }
+            def.ramps = ramps.ToArray();
+
             var waters = new List<WaterDef>();
             foreach (var w in Waters)
                 waters.Add(new WaterDef { name = w.name, center = w.center, size = w.size, flowDirection = w.flow, flowSpeed = w.speed });
@@ -511,10 +641,10 @@ namespace VibeGame1.EditorTools
             def.torches = torches.ToArray();
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
-                                 "{3} balloons (T3 arc), {4} water sheets, {5} route beacons, {6} arena doors widened; " +
-                                 "{7} platforms and {8} torches total.",
-                                 reshaped, Perches.Length, moved, balloons.Count, waters.Count, RouteBeacons.Length,
-                                 gated, def.platforms.Length, def.torches.Length);
+                                 "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
+                                 "{8} platforms and {9} torches total.",
+                                 reshaped, Perches.Length, moved, balloons.Count, waters.Count, def.ramps.Length,
+                                 RouteBeacons.Length, gated, def.platforms.Length, def.torches.Length);
         }
     }
 }

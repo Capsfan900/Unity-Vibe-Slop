@@ -713,7 +713,52 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  ramps: []
+  ramps:
+  - name: T1_Ramp_Stone12
+    basePosition: {x: 2, y: 0, z: 16.3}
+    width: 3
+    run: 3.9
+    rise: 0.5
+    thickness: 0.5
+    yaw: 0
+    materialKey: Stone
+    isStatic: 1
+  - name: T1_Ramp_Stone34
+    basePosition: {x: -3, y: 1, z: 31.9}
+    width: 3
+    run: 3.8
+    rise: 0.5
+    thickness: 0.5
+    yaw: 18
+    materialKey: Stone
+    isStatic: 1
+  - name: T1_Ramp_Causeway
+    basePosition: {x: -0.5, y: 1.5, z: 40.8}
+    width: 3.8
+    run: 2.4
+    rise: 0.5
+    thickness: 0.5
+    yaw: 0
+    materialKey: Stone
+    isStatic: 1
+  - name: T2_Ramp_L2_L3
+    basePosition: {x: 6, y: 6.5, z: 125.6}
+    width: 4
+    run: 5.83
+    rise: 1.5
+    thickness: 0.5
+    yaw: 329
+    materialKey: Stone
+    isStatic: 1
+  - name: T2_Ramp_L8_L9
+    basePosition: {x: 6.5, y: 15.5, z: 125.6}
+    width: 3
+    run: 5.45
+    rise: 1.5
+    thickness: 0.5
+    yaw: 313
+    materialKey: Stone
+    isStatic: 1
   spawns:
   - name: Spawn_T1_GruntA
     prefabKey: pshooter_enemy01

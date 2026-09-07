@@ -9,6 +9,16 @@ Usage:  python Tools/level_arc_offline.py            # measures the shipped asse
         python Tools/level_arc_offline.py --after     # applies the openness reshapes first
         python Tools/level_arc_offline.py --torches   # the torch light budget, with and without the beacons
         python Tools/level_arc_offline.py --sight     # HOW MANY MOVES AHEAD you can see, shipped vs reshaped
+        python Tools/level_arc_offline.py --noramps   # as above but with the authored RAMPS removed
+
+RAMPS (2026-09-07). A ramp is the one piece in the level that is NOT an axis-aligned box, so it gets its
+own oriented-box class here rather than being flattened to an AABB — an AABB of a yawed 6 m ramp is half
+again as wide as the ramp and would report bolt lines and sightlines blocked that are not. Ramps are read
+out of LevelDefinitionAuthoring.Ramps by the same "parse the source, never retype the numbers" rule as
+the reshapes. Two departures from exactness, both stated where they are made: the arc sweep treats the
+player capsule as axis-aligned IN RAMP-LOCAL SPACE (an error of at most 1 - cos(15 deg) = 3.4% of the
+capsule's height on the steepest ramp authored), and an arc that touches a ramp on the way down is
+counted as an ARRIVAL rather than a block, because a body that lands on a ramp is on the route.
 """
 import io
 import math
@@ -113,6 +123,94 @@ def load_waters():
                   r'new Water\("(\w+)",\s*' + CSV3 + r',\s*' + CSV3)
     return dict((r[0], (tuple(_f(x) for x in r[1:4]), tuple(_f(x) for x in r[4:7]))) for r in rows)
 
+RAMP_ROW = (r'new Ramp\("(\w+)",\s*' + CSV3 +
+            r',\s*([-\d.f]+),\s*([-\d.f]+),\s*([-\d.f]+),\s*([-\d.f]+)')
+
+def _mat(yaw, angle):
+    """Unity's Quaternion.Euler(-angle, yaw, 0) as a 3x3, i.e. Ry(yaw) * Rx(-angle)."""
+    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    ca, sa = math.cos(math.radians(-angle)), math.sin(math.radians(-angle))
+    Ry = ((cy, 0.0, sy), (0.0, 1.0, 0.0), (-sy, 0.0, cy))
+    Rx = ((1.0, 0.0, 0.0), (0.0, ca, -sa), (0.0, sa, ca))
+    return tuple(tuple(sum(Ry[i][k] * Rx[k][j] for k in range(3)) for j in range(3)) for i in range(3))
+
+def _mul(M, v):  return tuple(sum(M[i][j] * v[j] for j in range(3)) for i in range(3))
+def _mulT(M, v): return tuple(sum(M[j][i] * v[j] for j in range(3)) for i in range(3))
+
+class RampBox(object):
+    """Mirror of RampDef: base is the centre of the LOW edge on the WALKABLE face, the angle is
+    DERIVED from rise over run, and the slab hangs `thickness` DOWN from that face."""
+    __slots__ = ("name", "base", "w", "run", "rise", "yaw", "th", "angle", "slope",
+                 "R", "center", "half", "topPos", "mn", "mx")
+    def __init__(self, name, base, width, run, rise, yaw, thickness=0.5):
+        self.name, self.base, self.w, self.run, self.rise, self.yaw, self.th =             name, base, width, run, rise, yaw, thickness
+        self.angle = math.degrees(math.atan2(rise, max(1e-4, run)))
+        self.slope = math.hypot(run, rise)
+        self.R = _mat(yaw, self.angle)
+        f, u = _mul(self.R, (0.0, 0.0, 1.0)), _mul(self.R, (0.0, 1.0, 0.0))
+        self.center = tuple(base[i] + f[i] * self.slope / 2.0 - u[i] * thickness / 2.0 for i in range(3))
+        self.half = (width / 2.0, thickness / 2.0, self.slope / 2.0)
+        h = (math.sin(math.radians(yaw)) * run, rise, math.cos(math.radians(yaw)) * run)
+        self.topPos = tuple(base[i] + h[i] for i in range(3))
+        cs = []
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                for sz in (-1, 1):
+                    v = _mul(self.R, (sx * self.half[0], sy * self.half[1], sz * self.half[2]))
+                    cs.append(tuple(self.center[i] + v[i] for i in range(3)))
+        self.mn = tuple(min(c[i] for c in cs) for i in range(3))
+        self.mx = tuple(max(c[i] for c in cs) for i in range(3))
+    def local(self, p):
+        return _mulT(self.R, (p[0] - self.center[0], p[1] - self.center[1], p[2] - self.center[2]))
+    def seg_hits(self, a, b):
+        """Exact slab test in ramp-local space."""
+        la, lb = self.local(a), self.local(b)
+        t0, t1 = 0.0, 1.0
+        for ax in range(3):
+            o, dd, lo, hi = la[ax], lb[ax] - la[ax], -self.half[ax], self.half[ax]
+            if abs(dd) < 1e-9:
+                if o < lo or o > hi: return False
+                continue
+            ta, tb = (lo - o) / dd, (hi - o) / dd
+            if ta > tb: ta, tb = tb, ta
+            t0, t1 = max(t0, ta), min(t1, tb)
+            if t0 > t1: return False
+        return True
+    def capsule_distance(self, feet, p):
+        """Distance from the player capsule to the slab, MEASURED IN RAMP-LOCAL SPACE with the capsule
+        treated as axis-aligned there. Exact for a yaw-only ramp, and off by at most 1 - cos(angle) of
+        the capsule height on a pitched one."""
+        l = self.local(feet)
+        y0, y1 = l[1] + p["r"], l[1] + p["height"] - p["r"]
+        dx = max(-self.half[0] - l[0], l[0] - self.half[0], 0.0)
+        dz = max(-self.half[2] - l[2], l[2] - self.half[2], 0.0)
+        dy = max(-self.half[1] - y1, y0 - self.half[1], 0.0)
+        return math.sqrt(dx * dx + dy * dy + dz * dz) - p["r"]
+    def overlaps(self, b, pad=0.0):
+        """Does the slab intersect an axis-aligned Box? AABB reject, then a lattice of interior points."""
+        if not all(self.mn[i] < b.mx[i] + pad and self.mx[i] > b.mn[i] - pad for i in range(3)):
+            return False
+        for i in range(22):
+            for j in range(6):
+                for k in range(4):
+                    v = _mul(self.R, (-self.half[0] + 2 * self.half[0] * k / 3.0,
+                                      -self.half[1] + 2 * self.half[1] * j / 5.0,
+                                      -self.half[2] + 2 * self.half[2] * i / 21.0))
+                    q = (self.center[0] + v[0], self.center[1] + v[1], self.center[2] + v[2])
+                    if all(b.mn[m] - pad <= q[m] <= b.mx[m] + pad for m in range(3)): return True
+        return False
+
+def load_ramps():
+    """The authored ramp table, parsed out of LevelDefinitionAuthoring — never retyped here."""
+    src = io.open(AUTHORING, encoding="utf-8").read()
+    if "public static readonly Ramp[] Ramps" not in src: return []
+    rows = _table(src, "public static readonly Ramp[] Ramps", RAMP_ROW)
+    th = 0.5
+    m = re.search(r"RampThickness = ([\d.]+)f", src)
+    if m: th = float(m.group(1))
+    return [RampBox(r[0], tuple(_f(x) for x in r[1:4]), _f(r[4]), _f(r[5]), _f(r[6]), _f(r[7]), th)
+            for r in rows]
+
 RESHAPES = load_reshapes()
 WATER_AFTER = load_waters()
 WATER_BEFORE = {"T1_Water_Fast": ((0.0, 0.52, 28.0), (2.2, 0.04, 5.6))}
@@ -183,7 +281,7 @@ def carry(p, v):
     f = target / sp
     return (v[0] * f, v[1], v[2] * f)
 
-def sweep_arc(feet, v, hold, control, p, bounds, ignore, clear_ignore, max_t, floor_y):
+def sweep_arc(feet, v, hold, control, p, bounds, ignore, clear_ignore, max_t, floor_y, ramps=(), blockers=()):
     """Faithful to LevelArcAnalyzer.SweepArc; `bounds` is a list of (minx,miny,minz,maxx,maxy,maxz).
 
     The only departure is a cheap early-out: since d = sqrt(dx^2+dy^2+dz^2) >= max(dx,dy,dz), a box
@@ -227,6 +325,20 @@ def sweep_arc(feet, v, hold, control, p, bounds, ignore, clear_ignore, max_t, fl
         fx += vx * DT; fy += vy * DT; fz += vz * DT
         t += DT
         y0 = fy + r; y1 = fy + h - r
+        # A ramp is route geometry, not an obstacle: touching one on the way down is an ARRIVAL (you are
+        # standing on the slope and you run up it), touching one on the way up is a block like any box.
+        for pass_i in (0, 1):
+            for rm in (ramps if pass_i == 0 else blockers):
+                # cheap world-AABB reject before the local transform: the capsule cannot touch a slab it is
+                # not even inside the bounding box of, and this is seconds instead of minutes.
+                if fx < rm.mn[0] - r or fx > rm.mx[0] + r: continue
+                if fz < rm.mn[2] - r or fz > rm.mx[2] + r: continue
+                if fy + h < rm.mn[1] - r or fy > rm.mx[1] + r: continue
+                d = rm.capsule_distance((fx, fy, fz), p)
+                if d < 0.0:
+                    if pass_i == 0 and vy <= 0.0: return ("ramp", -1, min_clear)
+                    return ("block", -1, min_clear)
+                if d < min_clear: min_clear = d
         for i in range(n):
             if i == ignore: continue
             b = bounds[i]
@@ -304,7 +416,7 @@ def index_of(boxes, name):
         if b.name == name: return i
     return -1
 
-def analyze_hop(boxes, a_name, b_name, p, max_speed, floor_y, controls=("none",)):
+def analyze_hop(boxes, a_name, b_name, p, max_speed, floor_y, controls=("none",), ramps=()):
     ia0, ib0 = index_of(boxes, a_name), index_of(boxes, b_name)
     if ia0 < 0 or ib0 < 0: return None
     a, b = boxes[ia0], boxes[ib0]
@@ -318,7 +430,19 @@ def analyze_hop(boxes, a_name, b_name, p, max_speed, floor_y, controls=("none",)
     launch = launch_band(a, b, inset, 5)
     aim = grid_on_top(b, inset, 3)
     speeds = [max_speed * f for f in (0.45, 0.65, 0.85, 1.0)]
-    clean_lp = lp = clean_arcs = 0
+    # Only the ramps in this hop's airspace matter, and only the one that SERVES the hop counts as an
+    # arrival. A ramp whose top lands on B is route geometry for this hop: touching it on the way down is
+    # arriving. Any other ramp nearby is just a slab, and blocks. Getting this wrong is not academic — the
+    # first version counted arrival on ANY nearby ramp as success and reported the T1_Fast_1 slide-jump
+    # GATE broken, because arcs off T1_Stone_1 were landing on the Stone_1 -> Stone_2 ramp.
+    def _on(b, pt): return (b.mn[0] - 0.01 <= pt[0] <= b.mx[0] + 0.01 and
+                            b.mn[2] - 0.01 <= pt[2] <= b.mx[2] + 0.01 and abs(b.mx[1] - pt[1]) < 0.02)
+    rms = [r for r in ramps
+           if r.mn[0] <= hi[0] and r.mx[0] >= lo[0] and r.mn[1] <= hi[1] and r.mx[1] >= lo[1]
+           and r.mn[2] <= hi[2] and r.mx[2] >= lo[2]]
+    serving = [r for r in rms if _on(b, r.topPos)]
+    blocking = [r for r in rms if r not in serving]
+    clean_lp = lp = clean_arcs = ramp_arcs = 0
     best_clear = -1e9
     blockers = {}
     for lf in launch:
@@ -334,7 +458,12 @@ def analyze_hop(boxes, a_name, b_name, p, max_speed, floor_y, controls=("none",)
                     for c in controls:
                         vel = (dx * sp, p["takeoff"], dz * sp)
                         kind, hit, mc = sweep_arc(lf, vel, hold, None if c == "none" else c,
-                                                  p, bounds, ia, ib, 4.0, floor_y)
+                                                  p, bounds, ia, ib, 4.0, floor_y, serving, blocking)
+                        if kind == "ramp":
+                            ramp_arcs += 1
+                            clean_arcs += 1
+                            any_here = True
+                            continue
                         if kind == "block" and hit != ib:
                             blockers[nb[hit].name] = blockers.get(nb[hit].name, 0) + 1
                             continue
@@ -345,10 +474,13 @@ def analyze_hop(boxes, a_name, b_name, p, max_speed, floor_y, controls=("none",)
         if any_here: clean_lp += 1
     chief = max(blockers.items(), key=lambda kv: kv[1])[0] if blockers else "-"
     return dict(gap=gap, rise=rise, exists=clean_arcs > 0, clean=clean_lp, points=lp,
-                arcs=clean_arcs, best=0.0 if best_clear == -1e9 else best_clear, chief=chief)
+                arcs=clean_arcs, rampArcs=ramp_arcs, ramps=len(rms),
+                best=0.0 if best_clear == -1e9 else best_clear, chief=chief)
 
 # ----------------------------------------------------------------- shooter lines
-def line_clear(a, b, boxes, skip):
+def line_clear(a, b, boxes, skip, ramps=()):
+    for r in ramps:
+        if r.seg_hits(a, b): return False, r.name
     d = tuple(b[i] - a[i] for i in range(3))
     for i, bx in enumerate(boxes):
         if i in skip: continue
@@ -374,7 +506,7 @@ PERCHES = [
     ("T3_Perch_E", ["T3_Step_1", "T3_Step_2", "T3_Step_3"]),
 ]
 
-def shooters(boxes, lo, hi):
+def shooters(boxes, lo, hi, ramps=()):
     rows = []
     for perch, decks in PERCHES:
         ip = index_of(boxes, perch)
@@ -389,7 +521,7 @@ def shooters(boxes, lo, hi):
             chest = (db.center[0], db.mx[1] + 1.2, db.center[2])
             dist = math.sqrt(sum((chest[i] - muzzle[i]) ** 2 for i in range(3)))
             if dist < lo or dist > hi: oob.append("%s(%.1f)" % (d, dist)); continue
-            ok, by = line_clear(muzzle, chest, boxes, {ip, idd})
+            ok, by = line_clear(muzzle, chest, boxes, {ip, idd}, ramps)
             (cov if ok else blk).append("%s(%.1f%s)" % (d, dist, "" if ok else " <-" + by))
         rows.append((perch, "", cov, blk, oob))
     return rows
@@ -464,7 +596,7 @@ def route_order():
             if n not in seen: seen.add(n); out.append(n)
     return out
 
-def sightlines(boxes):
+def sightlines(boxes, ramps=()):
     order = route_order()
     idx = dict((b.name, i) for i, b in enumerate(boxes))
     rows, total = [], 0
@@ -478,7 +610,7 @@ def sightlines(boxes):
             if m not in idx: break
             b = boxes[idx[m]]
             tgt = (b.center[0], b.top + 0.5, b.center[2])
-            ok, who = line_clear(eye, tgt, boxes, set([idx[n], idx[m]]))
+            ok, who = line_clear(eye, tgt, boxes, set([idx[n], idx[m]]), ramps)
             if not ok: blocker = who; break
             ahead += 1
             far = max(far, math.sqrt(sum((tgt[k] - eye[k]) ** 2 for k in range(3))))
@@ -487,12 +619,12 @@ def sightlines(boxes):
     return total / float(len(rows)), rows
 
 def report_sight():
-    before = load_boxes()
+    before = load_boxes(); apply_reshapes(before)
     after = load_boxes(); apply_reshapes(after)
     mb, rb = sightlines(before)
-    ma, ra = sightlines(after)
+    ma, ra = sightlines(after, load_ramps())
     print("MOVES VISIBLE AHEAD (of the next %d route decks)" % SIGHT_AHEAD)
-    print("  shipped asset %.2f  ->  after the reshapes %.2f" % (mb, ma))
+    print("  without the ramps %.2f  ->  with the authored ramps %.2f" % (mb, ma))
     print()
     for (n, a0, d0, b0), (_, a1, d1, b1) in zip(rb, ra):
         mark = "  " if a0 == a1 else ("^ " if a1 > a0 else "v ")
@@ -502,6 +634,7 @@ def report_sight():
 
 def main():
     after = "--after" in sys.argv
+    ramps = [] if "--noramps" in sys.argv else load_ramps()
     if "--sight" in sys.argv:
         report_sight()
         return
@@ -514,27 +647,28 @@ def main():
     boxes = load_boxes()
     if after: apply_reshapes(boxes)
     floor_y = -25.0
-    print("=== %s ===" % ("AFTER the openness pass" if after else "BEFORE (shipped asset)"))
+    print("=== %s | %d ramp(s) ===" % ("AFTER the openness pass" if after else "shipped asset", len(ramps)))
     print("profile: gravity %.0f jump %.1f (takeoff %.2f) ground %.0f slide-jump %.0f r %.2f h %.2f"
           % (p["gravity"], p["jumpHeight"], p["takeoff"], p["groundSpeed"], p["slideJump"], p["r"], p["height"]))
     print()
     print("BASELINE ROUTE")
     fails = 0
     for a, b in BASE_ROUTE:
-        v = analyze_hop(boxes, a, b, p, p["groundSpeed"], floor_y)
+        v = analyze_hop(boxes, a, b, p, p["groundSpeed"], floor_y, ("none",), ramps)
         if v is None: print("  MISSING %s -> %s" % (a, b)); fails += 1; continue
         if not v["exists"]: fails += 1
-        print("  %-6s %-14s -> %-16s gap %5.2f rise %+5.2f  clean %2d/%2d pts  arcs %3d  best clr %5.2f  chief %s"
+        print("  %-6s %-14s -> %-16s gap %5.2f rise %+5.2f  clean %2d/%2d pts  arcs %3d  best clr %5.2f  chief %-18s %s"
               % ("FAIL" if not v["exists"] else "", a, b, v["gap"], v["rise"], v["clean"], v["points"],
-                 v["arcs"], v["best"], v["chief"]))
+                 v["arcs"], v["best"], v["chief"],
+                 ("RAMP: %d of %d arcs land on the slope" % (v["rampArcs"], v["arcs"])) if v.get("rampArcs") else ""))
     print()
     print("TECH LINES")
     for a, b, sp, name in (("T1_Stone_1", "T1_Fast_1", p["slideJump"], "SlideJump"),
                            ("T1_Fast_1", "T1_Stone_4", p["groundSpeed"], "Base")):
-        v = analyze_hop(boxes, a, b, p, sp, floor_y, ("none", "brake"))
+        v = analyze_hop(boxes, a, b, p, sp, floor_y, ("none", "brake"), ramps)
         print("  [%-9s] %-13s -> %-13s gap %5.2f rise %+5.2f clean %2d/%2d  %s"
               % (name, a, b, v["gap"], v["rise"], v["clean"], v["points"], "ok" if v["exists"] else "FAIL"))
-    g = analyze_hop(boxes, "T1_Stone_1", "T1_Fast_1", p, p["groundSpeed"], floor_y, ("none", "brake"))
+    g = analyze_hop(boxes, "T1_Stone_1", "T1_Fast_1", p, p["groundSpeed"], floor_y, ("none", "brake"), ramps)
     print("  GATE: base kit onto T1_Fast_1 -> %s (must be UNREACHABLE)"
           % ("REACHABLE - GATE BROKEN" if g["exists"] else "cannot"))
     print()
@@ -549,7 +683,7 @@ def main():
                  l.mn[0] <= d.mn[0] and l.mx[0] >= d.mx[0]))
     print()
     print("SHOOTER PERCHES (band 3-32 m off pshooter_enemy01)")
-    for perch, err, cov, blk, oob in shooters(boxes, 3.0, 32.0):
+    for perch, err, cov, blk, oob in shooters(boxes, 3.0, 32.0, ramps):
         flag = "FAIL " if (err or len(cov) < 2 or oob) else "     "
         print("  %s%-12s covers %-46s blocked %-34s out of band %s"
               % (flag, perch, ",".join(cov) or "-", ",".join(blk) or "-", ",".join(oob) or "-"))
@@ -611,6 +745,20 @@ def main():
             if pb.mn[0] < b.mx[0] and pb.mx[0] > b.mn[0] and pb.mn[2] < b.mx[2] and pb.mx[2] > b.mn[2]:
                 print("  FAIL %s overlaps %s" % (perch, b.name)); bad += 1
     if not bad: print("  all six clear")
+    print()
+    print("RAMPS (angle ceiling ~35 deg; base and top must each overlap their deck)")
+    for r in ramps:
+        solid = [b.name for b in boxes if r.overlaps(b)]
+        base_on = [b.name for b in boxes if b.mn[0] - 0.01 <= r.base[0] <= b.mx[0] + 0.01
+                   and b.mn[2] - 0.01 <= r.base[2] <= b.mx[2] + 0.01 and abs(b.mx[1] - r.base[1]) < 0.02]
+        top_on = [b.name for b in boxes if b.mn[0] - 0.01 <= r.topPos[0] <= b.mx[0] + 0.01
+                  and b.mn[2] - 0.01 <= r.topPos[2] <= b.mx[2] + 0.01 and abs(b.mx[1] - r.topPos[1]) < 0.02]
+        print("  %-18s %4.1f deg  %.1f w x %.2f run x %+.2f rise  yaw %5.1f   base on %-14s top on %-14s %s"
+              % (r.name, r.angle, r.w, r.run, r.rise, r.yaw,
+                 ",".join(base_on) or "NOTHING", ",".join(top_on) or "NOTHING",
+                 "ok" if (base_on and top_on and abs(r.angle) <= 35.0) else "FAIL"))
+        stray = [n for n in solid if n not in base_on and n not in top_on]
+        if stray: print("      *** cuts through %s" % ", ".join(stray))
     print()
     print("VERDICT: %s" % ("clean" if fails == 0 else "%d baseline hop(s) with no clean arc" % fails))
 

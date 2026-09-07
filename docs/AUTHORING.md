@@ -114,6 +114,20 @@ rules it follows:
   sails 2 m over it. The first orb is a run-jump from the deck edge (4 m out, 3 m up); the fall from the
   last orb lands on the target deck without the dash (`AnalyzeChain` flies it; the dash is only allowed
   on the final fall). Orbs stay more than a body clear of every deck top or a runner pops them.
+- **A RAMP replaces a hop with a run, and only where the measurement allows it** (2026-09-07). Five of them,
+  `LevelDefinitionAuthoring.Ramps`, all authored as a rise over a run and none steeper than 15.4°. Two facts
+  govern every one. **Level_01 has no descent** — it climbs monotonically from y 0 to y 28 — so no ramp in it
+  can pay a downhill slide, and a ramp's job here is CONTINUITY (the run never leaves the ground), never speed
+  gained. And **a ramp is not a kicker**: a `CharacterController` leaving a ramp's top edge keeps its horizontal
+  velocity and gains no vertical, so a ramp that stops short of the next deck is only a jump with a shorter
+  run-up — every ramp meets its deck at both ends, with 0.2 m of overlap or better. Three of the four flat
+  +0.5 m stepping-stone hops become grades (7.3°, 7.5°, 11.8°) and two of the spiral's eleven identical
+  +1.5 m rises become the north turn of each lap (14.4°, 15.4°). **A ramp is solid geometry and occludes
+  exactly like a slab**: the obvious L8 → L9 ramp had to be narrowed to 3 m and landed early because the
+  4 m one stood inside `T2_Perch_E`'s bolt line onto `T2_L9`, and swinging it west to duck the bolt drove it
+  into `T2_Tower` and cost three sightlines. `T1_Stone_2 → T1_Stone_3` was left as a jump on purpose: any
+  ramp across it cuts through `T1_Fast_1`, the slide-jump tech deck, and hands the base kit a free walk onto
+  the one line that is supposed to be gated. `T3_Span → T3_Step_1` was left alone too — see §1c.
 - **Water lines lie ON a deck** (sheet bottom within 6 cm of the top, inside the deck in plan, unit flow):
   the T1 fast slide deck (a slide on water never decays, so the slide-jump leaves at full carry) and the
   T3 span after the lintel, whose last sheet flows toward `T3_Step_1` — a line that turns the run.
@@ -159,7 +173,19 @@ The only **sloped** geometry in the game (2026-09-07). Data on the `LevelDefinit
   so the NavMesh bake walks it — no script, no trigger, nothing that touches the player (hard rule 10).
   A slide gaining speed downhill is the motor reading the real ground normal, not the ramp pushing.
 - **No trim bars.** The trim builder places world-axis bars and a ramp has no world-axis edges. Read a
-  ramp by its material and by the decks at either end.
+  ramp by its material and by the decks at either end — which means **`materialKey` is load-bearing, not
+  decoration**. The default `"Platform"` (#475262) is the material every deck already wears, and the vfx
+  team's call is that a 7° slab of it against a deck of identical hue and value reads as *nothing* at
+  15–30 m, so the player meets an incline the ground normal already put them on. Level_01's five ramps ship
+  `"Stone"` (#2A3443, 2.5× darker, non-emissive, same cold family): it separates on VALUE, which costs no
+  light, no bloom budget, and no place in the trim-hue grammar — trim hue is the SPAN word (T1 cyan, T2
+  gold, T3 red) and a piece that cannot wear trim must not try to speak it.
+- **Nothing in the shipped arc report sees a ramp yet.** `LevelArcAnalyzer.BoxesFrom` (line 59) reads
+  `def.platforms` only, so every `Level*Tests` fixture and the `Level Arc Report` measure the level as
+  though the ramps were not there. That is safe — no test can fail *because* of a ramp — but it also means
+  no shipped tool proves one. `Tools/level_arc_offline.py` grew an oriented-box `RampBox` for exactly this
+  and is currently the only thing that has measured them; making `BoxesFrom` ramp-aware is the obvious
+  additive hook and is a lead call, because it changes the geometry every existing arc test runs against.
 
 ---
 

@@ -1827,6 +1827,24 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   gap 4.24 → 3.91 but 10 → 8 clean points; fixed by growing the LANDING deck `T2_L9` instead, 3.20 / 13).
   `Tools/level_arc_offline.py` parses those tables straight out of the C# and measures every hop, the
   torch density and the pinned x-coordinates without the editor; `--after`, `--torches`, `--sight`.
+- **`Apply`'s third pass places the RAMPS** (2026-09-07). `LevelDefinitionAuthoring.Ramps` is a table of
+  `name → base / width / run / rise / yaw`; `Apply` drops every `RampDef` whose name contains `_Ramp_` and
+  re-adds the table, the same remove-ours-then-re-add discipline as the perches, so a ramp dropped in by the
+  F10 editor and exported back survives a re-run of `8a`. Five ramps, 7.3–15.4°, all `materialKey "Stone"`.
+  Three design facts that are not obvious from `RampDef` and cost measurement to learn:
+  **(1) Level_01 has no descent** — deck by deck it climbs monotonically y 0 → 28 — so the new
+  `slideSlopeAccel` term can only ever BLEED in this level and a ramp's job here is continuity, not speed;
+  **(2) a ramp is not a kicker**, because a `CharacterController` leaving the top edge gains no vertical, so
+  a ramp that stops short of its deck is just a jump with a shorter run-up; **(3) a ramp occludes exactly
+  like a slab** — the 4 m `T2_L8 → T2_L9` ramp stood inside `T2_Perch_E`'s bolt line onto `T2_L9`, and the
+  west-swung alternative cut `T2_Tower` and cost three sightlines, so the shipped one is 3 m wide and lands
+  at z 129.3, under the bolt.
+- **`LevelArcAnalyzer.BoxesFrom` (line 59) reads `def.platforms` only, so no shipped test or report sees a
+  ramp.** Nothing can fail because of one, and nothing proves one either. `Tools/level_arc_offline.py` grew
+  an oriented-box `RampBox` (exact slab test for bolt lines and sightlines; the arc sweep treats the capsule
+  as axis-aligned in ramp-local space, an error ≤ 1 − cos 15.4° of capsule height, and counts an arc that
+  touches a ramp on the way down as an ARRIVAL because a body that lands on a slope is on the route). Run it
+  with `--noramps` for the before. Making `BoxesFrom` ramp-aware is the additive hook and is a lead call.
 - **`Apply` also writes the arena gates** (second openness pass, 2026-09-07). `LevelDefinitionAuthoring.Gates`
   matches a `LevelDefinition.ArenaDef` by `gateName` and writes only the X of `gateSize`, `triggerSize` and
   (where the arena has one) `exitGateSize` — absolute and idempotent like the rest. It exists because the
