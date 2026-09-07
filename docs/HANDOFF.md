@@ -1,57 +1,67 @@
-# Handoff — final descent implemented and verified
+﻿# Handoff — ramp start, route mist and incoming-shot visuals
 
-2026-09-07. Lead Codex; Astra/high implemented the approved level and downhill movement refinement. Sol investigated turret timing and reviewed the test limitation. Fog/VFX received a separate read-only audit.
+2026-09-07. Lead Codex; Sol implemented the fog, projectile presentation and final harness fixes.
+An attempted Astra/high follow-up launch hit the thread limit; do not attribute the visual pass to Astra.
 
 ## What happened
 
-Follow-up correction: the user intended Level 1 to START at the downhill ramp. The first pass
-incorrectly left the old spawn in place. `ApplyDescent` now authors `playerStart=(0,28.3,297.5)`
-and yaw 0, with the starting wand pedestal beside it at (3,28,297.5). The level asset/scene were
-regenerated. The actual Main Menu `PlayFirstAvailable` path loaded the player at the crest with
-the level manager's respawn there too.
-This is a data-authoring correction; the earlier route remains in the level. Restore point for this
-follow-up is `pre-descent-start-2026-09-07` (the original descent commit `691fc89`).
-Follow-up checks: quick EditMode 693/693 and live LevelStructure 70/70 passed. Full live suite
-was 770/777; trail, grapple and flask failures remain undiagnosed (see VERIFICATION-REPORT).
-Fog implementation and flare-curve restoration are now explicitly authorized and delegated to
-Sol agents for investigation; source edits are held for lead review. An Astra design-agent launch
-was rejected by the agent manager's thread limit, so do not claim these tasks were Astra-designed.
+Level 1 loads at the downhill crest `(0,28.3,297.5)` with its starting wand pedestal beside it.
+The real Main Menu load path was verified. The earlier route remains authored in the level.
+The 48 m downhill ramp, three Surge Turrets and downhill slide refinement were implemented in
+`691fc89`; the corrected start/pedestal is `a12fbec`.
 
-Level_01 now has a 48 m long, 12 m descending, 10 m wide ramp leading into a 24.4 m run-out. Three existing Surge Turrets occupy z324/342/360; the boss arena, checkpoint and associated content moved consistently. The openness work and small uphill ramps already existed; the large downhill encounter had never been authored. Moving the whole turret row 8 m downhill resolved the first shot's late arrival without changing enemy or combat timing.
+Both requested atmosphere layers are implemented: visible drifting route mist plus stronger cold
+linear distance fog (36–140 m). Mist is world-space, prewarmed, capped at 48 particles, aligned to
+Default-layer ground every 0.25 seconds, and faded near the camera. The amber enemy shots now have
+bounded visual weave and a curved history trail; they converge to the logical trajectory before the
+parry cue and remain centered after reflection. Violet reward flares are unchanged. No historical
+wobble implementation was found; this is new visual motion over the existing homing behavior.
 
-Actual grounded downhill slides now sustain and follow the contacted slope. Flat/uphill arithmetic, water, jumping and serialized movement tuning retain their previous rules. Jump cancellation and low-frame-rate contact were exercised live. The boss south walls now receive absolute final coordinates so repeated generation cannot detach them.
+## State of the tree and rollback
 
-Fog and several VFX were already built. Fog is enabled, blue, linear 36–170 m; broader smoothness/SMAA/SSAO work remains plan-only. See `docs/plans/fog-vfx-audit-2026-09-07.md`. No graphics tuning changed.
+- `a927bd0` — `[Sol] Add bounded pre-cue motion to enemy bolts`.
+- `c396802` — `[Sol] Add drifting route mist and stronger distant haze`.
+- The final harness-only follow-up is the commit titled `[Sol] Correct physical pickup and flask test staging`.
+- Undo either visual pass independently with `git revert <commit>`; undo both using
+  `git revert c396802 a927bd0`. Restore tags: `pre-fog-flare-2026-09-07`,
+  `pre-descent-start-2026-09-07`, and `pre-ramp-descent-2026-09-07`.
+- The user's untracked `.claude/settings.local.json` is excluded.
 
-## State of the tree
-
-This pass is intended to land as the single commit `[Astra] Add the surge-turret descent and sustain downhill slides`, including this handoff. Locate it with `git log -1 --grep='Add the surge-turret descent'`, then use `git revert <sha>` to undo the pass. Pre-change tag: `pre-ramp-descent-2026-09-07` at `b21a337`. The user's untracked `.claude/settings.local.json` is excluded.
-
-Final authoring ran twice with identical serialized output; Level_01's asset, scene and NavMesh were rebuilt. No data/prefab tuning generator was needed. Play mode is stopped with Level_01 open; temporary frame-rate/VSync settings were restored. Scripts, generated content, verification helpers and documentation belong to this one pass. The player-view capture is `RouteShots/descent/crest-final.png`.
+Generators completed: the narrow `PrefabFactory.BuildPlayer` generator rebuilt Player; authoritative
+ProjectSetup fog values were applied through the editor and saved in Level_01 and Sandbox. The full
+ProjectSetup/BuildAll pipeline was not rerun, to avoid unrelated generated changes. The factories
+contain every shipped value. Level data/scene/NavMesh generation was completed for the earlier ramp
+and start correction. No generator is needed for runtime-created projectiles or the harness fix.
 
 ## Verification
 
-All results below were completed during this pass, not inherited:
+See [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) for final suite results and historical failures.
+Final quick EditMode: **701/701**. Final full FeatureTests: **776/777**, with the uninterrupted-heal
+subcase failing; a fresh isolated Flask/FlaskPunish run then passed **11/11**. Its remaining
+full-suite context dependence is not fully diagnosed. Do not claim a green full suite.
+Both offline assemblies compile (16 existing editor warnings, no errors). The original ramp pass ran
+831 full EditMode tests successfully; the visual pass uses the 701-test quick suite because geometry
+and motor code are unchanged. Health Check reports 0 errors and 1764 warnings.
 
-- Full EditMode: **831/831 passed**, zero failed/skipped, 230.8 s. Job `8eb5c8550b5a4693b3916ab98cc7f055`.
-- FeatureTests: **777/777 passed**, zero failed/skipped; fresh Play session, warm GameManager and timeScale 1 checked when starting.
-- Health Check: **0 errors, 1764 warnings**. Final console: zero errors.
-- Full level arc and exact descent geometry reports: **PASS**. Repeated authoring: **PASS**.
-- Live neutral full descent: **PASS**, peak 19.56 m/s. Mid-ramp jump cancellation: **PASS**.
-- Final generated level at 20 fps: neutral slide **PASS**, peak 19.16 m/s, longest frame 54 ms; slide ends on run-out at z352.53.
-- Final generated level at 60 fps: automatic parries **PASS, 1/1/1 surges**, slide ends at z360.90. Peak 33.94 m/s includes the existing parry impulse before the next motor clamp.
-- Runtime/editor offline builds passed during implementation; Unity compiled the new verification helpers and ran them successfully.
+The final saved encounter passed all three surge grants at capped 60 fps with mist and weave active.
+Live visual observations confirmed a 0.34 m maximum weave, zero cue/reflection offset, 36–38 mist
+particles, correct slope alignment and balanced material leases. Before/after captures are in
+`RouteShots/fog-flares/`. Temporary editor observers are removed and frame-rate settings restored.
 
-An uncapped automatic-parry run failed 0/3. The editor callback can poll around 8 Hz unfocused and skip the probe's 120 ms trigger. The first missed shot causes sideways knockback and disrupts later encounters. The same saved scene passed at 60 fps; record this as a probe limitation, not proof of high-frame-rate human combat. A robust future probe should drive automatic parries from the game update loop. Local detailed logs remain in ignored `TestResults/descent/`. See `docs/VERIFICATION-REPORT.md` for complete limits.
-
-No new standalone player build was cut. Automation does not establish human cue readability or fairness.
+Repeated full-suite failures were traced to test staging: 14 m/s impulses stopped short of pickup
+triggers, and the flask test inherited a falling player whose respawn looked like healing. The
+harness-only follow-up increases its two entry impulses to 20 m/s and grounds the flask test at the
+current checkpoint. Assertions and gameplay systems are unchanged. Detailed ignored evidence lives
+in `TestResults/descent/`; the neutral-input run and diagnostic failures remain recorded honestly.
 
 ## Do first next session
 
-1. Human-playtest the descent, its three turret cues and slide-jump exits in Level_01. Review feel before more tuning.
-2. If extending automated encounter testing, move parry sampling onto the game update loop; do not change combat timing to accommodate editor polling.
-3. Treat remaining graphics polish as a separate proposal informed by the fog/VFX audit.
+1. Human-playtest Level 1 from the main menu for ramp, cue and atmosphere feel.
+2. Consult ENGINEERING-LOG before chasing feature-suite staging or editor polling failures.
+   If improving the suite, diagnose the remaining context-dependent uninterrupted-flask failure.
+3. Check standalone/WebGL shader variants and performance before claiming build-level validation.
 
-## Open questions for the user
+## Open questions
 
-None blocking. The authorized implementation and verification are complete; subjective encounter feel remains for playtesting.
+None blocking the requested implementation. No new player build was cut; editor automation does not
+prove human fairness, full-course aesthetics or standalone performance.

@@ -3548,9 +3548,10 @@ namespace VibeGame1
                 yield return null;
 
                 int held0 = items.Held.Count;
-                // 14 m/s, not 6: ground friction (14/s) stops an impulse in about v/friction metres,
-                // so a 6 m/s shove only travels ~0.4 m and may never reach the trigger.
-                motor.AddImpulse(pickDir * 14f);
+                // 20 m/s crosses the ~0.8 m gap into contact before neutral-input ground friction
+                // removes the impulse. 14 m/s stopped at ~0.76 m in the full suite: close enough to
+                // look correct in a trace, but still outside the real trigger.
+                motor.AddImpulse(pickDir * 20f);
                 yield return WaitUntilOrTimeout(() => items.Held.Count > held0, 4f);
                 Check("Items_PhysicsPickup", !waitTimedOut,
                     $"held {held0} -> {items.Held.Count}");
@@ -3776,6 +3777,16 @@ namespace VibeGame1
 
         IEnumerator TestFlask()
         {
+            // Items ends with several real traversal effects and can leave the player airborne. Stage
+            // the timing-sensitive drink on the current checkpoint floor so a fall death cannot heal
+            // through Respawn while this test is waiting to prove the interrupted drink stayed inert.
+            Transform flaskStage = LevelManager.I != null && LevelManager.I.Current != null
+                ? LevelManager.I.Current.spawnPoint
+                : LevelManager.I != null ? LevelManager.I.startSpawn : null;
+            if (flaskStage != null)
+                motor.Teleport(flaskStage.position, flaskStage.eulerAngles.y);
+            yield return WaitUntilOrTimeout(() => motor.IsGrounded, 3f);
+
             res.RefillFlask();
             yield return null;
             int max = res.MaxFlask;
@@ -4009,9 +4020,9 @@ namespace VibeGame1
                 int s0 = SoulsWallet.I.Souls;
                 Vector3 toStain = stain.transform.position - combat.transform.position;
                 toStain.y = 0f;
-                // 14 m/s, not 6: ground friction (14/s) kills an impulse in about v/friction metres,
-                // so a 6 m/s shove only travels ~0.4 m and never reaches the trigger from 2 m out.
-                motor.AddImpulse(toStain.normalized * 14f);
+                // 20 m/s crosses the ~0.6 m gap into contact before neutral-input ground friction
+                // removes the impulse. 14 m/s stopped just outside this real trigger in a full run.
+                motor.AddImpulse(toStain.normalized * 20f);
                 yield return WaitUntilOrTimeout(() => SoulsWallet.I.Souls > s0, 4f);
                 Check("Progression_BloodstainRecovery", !waitTimedOut,
                     $"souls {s0} -> {SoulsWallet.I.Souls} (walked {toStain.magnitude:0.0}m into the trigger)");

@@ -12,6 +12,16 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ### Fog and incoming-shot presentation — 2026-09-07
 
+- **Final harness follow-up:** Quick EditMode **701/701 passed**, 10.1 s,
+  `TestResults/EditMode-20260907-170009.xml`. Both offline assemblies build with no errors
+  (16 existing editor warnings). Full FeatureTests **776 pass / 1 fail**, 0 skipped:
+  both physical-trigger checks and interrupted-drink no-heal now pass. The remaining
+  `Flask_DrinkCoroutineAndInterruptOnHit` failure is `healed=False` on the second, uninterrupted
+  drink; its other flags are true. Do not call the complete suite green.
+  Report: `TestResults/descent/features-harness-fixed.txt`.
+  A subsequent fresh isolated Flask/FlaskPunish run at Checkpoint_1 passed **11/11**, including
+  uninterrupted healing (`flask-isolated-final.txt`). This narrows the remaining full-suite failure
+  to context-dependent behavior, but does not establish its cause or erase the failed full run.
 - **Quick EditMode: 701/701 passed**, 0 failed/skipped, 9.8 s. Final source and generated Player prefab.
   Report: `TestResults/EditMode-20260907-163601.xml`. The slow 138 level-line simulations were excluded;
   geometry and motor code did not change in this presentation pass.

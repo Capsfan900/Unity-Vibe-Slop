@@ -1,5 +1,26 @@
 # Engineering log
 
+## Feature-suite trigger reach and flask respawn contamination (2026-09-07)
+
+**Symptom.** Neutral-input full runs repeated pickup, bloodstain recovery and interrupted-flask
+failures after the ramp-start follow-up. Read-only InputReader observation confirmed no movement or
+jump input throughout one complete run.
+
+**Root cause evidence.** The suite had already warped to the old checkpoint: trigger tests ran at
+`(0,0.05,3)`, not the new ramp. At capped 60 fps their single 14 m/s impulse stopped at z3.76,
+short of the pickup at z5.4 and stain at z5.0. The flask section inherited an airborne player from
+Items, fell into a kill zone, then respawned at full health during the interrupted-drink wait.
+That respawn, not a completed flask drink, violated its no-heal assertion. Local evidence:
+`TestResults/descent/full-position-trace.txt`.
+
+**Invariant.** A physics-trigger check must actually move the capsule through the trigger, and a
+healing check must begin on stable footing without inherited velocity. Keep these corrections in
+the harness; do not retune movement, trigger sizes or healing to accommodate test staging.
+
+**Fix.** The two test-only entry impulses are 20 m/s. The flask test uses the existing motor teleport
+to the current checkpoint (start spawn fallback), then waits for grounded contact before drinking.
+The real trigger, inventory, wallet and interrupted-heal assertions remain unchanged.
+
 Institutional memory for `vibegame1`. Every non-obvious problem that cost real time, and the invariant
 that stops it recurring. **Read this before debugging anything weird** — there is a good chance it is
 already in here.
