@@ -183,7 +183,7 @@ Nothing running. Three subagents were used this session and all three have repor
     Read docs/HANDOFF.md, then CLAUDE.md. This is vibegame1: melee-only first-person parry
     speedrun platformer, namespace VibeGame1, Unity 6000.5.10f1, C# 9, URP.
 
-    State: clean at 6b2ec75. FOUR subagent passes landed and NOT ONE has been run in the
+    State: clean at a674371. FOUR subagent passes landed and NOT ONE has been run in the
     editor - they compile (dotnet build, 0 errors, both assemblies) and that is all that is
     proven. No generator has been re-run and neither suite has run since fad1e88. Revert
     tag pre-team-passes-2026-09-07b sits at fad1e88; every pass is its own commit.

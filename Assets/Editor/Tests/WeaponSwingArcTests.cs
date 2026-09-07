@@ -18,8 +18,12 @@ namespace VibeGame1.Tests
         {
             Vector3 from = new Vector3(0.1f, -0.1f, 0.4f);
             Vector3 to = new Vector3(-0.2f, 0.15f, 0.5f);
-            Assert.AreEqual(Vector3.zero, WeaponViewmodel.SwingArc(from, to, 0f));
-            Assert.AreEqual(Vector3.zero, WeaponViewmodel.SwingArc(from, to, 1f));
+            // A tolerance, not exact equality: the bow is a half-sine, and Mathf.Sin(Mathf.PI) is
+            // -8.7e-8 rather than 0 in single precision, so the k=1 endpoint lands a few nanometres
+            // off the chord. NUnit's Vector3 comparison is exact (Equals, not the == epsilon), so an
+            // exact assert here fails on a value that is zero for every purpose this arc has.
+            Assert.AreEqual(0f, WeaponViewmodel.SwingArc(from, to, 0f).magnitude, 1e-5f);
+            Assert.AreEqual(0f, WeaponViewmodel.SwingArc(from, to, 1f).magnitude, 1e-5f);
         }
 
         [Test]

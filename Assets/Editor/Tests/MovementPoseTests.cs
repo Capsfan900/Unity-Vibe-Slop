@@ -38,14 +38,16 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void Rising_TiltsTheOppositeWayFromFalling()
+        public void Rising_TiltsUpAndFallingDoesNot()
         {
             var falling = MovementPose.Compute(new MovementPose.State { grounded = false, verticalVelocity = -20f });
             var rising = MovementPose.Compute(new MovementPose.State { grounded = false, verticalVelocity = 20f });
             Assert.AreEqual(0f, rising.pos.y, 0.0001f, "rising should not sink the hands");
-            Assert.AreNotEqual(0f, rising.euler.x);
-            // Opposite sign from the falling case's tilt — one direction lifts, the other does not.
-            Assert.Less(falling.euler.x * rising.euler.x, 0f);
+            // The two halves of the airborne term read on DIFFERENT channels on purpose: a fall is a
+            // drop plus a pull-back (position only), an ascent is a muzzle-up tilt (rotation only).
+            // Nothing tilts on the way down, so this is not a sign-flip of one shared term.
+            Assert.Less(rising.euler.x, 0f, "rising should tilt the hands muzzle-up");
+            Assert.AreEqual(0f, falling.euler.x, 0.0001f, "falling reads as a drop, not a tilt");
         }
 
         [Test]

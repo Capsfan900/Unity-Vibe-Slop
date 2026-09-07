@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Hammer
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.WeaponData
   displayName: Sunbreaker
-  neon: {r: 0.8784314, g: 0.4, b: 0.101960786, a: 1}
+  neon: {r: 0.65882355, g: 0.81960785, b: 0.18039216, a: 1}
   viewmodelPrefab: {fileID: 5162901324134690919, guid: 310351ac8eee4dc4fb35e0fcb9dcc049, type: 3}
   viewmodelScale: 0.5
   baseDamage: 52

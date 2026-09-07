@@ -871,7 +871,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4a9fcc16a8592a5429b363b472865182, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnergyGlow
-  tint: {r: 0.88, g: 0.4, b: 0.1, a: 1}
+  tint: {r: 0.658, g: 0.82, b: 0.18, a: 1}
   brightness: 1
   baseIntensity: 0.34
   pulseAmplitude: 0.18
