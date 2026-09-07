@@ -3,156 +3,163 @@
 **Rewritten at the end of every session; describes a moment, not the project.** Read this first when picking
 up where the last chat stopped, then [SESSION-PROTOCOL.md](SESSION-PROTOCOL.md).
 
-Last session: **2026-09-07** (Opus 5), second session that day. One commit, landed, tree clean.
-**`BuildRunner` had never produced a build. It now has, several, and was hardened so that it works whatever
-state the project is in.**
+Last session: **2026-09-07** (Opus 5), third session that day. Two commits, landed, tree clean.
+**Both halves of the build pipeline are now proven, and the feature suite has been re-run against the
+slimmed project.** No gameplay code changed this session — it was verification and diagnosis.
 
 ## What happened
 
-**`801ce84` — the build pipeline actually builds.** The previous session's outstanding job was to prove
-`97f2540`'s `BuildRunner` by cutting a real build. Done: Windows builds cut repeatedly, output verified on
-disk, and **the player was launched and confirmed to boot to a clean `Player.log`** — the only way to prove
-what changed below, since no suite in this project runs the built player.
+**`aa72712` — the WebGL build exists.** It had never been cut; it was the last unproven half of the
+pipeline. `BuildRunner.Preflight()` came back clean (`windowsSupported=True webglSupported=True
+stripping=High dirtyScenes=0`, scene list `MainMenu → Level_01 → Sandbox`), and the build ran in **4:56**
+— far under the 10–20 min an IL2CPP-to-WASM build is usually braced for.
 
-The user then set the bar explicitly: *"this build pipeline should be able to work no matter the state of
-the game — if I add shit I should be able to run it and rebuild no issue."* `BuildRunner` was rewritten
-against that contract. It now either fixes the problem itself or refuses with one sentence naming the fix:
+**The number that matters is 30.8 MB, and it is already gzipped.** Unity ships the `.unityweb` files
+pre-compressed (they carry the `1f8b` magic), so that is the wire size a playtester on a link actually
+waits for, not a pre-compression figure. Uncompressed the payload is 58.7 MB: `wasm` 31.0 → 8.7,
+`data` 27.4 → 22.0, `framework` 0.3 → 0.1, plus a 48 KB uncompressed loader. Compare the Windows build at
+95.6 MB. Three warnings, all benign — IL2CPP splitting three large TextMeshPro methods into their own
+`.cpp` files. Zero errors.
 
-- **Refuses** on play mode (which it exits for you, since exiting costs a domain reload and cannot happen
-  inside the same call), a live compile, compile errors (a build there silently ships the last good
-  assemblies — a build that lies about its own contents), or a build-target module that is not installed.
-- **Derives the scene list from `LevelRegistry` every run** instead of trusting `EditorBuildSettings`:
-  MainMenu at index 0, then each campaign level's `sceneName` in `orderIndex` order, then Sandbox. Add a
-  level to the registry and its scene is in the next build with nothing to remember; if the list has
-  drifted it is repaired in place and the change is reported. **The sandbox ships deliberately** —
-  `MainMenuController.LoadSandbox` and every custom-level row load it by name, so a build without it has a
-  main menu with dead buttons. (That was nearly cut as "a dev scene leaking to testers". Check before you
-  cut it.)
-- **Warns rather than silently baking** when an open scene has unsaved edits — the build uses the version
-  on disk.
-- **Enforces its own build config**, so a build never depends on what someone last clicked in the Inspector.
-- **Writes every summary to `Builds/last-build.txt` and the console.** Read that, not the tool result: a
-  cold build blocks Unity's main thread for minutes, which drops the MCP websocket, so the `execute_code`
-  call that started it **returns `success:false` with a null message for a build that succeeded**. This
-  happened twice before it was understood. A warm incremental build takes ~5 s and does return normally.
-- Reports the real errors out of the `BuildReport`, deletes `*_DoNotShip` folders, and stamps
-  `build-info.txt` with the SHA, **a dirty-tree flag**, backend, stripping level and the exact scene list.
+**Proven as far as it can be without a browser.** All four `Build/` assets plus `index.html` serve
+**HTTP 200 at full length** from a plain static server, which also exercises the gzip decompression
+fallback `BuildRunner` enables — the thing that lets a gzipped build load from a server sending no
+`Content-Encoding` header, GitHub Pages included. The `Playtest` template's click-to-play pointer-lock gate
+and progress bar are present in the served `index.html`. **Nobody has opened it in a browser**, so the WASM
+has never been instantiated and the gate has never been clicked. That is the one remaining WebGL unknown.
 
-`Preflight()` runs every one of those checks and builds nothing. It is the right first call when a build
-misbehaves.
+Two side effects of a WebGL build, both real, both now handled. `ProjectSettings.asset` goes dirty because
+`BuildRunner` enforces `webGLTemplate: PROJECT:Playtest`, `webGLCompressionFormat: 1` and
+`webGLDecompressionFallback: 1` — by design, so a build never depends on what someone last clicked. And
+**Burst spills `Data/lib_burst_generated.{cpp,wasm}` into the project root**, written relative to the
+working directory; referenced nowhere in `Assets/`, now covered by `/[Dd]ata/` in `.gitignore`.
 
-**Size: ~148 MB → ~96 MB.** Two causes, both measured:
+**`1edf04b` — the feature suite passes after the package removal, and backlog 5c is narrowed.**
 
-- **Six packages removed** from `manifest.json` — `ai.inference`, `visualscripting`, `purchasing`,
-  `analytics`, `timeline`, `xr.legacyinputhelpers`. Verified first that none had a reverse dependency in
-  `packages-lock.json` and none is referenced anywhere in `Assets/`. `com.unity.ai.inference` alone was
-  shipping a **14 MB `DirectML.dll`** into a melee platformer.
-- **Managed stripping on Standalone was `Disabled`** — not low, off. Set to `High` on Standalone and WebGL:
-  `vibegame1_Data/Managed` went **37 MB → 11 MB**. `System.Xml`, `System.Data` and `System.Drawing` had been
-  shipping in a game that parses no XML and opens no database.
+`777 / 777, 0 failed, 0 skipped` in 60.7 s, on `Level_01`, with **both** guards asserted in the same call
+that started it (`warm=True timeScale=1 playing=True`). That closes the last inherited-not-re-run claim:
+removing six packages and raising managed stripping to `High` regressed nothing behavioural, as EditMode
+722/722 had already suggested.
 
-Roughly 10 MB of the remaining 96 MB is this game; the rest is Unity, whose floor for a stripped URP build
-is ~50–60 MB. **IL2CPP is not installed** for Windows Standalone (only Mono variations exist in the Hub
-install), so the backend stays `Mono2x`. Installing *Windows Build Support (IL2CPP)* would cut the managed
-side further at the cost of much slower builds.
+**Backlog 5c (the Legendary Ninja riposte framing) is narrowed, not fixed**, and the two obvious suspects
+are ruled out. All seven `Legendary_*` prefabs were probed at rest — in the editor, no play mode — at the
+standoff the test actually uses (`Min(stabStandoff × scale, range)`: 2.20 m at ×1, 3.50 m at ×2.2):
 
-**Also diagnosed, not fixed: the wrong resolution in the built exe.** The user reported it mid-session. The
-code is right — `SettingsData.screenWidth/Height` use `0` as a "use the display's own resolution" sentinel
-and `SettingsApplier.ApplyDisplay` falls back to `Screen.width/height` correctly. **`SettingsMenu.cs:439-442`
-destroys the sentinel**: cycling the Resolution row calls `NearestResolutionIndex(0, 0, …)` and writes back
-a concrete pair, so touching that row once turns "native" into a hard number that persists forever. This
-machine had **1366×768 saved against a 2560×1440 display**. Resetting `vg1.settings.screenW/H` to `0` in
-`HKCU:\Software\vibegame1\vibegame1` restored native immediately, confirmed by relaunching. Written up in
-`BACKLOG.md`; not changed, because `SettingsMenu`/`SettingsData` are Fable systems and this is a behaviour
-change, not a build fix.
+| Body | ×1.0 | ×2.2 | nearest renderer |
+|---|---|---|---|
+| Halberdier | 1.13 m | **1.15 m** (tightest) | `EnemyMesh` |
+| Revenant | 1.36 | 1.64 | `EnemyMesh` |
+| Spellsword | 1.55 | 2.06 | `EnemyMesh` |
+| Knight / Drillmaster | 1.58 | 2.15 | `EnemyMesh` |
+| **Ninja** | **1.86** | **2.75** | **`Body`** |
+| Marionette | 1.98 | 3.01 | `EnemyMesh` |
 
-**A trap worth not repeating:** launching a Unity player with `-screen-width/-screen-height/-screen-fullscreen`
-**persists those values to the registry**, so they silently affect every later flagless launch. A smoke test
-did exactly that and briefly looked like a bug in the build. Smoke-test with no resolution flags.
+Nothing is inside the camera and nothing is near the 0.5 m framing floor — **and the Ninja is the
+second-roomiest of the seven.** So the reported `nearest=0.00 m, cameraInsideBody=True` is not resting
+geometry. The stagger pose is out too: `EnemyVisuals.StaggerEuler` is `-13°` and `StaggerSag` is `-0.14` in
+z, leaning the body **back** from the lens — that fix already landed. **The failure is live-only.**
+
+Leading candidate: `DeathblowFraming` computes its stand point from `dummy.transform.position` and only
+*then* waits 0.35 s realtime for the pose to settle, so a body still closing distance during that wait ends
+up nearer than the standoff it was measured for. Worth noting the Ninja is the only one of the seven whose
+nearest renderer is a primitive `Body` rather than a forge `EnemyMesh` — it is built down a different path.
+
+**A live repro needs a deliberate spawn.** `Level_01` has **zero** enemies in play mode — the parkour pivot
+removed the filler spawns — so this cannot be reproduced by entering play mode on the shipped level. That
+is why it is still open.
+
+Also corrected in `BACKLOG.md`: `markHeight = 1.28` is the **Drillmaster's** spec, not the Ninja's, and only
+five of the seven bodies carry an explicit `markHeight` in `MiniBossFactory` (the rest fall back to the
+`1.45` default at line 180). Confirm ownership before moving any of them.
 
 ## State of the tree
 
-- **Committed and clean** at `801ce84`.
-- **Tag `pre-buildpipeline-2026-09-07`** sits at `23b53a3`, immediately before this session's commit.
-  `pre-distribution-2026-09-07` and `pre-weapons-2026-09-06` still stand.
+- **Committed and clean** at `1edf04b`.
+- **Tags**: `pre-buildpipeline-2026-09-07` at `23b53a3`, plus `pre-distribution-2026-09-07` and
+  `pre-weapons-2026-09-06`. No new tag this session — neither commit touches gameplay, so there is nothing
+  a revert would need to isolate.
 - **Generators re-run since the last code change: none were needed.** No `DataFactory`, material or prefab
-  change landed — this session touched `Assets/Editor/BuildRunner.cs`, `Packages/manifest.json`,
-  `ProjectSettings` and two docs only. Steps 2/3/4 remain as the 2026-09-05 session left them.
-- `ProjectSettings.asset` and the three `Assets/Settings/*` URP assets are in the commit. The stripping
-  level is a real change and belongs there; the URP shader-prefilter churn beside it is bookkeeping Unity
-  rewrites on every build. Expect those three to go dirty again after any build — that is not a change
-  anyone made, and `git restore Assets/Settings ProjectSettings` is safe when the diff is only prefilter
-  flags. (Note: `git checkout --` is blocked by the permission classifier in this setup; `git restore`
-  is not.)
-- **One worktree still deliberately in place**, unchanged from the last handoff:
-  `.claude/worktrees/agent-ac943965c5ea99158`, holding `d3b6245 "Span 4: the Warden causeway"`, which exists
-  on no other branch. See "Open questions".
+  change has landed since 2026-09-05; this session touched two docs, `.gitignore` and `ProjectSettings`
+  only. Steps 2/3/4 remain as the 2026-09-05 session left them.
+- **Expect `ProjectSettings.asset` and `Assets/Settings/*` to go dirty after any build.** URP shader-prefilter
+  churn is bookkeeping Unity rewrites, not a change anyone made; `git restore Assets/Settings ProjectSettings`
+  is safe when the diff is only prefilter flags. (`git checkout --` is blocked by the permission classifier
+  here; `git restore` is not.)
+- **One worktree still deliberately in place**, unchanged across four handoffs now:
+  `.claude/worktrees/agent-ac943965c5ea99158`, holding `d3b6245 "Span 4: the Warden causeway"`, which
+  exists on no other branch. See "Open questions".
 
 ## Verification
 
 | Suite | Result | When |
 |---|---|---|
-| EditMode, full | **722 / 722, 0 failed** (218 s) | 2026-09-07, **run this session**, after the package removal and stripping change |
-| `Health Check` | **0 errors**, 1748 known warnings | 2026-09-07, **run this session** |
-| Windows build boots | **PASS** — reaches the menu, `Player.log` clean but for D3D12's standard debug-layer line | 2026-09-07, **run this session** |
-| Feature suite, play mode | 777 / 777 | 2026-09-07 earlier session — **inherited, not re-run** |
-| WebGL build | **NEVER BUILT** | — |
+| `FeatureTests`, play mode | **777 / 777, 0 failed, 0 skipped** (60.7 s) | 2026-09-07, **run this session**, both guards asserted |
+| EditMode, full | 722 / 722, 0 failed (218 s) | 2026-09-07 earlier session — **inherited**, but taken after the same package removal |
+| `Health Check` | 0 errors, 1748 known warnings | 2026-09-07 earlier session — **inherited** |
+| Windows build boots | **PASS** — reaches the menu, clean `Player.log` | 2026-09-07 earlier session — **inherited** |
+| WebGL build | **BUILT** — 30.8 MB gzipped, 4:56, 0 errors; all assets serve HTTP 200 | 2026-09-07, **run this session** |
+| WebGL build *runs* | **NEVER OPENED IN A BROWSER** | — |
 
-The EditMode number is the one that matters here: it was taken *after* six packages were removed and
-stripping was raised, so neither regressed anything the suite covers.
-
-**What is still unproven.** The feature suite has not run since the package removal — it almost certainly
-passes (EditMode does, and nothing gameplay-facing changed) but nobody has checked. WebGL has never been
-built, so the `Playtest` template, the gzip fallback and the pointer-lock gate are all unexercised. And
-**nothing in the weapon pass has been played by a human** — unchanged, and still the only thing that can
-settle whether Rosethorn at 9 base damage reads as a breaker or just as weak.
+**What is still unproven.** The WebGL build has never been instantiated by a browser, so the WASM, the
+pointer-lock gate and the frame rate are all unexercised — serving proves only that the bytes are reachable
+and correctly laid out. And **nothing in the weapon pass has been played by a human**, unchanged across
+four handoffs; it is still the only thing that can settle whether Rosethorn at 9 base damage reads as a
+breaker or just as weak.
 
 When reading `Health Check`'s output, filter the console — an unfiltered read of its 1748 warnings costs a
 large chunk of context for no information. The result line is what matters.
 
 ## Do first next session
 
-1. **Cut the WebGL build** — `VibeGame1.EditorTools.BuildRunner.WebGL()`, then read `Builds/last-build.txt`
-   rather than the call's return value. It is the slow one (IL2CPP to WASM, 10–20 min) and the only
-   remaining unproven half of the pipeline. Measure the gzipped download size; that number, not the 96 MB
-   Windows one, is what a playtester actually waits for.
-2. **Settle the Resolution row** — `BACKLOG.md`, "The settings menu can overwrite native resolution". The
-   user's instruction was *"it just needs to detect native and use that, nothing else, don't overcomplicate
-   those"*. Two shapes: delete the Resolution row entirely (keeping display mode), or give it a "Native"
-   entry at index 0 that writes `0/0` back so the sentinel is reachable again. Needs the user's pick,
-   because it changes a Fable system.
-3. **Settle F10 before anything ships** — `BACKLOG.md`. A playtester can still open the fly-cam level editor
-   over their run. One `#if UNITY_EDITOR || DEVELOPMENT_BUILD` around the key read, matching `DebugKeys.cs`,
-   *if* the answer is that testers should not have it.
+1. **Open the WebGL build in a browser.** `cd Builds/WebGL && python -m http.server 8123 --bind 127.0.0.1`,
+   then `http://127.0.0.1:8123` — `file://` will not work. This is a five-minute job that closes the last
+   unknown in the whole distribution pipeline, and it needs a human with a browser. Watch for: the WASM
+   instantiating at all, the click-to-play gate taking pointer lock, and whether it holds frame rate.
+2. **Get the two blocked decisions out of the user** (both below). They have now been carried across two
+   handoffs, and the F10 one blocks publishing anything to a playtester.
+3. **Pick up backlog 5c with a live repro** — spawn a `Legendary_Ninja` in the **sandbox** (not `Level_01`,
+   which has no enemies), break its posture, and read the `Deathblow_StaggerPoseClearsNearPlane_*` failure
+   message; it names the offending renderer. The measurement table above tells you what it is *not*, which
+   is most of the work.
 
 ## Open questions for the user
 
-1. **The Resolution row** — see above. The only one blocking a decision the next session can act on.
-2. **GitHub Pages needs one-time clicks only the user can make**: Settings → Pages → Deploy from a branch →
+1. **The Resolution row** — `SettingsMenu.cs:439-442` destroys the `0/0` "native" sentinel: cycling the row
+   once writes a concrete pair that persists forever. The user's instruction was *"it just needs to detect
+   native and use that, nothing else, don't overcomplicate those"*. Two shapes: **delete the row** (native
+   becomes unloseable, display-mode row kept — the recommendation) or **add a "Native" entry at index 0**
+   that writes `0/0` back. Touches a Fable system, so it needs the user's word in-session. **Asked twice,
+   not yet answered.**
+2. **F10 in a shipped build** — `LevelEditor.cs` gates only its EXPORT button, so a playtester who presses
+   F10 gets the fly-cam editor over their run. One `#if UNITY_EDITOR || DEVELOPMENT_BUILD` around the key
+   read fixes it. The real question is whether trusted testers *should* have it. **This blocks publishing.**
+3. **GitHub Pages needs one-time clicks only the user can make**: Settings → Pages → Deploy from a branch →
    `gh-pages` → `/ (root)`. The branch need not exist first. Result:
    `https://capsfan900.github.io/Unity-Vibe-Slop/`.
-3. **Install *Windows Build Support (IL2CPP)*?** Would shrink the managed side below 11 MB and speed the
-   shipped game up; costs much slower builds. Not needed for a playtest.
-4. **The unmerged Span 4 worktree** — `d3b6245 "Span 4: the Warden causeway — 18 m becomes 104 m with three
-   wall-run legs"` is real level work on a branch never merged, in a worktree far behind master (it deletes
-   126k lines relative to master, so a merge needs care, not a fast-forward). Cherry-pick, redo on master,
-   or drop?
-5. **Per-weapon camera kick** — `WeaponController` calls `CameraShake.I.Small()` for every weapon, so a maul
-   hit shakes exactly as hard as a needle flick. Named by the combat lane as the largest remaining weight
-   gap. One line.
-
-Smaller, still open, all pre-existing: the Sunbreaker is amber and amber is the bolt colour (`Hammer.neon`
-sits ~5° of hue from `Projectile.HotCore`); the swing is a straight chord, not an arc
-(`WeaponViewmodel.cs:268` lerps position linearly — `GuardArc` at line 412 is the fix pattern already in
-this project); per-weapon hit reaction (`EnemyVisuals.HitFlash` is a fixed tint pop, so an 88-damage
-finisher and a 9-damage jab read identically); whether the reworked spiral is now too easy; `SandboxBuilder.cs:222`
-still carries the warm pre-cold-pass ambient, so the workshop lies about how enemies read in the campaign;
-and `ARCHITECTURE.md:833` is broadly stale (still the blood-red palette). `docs/BACKLOG.md` also still holds
-the surge-decay retune against the reworked spiral.
+4. **The unmerged Span 4 worktree** — `d3b6245` is real level work on a branch never merged, in a worktree
+   far behind master (it deletes 126k lines relative to master, so a merge needs care, not a fast-forward).
+   Cherry-pick, redo on master, or drop?
+5. **Two Fable retunes waiting on a yes/no**: per-weapon camera kick (`WeaponController` calls
+   `CameraShake.I.Small()` for every weapon, so a maul hit shakes exactly as hard as a needle flick — named
+   by the combat lane as the largest remaining weight gap), and the surge decay
+   (`pshooter_enemy03.parrySurgeSeconds` 2.0 s, tuned against the *old* spiral spacing; `BACKLOG.md` has the
+   shape).
 
 ## In flight
 
-Nothing. No subagents were used this session.
+Nothing running. No subagents were used this session.
+
+**A task list was rebuilt from `BACKLOG.md` this session and is worth reconstructing** — task lists are
+session-local and do not survive a `/clear`. The 14 items, with the four marked `[NEEDS USER]` being
+questions 1, 2, 4 and 5 above: re-run the feature suite (**done**), commit the WebGL build (**done**),
+the Resolution row, the F10 gate, Legendary Ninja framing, per-weapon camera kick, per-weapon hit reaction
+(`EnemyVisuals.HitFlash` is a fixed tint pop, so an 88-damage finisher and a 9-damage jab read
+identically), the swing arc (`WeaponViewmodel.cs:268` lerps position linearly; `GuardArc` at line 412 is
+the fix pattern already in this project), the Sunbreaker hue (`Hammer.neon` sits ~5° from
+`Projectile.HotCore` — the player's weapon should not share the bolt's colour in a parry game), arms
+reacting to movement (backlog 2b), the surge decay, the sandbox's stale warm ambient
+(`SandboxBuilder.cs:222` — the workshop lies about how enemies read in the campaign), the stale palette
+section at `ARCHITECTURE.md:833`, and the Span 4 worktree.
 
 ---
 
@@ -163,19 +170,23 @@ Nothing. No subagents were used this session.
     Read docs/HANDOFF.md, then CLAUDE.md. This is vibegame1: melee-only first-person parry
     speedrun platformer, namespace VibeGame1, Unity 6000.5.10f1, C# 9, URP.
 
-    State: clean at 801ce84. The build pipeline works and is hardened - Windows builds are
-    proven (they boot), EditMode 722/722 and Health Check 0 errors were both measured
-    2026-09-07 after the package removal and the stripping change. WebGL has never been
-    built. Tag pre-buildpipeline-2026-09-07 sits at 23b53a3, before that commit.
+    State: clean at 1edf04b. BOTH build targets are now proven - Windows boots, and WebGL
+    was cut 2026-09-07 at 30.8 MB gzipped in 4:56 with 0 errors, every asset serving
+    HTTP 200. Feature suite 777/777 was re-run this session with both guards asserted;
+    EditMode 722/722 and Health Check 0 errors are inherited from earlier the same day.
+    Tag pre-buildpipeline-2026-09-07 sits at 23b53a3.
 
     Do this first, in order:
     1. Confirm the Unity editor is open on this project (PowerShell: Get-Process Unity).
        Everything goes through the user's open editor - there is no headless copy. Drive it
        with .claude/skills/unity-editor/mcp_call.py, run from the project root.
-    2. Cut the WebGL build: VibeGame1.EditorTools.BuildRunner.WebGL() via execute_code, then
-       read Builds/last-build.txt - NOT the call's return value. Measure the gzipped size.
-    3. Read docs/BACKLOG.md's two open items: the settings-menu Resolution row (the user
-       asked for "detect native and use that, nothing else") and F10 in a shipped build.
+    2. Open the WebGL build in a browser - the last unknown in the whole pipeline.
+       cd Builds/WebGL && python -m http.server 8123 --bind 127.0.0.1, then hit
+       http://127.0.0.1:8123 (file:// will not work). Check the WASM instantiates, the
+       click-to-play gate takes pointer lock, and it holds frame rate.
+    3. Rebuild the task list from docs/BACKLOG.md - task lists are session-local and do not
+       survive a /clear. HANDOFF's "In flight" section lists the 14 items and which four
+       are blocked on the user.
 
     Five rules that override instinct:
     - A cold build drops the MCP websocket, so execute_code returns success:false with a null
@@ -192,6 +203,9 @@ Nothing. No subagents were used this session.
       GameManager.I != null proves the session is warm, NOT that the world is running - a
       paused run reports ~49 plausible failures across unrelated systems.
 
+    Level_01 has ZERO enemies in play mode since the parkour pivot. Any enemy-facing test
+    needs a deliberate spawn, in the sandbox. This is why backlog 5c is still open.
+
     Never smoke-test a build with -screen-width/-screen-height flags: Unity PERSISTS them to
     HKCU:\Software\vibegame1\vibegame1, so they poison every later flagless launch.
 
@@ -199,5 +213,9 @@ Nothing. No subagents were used this session.
     Fable wrote unless the user says so in that session. Subagents REFINE only - they never
     invent a mechanic, input, resource or screen; they propose it and stop. The lead owns the
     editor, commits one commit per worker pass, and tags before a batch.
+
+    Two decisions are blocked on the user and have been carried across two handoffs: the
+    settings-menu Resolution row (delete it vs a "Native" entry at index 0) and whether
+    playtesters should have F10. The F10 one blocks publishing anything.
 
     Then ask me what to work on.
