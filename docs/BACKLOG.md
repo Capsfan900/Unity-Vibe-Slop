@@ -313,3 +313,13 @@ body in `MiniBossFactory`.
   `SESSION-PROTOCOL.md` under *While working*.
 - ~~7 feature-test skips from input-gated behaviour.~~ Closed by the `Try*()` entry points.
 - ~~The landing fight needs a human playtest.~~ Superseded by item 1 — the whole game needs one.
+
+## Settle the surge decay against the reworked spiral (opened 2026-09-06)
+
+`pshooter_enemy03.parrySurgeSeconds` is 2.0 s per stack, tuned blind against the OLD Level_01 spiral
+spacing. The openness pass (`5885b9a`) dropped the spiral hop-to-hop travel to ~0.35-0.5 s, so a player
+who parries one bolt at the bottom of The Ascent still holds stacks four hops later and the x1.60 ceiling
+becomes trivially maintainable rather than something to fight for. Intended shape: either **1.2 s** per
+stack (a stack costs about three hops of the reworked spacing), or decay tied to distance travelled rather
+than time, which survives any future respacing. Change it in `DataFactory`, re-run generator `3`, and
+assert the shipped value in `SurgeTurretTests` — a code default is not a shipped value (CLAUDE.md rule 9).
