@@ -846,6 +846,20 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
       OnDisable (a level reload, a teardown, the component going away) → Clear(), unconditionally.
       It never writes the multiplier at all while it holds no stacks, so it cannot fight a future item.
 
+  DATA-AUTHORED PROJECTILE VOLLEYS (optional; the opening five-turret ladder uses this)
+    LevelDefinition.projectileSequences[] names existing EnemySpawner objects in firing order
+      -> LevelDefinitionBuilder adds one ProjectileVolleySequence with those ordered spawner references
+      -> each spawned ProjectileShooter.SetSequenceControlled(true) opts only that instance out of the
+         ordinary shared span metronome; shooters with no sequence stay on the existing path
+      -> the first member keeps its existing projectileAcquireDelay after band, LOS and frontal readiness
+      -> ProjectileVolleySequence asks exactly one member to TryFireSequenceShot
+         -> the same EnemyData, range, LOS, ArrivesInFront, lead, launch-speed and FireAt path
+      -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that bolt is gone
+      -> recoveryGap 0.11 s follows resolution, just beyond shipped parrySuccessRecovery 0.08 s
+      -> after the first member, a 1.1 s readiness deadline skips unavailable/out-of-range members;
+         it starts after the recovery gap even when the player never enters that member's firing band
+      -> PlayerRespawned or wholesale EnemySpawner instance replacement restarts and rebinds the row
+
   SHIPPED NUMBERS (DataFactory, rule 9; pinned by SurgeTurretTests)
     maxHP 1          one hit from anything kills it. maxPosture 200 -- out of reach on purpose, so it never
                      staggers and never raises a DEATHBLOW glyph on a body that is already dead.
@@ -855,7 +869,7 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
                      240 deg/s (it must turn DOWN as well as across at a player descending past it),
                      band 2.5 .. 36 m, lead 1.0.
     surge            step 0.12 (+1.32 m/s a parry on groundSpeed 11), maxStacks 5 → ceiling x1.60,
-                     parrySurgeSeconds 2 → the full ladder is gone 10 s after the last parry.
+                     parrySurgeSeconds 1.5 → the full ladder is gone 7.5 s after the last parry.
     body             scale 0.55, #6F7C8A over #A8C4DC x0.9 (under the 1.05 bloom cap). Separates from the
                      two sentries on shape (a sphere in a hoop -- the only round silhouette), size (half)
                      and value (mid steel between the ghost's near-white and the Heavy Sentry's near-black).
@@ -1918,7 +1932,10 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
 ## Boss
 
 ```
-BossArenaTrigger (player enters) → BossController.Activate() ⇢ BossStarted → HUD bar + boss music
+exterior SolarArenaPortal (player crosses the arena sun)
+  → BossArenaTrigger.BeginFight(player) → gate seals
+  → FirstPersonMotor.Teleport(realmEntry, yaw) → enclosed same-scene boss realm
+  → final arena: BossController.Activate() ⇢ BossStarted → HUD bar + boss music
   Health.deathIsStagger = true  → HP 0 does NOT kill
       → ⇢ OnZeroHealth → Posture.Break() + HoldStagger(5s)   = deathblow window
       → riposte (isExecute) → HandleDeath(): SegmentsLeft--, heal, next phase, roar
@@ -2000,11 +2017,23 @@ LevelDefinition (Assets/Data/Levels/Level_01_Level.asset)   <- THE SOURCE OF TRU
   Its literal coordinates survive only as BuildHardcoded(), the reference implementation.
 
 BossArenaTrigger  = ONE mechanism for every gated fight
-  entry gate rests SUNK, rises to seal you in on OnTriggerEnter
+  entry gate rests SUNK, rises to seal you in on OnTriggerEnter / BeginFight
   boss arena      (clearSpawner null)  -> BossController.Activate(); nothing ever reopens
   mini-boss arena (clearSpawner set)   -> exit gate rests UP; Update() watches that spawner and
                                           drops BOTH gates once its enemy is dead
                                           (latched on "seen alive" so it cannot open at level start)
+
+SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
+  SolarArenaVisual rotates exterior plasma/corona; realm ceiling rotates around Y only
+    -> serialized plasmaOpacityOverride reapplies the ceiling renderer property block on enable
+    -> SolarArena.shader moves coloured currents; stationary realm floor/walls own collision
+  exterior sphere remains at the authored court anchor; crossing it calls BeginFight, then Teleport
+  builder moves the LIVE named spawner and court pickup into a disconnected enclosed realm
+    → SolarRealmPlacement preserves their authored exterior coordinates for scene export round trips
+  mini-boss clear → inner return portal appears → player chooses when to return beyond the exit gate
+  final boss has no return portal → existing BossDefeated / LEVEL CLEAR flow remains the only exit
+  ResetArena → ResetPortal; death still respawns at the exterior checkpoint, while the bloodstain
+                remains inside the active realm and can be recovered by entering the sphere again
 
 LevelManager  owns spawners, checkpoints, respawn
   Checkpoint trigger → SetCheckpoint(): heal, refill flask ⇢ CheckpointReached

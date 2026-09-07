@@ -82,6 +82,7 @@ namespace VibeGame1.EditorTools
             var torches = new List<TorchDef>();
             var pedestals = new List<PedestalDef>();
             var arenas = new List<ArenaDef>();
+            var projectileSequences = new List<ProjectileSequenceDef>();
 
             // Pass 1: find the arenas first, so their gates are not also exported as plain platforms, and
             // so the plinth of a wand altar is not exported as a platform the builder would then double.
@@ -100,6 +101,9 @@ namespace VibeGame1.EditorTools
                     gateClosedPosition = trig.gateClosedPosition,
                     clearSpawnerName = trig.clearSpawner != null ? trig.clearSpawner.name : "",
                 };
+                if (trig.solarPortal != null && trig.solarPortal.definition != null)
+                    a.solarRealm = JsonUtility.FromJson<SolarRealmDef>(
+                        JsonUtility.ToJson(trig.solarPortal.definition));
                 if (trig.gate != null)
                 {
                     gateTransforms.Add(trig.gate);
@@ -132,6 +136,20 @@ namespace VibeGame1.EditorTools
                     triggerRadius = sc != null ? sc.radius : 3f,
                 });
                 skipNames.Add(ped.name + "_Plinth");
+            }
+
+            // A volley host is behaviour-only, so read its ordered spawner references before the direct-
+            // child geometry pass and keep the host itself out of platform export.
+            foreach (var volley in levelRoot.GetComponentsInChildren<ProjectileVolleySequence>(true))
+            {
+                projectileSequences.Add(new ProjectileSequenceDef
+                {
+                    name = volley.name,
+                    spawnerNames = volley.SpawnerNames,
+                    recoveryGap = volley.RecoveryGap,
+                    readinessTimeout = volley.ReadinessTimeout
+                });
+                skipNames.Add(volley.name);
             }
 
             // The sky's build parameters (star count, seed, eclipse angles) cannot be recovered from the
@@ -172,12 +190,13 @@ namespace VibeGame1.EditorTools
                 var spawner = go.GetComponent<EnemySpawner>();
                 if (spawner != null)
                 {
+                    var solarPlacement = go.GetComponent<SolarRealmPlacement>();
                     spawns.Add(new SpawnDef
                     {
                         name = go.name,
                         prefabKey = spawner.prefab != null ? spawner.prefab.name : "",
-                        position = child.position,
-                        yaw = child.eulerAngles.y,
+                        position = solarPlacement != null ? solarPlacement.authoredPosition : child.position,
+                        yaw = solarPlacement != null ? solarPlacement.authoredYaw : child.eulerAngles.y,
                         isBoss = spawner.isBoss,
                     });
                     continue;
@@ -238,11 +257,12 @@ namespace VibeGame1.EditorTools
                     foreach (Transform p in child)
                     {
                         var pickup = p.GetComponent<ItemPickup>();
+                        var solarPlacement = p.GetComponent<SolarRealmPlacement>();
                         pickups.Add(new PickupDef
                         {
                             name = p.name,
                             itemKey = pickup != null && pickup.item != null ? pickup.item.name : "",
-                            position = p.position,
+                            position = solarPlacement != null ? solarPlacement.authoredPosition : p.position,
                         });
                     }
                     continue;
@@ -293,6 +313,7 @@ namespace VibeGame1.EditorTools
             def.balloons = balloons.ToArray();
             def.waters = waters.ToArray();
             def.arenas = arenas.ToArray();
+            def.projectileSequences = projectileSequences.ToArray();
         }
 
         /// <summary>'M_Platform' -> 'Platform'. Keys omit the prefix so definitions read cleanly.</summary>

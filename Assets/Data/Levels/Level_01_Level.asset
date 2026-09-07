@@ -741,6 +741,62 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
+  - name: T0_TurretPad_1
+    center: {x: -6.7, y: 1.8000001, z: -25}
+    size: {x: 3, y: 1, z: 3}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_TurretPad_2
+    center: {x: 6.7, y: -0.5, z: -9}
+    size: {x: 3, y: 1, z: 3}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_TurretPad_3
+    center: {x: -9.7, y: -0.5, z: 7}
+    size: {x: 3, y: 1, z: 3}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_OverheadDais_Front
+    center: {x: 0.75, y: 8, z: 16}
+    size: {x: 9, y: 1, z: 4}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_OverheadDais_Rear
+    center: {x: 3.25, y: 8, z: 22.25}
+    size: {x: 4, y: 1, z: 2}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_OverheadDais_Link
+    center: {x: 4.5, y: 7.9, z: 19.5}
+    size: {x: 1.5, y: 0.8, z: 5}
+    materialKey: Stone
+    trim: 0
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T0_OverheadDais_Under
+    center: {x: 0.75, y: 7.4, z: 16}
+    size: {x: 6.5, y: 0.5, z: 2.5}
+    materialKey: Stone
+    trim: 0
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  - name: T0_OverheadDais_Keel
+    center: {x: 0.75, y: 6.85, z: 16}
+    size: {x: 3, y: 0.7, z: 1.4}
+    materialKey: Stone
+    trim: 0
+    trimMaterialKey: NeonPink
+    isStatic: 1
   ramps:
   - name: T1_Ramp_Stone12
     basePosition: {x: 2, y: 0, z: 16.3}
@@ -870,6 +926,31 @@ MonoBehaviour:
     prefabKey: pshooter_enemy03
     position: {x: 6.7, y: 16.1, z: 360}
     yaw: 210
+    isBoss: 0
+  - name: Spawn_T0_Surge_1
+    prefabKey: pshooter_enemy03
+    position: {x: -6.7, y: 2.4, z: -25}
+    yaw: 150
+    isBoss: 0
+  - name: Spawn_T0_Surge_2
+    prefabKey: pshooter_enemy03
+    position: {x: 6.7, y: 0.1, z: -9}
+    yaw: 210
+    isBoss: 0
+  - name: Spawn_T0_Surge_3
+    prefabKey: pshooter_enemy03
+    position: {x: -9.7, y: 0.1, z: 7}
+    yaw: 150
+    isBoss: 0
+  - name: Spawn_T0_Surge_4
+    prefabKey: pshooter_enemy03
+    position: {x: -2.4, y: 8.6, z: 15}
+    yaw: 165
+    isBoss: 0
+  - name: Spawn_T0_Surge_5
+    prefabKey: pshooter_enemy03
+    position: {x: 3.2, y: 8.6, z: 15}
+    yaw: 195
     isBoss: 0
   pickups:
   - name: Pickup_Hook_Spawn
@@ -1092,6 +1173,27 @@ MonoBehaviour:
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 6, z: 99.75}
     exitGateOpenPosition: {x: 0, y: -0.5, z: 99.75}
+    solarRealm:
+      enabled: 1
+      themeMaterialKey: SolarCyan
+      exteriorCenter: {x: 0, y: 8.2, z: 87}
+      exteriorRadius: 12
+      realmCenter: {x: 700, y: 0, z: 0}
+      realmFloorRadius: 20
+      realmShellRadius: 30
+      playerEntryPosition: {x: 700, y: 1.2, z: -13}
+      playerEntryYaw: 0
+      retryPosition: {x: 0, y: 3.2, z: 70}
+      retryYaw: 0
+      enemySpawnerName: Spawn_Legendary_Ninja
+      enemySpawnPosition: {x: 700, y: 0.1, z: 4}
+      enemySpawnYaw: 180
+      arenaPickupName: Pickup_T1_Surge
+      arenaPickupPosition: {x: 693, y: 1.2, z: -2}
+      hasReturn: 1
+      realmExitPosition: {x: 700, y: 1.5, z: -17.5}
+      returnPosition: {x: 0, y: 4.2, z: 102}
+      returnYaw: 0
   - enabled: 1
     gateName: T2_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
@@ -1108,6 +1210,27 @@ MonoBehaviour:
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 22, z: 183.75}
     exitGateOpenPosition: {x: 0, y: 15.5, z: 183.75}
+    solarRealm:
+      enabled: 1
+      themeMaterialKey: SolarGold
+      exteriorCenter: {x: 0, y: 24.55, z: 170}
+      exteriorRadius: 13
+      realmCenter: {x: 700, y: 0, z: 80}
+      realmFloorRadius: 20
+      realmShellRadius: 30
+      playerEntryPosition: {x: 700, y: 1.2, z: 67}
+      playerEntryYaw: 0
+      retryPosition: {x: 0, y: 20.2, z: 150}
+      retryYaw: 0
+      enemySpawnerName: Spawn_Legendary_Knight
+      enemySpawnPosition: {x: 700, y: 0.1, z: 84}
+      enemySpawnYaw: 180
+      arenaPickupName: Pickup_T2_Hook_2
+      arenaPickupPosition: {x: 693, y: 1.2, z: 78}
+      hasReturn: 1
+      realmExitPosition: {x: 700, y: 1.5, z: 62.5}
+      returnPosition: {x: 0, y: 20.2, z: 186}
+      returnYaw: 0
   - enabled: 1
     gateName: T3_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
@@ -1124,6 +1247,27 @@ MonoBehaviour:
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 30, z: 282.75}
     exitGateOpenPosition: {x: 0, y: 23.5, z: 282.75}
+    solarRealm:
+      enabled: 1
+      themeMaterialKey: SolarAzure
+      exteriorCenter: {x: 0, y: 32.2, z: 270}
+      exteriorRadius: 12
+      realmCenter: {x: 700, y: 0, z: 160}
+      realmFloorRadius: 20
+      realmShellRadius: 30
+      playerEntryPosition: {x: 700, y: 1.2, z: 147}
+      playerEntryYaw: 0
+      retryPosition: {x: 0, y: 28.2, z: 253}
+      retryYaw: 0
+      enemySpawnerName: Spawn_Legendary_Spellsword
+      enemySpawnPosition: {x: 700, y: 0.1, z: 164}
+      enemySpawnYaw: 180
+      arenaPickupName: Pickup_T3_Surge_2
+      arenaPickupPosition: {x: 707, y: 1.2, z: 158}
+      hasReturn: 1
+      realmExitPosition: {x: 700, y: 1.5, z: 142.5}
+      returnPosition: {x: 0, y: 28.2, z: 286}
+      returnYaw: 0
   - enabled: 1
     gateName: Boss_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
@@ -1140,6 +1284,37 @@ MonoBehaviour:
     exitGateMaterialKey: Gate
     exitGateClosedPosition: {x: 0, y: 0, z: 0}
     exitGateOpenPosition: {x: 0, y: 0, z: 0}
+    solarRealm:
+      enabled: 1
+      themeMaterialKey: SolarGhost
+      exteriorCenter: {x: 0, y: 22.3, z: 390}
+      exteriorRadius: 18
+      realmCenter: {x: 700, y: 0, z: 240}
+      realmFloorRadius: 20
+      realmShellRadius: 30
+      playerEntryPosition: {x: 700, y: 1.2, z: 227}
+      playerEntryYaw: 0
+      retryPosition: {x: 0, y: 16.2, z: 361}
+      retryYaw: 0
+      enemySpawnerName: Spawn_Boss
+      enemySpawnPosition: {x: 700, y: 0.1, z: 244}
+      enemySpawnYaw: 180
+      arenaPickupName: Pickup_Boss_Hook
+      arenaPickupPosition: {x: 693, y: 1.2, z: 235}
+      hasReturn: 0
+      realmExitPosition: {x: 700, y: 1.5, z: 222.5}
+      returnPosition: {x: 0, y: 0, z: 0}
+      returnYaw: 0
+  projectileSequences:
+  - name: T0_SurgeVolley
+    spawnerNames:
+    - Spawn_T0_Surge_1
+    - Spawn_T0_Surge_2
+    - Spawn_T0_Surge_3
+    - Spawn_T0_Surge_4
+    - Spawn_T0_Surge_5
+    recoveryGap: 0.11
+    readinessTimeout: 1.1
   sky:
     enabled: 1
     starCount: 1200

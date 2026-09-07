@@ -280,6 +280,62 @@ namespace VibeGame1
             return it;
         }
 
+        sealed class WorldEnemyState
+        {
+            public GameObject instance;
+            public EnemyController controller;
+            public bool active;
+            public bool aggroLocked;
+        }
+
+        /// <summary>
+        /// Guard, lock-on, deathblow, item and flask checks need a controlled attacker or target. Keep authored
+        /// enemies out of those stages while leaving dummies spawned by the test itself available.
+        /// Lock aggro before deactivation because an authored volley invokes its shooter directly.
+        /// </summary>
+        List<WorldEnemyState> IsolateWorldEnemies()
+        {
+            var state = new List<WorldEnemyState>();
+            foreach (var spawner in FindObjectsByType<EnemySpawner>())
+            {
+                var instance = spawner.Instance;
+                if (instance == null) continue;
+                var controller = instance.GetComponent<EnemyController>();
+                state.Add(new WorldEnemyState
+                {
+                    instance = instance,
+                    controller = controller,
+                    active = instance.activeSelf,
+                    aggroLocked = controller != null && controller.aggroLocked
+                });
+                if (controller != null) controller.aggroLocked = true;
+                instance.SetActive(false);
+            }
+
+            // A bolt launched before isolation is still an authored world attacker. Remove it from the
+            // registry through normal destruction so it cannot land during a timing assertion.
+            foreach (var bolt in FindObjectsByType<Projectile>())
+                if (bolt != null) Destroy(bolt.gameObject);
+            return state;
+        }
+
+        static void RestoreWorldEnemies(List<WorldEnemyState> state)
+        {
+            if (state == null) return;
+            foreach (var saved in state)
+            {
+                if (saved.instance == null) continue;
+                saved.instance.SetActive(saved.active);
+                if (saved.controller != null) saved.controller.aggroLocked = saved.aggroLocked;
+            }
+        }
+
+        static bool NeedsQuietWorld(string testName)
+        {
+            return testName == "Guard" || testName == "LockOn" || testName == "Deathblow" ||
+                   testName == "Items" || testName == "Flask";
+        }
+
         // ---------------------------------------------------------------- suite driver
 
         IEnumerator RunSuite(string filter)
@@ -347,6 +403,7 @@ namespace VibeGame1
 
                 CurrentTest = t.Key;
                 Section(t.Key);
+                List<WorldEnemyState> worldEnemies = NeedsQuietWorld(t.Key) ? IsolateWorldEnemies() : null;
                 var enumerator = t.Value();
                 while (true)
                 {
@@ -366,6 +423,7 @@ namespace VibeGame1
                 }
 
                 yield return ResetPlayerState();
+                RestoreWorldEnemies(worldEnemies);
             }
 
             CurrentTest = "";
@@ -3561,6 +3619,10 @@ namespace VibeGame1
                         cp == null || cp.GetComponent<Collider>() == null || !cp.GetComponent<Collider>().enabled);
 
                 // Respawn restores world pickups (ItemPickup listens for PlayerRespawned).
+                // Move the collected test prop clear before restoring it: an overlapping player would
+                // collect it again on the next physics tick. Preserve the player's staging for the
+                // grapple checks below; the actual checkpoint teleport is tested by LevelFlow.
+                clone.transform.position += Vector3.up * 50f;
                 GameEvents.RaisePlayerRespawned();
                 yield return null;
                 if (cp != null && cp.GetComponent<Collider>() != null)
@@ -4599,6 +4661,13 @@ namespace VibeGame1
             return null;
         }
 
+        static EnemySpawner FindFinalBossSpawner()
+        {
+            foreach (var s in FindObjectsByType<EnemySpawner>())
+                if (s.isBoss) return s;
+            return null;
+        }
+
         static BossArenaTrigger FindBossArena()
         {
             foreach (var a in FindObjectsByType<BossArenaTrigger>())
@@ -4624,6 +4693,37 @@ namespace VibeGame1
             // ---- F5 and the test menu's "Boss Arena" both go through Warp("Checkpoint_4") -------
             var bossArena = FindBossArena();
             Check("Structure_BossArenaExists", bossArena != null);
+            var solarPortals = FindObjectsByType<SolarArenaPortal>();
+            Check("Structure_FourSolarArenaPortals", solarPortals.Length == 4,
+                "count=" + solarPortals.Length);
+            foreach (var portal in solarPortals)
+            {
+                Check("Structure_" + portal.name + "_Wired",
+                    portal.arena != null && portal.realmEntry != null && portal.realmBoundsCenter != null &&
+                    portal.GetComponent<SphereCollider>() != null && portal.GetComponent<SphereCollider>().isTrigger,
+                    "arena=" + (portal.arena != null) + " entry=" + (portal.realmEntry != null));
+                EnemySpawner realmSpawner = portal.IsFinalBossPortal
+                    ? FindFinalBossSpawner()
+                    : (portal.arena != null ? portal.arena.clearSpawner : null);
+                Check("Structure_" + portal.name + "_EnemyInRealm",
+                    realmSpawner != null && portal.realmBoundsCenter != null &&
+                    Vector3.Distance(realmSpawner.transform.position, portal.realmBoundsCenter.position) < 10f,
+                    "spawner=" + (realmSpawner != null ? realmSpawner.name : "null"));
+                Check("Structure_" + portal.name + "_ReturnContract",
+                    portal.IsFinalBossPortal ? portal.realmExitRoot == null : portal.realmExitRoot != null);
+                var realmFloor = portal.realmBoundsCenter != null ? portal.realmBoundsCenter.Find("Floor") : null;
+                var floorCollider = realmFloor != null ? realmFloor.GetComponent<MeshCollider>() : null;
+                Check("Structure_" + portal.name + "_FlatPhysicalFloor",
+                    floorCollider != null && floorCollider.sharedMesh != null && floorCollider.bounds.size.y <= 1.01f,
+                    "wide cylinder must use a thin disc collider, never a stretched capsule");
+                var ceilingSpin = portal.realmBoundsCenter != null
+                    ? portal.realmBoundsCenter.GetComponent<SolarArenaVisual>() : null;
+                Check("Structure_" + portal.name + "_CeilingCannotTiltIntoCombat",
+                    ceilingSpin != null && ceilingSpin.plasma != null &&
+                    Mathf.Abs(ceilingSpin.plasmaDegreesPerSecond.x) < 0.001f &&
+                    Mathf.Abs(ceilingSpin.plasmaDegreesPerSecond.z) < 0.001f,
+                    "solar disc rotates around its vertical axis only");
+            }
             if (checkpoints.ContainsKey("Checkpoint_4") && bossArena != null)
             {
                 LevelManager.I.Warp("Checkpoint_4");
@@ -4875,6 +4975,13 @@ namespace VibeGame1
         /// <summary>Enter an arena the way the level does - a real collider entry, not a poked flag.</summary>
         IEnumerator EnterArena(BossArenaTrigger a)
         {
+            if (a.solarPortal != null)
+            {
+                a.solarPortal.Enter(combat);
+                yield return null;
+                yield return WaitUntilOrTimeout(() => AtPos(a.gate, a.gateClosedPosition), 3f);
+                yield break;
+            }
             var col = a.GetComponent<Collider>();
             Vector3 p = col != null ? col.bounds.center : a.transform.position;
             motor.Teleport(p, 0f);
@@ -4985,6 +5092,24 @@ namespace VibeGame1
             Check(tag + "StaysOpenAfterClearing",
                 a.Cleared && AtPos(a.exitGate, a.exitGateOpenPosition) && AtPos(a.gate, a.gateOpenPosition),
                 "cleared=" + a.Cleared + " exit=" + a.exitGate.position);
+
+            if (a.solarPortal != null)
+            {
+                Check(tag + "RealmExitAppearsAfterClear", a.solarPortal.ExitAvailable);
+                yield return WaitRealtime(0.3f);
+                bool returned = a.solarPortal.Exit(combat);
+                yield return null;
+                Vector3 actualReturn = combat.transform.position;
+                Vector3 authoredReturn = a.solarPortal.WorldReturnPosition;
+                float horizontalError = Vector2.Distance(
+                    new Vector2(actualReturn.x, actualReturn.z),
+                    new Vector2(authoredReturn.x, authoredReturn.z));
+                float verticalError = Mathf.Abs(actualReturn.y - authoredReturn.y);
+                Check(tag + "RealmExitReturnsBeyondGate", returned &&
+                    horizontalError < 0.05f && verticalError <= 0.3f,
+                    "player=" + actualReturn + " return=" + authoredReturn +
+                    " horizontalError=" + horizontalError + " verticalError=" + verticalError);
+            }
 
             // ---- dying mid-tile re-seals the arena -----------------------------------------------
             LevelManager.I.Respawn();

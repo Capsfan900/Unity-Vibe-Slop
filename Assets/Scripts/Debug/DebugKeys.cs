@@ -14,7 +14,7 @@ namespace VibeGame1
     public class DebugKeys : MonoBehaviour
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        static readonly Vector3 ArenaEntrance = new Vector3(0f, 28.2f, 296f);
+        static readonly Vector3 LegacyArenaEntrance = new Vector3(0f, 18.2f, 375f);
         const int TestWeaponSlot = 3;
 
         Coroutine promptRoutine;
@@ -45,8 +45,17 @@ namespace VibeGame1
             LevelManager.I.Warp("Checkpoint_4");
             var motor = player.GetComponent<FirstPersonMotor>();
             var look = player.GetComponent<PlayerLook>();
-            if (motor != null) motor.Teleport(ArenaEntrance, 0f);
-            if (look != null) look.SetYaw(0f);
+            var portal = SolarArenaPortal.FindFinalBossPortal();
+            BossArenaTrigger legacyArena = null;
+            if (portal == null)
+                foreach (var candidate in FindObjectsByType<BossArenaTrigger>())
+                    if (candidate.clearSpawner == null) { legacyArena = candidate; break; }
+            Vector3 entrance = portal != null && portal.worldRetry != null ? portal.worldRetry.position
+                : legacyArena != null ? legacyArena.transform.position : LegacyArenaEntrance;
+            float yaw = portal != null && portal.worldRetry != null
+                ? portal.worldRetry.eulerAngles.y : 0f;
+            if (motor != null) motor.Teleport(entrance, yaw);
+            if (look != null) look.SetYaw(yaw);
 
             var weapons = player.GetComponent<WeaponController>();
             if (weapons != null && weapons.loadout != null && weapons.loadout.Length > TestWeaponSlot)

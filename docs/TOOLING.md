@@ -448,6 +448,13 @@ to grant surge. This proves integration, never human fairness. The probe tempora
 restores the prior invulnerability flag, returns the player, clears its projectiles and respawns the three
 turrets. Health protection is OFF for the parry variant (invulnerability bypasses attack resolution).
 `Start(false, true)` checks a mid-ramp jump cancellation. Live movement/jump input aborts the probe.
+`StartOpening(false)` runs the same motor check on the new opening ramp; `StartOpening(true)` enables
+its five-turret encounter and requires real surge grants from all five turrets. Individual shot/grant counts remain
+in the report: firing without a deflect does not prove that the bolt offered a frontal parry.
+This longer opening variant continues beyond the slide using existing forward impulse/jump entry
+points to traverse the first span, preserving earned overspeed. It reports each deflect time/position
+and requires the full 1.60x multiplier. That assisted test drive is integration evidence, not a human
+input recording or a guarantee of encounter fairness.
 The automatic-parry driver uses `EditorApplication.update`, which can poll too slowly when unfocused
 to observe its 120 ms trigger. The final saved encounter passed at capped 60 fps, while an uncapped
 run missed the first parry and cascaded into knockback. Treat an uncapped failure as inconclusive;

@@ -27,8 +27,19 @@ namespace VibeGame1.EditorTools
         static Vector3 returnPosition;
         static float returnYaw;
         static string result = "Not run";
+        static bool opening;
+        static float peakMultiplier;
+        static int recordedGrants;
+        static ProjectileVolleySequence openingSequence;
+        static bool sequenceWasEnabled;
 
-        public static string Start(bool automaticParries, bool testJumpCancel = false)
+        /// <summary>The authored opening sequence must grant all five real turret deflects.</summary>
+        public static string StartOpening(bool automaticParries)
+        {
+            return Start(automaticParries, false, true);
+        }
+
+        public static string Start(bool automaticParries, bool testJumpCancel = false, bool openingDescent = false)
         {
             if (running) return "Already running";
             if (!EditorApplication.isPlaying || GameManager.I == null || Time.timeScale != 1f)
@@ -36,7 +47,13 @@ namespace VibeGame1.EditorTools
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Level_01")
                 return "Requires Level_01";
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelDefinitionAuthoring.Level01);
-            ramp = def.ramps.Single(r => r.name == "T4_Ramp_Descent");
+            opening = openingDescent;
+            peakMultiplier = 1f;
+            recordedGrants = 0;
+            openingSequence = opening ? UnityEngine.Object.FindAnyObjectByType<ProjectileVolleySequence>() : null;
+            sequenceWasEnabled = openingSequence != null && openingSequence.enabled;
+            if (openingSequence != null) openingSequence.enabled = automaticParries;
+            ramp = def.ramps.Single(r => r.name == (opening ? "T0_Ramp_Descent" : "T4_Ramp_Descent"));
             motor = UnityEngine.Object.FindAnyObjectByType<FirstPersonMotor>();
             health = motor.GetComponent<Health>(); parry = motor.GetComponent<ParryController>();
             combat = motor.GetComponent<PlayerCombat>();
@@ -48,14 +65,16 @@ namespace VibeGame1.EditorTools
             health.ResetFull();
             var surge = motor.GetComponent<ParrySurge>(); if (surge != null) surge.Clear();
             spawners.Clear(); shooters.Clear(); turrets.Clear();
-            foreach (var sp in UnityEngine.Object.FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None))
+            foreach (var sp in UnityEngine.Object.FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None)
+                         .Where(s => s.name.StartsWith(opening ? "Spawn_T0_Surge_" : "Spawn_T4_Surge_"))
+                         .OrderBy(s => s.name))
             {
-                if (!sp.name.StartsWith("Spawn_T4_Surge_")) continue;
                 sp.Spawn(); spawners.Add(sp);
                 var shooter = sp.Instance.GetComponent<ProjectileShooter>();
                 shooter.enabled = automaticParries; shooters.Add(shooter);
                 turrets.Add(sp.Instance.GetComponent<SurgeTurret>());
             }
+            if (openingSequence != null && automaticParries) openingSequence.Restart();
             foreach (var bolt in UnityEngine.Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None))
                 UnityEngine.Object.Destroy(bolt.gameObject);
             Vector3 entry = ramp.basePosition - ramp.Heading * 0.8f;
@@ -80,6 +99,11 @@ namespace VibeGame1.EditorTools
             try
             {
                 float elapsed = Time.unscaledTime - started;
+                if (health != null && health.IsDead)
+                {
+                    Finish("FAIL: player died before the descent probe completed");
+                    return;
+                }
                 if (InputReader.I != null && (InputReader.I.MoveAxis.sqrMagnitude > 0.001f || InputReader.I.JumpHeld))
                 { Finish("INTERRUPTED: player input; this is not a movement failure"); return; }
                 if (elapsed > 12f) { Finish("TIMEOUT"); return; }
@@ -95,12 +119,48 @@ namespace VibeGame1.EditorTools
                 float along = Vector3.Dot(motor.transform.position - ramp.basePosition, ramp.Heading);
                 reached |= along >= ramp.run;
                 maxSpeed = Mathf.Max(maxSpeed, motor.HorizontalSpeed);
+                peakMultiplier = Mathf.Max(peakMultiplier, motor.SpeedMultiplier);
                 worstDelta = Mathf.Max(worstDelta, Time.unscaledDeltaTime);
                 if (!motor.IsGrounded) airborneFrames++;
                 if (!motor.IsSliding && float.IsNaN(endSlideZ)) endSlideZ = motor.transform.position.z;
                 if (withParries && parry.Current == ParryController.State.Idle && !combat.IsStaggered &&
                     !combat.IsExecuting && !combat.IsDrinking && BoltRegistry.AnyImpactBefore(Time.time + 0.12f))
                     parry.StartParry();
+                if (opening && withParries)
+                {
+                    int currentGrants = turrets.Sum(s => ReferenceEquals(s, null) ? 0 : s.SurgesGranted);
+                    if (currentGrants != recordedGrants)
+                    {
+                        recordedGrants = currentGrants;
+                        log.AppendLine(string.Format("Opening deflect {0}: t={1:0.000}, position={2}, multiplier={3:0.00}",
+                            currentGrants, t, motor.transform.position, motor.SpeedMultiplier));
+                    }
+                    if (turrets.Count == 5 && turrets.All(s => !ReferenceEquals(s, null) && s.SurgesGranted >= 1))
+                    {
+                        Finish(peakMultiplier >= 1.599f ? "PASS: all five opening turrets parried; full speed boost"
+                            : "FAIL: five parries did not sustain the full speed boost");
+                        return;
+                    }
+                    // The five-shot opening extends onto the original first span. Simulate continued
+                    // forward intent after the slope with the existing entry points, never write velocity
+                    // or subtract earned overspeed. Hop genuine gaps; no teleports or airborne support.
+                    if (reached && !motor.IsSliding)
+                    {
+                        float missingSpeed = motor.groundSpeed - motor.HorizontalSpeed;
+                        if (missingSpeed > 0f) motor.AddImpulse(ramp.Heading * missingSpeed);
+                        if (motor.IsGrounded)
+                        {
+                            Vector3 ahead = motor.transform.position + ramp.Heading * Mathf.Max(1.2f, motor.HorizontalSpeed * 0.08f);
+                            if (!Physics.Raycast(ahead + Vector3.up, Vector3.down, 3f, 1 << 0, QueryTriggerInteraction.Ignore))
+                                motor.TryJump();
+                        }
+                    }
+                    if (motor.transform.position.z > 65f)
+                    {
+                        Finish("FAIL: passed the opening encounter before all five deflects");
+                        return;
+                    }
+                }
                 if (jumpTrial && !jumpRequested && along > ramp.run * 0.4f)
                 {
                     jumpRequested = motor.TryJump();
@@ -120,7 +180,7 @@ namespace VibeGame1.EditorTools
                         motor.IsSliding, motor.IsGrounded, motor.SpeedMultiplier));
                     nextSample = t + 0.2f;
                 }
-                if (!motor.IsSliding && t > 0.1f)
+                if (!motor.IsSliding && t > 0.1f && !(opening && withParries && reached))
                     Finish(reached ? "PASS: continuous slide reached run-out and ended" : "FAIL: slide ended before run-out");
             }
             catch (Exception ex) { Finish("ERROR: " + ex); }
@@ -132,13 +192,15 @@ namespace VibeGame1.EditorTools
             // Getter fields survive Unity destruction; do not access transform on these references.
             int fired = shooters.Sum(s => ReferenceEquals(s, null) ? 0 : s.Fired);
             int grants = turrets.Sum(s => ReferenceEquals(s, null) ? 0 : s.SurgesGranted);
-            bool everyTurret = turrets.Count == 3 && turrets.All(t => !ReferenceEquals(t, null) && t.SurgesGranted >= 1);
-            if (withParries && !everyTurret && verdict.StartsWith("PASS"))
-                verdict = "FAIL: slide completed but not all three turrets granted a surge";
+            int distinctGrants = turrets.Count(t => !ReferenceEquals(t, null) && t.SurgesGranted >= 1);
+            int requiredGrants = opening ? 5 : 3;
+            if (withParries && (turrets.Count != requiredGrants || distinctGrants < requiredGrants) && verdict.StartsWith("PASS"))
+                verdict = "FAIL: slide completed but fewer than " + requiredGrants + " turrets granted a surge";
             log.AppendLine(string.Format("{0}; maxSpeed={1:0.00}; worstFrame={2:0.000}; airborneFrames={3}; endSlideZ={4:0.00}; fired={5}; surgeGrants={6}",
                 verdict, maxSpeed, worstDelta, airborneFrames, endSlideZ, fired, grants));
             log.AppendLine("Surges by turret: " + string.Join(",", turrets.Select(t => ReferenceEquals(t, null) ? "missing" : t.SurgesGranted.ToString()).ToArray()));
             log.AppendLine("Shots by turret: " + string.Join(",", shooters.Select(t => ReferenceEquals(t, null) ? "missing" : t.Fired.ToString()).ToArray()));
+            log.AppendLine("Peak movement multiplier: " + peakMultiplier.ToString("0.00"));
             result = log.ToString();
             if (EditorApplication.isPlaying && motor != null)
             {
@@ -150,6 +212,11 @@ namespace VibeGame1.EditorTools
                 foreach (var bolt in UnityEngine.Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None))
                     UnityEngine.Object.Destroy(bolt.gameObject);
                 foreach (var sp in spawners) if (sp != null) sp.Spawn();
+                if (openingSequence != null)
+                {
+                    openingSequence.enabled = sequenceWasEnabled;
+                    openingSequence.Restart();
+                }
             }
         }
 

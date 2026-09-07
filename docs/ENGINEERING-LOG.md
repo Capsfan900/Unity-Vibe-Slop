@@ -3214,3 +3214,52 @@ as leaving water already does. Setting `slideSlopeAccel` to zero disables the wh
 **Invariant.** A sustained slope needs both a speed/duration contract and controller contact at the
 lowest supported frame rate. A cached coyote normal cannot sustain an airborne slide; ground snap cannot
 override jump velocity. Pure tests cover the arithmetic; actual collider behavior requires the live probe.
+
+## 2026-09-07 — Generated solar realms must preserve physics and authoring identity
+
+**Symptom.** Review of the new boss-realm builder found a primitive cylinder used as a wide, thin floor,
+and a glowing ceiling disc rotating on all axes. The exporter also initially lost the new realm data.
+
+**Root cause.** Unity's cylinder primitive has capsule collision: scaling it to a broad disc does not
+make its collider flat. A continuously tilting ceiling disc eventually sweeps down through combat.
+Scene export reconstructs ArenaDef rather than retaining new optional fields automatically, while
+remote spawner positions differ intentionally from the historical authored exterior anchors.
+
+**Fix.** The stationary floor explicitly uses a MeshCollider sharing the cylinder mesh. The solar disc
+rotates around Y only. SolarRealmPlacement retains historical spawn/pickup coordinates for export,
+and the portal carries a deep-copied SolarRealmDef that the exporter preserves. Generated feature
+checks guard the floor shape and the ceiling's axis; exporter tests guard the complete definition.
+
+**Invariant.** Verify the collider separately from the visible primitive. A rotating decoration must
+remain outside playable space for its entire rotation. Optional generated realm data must survive
+export to a fresh definition; rebuilding a scene must not turn remote runtime placement into authored
+route geometry. Live Unity verification for this change is recorded in VERIFICATION-REPORT.md.
+
+## 2026-09-07 — An opening volley must prove the fifth contact, not just five launches
+
+**Symptom.** The first arrangement earned four parries. Moving its overhead platform closer made
+all five connect, but the fifth arrived after the player's first jump and one speed stack had decayed.
+
+**Fix.** The upper pair now shares the front terrace at z 15. Two actual motor/projection runs earn
+five distinct grants and the existing 1.60x multiplier before the first jump. The late-ramp row and
+global projectile/boost numbers stay unchanged. The probe sorts spawners before reporting their
+counts and fails on death, rather than letting a subsequent respawn contaminate the trajectory.
+
+**Invariant.** A range/LOS proof does not establish moving interception. Verify actual contact gaps
+and the resulting multiplier. A sequenced row also needs a finite deadline for each later member,
+even if the runner never enters its firing band; the first member alone waits passively for approach.
+
+## 2026-09-07 — New opening enemies can contaminate controlled feature tests
+
+**Symptom.** Adding the opening row caused unrelated guard, lock-on, flask and deathblow checks to
+see real turret attacks/targets during their staged dummy encounters. A pickup restoration check
+also collected the freshly restored item again because the tester still overlapped its trigger.
+
+**Fix.** FeatureTests temporarily hides authored enemy instances and locks their aggro for the Guard,
+LockOn, Deathblow, Items and Flask groups, then restores their prior state. Test-created dummies stay
+available; previously launched bolts are cleared. The collected test pickup moves clear before its
+restore event, preserving the player's staging for subsequent grapple checks. Portal return checks
+compare horizontal placement tightly while allowing the normal short vertical settle onto the deck.
+
+**Invariant.** A controlled combat assertion must have a controlled attacker set. Keep separate live
+level proofs for the actual encounter; do not retune gameplay to satisfy a contaminated harness.

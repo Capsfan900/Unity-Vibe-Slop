@@ -181,6 +181,33 @@ namespace VibeGame1.EditorTools
                            : LevelPieceFactory.PlayerStart(def.playerStart, def.playerStartYaw, root);
             foreach (var sp in level.GetComponentsInChildren<EnemySpawner>(true)) builtSpawners[sp.name] = sp;
 
+            // Optional ordered volleys coordinate existing spawners; every projectile still comes from
+            // ProjectileShooter and therefore keeps its EnemyData, cue, range, sightline and frontal rules.
+            if (def.projectileSequences != null)
+            {
+                foreach (var sequence in def.projectileSequences)
+                {
+                    if (sequence == null || sequence.spawnerNames == null || sequence.spawnerNames.Length == 0) continue;
+                    var ordered = new System.Collections.Generic.List<EnemySpawner>();
+                    bool complete = true;
+                    foreach (string spawnerName in sequence.spawnerNames)
+                    {
+                        EnemySpawner member;
+                        if (builtSpawners.TryGetValue(spawnerName, out member)) ordered.Add(member);
+                        else
+                        {
+                            complete = false;
+                            Debug.LogWarning("[LevelDefinitionBuilder] Projectile sequence '" + sequence.name +
+                                             "' names missing spawner '" + spawnerName + "'.");
+                        }
+                    }
+                    if (!complete) continue;
+                    var host = LevelPieceFactory.Empty(sequence.name, Vector3.zero, Quaternion.identity, root);
+                    host.AddComponent<ProjectileVolleySequence>().Configure(
+                        ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout);
+                }
+            }
+
             // ---- wand altars --------------------------------------------------------------------------
             // Must survive the round trip: a level built without its pedestal has no way to pick a wand,
             // and the omission is invisible until you play it.
@@ -228,6 +255,9 @@ namespace VibeGame1.EditorTools
                                               a.clearSpawnerName + "', which is not a spawn in this definition (a missing " +
                                               "mini-boss prefab also drops its spawner). Its exit gate will never open.");
                     }
+
+                    if (a.solarRealm != null && a.solarRealm.enabled)
+                        BuildSolarRealm(a, bat, root, ctx);
                 }
             }
 
@@ -396,6 +426,201 @@ namespace VibeGame1.EditorTools
         {
             go.layer = layer;
             foreach (Transform child in go.transform) SetLayerRecursively(child.gameObject, layer);
+        }
+
+        static void BuildSolarRealm(ArenaDef arena, BossArenaTrigger fight, Transform levelRoot, LevelPieceContext ctx)
+        {
+            var def = arena.solarRealm;
+            EnemySpawner spawner;
+            if (!builtSpawners.TryGetValue(def.enemySpawnerName, out spawner))
+            {
+                Debug.LogWarning("[LevelDefinitionBuilder] Solar arena '" + arena.gateName +
+                                 "' names missing spawner '" + def.enemySpawnerName + "'.");
+            }
+            else
+            {
+                // SpawnDef coordinates remain the historical exterior anchors. Moving only the built
+                // marker keeps ApplyDescent and repeated authoring migrations independent of realm space.
+                var placement = spawner.gameObject.AddComponent<SolarRealmPlacement>();
+                placement.authoredPosition = spawner.transform.position;
+                placement.authoredYaw = spawner.transform.eulerAngles.y;
+                spawner.transform.position = def.enemySpawnPosition;
+                spawner.transform.rotation = Quaternion.Euler(0f, def.enemySpawnYaw, 0f);
+            }
+
+            if (!string.IsNullOrEmpty(def.arenaPickupName))
+            {
+                var pickup = levelRoot.Find("Pickups/" + def.arenaPickupName);
+                if (pickup != null)
+                {
+                    var placement = pickup.gameObject.AddComponent<SolarRealmPlacement>();
+                    placement.authoredPosition = pickup.position;
+                    placement.authoredYaw = pickup.eulerAngles.y;
+                    pickup.position = def.arenaPickupPosition;
+                }
+                else Debug.LogWarning("[LevelDefinitionBuilder] Solar arena '" + arena.gateName +
+                                      "' names missing pickup '" + def.arenaPickupName + "'.");
+            }
+
+            var exterior = LevelPieceFactory.Empty(arena.triggerName + "_SolarPortal", def.exteriorCenter,
+                                                     Quaternion.identity, levelRoot);
+            var trigger = exterior.AddComponent<SphereCollider>();
+            trigger.radius = def.exteriorRadius;
+            trigger.isTrigger = true;
+            var portal = exterior.AddComponent<SolarArenaPortal>();
+            portal.arena = fight;
+            portal.definition = CloneSolarRealm(def);
+            fight.solarPortal = portal;
+
+            var plasma = VisualSphere("Plasma", def.exteriorCenter, def.exteriorRadius * 2f,
+                                      ctx.Material(def.themeMaterialKey), exterior.transform);
+            var corona = VisualSphere("Corona", def.exteriorCenter, def.exteriorRadius * 2.12f,
+                                      ctx.Material("SolarCorona"), exterior.transform);
+            var spin = exterior.AddComponent<SolarArenaVisual>();
+            spin.plasma = plasma.transform;
+            spin.corona = corona.transform;
+
+            var realm = LevelPieceFactory.Empty(arena.triggerName + "_Realm", def.realmCenter,
+                                                 Quaternion.identity, levelRoot);
+            portal.realmBoundsCenter = realm.transform;
+            portal.realmContainmentRadius = def.realmShellRadius;
+
+            // A round, disconnected NavMesh island. Collision is stationary; only the shell visuals spin.
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            floor.name = "Floor";
+            // Unity's primitive cylinder uses a CapsuleCollider, which bulges under this wide, shallow
+            // scale. Match the stationary walkable disc exactly so physics agrees with its NavMesh.
+            Object.DestroyImmediate(floor.GetComponent<Collider>());
+            floor.AddComponent<MeshCollider>().sharedMesh = floor.GetComponent<MeshFilter>().sharedMesh;
+            floor.transform.SetParent(realm.transform, false);
+            floor.transform.position = def.realmCenter + Vector3.down * 0.5f;
+            floor.transform.localScale = new Vector3(def.realmFloorRadius * 2f, 0.5f, def.realmFloorRadius * 2f);
+            floor.layer = 0;
+            var floorMat = ctx.Material("Platform");
+            if (floorMat != null) floor.GetComponent<Renderer>().sharedMaterial = floorMat;
+            ctx.MarkStatic(floor);
+
+            var realmMaterial = ctx.Material(RealmMaterialKey(def.themeMaterialKey));
+            BuildRealmBoundary(realm.transform, def.realmCenter, def.realmFloorRadius, realmMaterial, ctx);
+
+            // The opaque two-sided shell closes the room against the campaign sky. Its emission is
+            // deliberately dim; a separate procedural disc above the arena carries the solar motion.
+            VisualSphere("OpaqueRealmShell", def.realmCenter + Vector3.up * 6f,
+                         def.realmShellRadius * 2f, realmMaterial, realm.transform);
+            var innerShell = VisualDisc("SolarCeiling", def.realmCenter + Vector3.up * 11.9f,
+                                        def.realmFloorRadius * 1.15f, ctx.Material(def.themeMaterialKey), realm.transform);
+            var innerSpin = realm.AddComponent<SolarArenaVisual>();
+            innerSpin.plasma = innerShell.transform;
+            innerSpin.plasmaDegreesPerSecond = new Vector3(0f, 3.5f, 0f);
+            // The ceiling fills much more of the frame than an exterior sun. Serialize the override on
+            // its visual owner so reopening the scene restores the renderer property block at runtime.
+            innerSpin.plasmaOpacityOverride = 0.20f;
+            innerSpin.ApplyMaterialOverrides();
+
+            var lightGo = LevelPieceFactory.Empty("SolarLight", def.realmCenter + Vector3.up * 9f,
+                                                  Quaternion.identity, realm.transform);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = ThemeColor(def.themeMaterialKey);
+            light.range = def.realmFloorRadius * 2.2f;
+            light.intensity = 2.6f;
+            light.shadows = LightShadows.None;
+
+            portal.realmEntry = Marker("RealmEntry", def.playerEntryPosition, def.playerEntryYaw, realm.transform);
+            portal.worldRetry = Marker("WorldRetry", def.retryPosition, def.retryYaw, exterior.transform);
+            portal.worldReturn = Marker("WorldReturn", def.returnPosition, def.returnYaw, exterior.transform);
+            portal.hasReturn = def.hasReturn;
+
+            if (def.hasReturn)
+            {
+                var exit = LevelPieceFactory.Empty("RealmExit", def.realmExitPosition, Quaternion.identity, realm.transform);
+                var exitCol = exit.AddComponent<SphereCollider>();
+                exitCol.radius = 1.5f;
+                exitCol.isTrigger = true;
+                var exitTrigger = exit.AddComponent<SolarRealmExitTrigger>();
+                exitTrigger.portal = portal;
+                VisualSphere("ExitGlow", def.realmExitPosition, 2.5f, ctx.Material("SolarCorona"), exit.transform);
+                portal.realmExitRoot = exit;
+            }
+        }
+
+        static Transform Marker(string name, Vector3 position, float yaw, Transform parent)
+        {
+            return LevelPieceFactory.Empty(name, position, Quaternion.Euler(0f, yaw, 0f), parent).transform;
+        }
+
+        static GameObject VisualSphere(string name, Vector3 position, float diameter, Material material, Transform parent)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = name;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, true);
+            go.transform.position = position;
+            go.transform.localScale = Vector3.one * diameter;
+            go.layer = Starfield.SkyLayer;
+            var renderer = go.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return go;
+        }
+
+        static GameObject VisualDisc(string name, Vector3 position, float diameter, Material material, Transform parent)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = name;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, true);
+            go.transform.position = position;
+            go.transform.localScale = new Vector3(diameter, 0.08f, diameter);
+            go.layer = Starfield.SkyLayer;
+            var renderer = go.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return go;
+        }
+
+        static void BuildRealmBoundary(Transform parent, Vector3 center, float floorRadius, Material material,
+                                       LevelPieceContext ctx)
+        {
+            const int Segments = 20;
+            float wallRadius = floorRadius + 0.35f;
+            float wallLength = 2f * wallRadius * Mathf.Tan(Mathf.PI / Segments) + 0.5f;
+            for (int i = 0; i < Segments; i++)
+            {
+                float angle = i * 360f / Segments;
+                float rad = angle * Mathf.Deg2Rad;
+                LevelPieceFactory.Box("Boundary_" + i,
+                    center + new Vector3(Mathf.Sin(rad) * wallRadius, 6f, Mathf.Cos(rad) * wallRadius),
+                    new Vector3(wallLength, 12f, 1f), material, parent, ctx, true, null)
+                    .transform.rotation = Quaternion.Euler(0f, angle, 0f);
+            }
+
+            LevelPieceFactory.Box("Boundary_Ceiling", center + Vector3.up * 12.5f,
+                                  new Vector3(floorRadius * 2f, 1f, floorRadius * 2f),
+                                  material, parent, ctx, true, null);
+        }
+
+        static string RealmMaterialKey(string solarKey)
+        {
+            if (solarKey == "SolarGold") return "SolarRealmGold";
+            if (solarKey == "SolarAzure") return "SolarRealmAzure";
+            if (solarKey == "SolarGhost") return "SolarRealmGhost";
+            return "SolarRealmCyan";
+        }
+
+        static SolarRealmDef CloneSolarRealm(SolarRealmDef source)
+        {
+            return source == null ? null : JsonUtility.FromJson<SolarRealmDef>(JsonUtility.ToJson(source));
+        }
+
+        static Color ThemeColor(string key)
+        {
+            if (key == "SolarGold") return new Color(0.85f, 0.68f, 0.16f);
+            if (key == "SolarAzure") return new Color(0.20f, 0.42f, 1f);
+            if (key == "SolarGhost") return new Color(0.25f, 0.88f, 0.48f);
+            return new Color(0.21f, 0.86f, 0.93f);
         }
 
         static GameObject InstantiatePrefab(GameObject prefab, string name, Transform parent)

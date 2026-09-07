@@ -38,6 +38,16 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Asset layout
 
+The 2026-09-07 solar courts are optional `ArenaDef.solarRealm` data. `SolarArenaPortal` adds same-scene
+transport through the motor while `BossArenaTrigger` still owns gates, keeper clearance and reset.
+`SolarRealmPlacement` preserves historical authoring anchors during export. `SolarArenaVisual` and
+its URP shader animate presentation only; floors, enclosures and navigation stay stationary.
+
+The opening five-shot row is optional `LevelDefinition.projectileSequences` data. Its
+`ProjectileVolleySequence` grants launch permission to existing shooters in order, then advances after
+the shot resolves. It retains the original range, line-of-sight, interception, parry and speed-boost
+rules. Ordinary shooters remain autonomous. The full maps and timing contract are in DATAFLOW.md.
+
 | Path | Contents |
 |---|---|
 | `Assets/Scenes/` | `MainMenu.unity` (**build index 0** — the game boots here), `Level_01.unity` (the campaign level) and `Sandbox.unity` |

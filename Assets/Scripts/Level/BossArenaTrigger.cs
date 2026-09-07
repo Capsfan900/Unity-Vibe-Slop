@@ -33,6 +33,9 @@ namespace VibeGame1
         public Vector3 exitGateClosedPosition;
         public Vector3 exitGateOpenPosition;
 
+        [Tooltip("Optional same-scene solar portal layered over this arena. ResetArena resets it too.")]
+        public SolarArenaPortal solarPortal;
+
         bool triggered;
         bool cleared;
         bool sawAlive;
@@ -50,8 +53,20 @@ namespace VibeGame1
 
         void OnTriggerEnter(Collider other)
         {
-            if (triggered) return;
-            if (other.GetComponentInParent<PlayerCombat>() == null) return;
+            var player = other.GetComponentInParent<PlayerCombat>();
+            if (player == null) return;
+            BeginFight(player);
+        }
+
+        /// <summary>
+        /// Starts this arena through the same path as a physical trigger entry. Solar portals call this
+        /// before teleporting so gate closure, the boss wake-up and the existing seen-alive latch remain
+        /// the single fight lifecycle. Returns false only when the caller is not a player.
+        /// </summary>
+        public bool BeginFight(PlayerCombat player)
+        {
+            if (player == null) return false;
+            if (triggered) return true;
             triggered = true;
 
             // Boss arenas wake a sleeping boss. Mini-bosses are ordinary enemies and are already awake;
@@ -64,6 +79,7 @@ namespace VibeGame1
 
             if (gate != null) { if (move != null) StopCoroutine(move); move = StartCoroutine(MoveGate(gate, gateClosedPosition, 0.6f)); }
             if (CameraShake.I) CameraShake.I.Medium();
+            return true;
         }
 
         void Update()
@@ -104,6 +120,7 @@ namespace VibeGame1
             sawAlive = false;
             if (gate != null) { if (move != null) StopCoroutine(move); move = null; gate.position = gateOpenPosition; }
             if (exitGate != null) { if (exitMove != null) StopCoroutine(exitMove); exitMove = null; exitGate.position = exitGateClosedPosition; }
+            if (solarPortal != null) solarPortal.ResetPortal();
         }
 
         IEnumerator MoveGate(Transform g, Vector3 target, float seconds)

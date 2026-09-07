@@ -13,6 +13,7 @@ namespace VibeGame1.EditorTools
         const string Folder = "Assets/Materials";
         const string ShaderName = "Universal Render Pipeline/Lit";
         const string CloudSeaShaderName = "VibeGame1/Cloud Sea";
+        const string SolarArenaShaderName = "VibeGame1/Solar Arena";
 
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
@@ -253,6 +254,13 @@ namespace VibeGame1.EditorTools
             // Sky band on the horizon behind the disc: deep midnight blue, low intensity so it glows
             // without blooming into a smear.
             new Spec("M_EclipseSky",    Hex("#050A14"), Hex("#12335E") * 1.1f),
+
+            // Opaque two-sided realm shells and their matched boundary walls. These stay below the
+            // bloom threshold at eye level; the procedural solar ceiling carries the hot exception.
+            new Spec("M_SolarRealmCyan",  Hex("#07171D"), Hex("#123D46") * 0.55f),
+            new Spec("M_SolarRealmGold",  Hex("#1B1708"), Hex("#514516") * 0.50f),
+            new Spec("M_SolarRealmAzure", Hex("#080E24"), Hex("#152A66") * 0.55f),
+            new Spec("M_SolarRealmGhost", Hex("#071A10"), Hex("#174A29") * 0.55f),
         };
 
         [MenuItem("VibeGame1/2. Create Materials")]
@@ -293,6 +301,7 @@ namespace VibeGame1.EditorTools
             // so the scene builders can serialize a real material asset and player builds cannot strip
             // the shader as an unreferenced Shader.Find-only dependency.
             CreateCloudSea();
+            CreateSolarArenaMaterials();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -352,6 +361,72 @@ namespace VibeGame1.EditorTools
             return mat;
         }
 
+        /// <summary>Creates the four arena-sun themes plus their shared white-hot corona.</summary>
+        public static void CreateSolarArenaMaterials()
+        {
+            EnsureFolder();
+            var shader = Shader.Find(SolarArenaShaderName);
+            var lit = Shader.Find(ShaderName);
+            if (shader == null || lit == null)
+            {
+                Debug.LogError("[MaterialFactory] Solar or URP/Lit shader missing. Reimport " +
+                               "Assets/Shaders/SolarArena.shader and verify URP.");
+                return;
+            }
+
+            // The body stays saturated and below bloom; only its moving bands and rim cross the 1.05
+            // threshold. A pale HDR body turns white under ACES before its pattern can be read.
+            CreateSolar("M_SolarCyan", shader, Hex("#167A8A") * 1.15f, Hex("#35DCEC") * 1.45f, 0.42f, 0.62f, 10f);
+            CreateSolar("M_SolarGold", shader, Hex("#5A430C") * 1.00f, Hex("#D8C22A") * 1.35f, 0.44f, 0.56f, 12f);
+            CreateSolar("M_SolarAzure", shader, Hex("#102B6F") * 1.10f, Hex("#2F6BFF") * 1.55f, 0.43f, 0.70f, 13f);
+            CreateSolar("M_SolarGhost", shader, Hex("#0C592C") * 1.05f, Hex("#3FE07A") * 1.40f, 0.45f, 0.48f, 9f);
+            // Corona is a thin silhouette accent. Its old 0.18 alpha laid a white veil over the entire
+            // sphere; the shader's independent rim term still gives this low-body-alpha layer a hot edge.
+            CreateSolar("M_SolarCorona", shader, Hex("#B9ECFF") * 1.25f, Hex("#79CFFF") * 1.15f, 0.03f, -0.34f, 17f);
+            CreateRealmMaterial(new Spec("M_SolarRealmCyan",  Hex("#07171D"), Hex("#123D46") * 0.55f), lit);
+            CreateRealmMaterial(new Spec("M_SolarRealmGold",  Hex("#1B1708"), Hex("#514516") * 0.50f), lit);
+            CreateRealmMaterial(new Spec("M_SolarRealmAzure", Hex("#080E24"), Hex("#152A66") * 0.55f), lit);
+            CreateRealmMaterial(new Spec("M_SolarRealmGhost", Hex("#071A10"), Hex("#174A29") * 0.55f), lit);
+            AssetDatabase.SaveAssets();
+        }
+
+        static void CreateRealmMaterial(Spec spec, Shader shader)
+        {
+            string path = PathFor(spec.name);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader) { name = spec.name };
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            else if (mat.shader != shader) mat.shader = shader;
+            Configure(mat, spec);
+            EditorUtility.SetDirty(mat);
+        }
+
+        static void CreateSolar(string name, Shader shader, Color core, Color band, float alpha, float flow, float scale)
+        {
+            string path = PathFor(name);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader) { name = name };
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            else if (mat.shader != shader) mat.shader = shader;
+
+            mat.SetColor("_CoreColor", core);
+            mat.SetColor("_BandColor", band);
+            mat.SetFloat("_Alpha", alpha);
+            mat.SetFloat("_FlowSpeed", flow);
+            mat.SetFloat("_BandScale", scale);
+            mat.SetFloat("_RimPower", name == "M_SolarCorona" ? 1.1f : 2.2f);
+            mat.SetFloat("_Pulse", name == "M_SolarCorona" ? 0.08f : 0.16f);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 5;
+            EditorUtility.SetDirty(mat);
+        }
+
         static void Configure(Material mat, Spec spec)
         {
             mat.SetFloat(SmoothnessId, spec.smoothness);
@@ -373,6 +448,8 @@ namespace VibeGame1.EditorTools
             // double-sided means a wrong-way rotation can never silently blank the entire sky.
             if (spec.name.StartsWith("M_Eclipse") && mat.HasProperty("_Cull"))
                 mat.SetFloat("_Cull", 0f);   // UnityEngine.Rendering.CullMode.Off
+            if (spec.name.StartsWith("M_SolarRealm") && mat.HasProperty("_Cull"))
+                mat.SetFloat("_Cull", 0f);   // the camera is inside the shell
 
             // Water is the one TRANSPARENT surface: URP/Lit's alpha-blend setup, done here rather than
             // by hand in the Inspector (rule 4). Alpha comes from the spec's base colour.

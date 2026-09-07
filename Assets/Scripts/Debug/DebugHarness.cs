@@ -218,9 +218,17 @@ namespace VibeGame1
             yield return null;
             var boss = FindAnyObjectByType<BossController>();
             if (boss == null) { L("no boss"); yield break; }
-            motor.Teleport(new Vector3(0f, 18.2f, 162f), 0f);
-            var trig = FindAnyObjectByType<BossArenaTrigger>();
-            trig.SendMessage("OnTriggerEnter", player.GetComponent<Collider>());
+            var portal = SolarArenaPortal.FindFinalBossPortal();
+            if (portal != null) portal.Enter(player);
+            else
+            {
+                BossArenaTrigger trig = null;
+                foreach (var candidate in FindObjectsByType<BossArenaTrigger>())
+                    if (candidate.clearSpawner == null) { trig = candidate; break; }
+                if (trig == null) { L("no boss arena trigger"); yield break; }
+                motor.Teleport(trig.transform.position, 0f);
+                trig.BeginFight(player);
+            }
             yield return null;
             L($"boss activated={boss.Activated} segments={boss.SegmentsLeft} phase={boss.Phase} state={boss.Current}");
             int lastSeg = boss.SegmentsLeft;

@@ -10,6 +10,47 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Five opening parries and solar boss realms — 2026-09-07
+
+Sol 5.6 implemented the user's five-turret opening and four themed sun portals; Astra consulted on
+design and reviewed the lifecycle/sequence. Lead regenerated and verified the saved Level_01 scene.
+
+- **Full EditMode: 861/861 passed**, zero failures/skips, 225.4 s;
+  `TestResults/EditMode-20260907-193216.xml`. Includes the slow level-line suite and new shipped-data,
+  exporter and finite-readiness checks.
+- **Full FeatureTests: 804/804 passed**, no failures/skips, 67.0 s, fresh unpaused Play session at 60 fps;
+  `TestResults/solar-realms/features-final.txt`. Final quick EditMode: **723/723 passed**, 10.5 s;
+  `TestResults/EditMode-20260907-195202.xml`. The full 861-test run covered final gameplay/geometry;
+  later changes only corrected the feature harness. Controlled Guard, LockOn, Deathblow, Items and
+  Flask groups now hide authored enemies while preserving their test dummies, then restore the world.
+  The pickup restore test moves its test prop clear to avoid immediate re-collection; portal return
+  assertions allow the normal small vertical settle onto the floor. No combat rule was weakened.
+- **Opening live probe passed twice**, including after ResetEnemies: five launched shots, one distinct
+  grant from each turret, and peak **1.60x** before the first jump. Final contact times after slide launch:
+  **1.070 / 1.687 / 2.387 / 3.070 / 3.654 s**; gaps **0.617 / 0.700 / 0.683 / 0.584 s**.
+  `TestResults/solar-realms/opening-final.txt`; final worst frame 0.025 s. This probe uses forecast
+  parries and adds forward intent through motor entry points after the slope; it proves integration,
+  not human encounter fairness. Earlier iterations honestly failed at 4/5 or lost a stack during the
+  first jump; moving the overhead pair onto the closer shared front terrace resolved those failures.
+- **All three mini realms** at their final x700 positions passed actual sphere-trigger entry, locked
+  exit while alive, complete NavMesh path to the keeper, defeat, unlocked exit-trigger crossing and
+  grounded return to the onward deck. `TestResults/solar-realms/portal-final.json`.
+- **Final boss:** crossing its sphere activated the existing boss; three deathblows consumed its
+  three segments and set `SpeedrunTimer.Finished=true`. `TestResults/solar-realms/final-boss.json`.
+  Standalone ResetEnemies rescued an occupant outside; death used the existing checkpoint; re-entry worked.
+- A **123-soul pickup** inside a realm survived enemy reset and was recovered by re-entry. The ordinary
+  death test immediately reclaimed its drop while the dying player still overlapped it, an existing
+  `Bloodstain.OnTriggerEnter` behavior left unchanged. Persistent death-drop delay is not claimed fixed.
+- **Health Check: 0 errors / 1764 existing warnings.** Final runtime and editor offline builds succeed
+  with zero errors. Shader support and zero compilation messages were checked in the editor.
+- Real sun/realm renders reviewed in `RouteShots/solar-realms/`. The first white washout was corrected
+  with saturated bodies, restrained corona and a smaller ceiling. Its serialized 0.20 opacity was
+  read back as 0.20 on the actual renderer after reload; all ceiling rotations remain Y-only.
+
+Both ramps, opening spawn, rolling cloud sea, existing boost limits and default autonomous shooters
+remain. Human timing/artistic acceptance and standalone/WebGL GPU cost are not established by these
+checks. Restore tag `pre-solar-realms-2026-09-07` points to `0db52f0`; this pass is one revertible commit.
+
 ### Cloud ocean beneath the map — 2026-09-07
 
 Sol at extra-high effort implemented the user's clarified target: a continuous rolling cloud sea below

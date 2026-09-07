@@ -10,6 +10,21 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) (feel contracts, art direction) ·
 
 ## 1. The principles worth holding to
 
+### Solar arena presentation (2026-09-07)
+
+The four campaign boss courts have rotating portal suns with cyan, gold, azure and green themes.
+`SolarArena.shader` supplies moving plasma currents; `SolarArenaVisual` counter-rotates the exterior
+layers. The matching enclosed realms keep their floor and walls stationary. Only the ceiling's
+visual disc rotates, around its vertical axis, so it cannot tilt into the fight.
+
+These requested suns are a deliberate scenery-glow exception. Preserve coloured bands and dark
+eye-level backgrounds for enemy tells; judge the generated result through the actual player camera
+with post-processing enabled. Additive front/back layers can wash a coloured material into white.
+Regenerate through `MaterialFactory.CreateSolarArenaMaterials()` and the level builder after tuning.
+The ceiling's 0.20 opacity override lives on `SolarArenaVisual` and reapplies on enable. A property
+block written only by the editor generator is transient and disappears when the scene reloads.
+The cloud sea remains below the route and uses its separate material and animation.
+
 ### An attack has three phases, and each one has a job
 
 | Phase | Job | Guidance |

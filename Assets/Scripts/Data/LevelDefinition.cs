@@ -73,6 +73,11 @@ namespace VibeGame1
                  "exit gate; the boss arena leaves both empty and wakes the BossController instead.")]
         public ArenaDef[] arenas = new ArenaDef[0];
 
+        [Header("Projectile Sequences")]
+        [Tooltip("Optional ordered volleys. Members keep their normal EnemyData and projectile; the sequence " +
+                 "only decides which authored spawner may shoot next.")]
+        public ProjectileSequenceDef[] projectileSequences = new ProjectileSequenceDef[0];
+
         [Header("Sky")]
         public SkyDef sky = new SkyDef();
 
@@ -318,6 +323,77 @@ namespace VibeGame1
 
         [Tooltip("Where the exit gate drops to when the mini-boss dies.")]
         public Vector3 exitGateOpenPosition;
+
+        [Header("Solar realm (optional)")]
+        [Tooltip("When enabled, the existing gated arena becomes a portal sun. The gate and clear-spawner " +
+                 "contract stays unchanged; only the fight's physical room moves to the remote realm.")]
+        public SolarRealmDef solarRealm = new SolarRealmDef();
+    }
+
+    /// <summary>
+    /// Presentation and destinations for one same-scene boss realm. The exterior anchor is authored in
+    /// world space so the sun can replace the arena without moving the route. The enemy spawner remains
+    /// at its historical position in <see cref="LevelDefinition.spawns"/> and is moved to
+    /// <see cref="enemySpawnPosition"/> only while the scene is built; this keeps migrations idempotent.
+    /// </summary>
+    [Serializable]
+    public class SolarRealmDef
+    {
+        public bool enabled = false;
+        public string themeMaterialKey = "SolarCyan";
+
+        [Tooltip("Centre of the visible exterior sun, at the existing arena's X/Z anchor.")]
+        public Vector3 exteriorCenter;
+        public float exteriorRadius = 12f;
+
+        [Tooltip("Centre of the disconnected enclosed fight cell.")]
+        public Vector3 realmCenter;
+        public float realmFloorRadius = 20f;
+        public float realmShellRadius = 30f;
+
+        public Vector3 playerEntryPosition;
+        public float playerEntryYaw = 0f;
+
+        [Tooltip("Safe exterior point on the approach side, used by standalone arena resets.")]
+        public Vector3 retryPosition;
+        public float retryYaw = 0f;
+
+        [Tooltip("The existing named EnemySpawner is moved here by the builder, never in the data asset.")]
+        public string enemySpawnerName = "";
+        public Vector3 enemySpawnPosition;
+        public float enemySpawnYaw = 180f;
+
+        [Tooltip("Optional pickup already authored in the old court; builder moves its live instance into the realm.")]
+        public string arenaPickupName = "";
+        public Vector3 arenaPickupPosition;
+
+        [Tooltip("Mini-boss realms expose their inner exit after clear and return here. Final boss leaves this off.")]
+        public bool hasReturn = true;
+        public Vector3 realmExitPosition;
+        public Vector3 returnPosition;
+        public float returnYaw = 0f;
+    }
+
+    /// <summary>
+    /// An ordered set of existing projectile-enemy spawners. A sequence never changes a projectile's
+    /// damage, cue, speed, range or facing rules; it only prevents the members from firing together and
+    /// advances after the current bolt resolves.
+    /// </summary>
+    [Serializable]
+    public class ProjectileSequenceDef
+    {
+        public string name = "ProjectileSequence";
+
+        [Tooltip("EnemySpawner object names in firing order.")]
+        public string[] spawnerNames = new string[0];
+
+        [Tooltip("Quiet beat after one bolt resolves before the next member may launch. The bolt's own " +
+                 "flight remains the main spacing between parry contacts.")]
+        public float recoveryGap = 0.11f;
+
+        [Tooltip("Once a member has entered its normal firing band, maximum time to wait for a clear, " +
+                 "frontal shot before moving on. This prevents one blocked member from silencing the row.")]
+        public float readinessTimeout = 1.1f;
     }
 
     /// <summary>

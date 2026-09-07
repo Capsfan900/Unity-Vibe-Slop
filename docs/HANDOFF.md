@@ -1,51 +1,67 @@
-﻿# Handoff — rolling cloud sea and the complete two-ramp Level 1
+﻿# Handoff — five opening parries and solar boss realms
 
 ## What happened
 
-2026-09-07: the user's fog target is now a continuous rolling cloud bed BELOW the map. Sol at
-extra-high effort implemented CloudSea and its URP shader; lead reviewed/refined the appearance,
-regenerated assets and verified the result. The old player-relative AmbientMist component is removed
-from the shipped Player prefab. Distant haze remains at 36–140 m. No movement/combat changes this pass.
+2026-09-07: Sol 5.6 implemented the requested opening turret sequence and four solar boss realms,
+with Astra reviewing the design and engineering. The opening row is LEFT, RIGHT, LEFT, then two
+above on one stepped cyan floating platform. The overhead pair sits at (-2.4,8.6,15) and (3.2,8.6,15).
+Two live runs earned all five distinct grants and the existing 1.60x speed multiplier before the
+first jump. The encounter-local coordinator uses existing projectiles and combat resolution.
 
-The earlier Astra/high layout correction is committed as `7a68d19`: a new 36 m / 9 m opening descent
-before the original start, spawn `(0,9.3,-55)`, and the existing 48 m / 12 m late descent before the boss.
-The complete original route remains between them. Projectile weave remains in `a927bd0`.
+Four rotating, glowing spheres remain at the original court anchors. Crossing one transports the
+player into a stationary enclosed realm matching its cyan/gold/azure/green theme. The three existing
+legendary keepers remain mini-bosses; defeating them unlocks a return to the onward route. The existing
+three-phase final boss retains run completion. F5 and the debug boss harness resolve the new entrance.
+Realm cells are at x700, beyond the route camera; historical authored spawn anchors survive export.
+
+Both ramps, the corrected opening spawn, full original route, downhill fix, rolling cloud sea and
+projectile weave remain. Earlier commits: opening ramp 7a68d19, cloud sea 0db52f0, weave a927bd0.
+Spark was requested but is unavailable in this session; Sol performed edits with Astra consulting.
 
 ## State of the tree
 
-Cloud work is one `[Sol] Add rolling cloud sea beneath the full level` commit. Revert that commit to
-undo only this presentation pass; restore tag `pre-cloud-ocean-2026-09-07` points to `7a68d19`.
-The user's untracked `.claude/settings.local.json` is intentionally excluded.
+Current pass is verified and saved as a single [Sol] commit. Restore tag
+pre-solar-realms-2026-09-07 points to 0db52f0; reverting this pass restores the prior two-ramp/cloud level.
+The user's untracked .claude/settings.local.json is excluded.
 
-Generated: `MaterialFactory.CreateCloudSea()`, narrow `PrefabFactory.BuildPlayer()`, canonical
-`LevelDefinitionBuilder.BuildCanonicalHeadless()` including NavMesh; Sandbox cloud wiring was applied
-through `CloudSea.BuildSandbox()` and saved. Both saved scenes reopened with one sea and no AmbientMist.
-Everything is regenerable through the normal material/prefab/scene builders. No generator remains due.
-CloudSea's transient mesh releases on disable and regenerates on enable/reload. One renderer, 3977
-vertices in campaign / 3185 in Sandbox; serialized material prevents a Shader.Find-only dependency.
-Health Check now recognizes custom shaders by their URP pipeline tag as well as the built-in prefix.
+Generators run: CreateSolarArenaMaterials, ReworkLevel01 (idempotence verified), and
+BuildCanonicalHeadless including NavMesh and saved Level_01. No prefab rebuild is needed: only the
+five named scene instances opt into the coordinator. Solar ceiling opacity is serialized on its
+visual component and reapplied on enable; floors use flat MeshColliders and ceiling motion is Y-only.
 
 ## Verification
 
-- Quick EditMode **709/709 passed**, including five new cloud tests; slow unchanged level lines omitted.
-- Full FeatureTests **777/777 passed**, fresh unpaused session, neutral input, cap 60 fps restored afterward.
-- Health Check **0 errors, 1764 existing warnings**; shader supported with zero compiler messages.
-- Offline assemblies compile; editor has 16 existing warnings. Final editor-only validator fix compiled
-  in Unity and its check was rerun after the runtime suites.
-- Real render review: opening, original start, elevated span, late ramp and detail. Fixed-view cloud
-  motion confirmed; pause captures pixel-identical with post-processing grain temporarily disabled.
-- Prior geometry pass full EditMode **843/843 passed**; actual menu load, spawn/respawn and opening
-  traversal verified. See VERIFICATION-REPORT.md for earlier feature-suite flakiness and exact artifacts.
-
-Unity is stopped with Level_01 open. Screenshots: `RouteShots/cloud-ocean/`. Current feature report:
-`TestResults/cloud-ocean/features-final.txt`; quick XML `TestResults/EditMode-20260907-175659.xml`.
-No standalone/WebGL performance benchmark or human artistic approval is claimed. The sea is a
-shader-animated surface, not volumetric fluid simulation.
+- Full EditMode: 861/861 passed, no failures/skips, 225.4 seconds.
+  TestResults/EditMode-20260907-193216.xml.
+- Full FeatureTests: 804/804 passed, no failures/skips, 67.0 seconds, fresh unpaused Play session.
+  TestResults/solar-realms/features-final.txt. Final quick EditMode after harness fixes: 723/723 passed,
+  TestResults/EditMode-20260907-195202.xml. The full 861-test run covered the final gameplay/geometry;
+  subsequent changes only isolated staged tests from real turret targets and fixed test placement.
+- Opening live probe passed twice: five shots, five distinct parries, peak multiplier 1.60.
+  Final contacts: 1.070, 1.687, 2.387, 3.070, 3.654 seconds after slide launch.
+  Probe drives forward intent after the slope and uses forecast parries, so this proves integration,
+  not human timing/fairness. TestResults/solar-realms/opening-final.txt.
+- All three mini portals: physical entry, locked exit, complete NavMesh path to keeper, defeat,
+  unlocked exit and physical return onto the correct grounded deck passed at final realm positions.
+- Final sphere: physical entry activated the existing boss; three executes consumed three segments
+  and stopped the speedrun timer. Standalone reset rescue, death checkpoint and re-entry passed.
+- A 123-soul pickup inside a realm survived enemy reset and was recovered on re-entry. The ordinary
+  death trial reclaimed its pickup immediately while the dying player still overlapped it; the
+  unchanged Bloodstain trigger accepts that overlap. Do not claim persistent death-drop delay fixed.
+- Health Check: 0 errors, 1764 existing warnings. Both offline assemblies compile with zero errors.
+  Unity is stopped on the saved Level_01 scene. Test frame settings and incidental settings
+  reserialization are restored; no generator or verification step remains due.
+- Generated sun/realm renders reviewed; coloured patterns replace the initial white washout.
+  RouteShots/solar-realms contains the final scene captures. Shader support and opacity persistence
+  were read back in Unity. Human artistic acceptance and standalone/WebGL GPU performance are unproven.
 
 ## Do first next session
 
-1. Let the user inspect the cloud ocean from the opening and elevated route. Tune its material through
-   MaterialFactory if requested; preserve landing-edge readability and clearance beneath platforms.
-2. Keep both ramps and the full original route. Loading Level 1 must start at the opening crest.
-3. For camera captures, move SkyFollower with the camera before rendering and restore both afterward;
-   moving only the camera in one execute_code call produces a falsely black sky before LateUpdate.
+1. Read the final verification report and git status; preserve the user's local settings file.
+2. For human playtesting, load Level 1 from the menu: start above the opening descent, parry the
+   left/right/left/overhead pair, then cross each sun and defeat its keeper to continue.
+3. If the user dislikes this pass, revert its single [Sol] commit; the restore tag identifies its parent.
+
+## Open questions for the user
+
+None needed to complete the implementation. Human feel and appearance feedback can guide refinement.

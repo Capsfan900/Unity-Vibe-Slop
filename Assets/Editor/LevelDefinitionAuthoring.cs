@@ -642,6 +642,7 @@ namespace VibeGame1.EditorTools
 
             ApplyDescent(def);
             ApplyOpeningDescent(def);
+            ApplySolarRealms(def);
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
@@ -739,6 +740,104 @@ namespace VibeGame1.EditorTools
                 width = 10f, run = 36f, rise = -9f, thickness = RampThickness, materialKey = "Stone" });
             def.ramps = ramps.ToArray();
 
+            // Five existing surge turrets turn the opening into a speed ladder: LEFT, RIGHT, LEFT, then
+            // two overhead. The lower pads stay outside the ramp/run-out/Ground_Start footprints, while
+            // the last pair crowns the transition into the existing fast deck on one stepped floating
+            // dais. Its lowest tier is 6 m above that deck, preserving both the jumping line and the east
+            // wall-run corridor.
+            var spawns = new List<SpawnDef>(def.spawns);
+            spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_"));
+            platforms.RemoveAll(p => p.name.StartsWith("T0_TurretPad_") ||
+                                     p.name.StartsWith("T0_OverheadDais_"));
+            var lowerShots = new[]
+            {
+                new Vector3(-6.7f, 2.4f, -25f),
+                new Vector3( 6.7f, 0.1f,  -9f),
+                new Vector3(-9.7f, 0.1f,   7f),
+            };
+            for (int i = 0; i < lowerShots.Length; i++)
+            {
+                var shot = lowerShots[i];
+                string suffix = (i + 1).ToString();
+                platforms.Add(new PlatformDef
+                {
+                    name = "T0_TurretPad_" + suffix,
+                    center = new Vector3(shot.x, shot.y - 0.6f, shot.z),
+                    size = new Vector3(3f, 1f, 3f), materialKey = "Stone", trim = true,
+                    trimMaterialKey = "NeonCyan"
+                });
+                spawns.Add(new SpawnDef
+                {
+                    name = "Spawn_T0_Surge_" + suffix, prefabKey = "pshooter_enemy03",
+                    position = shot, yaw = shot.x > 0f ? 210f : 150f
+                });
+            }
+
+            // A three-tier inverted plinth gives the paired front sentries a deliberate silhouette instead
+            // of a bare slab. Only the restrained cyan rim glows; the recessed stone underside stays quiet.
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_Front", center = new Vector3(0.75f, 8f, 16f),
+                size = new Vector3(9f, 1f, 4f), materialKey = "Stone", trim = true,
+                trimMaterialKey = "NeonCyan"
+            });
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_Rear", center = new Vector3(3.25f, 8f, 22.25f),
+                size = new Vector3(4f, 1f, 2f), materialKey = "Stone", trim = true,
+                trimMaterialKey = "NeonCyan"
+            });
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_Link", center = new Vector3(4.5f, 7.9f, 19.5f),
+                size = new Vector3(1.5f, 0.8f, 5f), materialKey = "Stone"
+            });
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_Under", center = new Vector3(0.75f, 7.4f, 16f),
+                size = new Vector3(6.5f, 0.5f, 2.5f), materialKey = "Stone"
+            });
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_Keel", center = new Vector3(0.75f, 6.85f, 16f),
+                size = new Vector3(3f, 0.7f, 1.4f), materialKey = "Stone"
+            });
+
+            var overheadShots = new[]
+            {
+                new Vector3(-2.4f, 8.6f, 15f),
+                new Vector3( 3.2f, 8.6f, 15f),
+            };
+            for (int i = 0; i < overheadShots.Length; i++)
+            {
+                var shot = overheadShots[i];
+                spawns.Add(new SpawnDef
+                {
+                    name = "Spawn_T0_Surge_" + (i + 4), prefabKey = "pshooter_enemy03",
+                    position = shot, yaw = shot.x > 0f ? 195f : 165f
+                });
+            }
+            def.platforms = platforms.ToArray();
+            def.spawns = spawns.ToArray();
+
+            var sequences = new List<ProjectileSequenceDef>(def.projectileSequences ?? new ProjectileSequenceDef[0]);
+            sequences.RemoveAll(s => s != null && s.name == "T0_SurgeVolley");
+            sequences.Add(new ProjectileSequenceDef
+            {
+                name = "T0_SurgeVolley",
+                spawnerNames = new[]
+                {
+                    "Spawn_T0_Surge_1", "Spawn_T0_Surge_2", "Spawn_T0_Surge_3",
+                    "Spawn_T0_Surge_4", "Spawn_T0_Surge_5"
+                },
+                // 0.08 s is the shipped successful-parry recovery; another 0.03 s gives input slack before
+                // the next launch. A closing runner can contact sooner than the nominal 0.44 s flight, so
+                // the live opening probe owns the actual contact-spacing proof.
+                recoveryGap = 0.11f,
+                readinessTimeout = 1.1f
+            });
+            def.projectileSequences = sequences.ToArray();
+
             def.playerStart = new Vector3(0f, 9.3f, -55f);
             def.playerStartYaw = 0f;
             foreach (var pedestal in def.pedestals)
@@ -748,6 +847,58 @@ namespace VibeGame1.EditorTools
             // Catch falls behind the new crest while retaining the final arena's z 450 boundary.
             def.killZone.center = new Vector3(0f, -30f, 185f);
             def.killZone.size = new Vector3(200f, 2f, 530f);
+        }
+
+        /// <summary>
+        /// Turns the four existing gated courts into portal suns without moving their route anchors or
+        /// their authored SpawnDefs. The builder moves each live spawner into its disconnected realm.
+        /// </summary>
+        public static void ApplySolarRealms(LevelDefinition def)
+        {
+            SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87f), 12f,
+                new Vector3(700f, 0f, 0f), "Spawn_Legendary_Ninja",
+                new Vector3(0f, 3.2f, 70f), new Vector3(0f, 4.2f, 102f), true);
+            SetSolar(def, "T2_Gate", "SolarGold", new Vector3(0f, 24.55f, 170f), 13f,
+                new Vector3(700f, 0f, 80f), "Spawn_Legendary_Knight",
+                new Vector3(0f, 20.2f, 150f), new Vector3(0f, 20.2f, 186f), true);
+            SetSolar(def, "T3_Gate", "SolarAzure", new Vector3(0f, 32.2f, 270f), 12f,
+                new Vector3(700f, 0f, 160f), "Spawn_Legendary_Spellsword",
+                new Vector3(0f, 28.2f, 253f), new Vector3(0f, 28.2f, 286f), true);
+            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 390f), 18f,
+                new Vector3(700f, 0f, 240f), "Spawn_Boss",
+                new Vector3(0f, 16.2f, 361f), Vector3.zero, false);
+        }
+
+        static void SetSolar(LevelDefinition def, string gateName, string theme, Vector3 exterior, float radius,
+                             Vector3 realmCenter, string enemySpawner, Vector3 retry, Vector3 worldReturn,
+                             bool hasReturn)
+        {
+            var arena = def.arenas != null ? System.Array.Find(def.arenas, a => a != null && a.gateName == gateName) : null;
+            if (arena == null) throw new System.InvalidOperationException("Solar realm requires arena " + gateName + ".");
+            var r = arena.solarRealm ?? new SolarRealmDef();
+            r.enabled = true;
+            r.themeMaterialKey = theme;
+            r.exteriorCenter = exterior;
+            r.exteriorRadius = radius;
+            r.realmCenter = realmCenter;
+            r.realmFloorRadius = 20f;
+            r.realmShellRadius = 30f;
+            r.playerEntryPosition = realmCenter + new Vector3(0f, 1.2f, -13f);
+            r.playerEntryYaw = 0f;
+            r.retryPosition = retry;
+            r.retryYaw = 0f;
+            r.enemySpawnerName = enemySpawner;
+            r.enemySpawnPosition = realmCenter + new Vector3(0f, 0.1f, 4f);
+            r.enemySpawnYaw = 180f;
+            if (gateName == "T1_Gate") { r.arenaPickupName = "Pickup_T1_Surge"; r.arenaPickupPosition = realmCenter + new Vector3(-7f, 1.2f, -2f); }
+            else if (gateName == "T2_Gate") { r.arenaPickupName = "Pickup_T2_Hook_2"; r.arenaPickupPosition = realmCenter + new Vector3(-7f, 1.2f, -2f); }
+            else if (gateName == "T3_Gate") { r.arenaPickupName = "Pickup_T3_Surge_2"; r.arenaPickupPosition = realmCenter + new Vector3(7f, 1.2f, -2f); }
+            else { r.arenaPickupName = "Pickup_Boss_Hook"; r.arenaPickupPosition = realmCenter + new Vector3(-7f, 1.2f, -5f); }
+            r.hasReturn = hasReturn;
+            r.realmExitPosition = realmCenter + new Vector3(0f, 1.5f, -17.5f);
+            r.returnPosition = worldReturn;
+            r.returnYaw = 0f;
+            arena.solarRealm = r;
         }
     }
 }
