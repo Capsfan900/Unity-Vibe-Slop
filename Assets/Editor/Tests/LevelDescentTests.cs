@@ -30,6 +30,86 @@ namespace VibeGame1.Tests
             Assert.IsEmpty(LevelDescentReport.Failures(def));
         }
 
+        [Test] public void ShippedStartIsOnTheOpeningCrestBeforeTheEntireOriginalLevel()
+        {
+            var entry = def.platforms.Single(p => p.name == "T0_Entry");
+            var opening = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            var originalStart = def.platforms.Single(p => p.name == "Ground_Start");
+            var pedestal = def.pedestals.Single(p => p.name == "WandPedestal_Start");
+            Assert.That(def.playerStart.x, Is.InRange(entry.center.x - entry.size.x / 2f + 1f,
+                entry.center.x + entry.size.x / 2f - 1f));
+            Assert.That(def.playerStart.z, Is.InRange(entry.center.z - entry.size.z / 2f + 1f,
+                opening.basePosition.z - 1f));
+            Assert.That(def.playerStart.y, Is.EqualTo(entry.center.y + entry.size.y / 2f + 0.3f).Within(0.001f));
+            Assert.That(def.playerStartYaw, Is.EqualTo(opening.yaw));
+            Assert.That(opening.TopPosition.z, Is.LessThan(originalStart.center.z - originalStart.size.z / 2f));
+            Assert.That(pedestal.groundPosition.y, Is.EqualTo(entry.center.y + entry.size.y / 2f).Within(0.001f));
+            Assert.That(pedestal.groundPosition.z, Is.EqualTo(def.playerStart.z).Within(0.001f));
+            Assert.That(Mathf.Abs(pedestal.groundPosition.x - def.playerStart.x), Is.InRange(2f, 4f));
+            Assert.That(def.checkpoints.Min(c => c.position.z), Is.GreaterThan(opening.TopPosition.z),
+                "The opening must not begin beyond an existing checkpoint.");
+            Assert.That(def.killZone.center.z - def.killZone.size.z / 2f,
+                Is.LessThan(entry.center.z - entry.size.z / 2f - 10f));
+        }
+
+        [Test] public void ShippedOpeningHasContinuousFullWidthJoinsIntoTheOriginalStart()
+        {
+            var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            var entry = def.platforms.Single(p => p.name == "T0_Entry");
+            var runOut = def.platforms.Single(p => p.name == "T0_RunOut");
+            var originalStart = def.platforms.Single(p => p.name == "Ground_Start");
+            Assert.That(ramp.run, Is.EqualTo(36f));
+            Assert.That(ramp.rise, Is.EqualTo(-9f));
+            Assert.That(ramp.width, Is.EqualTo(10f));
+            Assert.That(ramp.yaw, Is.Zero);
+            Assert.That(entry.center.y + entry.size.y / 2f, Is.EqualTo(ramp.basePosition.y).Within(0.001f));
+            Assert.That(entry.center.z + entry.size.z / 2f - ramp.basePosition.z, Is.EqualTo(0.2f).Within(0.001f));
+            Assert.That(ramp.TopPosition.z - (runOut.center.z - runOut.size.z / 2f), Is.EqualTo(0.2f).Within(0.001f));
+            Assert.That(runOut.center.y + runOut.size.y / 2f, Is.EqualTo(ramp.TopPosition.y).Within(0.001f));
+            Assert.That(runOut.center.y + runOut.size.y / 2f,
+                Is.EqualTo(originalStart.center.y + originalStart.size.y / 2f).Within(0.001f));
+            Assert.That(runOut.center.z + runOut.size.z / 2f - (originalStart.center.z - originalStart.size.z / 2f),
+                Is.EqualTo(0.2f).Within(0.001f));
+            Assert.That(entry.size.x, Is.GreaterThanOrEqualTo(ramp.width));
+            Assert.That(runOut.size.x, Is.GreaterThanOrEqualTo(ramp.width));
+            Assert.That(originalStart.size.x, Is.GreaterThanOrEqualTo(runOut.size.x));
+            Assert.That(entry.center.x, Is.EqualTo(ramp.basePosition.x));
+            Assert.That(runOut.center.x, Is.EqualTo(ramp.TopPosition.x));
+            Assert.That(originalStart.center.x, Is.EqualTo(runOut.center.x));
+        }
+
+        [Test] public void OpeningMigrationRepairsTheLateSpawnWithoutMovingTheExistingCourse()
+        {
+            var originalPlatforms = def.platforms.Where(p => !p.name.StartsWith("T0_")).ToArray();
+            var platformData = originalPlatforms.Select(p => JsonUtility.ToJson(p)).ToArray();
+            var existingRamps = def.ramps.Where(r => r.name != "T0_Ramp_Descent").ToArray();
+            var rampData = existingRamps.Select(r => JsonUtility.ToJson(r)).ToArray();
+            var checkpointData = def.checkpoints.Select(c => JsonUtility.ToJson(c)).ToArray();
+            var spawnData = def.spawns.Select(s => JsonUtility.ToJson(s)).ToArray();
+            def.playerStart = new Vector3(0f, 28.3f, 297.5f);
+            LevelDefinitionAuthoring.ApplyOpeningDescent(def);
+            Assert.That(def.playerStart.z, Is.LessThan(-8f));
+            CollectionAssert.AreEqual(platformData, def.platforms.Where(p => !p.name.StartsWith("T0_"))
+                .Select(p => JsonUtility.ToJson(p)).ToArray());
+            CollectionAssert.AreEqual(rampData, def.ramps.Where(r => r.name != "T0_Ramp_Descent")
+                .Select(r => JsonUtility.ToJson(r)).ToArray());
+            CollectionAssert.AreEqual(checkpointData, def.checkpoints.Select(c => JsonUtility.ToJson(c)).ToArray());
+            CollectionAssert.AreEqual(spawnData, def.spawns.Select(s => JsonUtility.ToJson(s)).ToArray());
+            string once = JsonUtility.ToJson(def);
+            LevelDefinitionAuthoring.ApplyOpeningDescent(def);
+            Assert.AreEqual(once, JsonUtility.ToJson(def));
+        }
+
+        [Test] public void ShippedLevelHasTwoLargeDownhillRampsOnOppositeSidesOfTheOriginalCourse()
+        {
+            var descents = def.ramps.Where(r => r.rise < 0f && r.run >= 30f).OrderBy(r => r.basePosition.z).ToArray();
+            Assert.That(descents.Length, Is.EqualTo(2));
+            Assert.That(descents[0].name, Is.EqualTo("T0_Ramp_Descent"));
+            Assert.That(descents[1].name, Is.EqualTo("T4_Ramp_Descent"));
+            Assert.That(descents[0].TopPosition.z, Is.LessThan(-8f));
+            Assert.That(descents[1].basePosition, Is.EqualTo(new Vector3(0f, 28f, 298.8f)));
+        }
+
         [Test] public void MigratingTheOriginalBossLocationMatchesARepeatedRework()
         {
             LevelDefinitionAuthoring.Apply(def);

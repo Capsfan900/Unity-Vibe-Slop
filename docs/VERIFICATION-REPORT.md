@@ -10,6 +10,32 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Two-ramp Level 1 correction — 2026-09-07
+
+- **Full FeatureTests: 776/777 passed**, zero skipped. `Items_RestoredOnRespawn` failed;
+  the full suite is not green. Fresh session loaded through the actual main menu, warm GameManager,
+  timeScale 1 and neutral movement/jump input checked before starting. Report:
+  `TestResults/opening-ramp/features-final.txt`. No gameplay or harness code was changed in this pass.
+  Fresh isolated Items coverage at Checkpoint_1 subsequently passed **43/43**, including that reset
+  assertion (`items-isolated.txt`); this does not erase the full-run failure.
+- Final Health Check: **0 errors, 1764 warnings**. Unity stopped with Level_01 open.
+- **Full EditMode: 843/843 passed**, zero failed/skipped, 216.4 s.
+  `TestResults/EditMode-20260907-171437.xml`. Includes all level-line simulations and four new
+  opening/spawn/continuity/preservation tests against regenerated shipped data.
+- Authoring applied twice with identical serialized output. Saved Player, StartSpawn and
+  LevelManager.startSpawn all read `(0,9.3,-55)`. The new 36 m / 9 m opening connects to Ground_Start;
+  there are exactly two large downhill ramps. Late encounter platforms, ramp, turret spawns and
+  arenas exactly matched their pre-change serialized baseline.
+- **Actual MainMenu.PlayFirstAvailable load passed:** Level_01, player settled at `(0,9.05,-55)`,
+  no active checkpoint. A pre-checkpoint respawn returned to `(0,9.3,-55)`.
+- **Actual opening traversal passed at capped 60 fps:** one entry impulse/slide from the spawn
+  reached the run-out continuously; subsequent test-driver motor impulses crossed onto the original
+  Ground_Start. Peak observed speed 14.76 m/s. This is a geometry/integration check, not a feel or
+  performance benchmark. Log: `TestResults/opening-ramp/live-slide.txt`.
+- Arc report: every authored traversal has a clean arc (`TestResults/opening-ramp/arc-report.txt`).
+  The builder rebuilt the NavMesh; 706 triangles read back. Both offline builds compile with no
+  errors (16 existing editor warnings). Opening view: `RouteShots/opening-ramp/start.png`.
+
 ### Fog and incoming-shot presentation — 2026-09-07
 
 - **Final harness follow-up:** Quick EditMode **701/701 passed**, 10.1 s,

@@ -641,6 +641,7 @@ namespace VibeGame1.EditorTools
             def.torches = torches.ToArray();
 
             ApplyDescent(def);
+            ApplyOpeningDescent(def);
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
@@ -695,12 +696,6 @@ namespace VibeGame1.EditorTools
                 width = 10f, run = 48f, rise = -12f, thickness = 0.5f, materialKey = "Stone" };
             ramps.Add(descent);
             def.ramps = ramps.ToArray();
-            // Level 1 opens at the descent, not at the retained earlier traversal route.
-            def.playerStart = descent.basePosition - descent.Heading * 1.3f + Vector3.up * 0.3f;
-            def.playerStartYaw = descent.yaw;
-            foreach (var pedestal in def.pedestals)
-                if (pedestal.name == "WandPedestal_Start")
-                    pedestal.groundPosition = new Vector3(3f, descent.basePosition.y, def.playerStart.z);
 
             var spawns = new List<SpawnDef>(def.spawns);
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T4_Surge_"));
@@ -720,6 +715,39 @@ namespace VibeGame1.EditorTools
             def.platforms = platforms.ToArray();
             def.killZone.center = new Vector3(0f, -30f, 200f);
             def.killZone.size = new Vector3(200f, 2f, 500f);
+        }
+
+        /// <summary>A separate downhill opening before Ground_Start; the complete original route follows it.</summary>
+        public static void ApplyOpeningDescent(LevelDefinition def)
+        {
+            // A broad crest gives room to orient before committing. The 1:4 slope keeps the same
+            // walkable grade as the final descent, with a shorter 36 m opening and an 8 m run-out.
+            // Both slope ends overlap their decks by 0.2 m; the run-out meets Ground_Start at y 0.
+            var platforms = new List<PlatformDef>(def.platforms);
+            platforms.RemoveAll(p => p.name == "T0_Entry" || p.name == "T0_RunOut");
+            platforms.Add(new PlatformDef { name = "T0_Entry", center = new Vector3(0f, 8.5f, -55.8f),
+                size = new Vector3(10f, 1f, 8.4f), materialKey = "Platform", trim = true,
+                trimMaterialKey = "NeonCyan" });
+            platforms.Add(new PlatformDef { name = "T0_RunOut", center = new Vector3(0f, -0.5f, -11.9f),
+                size = new Vector3(10f, 1f, 8.2f), materialKey = "Platform", trim = true,
+                trimMaterialKey = "NeonCyan" });
+            def.platforms = platforms.ToArray();
+
+            var ramps = new List<RampDef>(def.ramps);
+            ramps.RemoveAll(r => r.name == "T0_Ramp_Descent");
+            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, 9f, -51.8f),
+                width = 10f, run = 36f, rise = -9f, thickness = RampThickness, materialKey = "Stone" });
+            def.ramps = ramps.ToArray();
+
+            def.playerStart = new Vector3(0f, 9.3f, -55f);
+            def.playerStartYaw = 0f;
+            foreach (var pedestal in def.pedestals)
+                if (pedestal.name == "WandPedestal_Start")
+                    pedestal.groundPosition = new Vector3(3f, 9f, -55f);
+
+            // Catch falls behind the new crest while retaining the final arena's z 450 boundary.
+            def.killZone.center = new Vector3(0f, -30f, 185f);
+            def.killZone.size = new Vector3(200f, 2f, 530f);
         }
     }
 }

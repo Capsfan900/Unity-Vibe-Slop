@@ -1,67 +1,51 @@
-﻿# Handoff — ramp start, route mist and incoming-shot visuals
+﻿# Handoff — two ramps and the complete Level 1 route
 
-2026-09-07. Lead Codex; Sol implemented the fog, projectile presentation and final harness fixes.
-An attempted Astra/high follow-up launch hit the thread limit; do not attribute the visual pass to Astra.
+2026-09-07. Astra/high designed and implemented this correction; lead Codex generated and verified it.
 
 ## What happened
 
-Level 1 loads at the downhill crest `(0,28.3,297.5)` with its starting wand pedestal beside it.
-The real Main Menu load path was verified. The earlier route remains authored in the level.
-The 48 m downhill ramp, three Surge Turrets and downhill slide refinement were implemented in
-`691fc89`; the corrected start/pedestal is `a12fbec`.
+The previous start relocation skipped most of Level 1. The user clarified that the late ramp should
+stay, with a second ramp added BEFORE the original start. This pass implements that layout:
 
-Both requested atmosphere layers are implemented: visible drifting route mist plus stronger cold
-linear distance fog (36–140 m). Mist is world-space, prewarmed, capped at 48 particles, aligned to
-Default-layer ground every 0.25 seconds, and faded near the camera. The amber enemy shots now have
-bounded visual weave and a curved history trail; they converge to the logical trajectory before the
-parry cue and remain centered after reflection. Violet reward flares are unchanged. No historical
-wobble implementation was found; this is new visual motion over the existing homing behavior.
+- New opening: 10 m wide crest at y9, a 36 m downhill run dropping 9 m, then a flat run-out joining
+  Ground_Start. Player starts at `(0,9.3,-55)`, facing downhill; weapon pedestal is beside it.
+- The original starting area, checkpoints and complete route remain in place.
+- The existing 48 m / 12 m descent and three Surge Turrets remain before the boss. Serialized late
+  platforms, ramp, turrets and arenas matched the captured pre-change baseline exactly.
+- Kill-plane bounds extend behind the new opening, from z-80 to450.
+
+This is level authoring only. Movement, combat, enemies, fog and projectile presentation are unchanged.
+The earlier drifting mist and projectile work remains in `c396802` and `a927bd0`.
 
 ## State of the tree and rollback
 
-- `a927bd0` — `[Sol] Add bounded pre-cue motion to enemy bolts`.
-- `c396802` — `[Sol] Add drifting route mist and stronger distant haze`.
-- The final harness-only follow-up is the commit titled `[Sol] Correct physical pickup and flask test staging`.
-- Undo either visual pass independently with `git revert <commit>`; undo both using
-  `git revert c396802 a927bd0`. Restore tags: `pre-fog-flare-2026-09-07`,
-  `pre-descent-start-2026-09-07`, and `pre-ramp-descent-2026-09-07`.
-- The user's untracked `.claude/settings.local.json` is excluded.
+This correction lands as `[Astra] Add an opening descent before the complete Level 1 route`.
+Revert that commit to undo only this pass. Restore tag: `pre-opening-ramp-2026-09-07` at `6964424`.
+The user's untracked `.claude/settings.local.json` is excluded.
 
-Generators completed: the narrow `PrefabFactory.BuildPlayer` generator rebuilt Player; authoritative
-ProjectSetup fog values were applied through the editor and saved in Level_01 and Sandbox. The full
-ProjectSetup/BuildAll pipeline was not rerun, to avoid unrelated generated changes. The factories
-contain every shipped value. Level data/scene/NavMesh generation was completed for the earlier ramp
-and start correction. No generator is needed for runtime-created projectiles or the harness fix.
+Completed generators: `LevelDefinitionAuthoring.ReworkLevel01()` twice (identical serialized data),
+then `LevelDefinitionBuilder.BuildCanonicalHeadless()` (scene saved and NavMesh rebuilt). Saved
+StartSpawn, Player and LevelManager.startSpawn all read `(0,9.3,-55)`. No other generator is required.
+The authored shape and verification intent are in `docs/plans/opening-ramp-2026-09-07.md`.
 
 ## Verification
 
-See [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) for final suite results and historical failures.
-Final quick EditMode: **701/701**. Final full FeatureTests: **776/777**, with the uninterrupted-heal
-subcase failing; a fresh isolated Flask/FlaskPunish run then passed **11/11**. Its remaining
-full-suite context dependence is not fully diagnosed. Do not claim a green full suite.
-Both offline assemblies compile (16 existing editor warnings, no errors). The original ramp pass ran
-831 full EditMode tests successfully; the visual pass uses the 701-test quick suite because geometry
-and motor code are unchanged. Health Check reports 0 errors and 1764 warnings.
+See [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) for final results and limitations. Both offline
+assemblies compile; the editor has 16 existing warnings. This geometry change requires the full
+EditMode suite, including level-line checks. Automation does not prove human feel or fairness.
 
-The final saved encounter passed all three surge grants at capped 60 fps with mist and weave active.
-Live visual observations confirmed a 0.34 m maximum weave, zero cue/reflection offset, 36–38 mist
-particles, correct slope alignment and balanced material leases. Before/after captures are in
-`RouteShots/fog-flares/`. Temporary editor observers are removed and frame-rate settings restored.
-
-Repeated full-suite failures were traced to test staging: 14 m/s impulses stopped short of pickup
-triggers, and the flask test inherited a falling player whose respawn looked like healing. The
-harness-only follow-up increases its two entry impulses to 20 m/s and grounds the flask test at the
-current checkpoint. Assertions and gameplay systems are unchanged. Detailed ignored evidence lives
-in `TestResults/descent/`; the neutral-input run and diagnostic failures remain recorded honestly.
+Final full EditMode: **843/843 passed**. Full FeatureTests: **776/777**, one pickup-reset assertion
+failed. Main-menu load, pre-checkpoint respawn, continuous opening slide and movement onto the original
+starting deck passed live. Arc report is clean. The full feature result is not reported as green.
+The isolated Items group subsequently passed **43/43**. Final Health Check: **0 errors, 1764 warnings**.
+Unity is stopped with Level_01 open; temporary frame-rate settings and observers were restored/removed.
 
 ## Do first next session
 
-1. Human-playtest Level 1 from the main menu for ramp, cue and atmosphere feel.
-2. Consult ENGINEERING-LOG before chasing feature-suite staging or editor polling failures.
-   If improving the suite, diagnose the remaining context-dependent uninterrupted-flask failure.
-3. Check standalone/WebGL shader variants and performance before claiming build-level validation.
+1. Play Level 1 from the main menu: new opening ramp, full original course, late turret descent, boss.
+2. Read the verification report before changing gameplay to address a context-dependent harness result.
+3. Preserve the two-ramp ordering; never restore the late descent as Level 1's starting spawn.
 
 ## Open questions
 
-None blocking the requested implementation. No new player build was cut; editor automation does not
-prove human fairness, full-course aesthetics or standalone performance.
+None blocking the requested layout. No standalone build was cut during this pass.

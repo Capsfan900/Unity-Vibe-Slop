@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  playerStart: {x: 0, y: 28.3, z: 297.5}
+  playerStart: {x: 0, y: 9.3, z: -55}
   playerStartYaw: 0
   platforms:
   - name: Ground_Start
@@ -727,6 +727,20 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
+  - name: T0_Entry
+    center: {x: 0, y: 8.5, z: -55.8}
+    size: {x: 10, y: 1, z: 8.4}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_RunOut
+    center: {x: 0, y: -0.5, z: -11.9}
+    size: {x: 10, y: 1, z: 8.2}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
   ramps:
   - name: T1_Ramp_Stone12
     basePosition: {x: 2, y: 0, z: 16.3}
@@ -778,6 +792,15 @@ MonoBehaviour:
     width: 10
     run: 48
     rise: -12
+    thickness: 0.5
+    yaw: 0
+    materialKey: Stone
+    isStatic: 1
+  - name: T0_Ramp_Descent
+    basePosition: {x: 0, y: 9, z: -51.8}
+    width: 10
+    run: 36
+    rise: -9
     thickness: 0.5
     yaw: 0
     materialKey: Stone
@@ -1018,7 +1041,7 @@ MonoBehaviour:
     basePosition: {x: 8, y: 23, z: 207.5}
   pedestals:
   - name: WandPedestal_Start
-    groundPosition: {x: 3, y: 28, z: 297.5}
+    groundPosition: {x: 3, y: 9, z: -55}
     triggerRadius: 3
   balloons:
   - name: T3_Arc_1
@@ -1128,5 +1151,5 @@ MonoBehaviour:
     eclipseDiameterDeg: 38
   killZone:
     name: KillZone
-    center: {x: 0, y: -30, z: 200}
-    size: {x: 200, y: 2, z: 500}
+    center: {x: 0, y: -30, z: 185}
+    size: {x: 200, y: 2, z: 530}

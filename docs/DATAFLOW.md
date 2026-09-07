@@ -1867,12 +1867,20 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   (where the arena has one) `exitGateSize` — absolute and idempotent like the rest. It exists because the
   arena doorways widened 6 m → 9 m and **a doorway, its gate and its trigger are one measurement**: a 9 m
   door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
-- **Final descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` ends with `ApplyDescent`: a 10 m wide
-  entry at y 28 feeds `T4_Ramp_Descent` (48 m run, 12 m drop), then a 24.4 m run-out at y 16.
-  Level 1 start is authored 1.3 m before the ramp crest, 0.3 m above its surface, facing downhill.
-  `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart` into `StartSpawn`, which
-  `LevelDefinitionBuilder` places the saved player there and wires the level manager for pre-checkpoint respawns.
-  `WandPedestal_Start` moves beside the new start at (3,28,297.5), preserving loadout access.
+- **Opening descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` runs `ApplyDescent`, then
+  `ApplyOpeningDescent`. The second pass adds a separate 10 m wide crest at y 9 / z -60..-51.6,
+  `T0_Ramp_Descent` (36 m run, 9 m drop, z -51.8..-15.8), and a level run-out at y 0 / z -16..-7.8.
+  The run-out overlaps the rear of the unchanged `Ground_Start` by 0.2 m; the entire original course
+  follows. `playerStart` is (0,9.3,-55), on the crest facing downhill (yaw 0), and `WandPedestal_Start`
+  is beside it at (3,9,-55). `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart`
+  into `StartSpawn`; `LevelDefinitionBuilder` places the saved player there and wires the level manager
+  for pre-checkpoint respawns. Existing checkpoints remain in place. Kill bounds cover z -80..450.
+  The pass replaces only its two named decks and ramp and is idempotent. `LevelDescentTests` checks
+  the shipped start, full-width level joins, two large descents, migration from the erroneous late
+  spawn, and preservation of the existing route and encounter. `LevelRampPlacementTests` checks
+  every shipped slope for deck contact and obstruction.
+- **Final descent (2026-09-07):** `ApplyDescent` retains a 10 m wide
+  entry at y 28 feeding `T4_Ramp_Descent` (48 m run, 12 m drop), then a 24.4 m run-out at y 16.
   Three `Spawn_T4_Surge_*` entries use the existing `pshooter_enemy03` prefab on side pads at
   z 324/342/360, 18 m apart. Live interception moved the row 8 m past its first draft: the original
   opening bolt could chase behind the player and never arrive. The last beat now rides the run-out.

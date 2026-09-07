@@ -1,5 +1,14 @@
 # Engineering log
 
+## Adding an opening must not skip the original level (2026-09-07)
+
+**Symptom.** Level 1 spawned at the new descent immediately before the boss, bypassing the original
+course. **Root cause.** The first follow-up made `ApplyDescent` own `playerStart` despite that pass
+authoring the final encounter. **Fix.** Retain the final descent and prepend a separate
+`ApplyOpeningDescent` before Ground_Start; only the opening pass sets the crest spawn and pedestal.
+**Invariant.** Validate route order as well as spawn-on-platform: loading from the actual main menu
+must put the original course ahead of the player. Tests pin two descents and unchanged older content.
+
 ## Feature-suite trigger reach and flask respawn contamination (2026-09-07)
 
 **Symptom.** Neutral-input full runs repeated pickup, bloodstain recovery and interrupted-flask
