@@ -123,10 +123,15 @@ playtest.
 
 ## Open questions for the user
 
-1. Should a sentry be **killable at all** by reflected bolts, or should a reflect only ever open it and
-   the dash-execute be the only kill? (Decides P1's numbers and whether a span is clearable at range.)
-2. Should the sentry dash **cost** anything — stamina, the dash cooldown — or is it a free reward for the
-   two deflects that earned it?
+**Answered by the user, 2026-09-06 — 1 and 2 are settled; do not re-ask.**
+
+1. ~~Should a sentry be **killable at all** by reflected bolts?~~ **ANSWERED: yes, and it already works that
+   way.** The user: *"this system is already in place it kills the enemy and they explode with the flare."*
+   Reflected bolts kill outright (2–3 deflects) and the death detonates into the flare that the grapple
+   then takes — a span IS clearable at range, and the dash line is the faster, showier one rather than the
+   only one. P1's numbers must be written against a killable sentry.
+2. ~~Should the sentry dash **cost** anything?~~ **ANSWERED: no.** The user: *"does nothing its free."*
+   The two deflects that earned it are the whole price. Do not spend stamina or the dash cooldown on it.
 3. On a span, do you want to be able to **run straight past** a sentry as a legitimate line, or should an
    unanswered sentry make the span materially worse?
 4. Is P5 (a phrase, not a pulse) the direction you want, or should the span beat stay dead simple with

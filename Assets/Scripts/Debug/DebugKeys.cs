@@ -160,7 +160,7 @@ namespace VibeGame1
             if (stamina < 0) sb.Append('-'); else sb.Append(stamina);
 
             string text = sb.ToString();
-            GameEvents.RaisePromptChanged(text);
+            GameEvents.RaisePromptChanged(PromptOwner.Debug, text);
             if (reason != loggedReason)
             {
                 loggedReason = reason;
@@ -197,9 +197,9 @@ namespace VibeGame1
 
         IEnumerator PromptCo(string msg)
         {
-            GameEvents.RaisePromptChanged(msg);
+            GameEvents.RaisePromptChanged(PromptOwner.Debug, msg);
             yield return new WaitForSecondsRealtime(1.2f);
-            GameEvents.RaisePromptChanged("");
+            GameEvents.RaisePromptChanged(PromptOwner.Debug, "");
             promptRoutine = null;
         }
 #endif

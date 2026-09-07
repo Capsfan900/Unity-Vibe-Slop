@@ -730,16 +730,22 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
             → StatusStripView reads IsWallSurging / WallSurgeRemaining per frame → "WALL SURGE  N.Ns" row
 
 THE PROMPT LINE — two channels (2026-09-06)
-  GameEvents.PromptChanged (string)        → PromptView.standing : a cue true while a condition holds
+  GameEvents.PromptChanged (owner, string) → PromptView.standing : a cue true while a condition holds
         "DEATHBLOW  [ATTACK]" (ExecuteInteractor), "GRAPPLE  [DASH]" (FlareGrapple), "SURGE N.Ns" (PlayerItems),
         the level editor's PLAYING line. Every writer is EDGE-TRIGGERED (raises only when its own string changes).
   GameEvents.PromptFlash (string, seconds) → PromptView.flash : momentary, drawn OVER the standing cue and then
         gone — "PERFECT" (PlayerFeedback, 0.9 s), "NO TARGET" (PlayerItems, 0.6 s).
   PromptView.Current = flash while unexpired, else standing. Unscaled time. Before the split there was one
   channel, so a PERFECT erased a live GRAPPLE cue permanently (nothing re-raised it). FeatureTests: Prompt_*.
-  RESIDUAL, known: the STANDING slot still has several writers and no owner, so one writer's clear ("" at the
-  end of a SURGE) blanks another's live cue until that writer's own string changes. Next smallest step is an
-  owner key on the standing slot, so a clear only lands if the clearer is the one being shown. BACKLOG 0b.
+  THE OWNER KEY (2026-09-06, the user's call, closing the residual the split left): every standing write
+  carries a PromptOwner key — execute / grapple / surge / pedestal / sandbox / leveleditor / debug, "" being
+  unowned. PromptView.AcceptsStandingWrite(currentOwner, writer, text) is the whole rule and is PURE:
+        non-empty text  → always accepted (last speaker wins, exactly as before)
+        empty text      → accepted only if the writer still HOLDS the line, or nobody does
+  so a SURGE expiring can no longer blank a live "GRAPPLE  [DASH]" that will never re-raise itself. Clearing
+  releases the line back to unowned. PromptView.StandingOwner exposes the holder. Pinned by PromptOwnerTests
+  (the pure rule, EditMode) and FeatureTests Prompt_OwnerTakesTheLine / _AnotherOwnersClearIsIgnored /
+  _AnonymousClearIsIgnoredWhileOwned / _TheHolderMayClear (the view obeying it, play mode).
 
 GameEvents.PlayerRespawned → every ItemPickup re-enables; PlayerItems clears
 

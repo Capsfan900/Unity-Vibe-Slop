@@ -137,7 +137,7 @@ namespace VibeGame1
             if (show == promptShown) return;   // edge-triggered: the prompt bus is shared with ExecuteInteractor
             promptShown = show;
             PromptActive = show;
-            GameEvents.RaisePromptChanged(show ? promptText : "");
+            GameEvents.RaisePromptChanged(PromptOwner.Pedestal, show ? promptText : "");
         }
 
         void OnTriggerEnter(Collider other)

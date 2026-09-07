@@ -24,7 +24,15 @@ namespace VibeGame1
         public static event Action<float, float, int> BossHealthChanged;
         public static event Action<float, float> BossPostureChanged;
         public static event Action BossDefeated;
-        public static event Action<string> PromptChanged;
+        /// <summary>
+        /// The standing prompt line, as (owner, text). The owner key was added 2026-09-06 because this slot
+        /// has SEVERAL writers and had no owner: the grapple, the deathblow, the surge countdown, the wand
+        /// altar, the sandbox switch, the level editor and the dev keys all write it, every one of them
+        /// EDGE-TRIGGERED. So a writer clearing with "" blanked whatever another writer had standing there,
+        /// and — because the blanked writer's own string had not changed — it never re-raised. See
+        /// <see cref="PromptOwner"/> and PromptView.AcceptsStandingWrite.
+        /// </summary>
+        public static event Action<string, string> PromptChanged;
         /// <summary>A momentary prompt (text, seconds) drawn over the standing one. See RaisePromptFlash.</summary>
         public static event Action<string, float> PromptFlash;
         public static event Action UltimateUsed;
@@ -60,7 +68,18 @@ namespace VibeGame1
         public static void RaiseBossHealthChanged(float c, float m, int seg) => BossHealthChanged?.Invoke(c, m, seg);
         public static void RaiseBossPostureChanged(float c, float m) => BossPostureChanged?.Invoke(c, m);
         public static void RaiseBossDefeated() => BossDefeated?.Invoke();
-        public static void RaisePromptChanged(string s) => PromptChanged?.Invoke(s);
+        /// <summary>
+        /// An UNOWNED standing write. Kept for callers that own the line outright for as long as they are
+        /// alive; an unowned cue may be cleared by anyone. Prefer the two-argument form.
+        /// </summary>
+        public static void RaisePromptChanged(string s) => PromptChanged?.Invoke(PromptOwner.Anonymous, s);
+
+        /// <summary>
+        /// A standing cue written by <paramref name="owner"/> (a <see cref="PromptOwner"/> key). A non-empty
+        /// string takes the line; an empty one clears it ONLY if this owner still holds it, so one writer
+        /// going quiet can never blank another writer's live cue.
+        /// </summary>
+        public static void RaisePromptChanged(string owner, string s) => PromptChanged?.Invoke(owner ?? PromptOwner.Anonymous, s);
 
         /// <summary>
         /// A momentary prompt shown OVER the standing one for <paramref name="seconds"/>, then gone —

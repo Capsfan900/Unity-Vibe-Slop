@@ -27,6 +27,7 @@ namespace VibeGame1
 
         float alpha;
         string standing = "";
+        string standingOwner = PromptOwner.Anonymous;
         string flash = "";
         float flashUntil = -1f;
         string lastShown = "";
@@ -47,10 +48,38 @@ namespace VibeGame1
             GameEvents.PromptFlash -= Flash;
         }
 
-        /// <summary>The standing cue. An empty string clears it; the flash is left alone either way.</summary>
+        /// <summary>Who currently holds the standing line. Tests read it.</summary>
+        public string StandingOwner { get { return standingOwner; } }
+
+        /// <summary>
+        /// May <paramref name="writer"/> write <paramref name="text"/> over a line currently held by
+        /// <paramref name="currentOwner"/>? A non-empty cue always takes the line — last speaker wins, as it
+        /// always has. An empty one is a CLEAR, and a clear is only yours to give: it lands when you still
+        /// hold the line, or when nobody does. Pure, so the rule is a test rather than a playtest.
+        /// </summary>
+        public static bool AcceptsStandingWrite(string currentOwner, string writer, string text)
+        {
+            if (!string.IsNullOrEmpty(text)) return true;
+            if (string.IsNullOrEmpty(currentOwner)) return true;
+            return currentOwner == (writer ?? PromptOwner.Anonymous);
+        }
+
+        /// <summary>The standing cue, unowned. Anyone may clear what this writes.</summary>
         public void Set(string s)
         {
-            standing = s ?? "";
+            Set(PromptOwner.Anonymous, s);
+        }
+
+        /// <summary>
+        /// The standing cue from a named owner. An empty string clears it only if this owner still holds the
+        /// line; the flash channel is left alone either way.
+        /// </summary>
+        public void Set(string owner, string s)
+        {
+            string text = s ?? "";
+            if (!AcceptsStandingWrite(standingOwner, owner, text)) return;
+            standing = text;
+            standingOwner = text.Length > 0 ? (owner ?? PromptOwner.Anonymous) : PromptOwner.Anonymous;
         }
 
         /// <summary>A momentary line over the standing cue. A non-positive duration clears the flash.</summary>

@@ -312,10 +312,10 @@ namespace VibeGame1
             while (motor != null && motor.IsWallSurging)
             {
                 int s = Mathf.CeilToInt(motor.WallSurgeRemaining);
-                if (s != last) { last = s; GameEvents.RaisePromptChanged("SURGE " + s + "s"); }
+                if (s != last) { last = s; GameEvents.RaisePromptChanged(PromptOwner.Surge, "SURGE " + s + "s"); }
                 yield return null;
             }
-            GameEvents.RaisePromptChanged("");
+            GameEvents.RaisePromptChanged(PromptOwner.Surge, "");
             surgePrompt = null;
         }
     }

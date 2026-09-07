@@ -39,11 +39,12 @@ spawns are removed outright or kept as tools. Recorded in memory as `direction-p
   spent in `FirstPersonMotor.TrySlide` after every refusal gate so a refused slide is free; `StaminaAction.Slide`
   names the refusal; written by `PrefabFactory.BuildPlayer`, pinned by `StaminaTunablesTests`. The landing-slide
   and the chain falloff are untouched.
-- **An owner key on the standing prompt slot.** Done 2026-09-06: flashes ("PERFECT", "NO TARGET") moved to
-  their own `GameEvents.PromptFlash` channel so they hand the standing cue back. Still open: the standing slot
-  has several writers and no owner, so a writer clearing with `""` (the SURGE readout when it expires) blanks
-  another writer's live cue ("GRAPPLE  [DASH]") until that writer's own string changes. Shape: pass an owner
-  token to `RaisePromptChanged`, and let a clear land only when the clearer is the one currently shown.
+- **An owner key on the standing prompt slot. BUILT 2026-09-06** (the user asked for it by name). Two steps:
+  flashes ("PERFECT", "NO TARGET") moved to their own `GameEvents.PromptFlash` channel so they hand the
+  standing cue back; then every standing write got an owner — `RaisePromptChanged(PromptOwner.Grapple, s)` —
+  and a clear now lands only when the clearer still holds the line, or nobody does. `PromptOwner` lists the
+  seven writers; `PromptView.AcceptsStandingWrite` is the pure rule; `PromptOwnerTests` and the feature
+  suite's `Prompt_*` pin it. See DATAFLOW "THE PROMPT LINE".
 
 - **Re-tune the perfect-timing stamina regain** ("more reasonable to do but takes skill"): play-test the
   three windows (wall jump 0.14 s at the let-go, dash-jump 0.04–0.16 s, burst 0.12 s) and their refunds

@@ -1895,6 +1895,30 @@ namespace VibeGame1
             GameEvents.RaisePromptChanged("");
             yield return null;
             Check("Prompt_EmptyStandingClears", view.Current.Length == 0, "current=" + view.Current);
+
+            // ---- the owner key (2026-09-06) --------------------------------------------------------
+            // The slot has many writers and all of them are edge-triggered, so a writer going quiet must
+            // not be able to blank a cue it never wrote. Only the holder — or nobody — may clear.
+            GameEvents.RaisePromptChanged(PromptOwner.Grapple, "GRAPPLE  [DASH]");
+            yield return null;
+            Check("Prompt_OwnerTakesTheLine",
+                view.Current == "GRAPPLE  [DASH]" && view.StandingOwner == PromptOwner.Grapple,
+                "current=" + view.Current + " owner=" + view.StandingOwner);
+
+            GameEvents.RaisePromptChanged(PromptOwner.Execute, "");
+            yield return null;
+            Check("Prompt_AnotherOwnersClearIsIgnored", view.Current == "GRAPPLE  [DASH]",
+                "current=" + view.Current + " -- a writer going quiet must not blank another writer's cue");
+
+            GameEvents.RaisePromptChanged("");
+            yield return null;
+            Check("Prompt_AnonymousClearIsIgnoredWhileOwned", view.Current == "GRAPPLE  [DASH]",
+                "current=" + view.Current);
+
+            GameEvents.RaisePromptChanged(PromptOwner.Grapple, "");
+            yield return null;
+            Check("Prompt_TheHolderMayClear", view.Current.Length == 0,
+                "current=" + view.Current + " owner=" + view.StandingOwner);
         }
 
         IEnumerator TestFlare()
@@ -2632,7 +2656,7 @@ namespace VibeGame1
                 Check("WandPedestal_TriggerOffWhenDevMenuOff", !pedestal.GetComponent<Collider>().enabled);
 
                 string offPrompt = "";
-                Action<string> onOffPrompt = p => offPrompt = p;
+                Action<string, string> onOffPrompt = (o, p) => offPrompt = p;
                 GameEvents.PromptChanged += onOffPrompt;
                 Vector3 standOff = pedestal.transform.position - Vector3.forward * 2f + Vector3.up * 1.2f;
                 motor.Teleport(standOff, 0f);
@@ -2664,7 +2688,7 @@ namespace VibeGame1
             else
             {
                 string lastPrompt = "";
-                Action<string> onPrompt = p => lastPrompt = p;
+                Action<string, string> onPrompt = (o, p) => lastPrompt = p;
                 GameEvents.PromptChanged += onPrompt;
 
                 Vector3 stand = pedestal.transform.position - Vector3.forward * 2f + Vector3.up * 1.2f;

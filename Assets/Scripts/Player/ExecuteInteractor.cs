@@ -95,7 +95,7 @@ namespace VibeGame1
                 ? (wandCooling ? "DEATHBLOW  <alpha=#99>[ATTACK]  WAND " + wands.CooldownRemaining.ToString("0.0") + "s"
                                : "DEATHBLOW  <alpha=#99>[ATTACK]")
                 : "";
-            if (prompt != lastPrompt) { lastPrompt = prompt; GameEvents.RaisePromptChanged(prompt); }
+            if (prompt != lastPrompt) { lastPrompt = prompt; GameEvents.RaisePromptChanged(PromptOwner.Execute, prompt); }
             if (deathblow != lastDeathblow) { lastDeathblow = deathblow; GameEvents.RaiseDeathblowReady(deathblow); }
         }
 
@@ -160,7 +160,7 @@ namespace VibeGame1
             if (motor != null) motor.CanMove = false;
             CommitCue(e);              // BEFORE BeginExecuted: it reads the marker's position
             e.BeginExecuted(transform);
-            GameEvents.RaisePromptChanged("");
+            GameEvents.RaisePromptChanged(PromptOwner.Execute, "");
             lastPrompt = "";
             GameEvents.RaiseDeathblowReady(false);
             lastDeathblow = false;

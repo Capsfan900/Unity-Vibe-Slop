@@ -157,7 +157,7 @@ namespace VibeGame1
         {
             if (show == promptShown) return;   // edge-triggered: the prompt bus is shared
             promptShown = show;
-            GameEvents.RaisePromptChanged(show ? "[F]  WAKE  " + enemyName : "");
+            GameEvents.RaisePromptChanged(PromptOwner.Sandbox, show ? "[F]  WAKE  " + enemyName : "");
         }
 
         void OnTriggerEnter(Collider other)

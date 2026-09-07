@@ -159,7 +159,7 @@ namespace VibeGame1
         {
             if (p == lastPrompt) return;
             lastPrompt = p;
-            GameEvents.RaisePromptChanged(p);
+            GameEvents.RaisePromptChanged(PromptOwner.Grapple, p);
         }
     }
 }

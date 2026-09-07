@@ -304,7 +304,7 @@ namespace VibeGame1
             if (GameManager.I != null) GameManager.I.SetState(GameState.Playing);
             if (panel != null) panel.SetActive(false);
             if (playHint != null) playHint.SetActive(false);
-            GameEvents.RaisePromptChanged("");
+            GameEvents.RaisePromptChanged(PromptOwner.LevelEditor, "");
         }
 
         /// <summary>Rebuild the level fresh, bake a NavMesh for it, drop the player at the start and play.</summary>
@@ -324,7 +324,7 @@ namespace VibeGame1
             SpawnAll();
             if (panel != null) panel.SetActive(false);
             if (playHint != null) playHint.SetActive(true);
-            GameEvents.RaisePromptChanged("PLAYING  " + doc.displayName + "   [F10] back to the editor");
+            GameEvents.RaisePromptChanged(PromptOwner.LevelEditor, "PLAYING  " + doc.displayName + "   [F10] back to the editor");
         }
 
         public void BackToEditing()
@@ -340,7 +340,7 @@ namespace VibeGame1
             SetCursor(enterCursorFree);
             if (panel != null) panel.SetActive(true);
             if (playHint != null) playHint.SetActive(false);
-            GameEvents.RaisePromptChanged("");
+            GameEvents.RaisePromptChanged(PromptOwner.LevelEditor, "");
             RefreshPanel();
         }
 
