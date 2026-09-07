@@ -41,6 +41,10 @@ namespace VibeGame1
             Quality = 7,
             Bloom = 8,
             FilmGrain = 9,
+            // Appended, never inserted: the enum's numbers are stable and the array below is screen
+            // order. There is no SFX row on purpose — see SettingsData's volume block.
+            MasterVolume = 10,
+            MusicVolume = 11,
         }
 
         /// <summary>Every kind the builder must emit, in screen order. The EditMode test asserts on this.</summary>
@@ -49,6 +53,7 @@ namespace VibeGame1
             RowKind.MouseSensitivity, RowKind.StickSensitivity, RowKind.FieldOfView,
             RowKind.Resolution, RowKind.DisplayMode, RowKind.VSync, RowKind.FrameCap,
             RowKind.Quality, RowKind.Bloom, RowKind.FilmGrain,
+            RowKind.MasterVolume, RowKind.MusicVolume,
         };
 
         [Serializable]
@@ -104,6 +109,11 @@ namespace VibeGame1
         bool building;
 
         Vector2Int[] resolutions = new Vector2Int[0];
+
+        /// <summary>Unscaled time of the last volume audition click, so dragging a slider ticks rather
+        /// than machine-guns. 0.09 s is a little over five frames at 60 fps.</summary>
+        float lastAuditionAt = -99f;
+        const float AuditionInterval = 0.09f;
 
         void Awake()
         {
@@ -299,6 +309,12 @@ namespace VibeGame1
         {
             if (kind == RowKind.FrameCap && d.vSync > 0) return "vsync is on";
             if (kind == RowKind.Resolution && resolutions.Length == 0) return "no display list";
+            // The two volume rows say what they actually reach, and admit a silent game rather than
+            // leaving a player dragging a music slider that master has already muted.
+            if (kind == RowKind.MasterVolume) return d.masterVolume <= 0.0001f ? "everything is muted" : "sfx and music";
+            if (kind == RowKind.MusicVolume)
+                return d.masterVolume <= 0.0001f ? "master is muted"
+                     : d.musicVolume <= 0.0001f ? "music off" : "music and the radio";
 #if UNITY_EDITOR
             if (kind == RowKind.Resolution || kind == RowKind.DisplayMode) return "applies in a build";
 #endif
@@ -315,6 +331,8 @@ namespace VibeGame1
                 case RowKind.StickSensitivity: lo = SettingsData.StickSensMin; hi = SettingsData.StickSensMax; return;
                 case RowKind.FieldOfView: lo = SettingsData.FovMin; hi = SettingsData.FovMax; return;
                 case RowKind.Bloom: lo = SettingsData.BloomMin; hi = SettingsData.BloomMax; return;
+                case RowKind.MasterVolume:
+                case RowKind.MusicVolume: lo = SettingsData.VolumeMin; hi = SettingsData.VolumeMax; return;
                 default: lo = 0f; hi = 1f; return;
             }
         }
@@ -328,6 +346,8 @@ namespace VibeGame1
                 case RowKind.StickSensitivity: return 10f;
                 case RowKind.FieldOfView: return 1f;
                 case RowKind.Bloom: return 0.05f;
+                case RowKind.MasterVolume:
+                case RowKind.MusicVolume: return 0.05f;
                 default: return 0f;
             }
         }
@@ -335,7 +355,8 @@ namespace VibeGame1
         public static bool IsContinuous(RowKind kind)
         {
             return kind == RowKind.MouseSensitivity || kind == RowKind.StickSensitivity
-                || kind == RowKind.FieldOfView || kind == RowKind.Bloom;
+                || kind == RowKind.FieldOfView || kind == RowKind.Bloom
+                || kind == RowKind.MasterVolume || kind == RowKind.MusicVolume;
         }
 
         static float Continuous(RowKind kind, SettingsData d)
@@ -346,6 +367,8 @@ namespace VibeGame1
                 case RowKind.StickSensitivity: return d.stickSensitivity;
                 case RowKind.FieldOfView: return d.fieldOfView;
                 case RowKind.Bloom: return d.bloomScale;
+                case RowKind.MasterVolume: return d.masterVolume;
+                case RowKind.MusicVolume: return d.musicVolume;
                 default: return 0f;
             }
         }
@@ -363,6 +386,8 @@ namespace VibeGame1
                 case RowKind.StickSensitivity: d.stickSensitivity = v; break;
                 case RowKind.FieldOfView: d.fieldOfView = v; break;
                 case RowKind.Bloom: d.bloomScale = v; break;
+                case RowKind.MasterVolume: d.masterVolume = v; break;
+                case RowKind.MusicVolume: d.musicVolume = v; break;
             }
             d.Clamp();
         }
@@ -373,6 +398,22 @@ namespace VibeGame1
             var d = SettingsStore.Current;
             SetContinuous(d, kind, v);
             Commit();
+            Audition(kind);
+        }
+
+        /// <summary>
+        /// A volume row has to be HEARD, not read: <c>Commit</c> has already pushed the new gain onto
+        /// <c>AudioManager</c> (the music bed changes on the same frame), and this is the SFX half of the
+        /// answer — one click at the level just set, through the very bus being set. Throttled so a
+        /// dragged slider ticks instead of machine-gunning, and no new sound: <see cref="Sfx.Click"/> is
+        /// the sound this screen already makes.
+        /// </summary>
+        void Audition(RowKind kind)
+        {
+            if (kind != RowKind.MasterVolume && kind != RowKind.MusicVolume) return;
+            if (Time.unscaledTime - lastAuditionAt < AuditionInterval) return;
+            lastAuditionAt = Time.unscaledTime;
+            AudioManager.Play(Sfx.Click, 1f, kind == RowKind.MusicVolume ? 0.85f : 1.1f, 0.02f);
         }
 
         /// <summary>
@@ -434,6 +475,7 @@ namespace VibeGame1
             var names = QualitySettings.names;
             Step(SettingsStore.Current, kind, delta, resolutions, names != null ? names.Length : 0);
             Commit();
+            Audition(kind);
         }
 
         /// <summary>Persist and push. Saving on every notch is deliberate: a crash never loses a setting.</summary>
@@ -458,7 +500,9 @@ namespace VibeGame1
                 case RowKind.FrameCap: return "FRAME RATE CAP";
                 case RowKind.Quality: return "QUALITY";
                 case RowKind.Bloom: return "BLOOM";
-                default: return "FILM GRAIN";
+                case RowKind.FilmGrain: return "FILM GRAIN";
+                case RowKind.MasterVolume: return "MASTER VOLUME";
+                default: return "MUSIC VOLUME";
             }
         }
 
@@ -477,7 +521,9 @@ namespace VibeGame1
                 case RowKind.FrameCap: return SettingsData.FrameCapLabel(d.frameRateCap);
                 case RowKind.Quality: return QualityLabel(d.qualityLevel);
                 case RowKind.Bloom: return SettingsData.PercentLabel(d.bloomScale);
-                default: return SettingsData.OnOffLabel(d.filmGrain);
+                case RowKind.FilmGrain: return SettingsData.OnOffLabel(d.filmGrain);
+                case RowKind.MasterVolume: return SettingsData.PercentLabel(d.masterVolume);
+                default: return SettingsData.PercentLabel(d.musicVolume);
             }
         }
 

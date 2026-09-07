@@ -36,15 +36,35 @@ namespace VibeGame1
             Build();
         }
 
+        /// <summary>The Leaderboard we are actually subscribed to, so the subscription is symmetric even
+        /// when the singleton is replaced (a scene change) or arrives late (see <see cref="Update"/>).</summary>
+        Leaderboard subscribed;
+
         void OnEnable()
         {
-            if (Leaderboard.I != null) Leaderboard.I.Changed += RefreshBoard;
+            TrySubscribe();
         }
 
         void OnDisable()
         {
-            if (Leaderboard.I != null) Leaderboard.I.Changed -= RefreshBoard;
+            if (subscribed != null) { subscribed.Changed -= RefreshBoard; subscribed = null; }
             if (hud != null && hud.bestRunsPane != null) hud.bestRunsPane.SetActive(false);
+        }
+
+        /// <summary>
+        /// Subscribe to whatever Leaderboard exists NOW, once. OnEnable alone was not enough: this canvas
+        /// is built in Awake and the Leaderboard is a singleton on another object, so on any load order
+        /// where it comes up second the subscription was silently skipped and the BEST RUNS pane never
+        /// updated for the rest of the session. Update() re-tries, the same lazy-subscribe idiom
+        /// RadioView uses for LevelRadio.
+        /// </summary>
+        void TrySubscribe()
+        {
+            var board = Leaderboard.I;
+            if (board == subscribed) return;
+            if (subscribed != null) subscribed.Changed -= RefreshBoard;
+            subscribed = board;
+            if (subscribed != null) { subscribed.Changed -= RefreshBoard; subscribed.Changed += RefreshBoard; RefreshBoard(); }
         }
 
         void Start()
@@ -107,6 +127,7 @@ namespace VibeGame1
 
         void Update()
         {
+            TrySubscribe();
             // The HUD usually spawns after this canvas: while the board is still on the fallback text and
             // the HUD's pane turns up, move the table into the pane (HudPane re-tries once a second).
             if (BoardVisible && boardText != null && boardText.text.Length > 0 && HudPane() != null) RefreshBoard();

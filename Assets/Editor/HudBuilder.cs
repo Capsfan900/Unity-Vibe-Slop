@@ -308,12 +308,16 @@ namespace VibeGame1.EditorTools
 
             var counter = Txt("RadioCounter", radioGlass, "", 12f, new Color(Bone.r, Bone.g, Bone.b, 0.55f), TextAlignmentOptions.Left);
             counter.characterSpacing = 3f;
-            Rect(counter.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset - 54f), new Vector2(120f, 16f));
+            Rect(counter.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset - 54f), new Vector2(100f, 16f));
             radio.counterText = counter;
 
             // The keys, quieter than the counter: they are learned once and then ignored.
-            var keys = Txt("RadioKeys", radioGlass, "◀ [   ]  ▶    \\", 11f, new Color(Bone.r, Bone.g, Bone.b, 0.40f), TextAlignmentOptions.Right);
-            Rect(keys.gameObject, TopRight, TopRight, TopRight, new Vector2(-Inset, -Inset - 54f), new Vector2(148f, 16f));
+            // PLAIN ASCII, and this is not a style choice: TMP Settings ships the STATIC LiberationSans
+            // SDF atlas (m_AtlasPopulationMode 0, 250 glyphs topping out at U+25A1), so the pointing
+            // triangles this line used to carry (U+25C0 / U+25B6) were not in it and drew as the missing
+            // -glyph box. The same trap StatusStripView documents for its "&gt;" item marker.
+            var keys = Txt("RadioKeys", radioGlass, "[ ] TRACK    \\ ON", 11f, new Color(Bone.r, Bone.g, Bone.b, 0.40f), TextAlignmentOptions.Right);
+            Rect(keys.gameObject, TopRight, TopRight, TopRight, new Vector2(-Inset, -Inset - 54f), new Vector2(168f, 16f));
             radio.keyHintText = keys;
 
             // The progress line: a BarView (anchor-driven — hard rule 5, never Image.fillAmount), four
@@ -342,6 +346,19 @@ namespace VibeGame1.EditorTools
             // Under the BEST RUNS pane's band, narrower than the gap between the pill and the right edge.
             Rect(hud.hintText.gameObject, TopRight, TopRight, TopRight, new Vector2(-32f, BestRunsBottom - 12f), new Vector2(560f, 24f));
 
+            // ---------------- What the level editor (F10) takes off the screen ----------------
+            // Every readout that is about a RUN, by pane root. Not the radio or BEST RUNS (RadioView and
+            // GhostHud own those, and a second writer would fight them), not the crosshair (the editor
+            // aims with it) and not the prompt line (the editor writes its PLAYING banner there).
+            hud.editorHiddenRoots = new[]
+            {
+                bl.parent.gameObject,        // Vitals
+                tl.parent.gameObject,        // Loadout
+                tc.parent.gameObject,        // Clock
+                itemsRoot.gameObject,        // ItemSlots
+                hud.statusStrip.gameObject,  // StatusStrip
+            };
+
             // ---------------- Center: crosshair / popups / prompt ----------------
             var crosshair = Img("Crosshair", t, Color.white);
             crosshair.raycastTarget = false;
@@ -361,18 +378,31 @@ namespace VibeGame1.EditorTools
             prompt.text = Txt("PromptText", t, "EXECUTE", 36f, Yellow, TextAlignmentOptions.Center);
             prompt.text.fontStyle = FontStyles.Bold;
             prompt.text.alpha = 0f;
-            Rect(prompt.text.gameObject, Center, Center, Center, new Vector2(0f, -120f), new Vector2(600f, 50f));
+            // y -132, not -120: the deathblow banner below is 90 tall centred on -60, so its rect used to
+            // reach -105 and cross this one's top edge at -95. The two are not exclusive — the banner is
+            // the BOSS deathblow window and this line still carries a GRAPPLE or SURGE cue underneath it.
+            Rect(prompt.text.gameObject, Center, Center, Center, new Vector2(0f, -132f), new Vector2(600f, 50f));
+            // Hard rule 9: the settle time is SHIPPED, not a field initialiser.
+            prompt.settleSeconds = 0.6f;
 
-            // Killing-blow banner: bigger and louder than the small EXECUTE prompt.
-            hud.deathblowText = Txt("DeathblowText", t, "DEATHBLOW  [LMB]", 64f, Blood, TextAlignmentOptions.Center);
+            // Killing-blow banner: bigger and louder than the small deathblow prompt. Its text is
+            // never rewritten at runtime, so the SHIPPED string is the one the player reads — and it has
+            // to name the input the way everything else does. ExecuteInteractor.cs:96 prints
+            // "DEATHBLOW  [ATTACK]" and ControlsInfo says "LMB  attack"; this said "[LMB]", which is the
+            // same button under a third name.
+            hud.deathblowText = Txt("DeathblowText", t, "DEATHBLOW  [ATTACK]", 64f, Blood, TextAlignmentOptions.Center);
             hud.deathblowText.fontStyle = FontStyles.Bold;
             hud.deathblowText.characterSpacing = 8f;
             hud.deathblowText.alpha = 0f;
             Rect(hud.deathblowText.gameObject, Center, Center, Center, new Vector2(0f, -60f), new Vector2(1200f, 90f));
 
             // Item pickup toast (name + what it does), below the crosshair and clear of the item row.
-            hud.itemToastText = Txt("ItemToast", t, "", 42f, Color.white, TextAlignmentOptions.Center);
+            hud.itemToastText = Txt("ItemToast", t, "", 42f, Bone, TextAlignmentOptions.Center);
             hud.itemToastText.richText = true;
+            // The ONE label on the HUD whose text is authored content rather than a fixed string:
+            // ItemData.description is free text and Txt() defaults to NoWrap + Overflow, so a long
+            // description ran off both edges of the screen. Wrap it inside its 1000-wide rect instead.
+            hud.itemToastText.textWrappingMode = TextWrappingModes.Normal;
             hud.itemToastText.alpha = 0f;
             Rect(hud.itemToastText.gameObject, Center, Center, Center, new Vector2(0f, -230f), new Vector2(1000f, 120f));
 
@@ -1250,20 +1280,57 @@ namespace VibeGame1.EditorTools
         static readonly Vector2 Left = new Vector2(0f, 0.5f);
         static readonly Vector2 Right = new Vector2(1f, 0.5f);
 
-        const float RowWidth = 1160f;
-        const float RowHeight = 50f;
-        const float RowStride = 56f;
+        // Layout numbers, public so SettingsPanelTests asserts the SHIPPED arithmetic rather than a
+        // second copy of it. Tightened 2026-09-06 to seat the AUDIO section: the panel went from 10 rows
+        // in 3 sections to 12 in 4, and at the old stride the last row would have landed on the BACK
+        // button. It also buys back ultrawide headroom — at 21:9 the canvas scaler leaves only 935
+        // logical units of height (467 above and below centre), and the buttons used to sit at -484.
+        public const float RowWidth = 1160f;
+        public const float RowHeight = 46f;
+        public const float RowStride = 50f;
+        /// <summary>Extra drop before a section header, and from the header down to its first row.</summary>
+        public const float SectionLead = 6f;
+        public const float SectionGap = 38f;
+        /// <summary>y of the first thing the row loop places.</summary>
+        public const float FirstRowCursor = 352f;
+        /// <summary>BACK / RESET DEFAULTS: y, and the size both share.</summary>
+        public const float ButtonY = -430f;
+        public static readonly Vector2 ButtonSize = new Vector2(300f, 52f);
+        /// <summary>The glass card behind the rows.</summary>
+        public static readonly Vector2 CardPos = new Vector2(0f, -12f);
+        public static readonly Vector2 CardSize = new Vector2(1260f, 950f);
 
-        /// <summary>Section header shown above the given row index. Data, so the loop stays one loop.</summary>
-        static string SectionBefore(int rowIndex)
+        /// <summary>
+        /// Section header shown above this row. Keyed on the KIND, not the index: the row order lives in
+        /// <see cref="SettingsMenu.AllKinds"/>, and an index table silently mis-sections the whole panel
+        /// the first time a row is inserted rather than appended.
+        /// </summary>
+        static string SectionBefore(SettingsMenu.RowKind kind)
         {
-            switch (rowIndex)
+            switch (kind)
             {
-                case 0: return "CONTROL";
-                case 3: return "DISPLAY";
-                case 8: return "IMAGE";
+                case SettingsMenu.RowKind.MouseSensitivity: return "CONTROL";
+                case SettingsMenu.RowKind.Resolution: return "DISPLAY";
+                case SettingsMenu.RowKind.Bloom: return "IMAGE";
+                case SettingsMenu.RowKind.MasterVolume: return "AUDIO";
                 default: return null;
             }
+        }
+
+        /// <summary>
+        /// The y this panel's last row lands on, given the rows it is asked to draw. Pure, so the test
+        /// that proves the rows clear the BACK button runs the SAME arithmetic the builder does.
+        /// </summary>
+        public static float LastRowY(SettingsMenu.RowKind[] kinds)
+        {
+            float cursor = FirstRowCursor, last = cursor;
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                if (SectionBefore(kinds[i]) != null) cursor -= SectionLead + SectionGap;
+                last = cursor;
+                cursor -= RowStride;
+            }
+            return last;
         }
 
         public static GameObject BuildPanel(SettingsMenu menu, Transform canvasRoot)
@@ -1275,7 +1342,7 @@ namespace VibeGame1.EditorTools
 
             // One card of glass behind the rows, built first so it draws under them. Same four layers
             // HudBuilder.PaneInto uses, kept local for the reason the rest of this kit is.
-            GlassCard(p, new Vector2(0f, -8f), new Vector2(1260f, 1000f));
+            GlassCard(p, CardPos, CardSize);
 
             var title = TxtK("Title", p, "SETTINGS", 44f, Bone, TextAlignmentOptions.Center);
             title.fontStyle = FontStyles.Bold;
@@ -1288,28 +1355,28 @@ namespace VibeGame1.EditorTools
 
             var kinds = SettingsMenu.AllKinds;
             var rows = new SettingsMenu.Row[kinds.Length];
-            float cursor = 348f;
+            float cursor = FirstRowCursor;
 
             for (int i = 0; i < kinds.Length; i++)
             {
-                string section = SectionBefore(i);
+                string section = SectionBefore(kinds[i]);
                 if (section != null)
                 {
-                    cursor -= 8f;
+                    cursor -= SectionLead;
                     var h = TxtK(section + "Header", p, section, 17f,
                                  new Color(Ember.r, Ember.g, Ember.b, 0.85f), TextAlignmentOptions.Left);
                     h.fontStyle = FontStyles.Bold;
                     h.characterSpacing = 8f;
                     RectK(h.gameObject, Mid, Mid, Left, new Vector2(-RowWidth * 0.5f, cursor), new Vector2(400f, 22f));
-                    cursor -= 40f;
+                    cursor -= SectionGap;
                 }
 
                 rows[i] = BuildRow(kinds[i], p, cursor);
                 cursor -= RowStride;
             }
 
-            var back = BtnK("BackButton", p, "BACK", new Vector2(-180f, -456f), new Vector2(300f, 56f));
-            var reset = BtnK("ResetButton", p, "RESET DEFAULTS", new Vector2(180f, -456f), new Vector2(300f, 56f));
+            var back = BtnK("BackButton", p, "BACK", new Vector2(-180f, ButtonY), ButtonSize);
+            var reset = BtnK("ResetButton", p, "RESET DEFAULTS", new Vector2(180f, ButtonY), ButtonSize);
 
             // The INFO card: the whole key reference (ControlsInfo, the one source both prefabs share) on
             // a glass card over the rows, toggled by the INFO button beside the title. Built LAST so it
@@ -1459,7 +1526,7 @@ namespace VibeGame1.EditorTools
             colors.disabledColor = new Color(0.4f, 0.4f, 0.4f, 0.35f);
             btn.colors = colors;
 
-            var txt = TxtK("Label", img.transform, label, 22f, Color.white, TextAlignmentOptions.Center);
+            var txt = TxtK("Label", img.transform, label, 22f, Bone, TextAlignmentOptions.Center);
             txt.fontStyle = FontStyles.Bold;
             StretchK(txt.gameObject);
             return btn;

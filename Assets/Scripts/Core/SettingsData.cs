@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace VibeGame1
 {
@@ -45,6 +45,16 @@ namespace VibeGame1
         public const float BloomMax = 2f;
         public const float BloomDefault = 1f;           // 1.0 == exactly the authored volume profile
 
+        // Volumes are SCALES on the mix AudioManager ships with (master 0.7, music 0.45 on
+        // Managers.prefab), exactly the way bloomScale is a scale on the authored volume profile.
+        // 100% therefore means "the mix as tuned", not "unity gain": a player who never touches these
+        // hears what the audio pass authored, and retuning the prefab moves everyone's 100% with it.
+        // There is deliberately no SFX row — AudioManager has one SFX path and it runs through
+        // masterVolume (AudioManager.cs:157). A third slider would control nothing.
+        public const float VolumeMin = 0f;
+        public const float VolumeMax = 1f;
+        public const float VolumeDefault = 1f;
+
         /// <summary>Selectable frame-rate caps. 0 means uncapped. Persisted by VALUE, not by index.</summary>
         public static readonly int[] FrameCaps = { 0, 30, 60, 90, 120, 144, 240 };
 
@@ -72,6 +82,11 @@ namespace VibeGame1
 
         public bool filmGrain = true;
 
+        /// <summary>Scale on AudioManager's authored master gain. Affects SFX and music alike.</summary>
+        public float masterVolume = VolumeDefault;
+        /// <summary>Scale on AudioManager's authored music gain. The level radio rides this too.</summary>
+        public float musicVolume = VolumeDefault;
+
         // ---- construction ------------------------------------------------------------------------
 
         public static SettingsData Defaults()
@@ -94,6 +109,8 @@ namespace VibeGame1
                 frameRateCap = frameRateCap,
                 bloomScale = bloomScale,
                 filmGrain = filmGrain,
+                masterVolume = masterVolume,
+                musicVolume = musicVolume,
             };
         }
 
@@ -110,6 +127,8 @@ namespace VibeGame1
             stickSensitivity = Mathf.Clamp(Sane(stickSensitivity, StickSensDefault), StickSensMin, StickSensMax);
             fieldOfView = Mathf.Clamp(Sane(fieldOfView, FovDefault), FovMin, FovMax);
             bloomScale = Mathf.Clamp(Sane(bloomScale, BloomDefault), BloomMin, BloomMax);
+            masterVolume = Mathf.Clamp(Sane(masterVolume, VolumeDefault), VolumeMin, VolumeMax);
+            musicVolume = Mathf.Clamp(Sane(musicVolume, VolumeDefault), VolumeMin, VolumeMax);
 
             if (screenWidth < 0) screenWidth = 0;
             if (screenHeight < 0) screenHeight = 0;
@@ -192,6 +211,19 @@ namespace VibeGame1
         public float BloomIntensity(float authoredIntensity)
         {
             return Mathf.Max(0f, authoredIntensity) * bloomScale;
+        }
+
+        /// <summary>The master gain to hand AudioManager, given whatever the prefab authored. Clamped
+        /// to 0..1 because AudioSource.volume above 1 clips rather than getting louder.</summary>
+        public float MasterGain(float authored)
+        {
+            return Mathf.Clamp01(Mathf.Max(0f, authored) * masterVolume);
+        }
+
+        /// <summary>The music gain to hand AudioManager, given whatever the prefab authored.</summary>
+        public float MusicGain(float authored)
+        {
+            return Mathf.Clamp01(Mathf.Max(0f, authored) * musicVolume);
         }
 
         /// <summary>Unity's own fullscreen enum for this mode.</summary>

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
@@ -44,6 +44,15 @@ namespace VibeGame1
         VolumeProfile measuredProfile;
         float authoredBloom = -1f;
         float authoredGrain = -1f;
+
+        // The AudioManager we last measured, and the gains it was AUTHORED with (Managers.prefab ships
+        // master 0.7 / music 0.45). Measured ONCE per instance and deliberately NOT reset on a scene
+        // load: re-measuring the same instance would read back our own scaled value and compound it
+        // every load until the game was silent. A new scene builds a new AudioManager, and a destroyed
+        // one compares != to it, which is the whole guard.
+        AudioManager measuredAudio;
+        float authoredMaster = -1f;
+        float authoredMusic = -1f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Bootstrap()
@@ -94,6 +103,7 @@ namespace VibeGame1
             ApplyQuality(d);
             ApplyDisplay(d);
             ApplyPost(d);
+            ApplyAudio(d);
         }
 
         // ------------------------------------------------------------------ sensitivity
@@ -228,6 +238,31 @@ namespace VibeGame1
                 if (err < bestErr) { bestErr = err; best = i; }
             }
             return best;
+        }
+
+        // ------------------------------------------------------------------ audio
+
+        /// <summary>
+        /// Push the two volume scales onto <c>AudioManager</c>'s public gains. It is a push, like every
+        /// other setting: nothing in the settings feature owns the mixer, and <c>AudioManager</c> reads
+        /// both fields live (music every Update, SFX on every one-shot), so a slider is heard on the
+        /// frame it moves without anything having to be re-triggered.
+        ///
+        /// <para>There is no SFX row because there is no SFX bus: <c>AudioManager.PlayInternal</c>
+        /// multiplies by <c>masterVolume</c> alone. Master and music are the two gains that exist.</para>
+        /// </summary>
+        void ApplyAudio(SettingsData d)
+        {
+            var am = AudioManager.I;
+            if (am == null) return;
+            if (am != measuredAudio)
+            {
+                measuredAudio = am;
+                authoredMaster = am.masterVolume;
+                authoredMusic = am.musicVolume;
+            }
+            am.masterVolume = d.MasterGain(authoredMaster);
+            am.musicVolume = d.MusicGain(authoredMusic);
         }
 
         // ------------------------------------------------------------------ post processing

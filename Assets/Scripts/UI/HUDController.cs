@@ -55,6 +55,15 @@ namespace VibeGame1
                  "a playlist; it ships hidden, and a level with no mp3s never sees a dead pane.")]
         public GameObject radioPane;
         public TMPro.TMP_Text pyreReadyLabel;
+
+        [Header("Level editor (F10)")]
+        [Tooltip("Gameplay readouts hidden by their ROOT while GameManager.State is Editing, and restored " +
+                 "on the way out. Wired by HudBuilder. The RADIO and BEST RUNS panes are deliberately NOT " +
+                 "in here: RadioView and GhostHud own their own visibility and a second writer would fight " +
+                 "them. Neither is the crosshair or the prompt line — the editor aims with one and writes " +
+                 "its PLAYING banner to the other.")]
+        public GameObject[] editorHiddenRoots;
+
         public ItemSlotView[] itemSlots;
         public TMP_Text itemToastText;
         /// <summary>Top-left held-items / active-effects strip. Self-driving; see StatusStripView.</summary>
@@ -66,6 +75,18 @@ namespace VibeGame1
         // the instant a gain lands. Both well under the 1.05 bloom cap - the UI never blooms.
         static readonly Color SoulsRest = new Color(0.663f, 0.847f, 0.627f);     // #A9D8A0 mint
         static readonly Color SoulsGain = new Color(0.851f, 0.537f, 0.102f);     // #D9891A ember
+
+        // The centre-screen and popup events, in the HUD's own language rather than in raw RGB
+        // (2026-09-06). They used to be hand-mixed per call site, which put PERFECT and CHECKPOINT on
+        // the SAME cyan — two unrelated events reading as one — and left nothing on this screen
+        // matching the panes the messages are drawn over. One colour per meaning, every one under the
+        // 1.05 bloom cap:
+        //   deflect / timing  -> ghost teal      reward / spend -> ember gold
+        //   banked progress   -> mint            danger / death -> blood
+        //   a name            -> bone
+        static readonly Color Teal = new Color(0.658f, 0.902f, 0.855f);          // #A8E6DA, the deflect read
+        static readonly Color Ember = new Color(0.878f, 0.627f, 0.188f);         // #E0A030
+        static readonly Color Bone = new Color(0.910f, 0.886f, 0.839f);          // #E8E2D6
 
         int lastTimerCentis = -1;   // last value actually pushed to timerText; -1 forces the first write
 
@@ -90,6 +111,8 @@ namespace VibeGame1
         Coroutine toast;
         int perfectStreak;
         bool deathblowReady;
+        bool hiddenForEditor;
+        bool pyreFull;          // the last PyreChanged's verdict, so the READY banner can be restored
         ItemData pendingPickupFlash;
         string superName = "";
 
@@ -244,6 +267,14 @@ namespace VibeGame1
             UpdateSouls();
             ApplyBestRuns(false);
 
+            // The F10 level editor is not a run. Health, stamina, posture, the Pyre, the flask, the item
+            // slots, the souls and the clock all freeze at whatever the level left them holding and then
+            // sit there over a flying camera, which is a readout claiming to be live when nothing behind
+            // it is moving. Hidden by ROOT on the way in and restored on the way out (Editing -> Playing
+            // covers Play(), BackToEditing() and Exit()).
+            bool editing = GameManager.IsEditing;
+            if (editing != hiddenForEditor) { hiddenForEditor = editing; ApplyEditorVisibility(); }
+
             if (deathblowText != null)
             {
                 if (deathblowReady)
@@ -255,8 +286,35 @@ namespace VibeGame1
                 else if (deathblowText.alpha > 0f)
                 {
                     deathblowText.alpha = Mathf.MoveTowards(deathblowText.alpha, 0f, Time.unscaledDeltaTime * 5f);
+                    // The banner is scaled by the throb while it is up; letting it fade out at whatever
+                    // scale the sine happened to leave means the NEXT one pops in from a random size.
+                    if (deathblowText.alpha <= 0f) deathblowText.transform.localScale = Vector3.one;
                 }
             }
+        }
+
+        /// <summary>Show or hide the gameplay readouts for the level editor. Idempotent; only writes a
+        /// root whose state actually differs, so it never dirties the canvas on a frame that changed nothing.</summary>
+        void ApplyEditorVisibility()
+        {
+            if (editorHiddenRoots != null)
+                for (int i = 0; i < editorHiddenRoots.Length; i++)
+                {
+                    var go = editorHiddenRoots[i];
+                    if (go != null && go.activeSelf == hiddenForEditor) go.SetActive(!hiddenForEditor);
+                }
+
+            // The READY banner has no pane to hang off (it floats above the vitals), so this class stays
+            // its single owner and re-derives it from the last PyreChanged rather than remembering a flag.
+            if (pyreReadyLabel != null)
+            {
+                bool show = pyreFull && !hiddenForEditor;
+                if (pyreReadyLabel.gameObject.activeSelf != show) pyreReadyLabel.gameObject.SetActive(show);
+            }
+
+            if (!hiddenForEditor) return;
+            deathblowReady = false;
+            ClearMomentary();
         }
 
         void OnPlayerPosture(float c, float m)
@@ -290,8 +348,10 @@ namespace VibeGame1
         {
             if (pyreBar != null) pyreBar.Set(max > 0f ? v / max : 0f);
             bool full = max > 0f && v >= max - 0.01f;
+            pyreFull = full;
             if (pyreReadyLabel == null) return;
-            if (pyreReadyLabel.gameObject.activeSelf != full) pyreReadyLabel.gameObject.SetActive(full);
+            bool show = full && !hiddenForEditor;
+            if (pyreReadyLabel.gameObject.activeSelf != show) pyreReadyLabel.gameObject.SetActive(show);
             // Names the super the player is actually holding. "PYRE FULL [Q]" tells you nothing about
             // whether Q is a sweep or an earthquake; SUNBREAK does.
             if (full) pyreReadyLabel.text = (superName.Length > 0 ? superName : "SUPER") + "  READY  [Q]";
@@ -437,8 +497,8 @@ namespace VibeGame1
             string s = null; Color c = Color.white;
             switch (r)
             {
-                case ParryResult.Perfect: perfectStreak++; s = perfectStreak > 1 ? $"PERFECT x{perfectStreak}" : "PERFECT"; c = new Color(0.3f, 1f, 1f); break;
-                case ParryResult.Blocked: perfectStreak = 0; s = "BLOCK"; c = new Color(1f, 0.85f, 0.3f); break;
+                case ParryResult.Perfect: perfectStreak++; s = perfectStreak > 1 ? $"PERFECT x{perfectStreak}" : "PERFECT"; c = Teal; break;
+                case ParryResult.Blocked: perfectStreak = 0; s = "BLOCK"; c = Ember; break;
                 case ParryResult.Hit: perfectStreak = 0; break;
             }
             if (s != null) ShowPopup(s, c);
@@ -489,18 +549,48 @@ namespace VibeGame1
             centerText.alpha = 0f;
         }
 
-        void OnDied() { perfectStreak = 0; deathblowReady = false; ShowCenter("YOU DIED", new Color(1f, 0.15f, 0.25f), 1.8f); }
-        void OnRespawned() { deathblowReady = false; if (postureBar != null) { postureBar.Set(0f); postureBar.SetNearBreak(false); } ShowCenter("", Color.white, 0.01f); }
-        void OnCheckpoint(Checkpoint c) { ShowCenter("CHECKPOINT", new Color(0.3f, 1f, 1f), 1.2f); }
+        void OnDied()
+        {
+            perfectStreak = 0;
+            deathblowReady = false;
+            // Everything momentary is cancelled, not left to fade over the death card: a pickup toast or
+            // a PERFECT popup finishing on top of YOU DIED is two answers to the question "what just
+            // happened". The bars are the respawn's job; these are ours.
+            ClearMomentary();
+            ShowCenter("YOU DIED", PostureDanger, 1.8f);
+        }
+
+        void OnRespawned()
+        {
+            deathblowReady = false;
+            perfectStreak = 0;
+            if (postureBar != null) { postureBar.Set(0f); postureBar.SetNearBreak(false); }
+            ClearMomentary();
+            ShowCenter("", Color.white, 0.01f);
+        }
+
+        /// <summary>Kill the parry popup and the item toast NOW. Both are coroutine-driven and unscaled,
+        /// so without this they outlive the state change that made them meaningless.</summary>
+        void ClearMomentary()
+        {
+            if (popup != null) { StopCoroutine(popup); popup = null; }
+            if (toast != null) { StopCoroutine(toast); toast = null; }
+            if (parryPopup != null) { parryPopup.alpha = 0f; parryPopup.transform.localScale = Vector3.one; }
+            if (itemToastText != null) itemToastText.alpha = 0f;
+        }
+
+        void OnCheckpoint(Checkpoint c) { ShowCenter("CHECKPOINT", SoulsRest, 1.2f); }
         // Named after the weapon that fired it: SUNBREAK and THORNSTORM are different events.
-        void OnUltimate() { ShowCenter(superName.Length > 0 ? superName : "SUPER", new Color(1f, 0.55f, 0.18f), 1.2f); if (pyreReadyLabel != null) pyreReadyLabel.gameObject.SetActive(false); }
-        void OnBossStarted(BossController b) { ShowCenter(b != null && b.data != null ? b.data.displayName.ToUpperInvariant() : "BOSS", new Color(1f, 0.2f, 0.4f), 2f); }
+        void OnUltimate() { ShowCenter(superName.Length > 0 ? superName : "SUPER", Ember, 1.2f); if (pyreReadyLabel != null) pyreReadyLabel.gameObject.SetActive(false); }
+        // A name, not an alarm: the arena, the music and the bar arriving are the alarm.
+        void OnBossStarted(BossController b) { ShowCenter(b != null && b.data != null ? b.data.displayName.ToUpperInvariant() : "BOSS", Bone, 2f); }
 
         void OnBossDefeated()
         {
             deathblowReady = false;
             string time = SpeedrunTimer.I != null ? SpeedrunTimer.Format(SpeedrunTimer.I.Elapsed) : "";
-            ShowCenter($"LEVEL CLEAR\n{time}", new Color(1f, 0.9f, 0.3f), 8f);
+            ClearMomentary();
+            ShowCenter($"LEVEL CLEAR\n{time}", Ember, 8f);
             if (GameManager.I != null) StartCoroutine(WinCo());
         }
 

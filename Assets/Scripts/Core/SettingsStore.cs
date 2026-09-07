@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace VibeGame1
@@ -54,6 +54,8 @@ namespace VibeGame1
             d.frameRateCap = GetInt("fpsCap", d.frameRateCap);
             d.bloomScale = GetFloat("bloom", d.bloomScale);
             d.filmGrain = GetInt("grain", d.filmGrain ? 1 : 0) != 0;
+            d.masterVolume = GetFloat("volMaster", d.masterVolume);
+            d.musicVolume = GetFloat("volMusic", d.musicVolume);
 
             d.Clamp();
             return d;
@@ -77,6 +79,8 @@ namespace VibeGame1
             SetInt("fpsCap", d.frameRateCap);
             SetFloat("bloom", d.bloomScale);
             SetInt("grain", d.filmGrain ? 1 : 0);
+            SetFloat("volMaster", d.masterVolume);
+            SetFloat("volMusic", d.musicVolume);
 
             PlayerPrefs.Save();
 
@@ -96,7 +100,8 @@ namespace VibeGame1
         public static void DeleteAll()
         {
             foreach (var k in new[] { "mouseSens", "stickSens", "fov", "quality", "screenW", "screenH",
-                                      "displayMode", "vsync", "fpsCap", "bloom", "grain" })
+                                      "displayMode", "vsync", "fpsCap", "bloom", "grain",
+                                      "volMaster", "volMusic" })
                 PlayerPrefs.DeleteKey(KeyPrefix + k);
             PlayerPrefs.Save();
             current = null;
