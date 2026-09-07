@@ -183,6 +183,79 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TheIncomingWeaveIsBoundedDeterministicAndSettlesBeforeTheCue()
+        {
+            float phase = ProjectileVisualMath.Phase(17);
+            Assert.AreEqual(phase, ProjectileVisualMath.Phase(17), Eps, "the same shot is reproducible");
+            Assert.AreNotEqual(phase, ProjectileVisualMath.Phase(18), "successive bolts should not trace the same curve");
+
+            Vector3 atMuzzle = ProjectileVisualMath.WeaveOffset(Vector3.forward, 0f, 0.8f,
+                Projectile.CueLead, phase, Projectile.WeaveAmplitude, Projectile.WeaveFadeInSeconds,
+                Projectile.WeaveFadeOutSeconds, true);
+            Assert.AreEqual(Vector3.zero, atMuzzle, "the visual must not pop sideways on its first frame");
+
+            for (int i = 0; i <= 100; i++)
+            {
+                float age = i * 0.01f;
+                Vector3 offset = ProjectileVisualMath.WeaveOffset(new Vector3(0.2f, -0.1f, 1f), age, 0.8f,
+                    Projectile.CueLead, phase, Projectile.WeaveAmplitude, Projectile.WeaveFadeInSeconds,
+                    Projectile.WeaveFadeOutSeconds, true);
+                Assert.LessOrEqual(offset.magnitude, Projectile.WeaveAmplitude + Eps, "visual curve exceeded its hard displacement cap");
+            }
+
+            Assert.AreEqual(Vector3.zero, ProjectileVisualMath.WeaveOffset(Vector3.forward, 0.4f, Projectile.CueLead,
+                Projectile.CueLead, phase, Projectile.WeaveAmplitude, Projectile.WeaveFadeInSeconds,
+                Projectile.WeaveFadeOutSeconds, true), "the visual must reach the logical line at cue onset");
+            Assert.AreEqual(Vector3.zero, ProjectileVisualMath.WeaveOffset(Vector3.forward, 0.5f, 0.1f,
+                Projectile.CueLead, phase, Projectile.WeaveAmplitude, Projectile.WeaveFadeInSeconds,
+                Projectile.WeaveFadeOutSeconds, true), "the entire final cue window must stay honest");
+            Assert.AreEqual(Vector3.zero, ProjectileVisualMath.WeaveOffset(Vector3.forward, 0.2f, 1f,
+                Projectile.CueLead, phase, Projectile.WeaveAmplitude, Projectile.WeaveFadeInSeconds,
+                Projectile.WeaveFadeOutSeconds, false), "a reflected bolt must immediately fly straight");
+        }
+
+        [Test]
+        public void OnlyAChildVisualMayLeaveTheLogicalRoot()
+        {
+            var root = new GameObject("logical bolt");
+            var child = new GameObject("Core");
+            var unrelated = new GameObject("unrelated renderer");
+            try
+            {
+                child.transform.SetParent(root.transform, false);
+                Assert.IsFalse(ProjectileVisualMath.CanOffset(root.transform, root.transform),
+                    "a direct/legacy renderer on the root must stay on the collision path");
+                Assert.IsTrue(ProjectileVisualMath.CanOffset(root.transform, child.transform));
+                Assert.IsFalse(ProjectileVisualMath.CanOffset(root.transform, null));
+                Assert.IsFalse(ProjectileVisualMath.CanOffset(root.transform, unrelated.transform),
+                    "an unrelated transform is not the bolt's presentation child");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(unrelated);
+            }
+        }
+
+        [Test]
+        public void LowFrameRateTrailSamplesEachCrossingInsteadOfRepeatingTheHead()
+        {
+            var history = new Vector3[4];
+            float timer = 0f;
+            ProjectileVisualMath.RecordTrail(Vector3.zero, new Vector3(5f, 0f, 0f), 0.05f, 0.02f,
+                                             ref timer, history);
+
+            Assert.LessOrEqual(Vector3.Distance(new Vector3(5f, 0f, 0f), history[0]), Eps,
+                "slot zero is the live rendered head");
+            Assert.LessOrEqual(Vector3.Distance(new Vector3(4f, 0f, 0f), history[1]), Eps,
+                "second crossing in the 20 fps frame");
+            Assert.LessOrEqual(Vector3.Distance(new Vector3(2f, 0f, 0f), history[2]), Eps,
+                "first crossing in the 20 fps frame");
+            Assert.AreNotEqual(history[1], history[2], "two crossed intervals may not collapse into one repeated point");
+            Assert.AreEqual(0.01f, timer, Eps);
+        }
+
+        [Test]
         public void EveryEnemyPrefabCarriesTheShooter()
         {
             foreach (var n in new[] { "pshooter_enemy01", "pshooter_enemy02" })

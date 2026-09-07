@@ -1238,14 +1238,14 @@ ProjectileShooter.Awake()    F4, ONE BEAT PER SPAN (bolt-timing plan 2026-09-06)
                           are a tempo, not two clocks arguing. Both statics re-seed on load.
 ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData.shootsProjectiles)
    gate: awake (Current != Idle), alive, not staggered, not committed (no bolt during a melee wind-up),
-         not aggroLocked, player inside [projectileMinRange 6 (turret 2.5), projectileMaxRange 32], HasLineOfSight
+         not aggroLocked, player inside [projectileMinRange 6 (turret 2.5), projectileMaxRange 32 (turret 36)], HasLineOfSight
          (same three lines; only cast once the band test passes)
    → F1, THE ARM-UP: on the out-of-band/blocked → in-band TRANSITION,
      nextFireAt = ProjectileMath.AcquireBeat(nextFireAt, now, interval, projectileAcquireDelay 0.7) -- the beat is
      HELD, so a stale one used to fire on the FIRST FRAME the line cleared: the frame you crest a ledge or land.
      Only ever moves a beat forward, and never by more than one interval.
    → on the METRONOME (ProjectileMath.NextBeat: Grunt 1.6 s, Heavy 2.4 s, no jitter; a held beat stays on the
-     grid, a silence longer than one beat re-anchors instead of bursting):
+     grid, a silence longer than one beat re-anchors instead of bursting; turret 1.1 s):
      speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed 40 / 36, CueLead 0.28, CueMargin 0.16) -- inside 17.6 m the
              launch slows so every flight is ≥ 0.44 s (F5) and the cue is never owed before the bolt exists
      F3, NO BOLT AT A FLEEING BACK: ProjectileMath.ArrivesInFront(muzzle, chest, motor.Velocity, speed,
@@ -1255,15 +1255,19 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
              so a refused shot is never repaid as a burst. Crossing the arc, closing, standing and jumping all
              still get shot at.
      target = ProjectileMath.LeadTarget(muzzle, chest, motor.Velocity (flat), speed, projectileLead 1.0), and in flight
-              the bolt HOMES toward the chest at projectileHomingDegPerSec (180 / 150) -- 2026-09-06: a bolt never
+              the bolt HOMES toward the chest at projectileHomingDegPerSec (180 / 150 / turret 240) -- 2026-09-06: a bolt never
               sails past unparriable; core 0.55 m, hitRadius 1.0
-     a 0.36 m Bolt sphere at the chest --
+     a 0.55 m Bolt core at the chest --
      SlashFx additive ember with Projectile.HotCore (peak 1.6) written OVER the normalised colour: THE ONE
-     GLOW IN TRAVERSAL, because the bolt is the tell -- plus a 2-point additive trail 0.12 s long,
-     Projectile.Fire(shooter, data, dir = toward the LED target AT FIRE TIME, the launch speed above (Grunt 32, Heavy 28 m/s
-     beyond 11.5 m; a mid-band shot flies 0.47 s -- answered at a run, never waited for)
+     GLOW IN TRAVERSAL, because the bolt is the tell -- plus a 7-point additive trail 0.16 s long,
+     Projectile.Fire(shooter, data, dir = toward the LED target AT FIRE TIME, launch speed above: Grunt 40,
+     Heavy / turret 36 m/s beyond the near slowdown; a 15 m shot flies 0.44 s -- answered at a run, never waited for)
 Projectile.Update()  (scaled time: hitstop freezes it)
-   straight line; remaining = ProjectileMath.TimeToImpact(dist, speed)
+   LOGICAL root follows the existing capped-homing line; remaining = ProjectileMath.TimeToImpact(dist, speed)
+   → the amber Core CHILD alone weaves up to 0.34 m on a deterministic per-shot phase before the cue;
+     it eases in over 0.09 s, fades back over 0.12 s, and is exactly on the logical line for the whole
+     remaining ≤ 0.28 s cue window. A 7-point fixed buffer records the visible head, so the trail curves too.
+     Reflection clears that history and flies visually straight. None of this enters arrival, registry or damage.
    → BoltRegistry.Report(id, cue = now + remaining - 0.28 (MaxValue once cued), impact = now + remaining) every frame,
      Clear() on reflect / spend / destroy -- F2: EnemyController.AnyAttackIncoming and .EarliestCueTime consult the
      registry as well as the melee list, so a missed bolt parry costs parryMistimeRecovery 0.2 s and not the

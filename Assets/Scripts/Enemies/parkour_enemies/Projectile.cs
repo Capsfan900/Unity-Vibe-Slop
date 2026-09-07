@@ -42,6 +42,13 @@ namespace VibeGame1
         public const float TrailSeconds = 0.16f;
         /// <summary>Trail head width as a fraction of the core: up from 0.55 so the streak has body, not just length.</summary>
         public const float TrailWidthScale = 0.75f;
+        /// <summary>Recorded samples in the streak. A two-point tangent cannot show the core's curved history.</summary>
+        public const int TrailPoints = 7;
+        /// <summary>Largest visual displacement from the logical flight path. Below the 1 m hit radius, and
+        /// close to the 0.275 m core radius, so the curve reads without advertising a false collision line.</summary>
+        public const float WeaveAmplitude = 0.34f;
+        public const float WeaveFadeInSeconds = 0.09f;
+        public const float WeaveFadeOutSeconds = 0.12f;
         /// <summary>How much bigger the core gets at the cue -- the "press now" pop. Up from 1.9: a bigger cue
         /// flare is the one honest way to make the tell louder without touching when it fires.</summary>
         public const float CueFlareScale = 2.3f;
@@ -68,9 +75,10 @@ namespace VibeGame1
         float age;
         bool cued, reflected, spent;
         Vector3 baseScale;
+        float visualPhase;
 
-        /// <summary>Set once by the shooter. Direction is toward the player's chest at fire time and never
-        /// changes: a bolt is a straight line you can step out of.</summary>
+        /// <summary>Set once by the shooter. Direction begins toward the led target and the logical root then
+        /// turns only through the existing capped homing. The visible child may weave before the cue.</summary>
         public void Fire(EnemyController from, EnemyData d, Vector3 direction, float speedMetresPerSecond,
                          PlayerCombat target)
         {
@@ -83,37 +91,62 @@ namespace VibeGame1
             look = target != null ? target.GetComponent<PlayerLook>() : null;
             dir = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
             speed = speedMetresPerSecond;
-            baseScale = transform.localScale;
             BuildTrail();
+            visualPhase = ProjectileVisualMath.Phase(boltId);
         }
 
         LineRenderer trail;
         Renderer core;
+        Transform visual;
+        Vector3[] trailHistory;
+        float trailSampleTimer;
+        Vector3 previousTrailHead;
         MaterialPropertyBlock mpb;
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         /// <summary>
-        /// A short additive streak behind the core: the cheapest possible motion read (two points, one
-        /// shared material), and it is what makes a 0.36 m ball at 32 m/s read as a SHOT rather than a
-        /// spark. Scaled time like the bolt itself.
+        /// A short additive streak recorded from the visible core's actual positions. Multiple points let
+        /// it retain the pre-cue weave as a curve; a two-point velocity tangent can only draw a straight line.
+        /// Scaled time like the bolt itself, with one fixed buffer allocated when the shot is born.
         /// </summary>
         void BuildTrail()
         {
-            core = GetComponent<Renderer>();
+            // ProjectileShooter authors an explicit Core child. A legacy/direct caller may still put its
+            // Renderer on this root; that remains a supported straight-flight fallback and must never be offset.
+            visual = transform.Find("Core");
+            core = visual != null ? visual.GetComponent<Renderer>() : GetComponent<Renderer>();
             if (core == null) return;
-            trail = SlashFx.CreateLine(transform, "Trail", 2, CoreSize * TrailWidthScale, 0.03f, false, core.sharedMaterial);
+            if (visual == null) visual = core.transform;
+            baseScale = visual.localScale;
+            trail = SlashFx.CreateLine(visual, "Trail", TrailPoints, CoreSize * TrailWidthScale, 0.03f, false, core.sharedMaterial);
             trail.useWorldSpace = true;
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             trail.receiveShadows = false;
-            UpdateTrail();
+            trailHistory = new Vector3[TrailPoints];
+            ResetTrail();
         }
 
-        void UpdateTrail()
+        void UpdateTrail(float dt)
         {
-            if (trail == null) return;
-            Vector3 head = transform.position;
-            trail.SetPosition(0, head);
-            trail.SetPosition(1, head - dir * speed * TrailSeconds);
+            if (trail == null || trailHistory == null) return;
+            Vector3 head = visual != null ? visual.position : transform.position;
+            float step = TrailSeconds / Mathf.Max(1, TrailPoints - 1);
+            ProjectileVisualMath.RecordTrail(previousTrailHead, head, dt, step, ref trailSampleTimer, trailHistory);
+            previousTrailHead = head;
+            for (int i = 0; i < TrailPoints; i++) trail.SetPosition(i, trailHistory[i]);
+        }
+
+        void ResetTrail()
+        {
+            if (trail == null || trailHistory == null) return;
+            trailSampleTimer = 0f;
+            Vector3 head = visual != null ? visual.position : transform.position;
+            previousTrailHead = head;
+            for (int i = 0; i < TrailPoints; i++)
+            {
+                trailHistory[i] = head;
+                trail.SetPosition(i, head);
+            }
         }
 
         void SetCoreColor(Color c)
@@ -145,20 +178,31 @@ namespace VibeGame1
                     dir = Vector3.RotateTowards(dir, want.normalized, data.projectileHomingDegPerSec * Mathf.Deg2Rad * dt, 0f).normalized;
             }
             transform.position += dir * speed * dt;
-            UpdateTrail();
 
             if (!reflected)
             {
                 if (playerT == null || combat == null) { Spend(); return; }
                 Vector3 target = Chest(playerT);
                 float remaining = ProjectileMath.TimeToImpact(Vector3.Distance(transform.position, target), speed);
+                if (ProjectileVisualMath.CanOffset(transform, visual))
+                {
+                    Vector3 offset = ProjectileVisualMath.WeaveOffset(dir, age, remaining, CueLead, visualPhase,
+                                                                      WeaveAmplitude, WeaveFadeInSeconds,
+                                                                      WeaveFadeOutSeconds, !cued);
+                    visual.localPosition = transform.InverseTransformVector(offset);
+                }
                 if (ProjectileMath.CueDue(remaining, CueLead, cued))
                 {
                     cued = true;
                     AudioManager.Play(Sfx.ParryCue, 0.8f, 1.15f, 0.02f);
-                    transform.localScale = baseScale * CueFlareScale;   // the flare: "press now", the same beat as a body's cue
+                    if (visual != null)
+                    {
+                        if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
+                        visual.localScale = baseScale * CueFlareScale; // the flare: "press now", the same beat as a body's cue
+                    }
                     SetCoreColor(CueCore);                      // ...and the core goes white-hot for the same reason
                 }
+                UpdateTrail(dt);
                 // F2 (bolt-timing plan): this bolt is an INCOMING ATTACK for the player's fairness
                 // machinery -- a missed parry costs the mistime, not the whiff, and recovery is clamped to
                 // end before the next cue. Cleared the instant it is spent or reflected.
@@ -171,6 +215,8 @@ namespace VibeGame1
             }
 
             // Flying back. Arriving at the shooter's chest is the payoff.
+            if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
+            UpdateTrail(dt);
             if (shooter == null || !shooter.IsAlive) { Spend(); return; }
             if (Vector3.Distance(transform.position, Chest(shooter.transform)) <= hitRadius + 0.3f)
             {
@@ -209,7 +255,12 @@ namespace VibeGame1
                 BoltRegistry.Clear(boltId);   // flying the other way: no longer incoming
                 dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
                 speed *= reflectSpeedScale;
-                transform.localScale = baseScale;
+                if (visual != null)
+                {
+                    if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
+                    visual.localScale = baseScale;
+                }
+                ResetTrail();                 // no incoming curve dragged behind the straight reflected payoff
                 SetCoreColor(HotCore);
                 if (motor != null)
                 {

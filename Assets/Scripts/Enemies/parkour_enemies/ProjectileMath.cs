@@ -156,4 +156,90 @@ namespace VibeGame1
             return d.sqrMagnitude < 1e-6f ? fallback.normalized : d.normalized;
         }
     }
+
+    /// <summary>
+    /// Presentation-only motion for an incoming bolt. The projectile root remains on
+    /// <see cref="ProjectileMath"/>'s homing path; this offset is applied only to the visible core.
+    /// That separation keeps impact time, cue time, facing and collision exactly where combat expects them.
+    /// </summary>
+    public static class ProjectileVisualMath
+    {
+        const float Tau = Mathf.PI * 2f;
+
+        /// <summary>A stable per-shot phase. No runtime randomness means captures and tests reproduce a bolt.</summary>
+        public static float Phase(int shotId)
+        {
+            return Mathf.Repeat(shotId * 2.39996323f, Tau);
+        }
+
+        /// <summary>Only a child may leave the logical path. A legacy bolt with its renderer on the root stays straight.</summary>
+        public static bool CanOffset(Transform logicalRoot, Transform candidate)
+        {
+            return logicalRoot != null && candidate != null && candidate != logicalRoot && candidate.IsChildOf(logicalRoot);
+        }
+
+        /// <summary>
+        /// A bounded two-frequency weave perpendicular to travel. It eases in so the bolt does not pop
+        /// sideways at the muzzle, then reaches zero before the parry cue begins. A reflected bolt returns
+        /// zero immediately: the payoff flies straight back and cannot retain an incoming visual kink.
+        /// </summary>
+        public static Vector3 WeaveOffset(Vector3 direction, float age, float remainingSeconds,
+                                          float cueLead, float phase, float amplitude,
+                                          float fadeInSeconds, float fadeOutSeconds, bool incoming)
+        {
+            if (!incoming || amplitude <= 0f || remainingSeconds <= cueLead) return Vector3.zero;
+
+            Vector3 forward = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
+            Vector3 side = Vector3.Cross(Vector3.up, forward);
+            if (side.sqrMagnitude < 1e-6f) side = Vector3.Cross(Vector3.forward, forward);
+            side.Normalize();
+            Vector3 rise = Vector3.Cross(forward, side).normalized;
+
+            float fadeIn = Smooth01(age / Mathf.Max(0.001f, fadeInSeconds));
+            float beforeCue = (remainingSeconds - cueLead) / Mathf.Max(0.001f, fadeOutSeconds);
+            float fadeOut = Smooth01(beforeCue);
+            float envelope = fadeIn * fadeOut;
+
+            // The slower side-to-side bend establishes the curve; the smaller faster rise keeps successive
+            // shots from reading like the same rail. Clamp the combined vector so amplitude is a hard ceiling.
+            float sideWave = Mathf.Sin(age * Tau * 2.8f + phase);
+            float riseWave = Mathf.Sin(age * Tau * 4.7f + phase * 1.618034f) * 0.55f;
+            Vector3 offset = side * sideWave + rise * riseWave;
+            if (offset.sqrMagnitude > 1f) offset.Normalize();
+            return offset * (amplitude * envelope);
+        }
+
+        /// <summary>
+        /// Records fixed-interval samples between two rendered positions. A low frame rate can cross more
+        /// than one interval in a frame; interpolating each crossing keeps the history curved and prevents
+        /// repeated points from silently shortening the trail. Slot zero is always the live head.
+        /// </summary>
+        public static void RecordTrail(Vector3 previousHead, Vector3 currentHead, float deltaTime,
+                                       float sampleStep, ref float sampleTimer, Vector3[] history)
+        {
+            if (history == null || history.Length == 0) return;
+            history[0] = currentHead;
+            if (history.Length == 1 || deltaTime <= 0f || sampleStep <= 0f) return;
+
+            float consumed = 0f;
+            float sinceSample = Mathf.Clamp(sampleTimer, 0f, sampleStep);
+            while (sinceSample + (deltaTime - consumed) >= sampleStep)
+            {
+                float toCrossing = sampleStep - sinceSample;
+                consumed += toCrossing;
+                float fraction = Mathf.Clamp01(consumed / deltaTime);
+                Vector3 sample = Vector3.Lerp(previousHead, currentHead, fraction);
+                for (int i = history.Length - 1; i >= 2; i--) history[i] = history[i - 1];
+                history[1] = sample;
+                sinceSample = 0f;
+            }
+            sampleTimer = sinceSample + Mathf.Max(0f, deltaTime - consumed);
+        }
+
+        static float Smooth01(float value)
+        {
+            float k = Mathf.Clamp01(value);
+            return k * k * (3f - 2f * k);
+        }
+    }
 }

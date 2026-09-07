@@ -123,12 +123,17 @@ namespace VibeGame1
 
         void FireAt(Vector3 muzzle, Vector3 target, float speed, EnemyData data)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            go.name = "Bolt";
-            var col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            // The root is the combat path and never leaves it. The sphere is a child because Projectile gives
+            // only that visible core a small pre-cue weave; collision, cue timing and arrival keep reading root.
+            var go = new GameObject("Bolt");
             go.transform.position = muzzle + (target - muzzle).normalized * 0.6f;
-            go.transform.localScale = Vector3.one * Projectile.CoreSize;
+
+            var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            core.name = "Core";
+            var col = core.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            core.transform.SetParent(go.transform, false);
+            core.transform.localScale = Vector3.one * Projectile.CoreSize;
             if (boltMat == null)
             {
                 // SlashFx normalises every additive material to a peak of 1.0 -- the project's bloom
@@ -139,7 +144,7 @@ namespace VibeGame1
                 if (boltMat.HasProperty("_BaseColor")) boltMat.SetColor("_BaseColor", Projectile.HotCore);
                 if (boltMat.HasProperty("_Color")) boltMat.SetColor("_Color", Projectile.HotCore);
             }
-            var r = go.GetComponent<Renderer>();
+            var r = core.GetComponent<Renderer>();
             r.sharedMaterial = boltMat;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             r.receiveShadows = false;
