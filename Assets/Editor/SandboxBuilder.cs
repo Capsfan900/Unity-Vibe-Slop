@@ -37,7 +37,7 @@ namespace VibeGame1.EditorTools
         const float FloorTop = 0f;
         public const float HalfExtent = 30f;   // 60 x 60 arena (public: MovementYardTests reads it)
 
-        static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss, mWater;
+        static Material mGround, mPlatform, mPink, mCyan, mYellow, mStone, mTorch, mEnemy, mBoss, mWater, mCloudSea;
         static GameObject pBalloon;
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
@@ -99,6 +99,7 @@ namespace VibeGame1.EditorTools
             BuildTorches(root);
             BuildKillZone(root);
             BuildSky(root);
+            CloudSea.BuildSandbox(root, mCloudSea);
 
             // ---- Player / Managers / HUD ------------------------------------------------------------
             var player = InstantiatePrefab(pPlayer, "Player", null);
@@ -1064,6 +1065,7 @@ namespace VibeGame1.EditorTools
             mEnemy = LoadMat("M_Enemy");
             mBoss = LoadMat("M_Boss");
             mWater = LoadMat("M_Water");
+            mCloudSea = LoadMat("M_CloudSea");
             mWepSword = LoadMat("M_Weapon_Sword");
             mWepHammer = LoadMat("M_Weapon_Hammer");
             mWepDagger = LoadMat("M_Weapon_Dagger");

@@ -1,51 +1,51 @@
-﻿# Handoff — two ramps and the complete Level 1 route
-
-2026-09-07. Astra/high designed and implemented this correction; lead Codex generated and verified it.
+﻿# Handoff — rolling cloud sea and the complete two-ramp Level 1
 
 ## What happened
 
-The previous start relocation skipped most of Level 1. The user clarified that the late ramp should
-stay, with a second ramp added BEFORE the original start. This pass implements that layout:
+2026-09-07: the user's fog target is now a continuous rolling cloud bed BELOW the map. Sol at
+extra-high effort implemented CloudSea and its URP shader; lead reviewed/refined the appearance,
+regenerated assets and verified the result. The old player-relative AmbientMist component is removed
+from the shipped Player prefab. Distant haze remains at 36–140 m. No movement/combat changes this pass.
 
-- New opening: 10 m wide crest at y9, a 36 m downhill run dropping 9 m, then a flat run-out joining
-  Ground_Start. Player starts at `(0,9.3,-55)`, facing downhill; weapon pedestal is beside it.
-- The original starting area, checkpoints and complete route remain in place.
-- The existing 48 m / 12 m descent and three Surge Turrets remain before the boss. Serialized late
-  platforms, ramp, turrets and arenas matched the captured pre-change baseline exactly.
-- Kill-plane bounds extend behind the new opening, from z-80 to450.
+The earlier Astra/high layout correction is committed as `7a68d19`: a new 36 m / 9 m opening descent
+before the original start, spawn `(0,9.3,-55)`, and the existing 48 m / 12 m late descent before the boss.
+The complete original route remains between them. Projectile weave remains in `a927bd0`.
 
-This is level authoring only. Movement, combat, enemies, fog and projectile presentation are unchanged.
-The earlier drifting mist and projectile work remains in `c396802` and `a927bd0`.
+## State of the tree
 
-## State of the tree and rollback
+Cloud work is one `[Sol] Add rolling cloud sea beneath the full level` commit. Revert that commit to
+undo only this presentation pass; restore tag `pre-cloud-ocean-2026-09-07` points to `7a68d19`.
+The user's untracked `.claude/settings.local.json` is intentionally excluded.
 
-This correction lands as `[Astra] Add an opening descent before the complete Level 1 route`.
-Revert that commit to undo only this pass. Restore tag: `pre-opening-ramp-2026-09-07` at `6964424`.
-The user's untracked `.claude/settings.local.json` is excluded.
-
-Completed generators: `LevelDefinitionAuthoring.ReworkLevel01()` twice (identical serialized data),
-then `LevelDefinitionBuilder.BuildCanonicalHeadless()` (scene saved and NavMesh rebuilt). Saved
-StartSpawn, Player and LevelManager.startSpawn all read `(0,9.3,-55)`. No other generator is required.
-The authored shape and verification intent are in `docs/plans/opening-ramp-2026-09-07.md`.
+Generated: `MaterialFactory.CreateCloudSea()`, narrow `PrefabFactory.BuildPlayer()`, canonical
+`LevelDefinitionBuilder.BuildCanonicalHeadless()` including NavMesh; Sandbox cloud wiring was applied
+through `CloudSea.BuildSandbox()` and saved. Both saved scenes reopened with one sea and no AmbientMist.
+Everything is regenerable through the normal material/prefab/scene builders. No generator remains due.
+CloudSea's transient mesh releases on disable and regenerates on enable/reload. One renderer, 3977
+vertices in campaign / 3185 in Sandbox; serialized material prevents a Shader.Find-only dependency.
+Health Check now recognizes custom shaders by their URP pipeline tag as well as the built-in prefix.
 
 ## Verification
 
-See [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) for final results and limitations. Both offline
-assemblies compile; the editor has 16 existing warnings. This geometry change requires the full
-EditMode suite, including level-line checks. Automation does not prove human feel or fairness.
+- Quick EditMode **709/709 passed**, including five new cloud tests; slow unchanged level lines omitted.
+- Full FeatureTests **777/777 passed**, fresh unpaused session, neutral input, cap 60 fps restored afterward.
+- Health Check **0 errors, 1764 existing warnings**; shader supported with zero compiler messages.
+- Offline assemblies compile; editor has 16 existing warnings. Final editor-only validator fix compiled
+  in Unity and its check was rerun after the runtime suites.
+- Real render review: opening, original start, elevated span, late ramp and detail. Fixed-view cloud
+  motion confirmed; pause captures pixel-identical with post-processing grain temporarily disabled.
+- Prior geometry pass full EditMode **843/843 passed**; actual menu load, spawn/respawn and opening
+  traversal verified. See VERIFICATION-REPORT.md for earlier feature-suite flakiness and exact artifacts.
 
-Final full EditMode: **843/843 passed**. Full FeatureTests: **776/777**, one pickup-reset assertion
-failed. Main-menu load, pre-checkpoint respawn, continuous opening slide and movement onto the original
-starting deck passed live. Arc report is clean. The full feature result is not reported as green.
-The isolated Items group subsequently passed **43/43**. Final Health Check: **0 errors, 1764 warnings**.
-Unity is stopped with Level_01 open; temporary frame-rate settings and observers were restored/removed.
+Unity is stopped with Level_01 open. Screenshots: `RouteShots/cloud-ocean/`. Current feature report:
+`TestResults/cloud-ocean/features-final.txt`; quick XML `TestResults/EditMode-20260907-175659.xml`.
+No standalone/WebGL performance benchmark or human artistic approval is claimed. The sea is a
+shader-animated surface, not volumetric fluid simulation.
 
 ## Do first next session
 
-1. Play Level 1 from the main menu: new opening ramp, full original course, late turret descent, boss.
-2. Read the verification report before changing gameplay to address a context-dependent harness result.
-3. Preserve the two-ramp ordering; never restore the late descent as Level 1's starting spawn.
-
-## Open questions
-
-None blocking the requested layout. No standalone build was cut during this pass.
+1. Let the user inspect the cloud ocean from the opening and elevated route. Tune its material through
+   MaterialFactory if requested; preserve landing-edge readability and clearance beneath platforms.
+2. Keep both ramps and the full original route. Loading Level 1 must start at the opening crest.
+3. For camera captures, move SkyFollower with the camera before rendering and restore both afterward;
+   moving only the camera in one execute_code call produces a falsely black sky before LateUpdate.

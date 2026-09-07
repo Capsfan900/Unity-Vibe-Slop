@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_CloudSea
+  m_Shader: {fileID: 4800000, guid: 6e42299f09ae8c842908066b7e4c645f, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2990
+  stringTagMap:
+    RenderType: Transparent
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _DetailScale: 0.11
+    - _DetailStrength: 0.26
+    - _EdgeFeather: 0.12
+    - _FlowSpeed: 0.035
+    - _LargeScale: 0.03
+    - _WarpStrength: 14
+    - _WaveHeight: 1.5
+    m_Colors:
+    - _CloudColor: {r: 0.42, g: 0.55, b: 0.66, a: 0.92}
+    - _CrestColor: {r: 0.65, g: 0.74, b: 0.8, a: 0.95}
+    - _DeepColor: {r: 0.1, g: 0.18, b: 0.28, a: 0.45}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

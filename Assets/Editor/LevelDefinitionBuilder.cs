@@ -24,7 +24,7 @@ namespace VibeGame1.EditorTools
         const string PrefabDir = "Assets/Prefabs/";
         const string ItemsDir = "Assets/Data/Items/";
 
-        static Material mStone, mCyan;
+        static Material mStone, mCyan, mCloudSea;
         static GameObject pPlayer, pManagers, pHud;
         static readonly System.Collections.Generic.Dictionary<string, EnemySpawner> builtSpawners =
             new System.Collections.Generic.Dictionary<string, EnemySpawner>();
@@ -242,6 +242,10 @@ namespace VibeGame1.EditorTools
                                 def.sky.eclipseDiameterDeg);
             }
 
+            // A single fixed lower atmosphere spans the full route. The Sky layer and lack of a
+            // collider keep it presentation-only and outside the Default-only NavMesh bake below.
+            CloudSea.BuildCampaign(root, mCloudSea);
+
             // ---- kill zone --------------------------------------------------------------------------
             if (def.killZone != null)
             {
@@ -296,6 +300,7 @@ namespace VibeGame1.EditorTools
         {
             mStone = LoadMat("Stone");
             mCyan = LoadMat("NeonCyan");
+            mCloudSea = LoadMat("CloudSea");
             pPlayer = LoadPrefab("Player");
             pManagers = LoadPrefab("Managers");
             pHud = LoadPrefab("HUD");

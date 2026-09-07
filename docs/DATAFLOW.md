@@ -2032,15 +2032,13 @@ VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat
     trims       T1 ice cyan #35DCEC · T2 brass #D8C22A x0.75 · T3 azure #2F6BFF · T4 ghost green #3FE07A
     WARM ON PURPOSE  M_Torch, M_Checkpoint (fire = safety), M_EnemyEye, M_AlertTell (the tell, 3.00)
 
-VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer() -> AmbientMist on PLAYER ROOT
-    Awake -> one looping, prewarmed ParticleSystem; deterministic seed; WORLD simulation
-    before prewarm + every .25 scaled s: one Default-only ray at 28 m -> box aligns to ground + .8 m
-      miss -> authored fallback centre/zero rotation; enemies/triggers/interactables never steer atmosphere
-    emitter follows root -> box 14-42 m ahead, 26x4x28 m -> old particles stay in world
-    4/s x 8-12 s -> 48 hard cap; 8-14 m soft billboards; low-quality drifting noise
-    ambient-only clone of DeathMist.MistMaterial -> shared 32x32 falloff texture, cold additive alpha .18-.26
-      -> camera fade 3-9 m + max screen size .22; no collision, lights, trails, shadows or probes
-    OnDestroy -> destroy ambient material clone + release DeathMist shared-material/texture lease
+VibeGame1/2. Create Materials -> MaterialFactory.CreateCloudSea() -> Assets/Materials/M_CloudSea.mat
+    shader VibeGame1/Cloud Sea is a serialized asset reference (cannot be stripped as Shader.Find-only)
+    deep/body/crest all peak below 1.0 -> no scenery bloom; transparent queue 2990, ZWrite Off, depth-tested
+    ProjectHealthCheck accepts the UniversalPipeline SubShader tag for custom URP shader names
+
+VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
+    no AmbientMist on Player or camera; atmosphere cannot move with the route or view
 
 6. Build Level -> LevelDefinitionBuilder -> Starfield.Build(def.sky.*)   ONE mesh, TWO materials
     index order (no depth is written, so index order IS draw order):
@@ -2048,6 +2046,15 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer() -> AmbientMist on PLAY
       -> [submesh 1, HDR tint CoronaHdrBoost 1.35] the white-hot rim
     per planet, five passes in order: halo -> ring FAR half -> body -> ring NEAR half
       (that ordering is the whole Saturn read; there is no alpha sort to rely on)
+  + CloudSea.BuildCampaign(Level, M_CloudSea) on Sky layer
+      fixed at (0,-5,175), spans 300x680 m around route bounds x -19.5..19.5 / z -60..409.5
+      40x96 grid = 3,977 verts / 23,040 indices / one renderer; shader owns every moving pixel
+      vertex: three crossing swells + irregular bank lift, max crest y -3.35 below lowest underside y -1
+      fragment: nested domain-warped billow bodies + stretched counter-flow erosion + broad edge feather
+      scaled shader time; fog-mixed; no collider, particles, lights, shadows, probes or C# Update
+
+7. Build Sandbox -> CloudSea.BuildSandbox(Sandbox, same M_CloudSea)
+    fixed at (65,-5,0), spans 320x240 m around the room and movement yard through x=152
 ```
 
 **Palette invariants**
@@ -2065,14 +2072,13 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer() -> AmbientMist on PLAY
   `T3_Entry` → `T3_Pillar_1`, 9 m; the T3 pillar hops are 5-6 m) and combat resolves at 3-8 m, so both
   sit at fog factor exactly zero. The ramp is for the route *ahead* — pillar line 24 m, span far end
   48 m, next arena 64-90 m. `SkyEclipseTests.FogNeverTouchesCombatOrALandingTarget`.
-- **Visible mist is a bounded presentation layer, not another movement volume.** `AmbientMist` lives on
-  the player root so only its emitter follows the route; particles simulate in world space and never
-  steer, collide or write gameplay state. One quarter-second Default-only ray places the emission box
-  on the route 28 m ahead; a miss restores the authored fallback. New particles start beyond the 12 m
-  landing band, and sheets caught by a fast player fade to zero inside 3 m. Additive blending cannot
-  darken footing, while the `.26` per-sheet alpha, `.22` screen-size cap and 48-particle ceiling limit contrast wash. It uses scaled
-  time because atmosphere freezes with the world; death and Pyre mist remain unscaled authored payoffs.
-  `AmbientMistTests` pins the prefab, modules, camera fade, cost ceiling and shared-material lifecycle.
+- **The visible lower atmosphere belongs to the world, not the player.** `CloudSea` is one scene-owned
+  grid far below landing and combat surfaces. It never follows the player, raycasts, collides or writes
+  gameplay state; the shader moves a common wave field under the whole route. Solid geometry wins the
+  depth test, every colour stays below bloom, and broad off-route margins plus edge feathering hide the
+  finite mesh in linear fog. It uses scaled shader time because atmosphere freezes with the world;
+  death and Pyre mist remain unscaled authored payoffs. `CloudSeaTests` pins coverage, crest clearance,
+  mesh/draw cost and material hierarchy. `AmbientMist` remains dormant as a reversible legacy helper.
 - **`SandboxBuilder.EnsureEnvironment` no longer mirrors fog by hand** — it reads `ProjectSetup.FogColor
   / FogStartDistance / FogEndDistance` directly, because the hand-mirrored copies had already drifted
   (the sandbox was still violet `#0C0912` after the cold pass took the level blue). Its **ambient is

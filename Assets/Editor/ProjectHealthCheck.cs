@@ -109,7 +109,10 @@ namespace VibeGame1.EditorTools
                 // outside the render pipeline: URP has no say in them and they cannot render magenta
                 // for the pipeline's reason. They live under VibeGame1/UI/.
                 if (mat.shader.name.StartsWith("VibeGame1/UI/", StringComparison.Ordinal)) continue;
-                if (!mat.shader.name.StartsWith("Universal Render Pipeline/", StringComparison.Ordinal))
+                // Custom URP shaders declare their pipeline in the SubShader tag; their display name
+                // need not use Unity's built-in prefix (for example VibeGame1/Cloud Sea).
+                if (!mat.shader.name.StartsWith("Universal Render Pipeline/", StringComparison.Ordinal)
+                    && mat.GetTag("RenderPipeline", false, "") != "UniversalPipeline")
                     Err($"{path} uses '{mat.shader.name}' — non-URP shaders render magenta. Use Universal Render Pipeline/Lit.");
             }
         }

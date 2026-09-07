@@ -12,6 +12,7 @@ namespace VibeGame1.EditorTools
     {
         const string Folder = "Assets/Materials";
         const string ShaderName = "Universal Render Pipeline/Lit";
+        const string CloudSeaShaderName = "VibeGame1/Cloud Sea";
 
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
@@ -288,6 +289,11 @@ namespace VibeGame1.EditorTools
                 EditorUtility.SetDirty(mat);
             }
 
+            // The lower atmosphere has its own transparent procedural shader. Keep it in this factory
+            // so the scene builders can serialize a real material asset and player builds cannot strip
+            // the shader as an unreferenced Shader.Find-only dependency.
+            CreateCloudSea();
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"[MaterialFactory] Materials ready in {Folder}: {created} created, {updated} updated.");
@@ -298,6 +304,51 @@ namespace VibeGame1.EditorTools
         {
             var mat = AssetDatabase.LoadAssetAtPath<Material>(PathFor(name));
             if (mat == null) Debug.LogWarning($"[MaterialFactory] Material '{name}' not found. Run VibeGame1/2. Create Materials first.");
+            return mat;
+        }
+
+        /// <summary>Creates or refreshes the one shared cloud-ocean material.</summary>
+        public static Material CreateCloudSea()
+        {
+            EnsureFolder();
+            var shader = Shader.Find(CloudSeaShaderName);
+            if (shader == null)
+            {
+                Debug.LogError("[MaterialFactory] Shader '" + CloudSeaShaderName +
+                               "' not found. Reimport Assets/Shaders/CloudSea.shader first.");
+                return null;
+            }
+
+            const string name = "M_CloudSea";
+            string path = PathFor(name);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader) { name = name };
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            else if (mat.shader != shader)
+            {
+                mat.shader = shader;
+            }
+
+            // Cold world palette, all channels below 1.0: the sea is scenery and never spends the
+            // attack-tell bloom budget. Alpha gives the low field body without making it a solid floor.
+            mat.SetColor("_DeepColor", new Color(0.10f, 0.18f, 0.28f, 0.45f));
+            mat.SetColor("_CloudColor", new Color(0.42f, 0.55f, 0.66f, 0.92f));
+            mat.SetColor("_CrestColor", new Color(0.65f, 0.74f, 0.80f, 0.95f));
+            mat.SetFloat("_WaveHeight", 1.50f);
+            mat.SetFloat("_FlowSpeed", 0.035f);
+            mat.SetFloat("_LargeScale", 0.030f);
+            mat.SetFloat("_DetailScale", 0.11f);
+            mat.SetFloat("_WarpStrength", 14f);
+            mat.SetFloat("_DetailStrength", 0.26f);
+            mat.SetFloat("_EdgeFeather", 0.12f);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 10;
+
+            EditorUtility.SetDirty(mat);
+            AssetDatabase.SaveAssets();
             return mat;
         }
 

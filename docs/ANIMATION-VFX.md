@@ -657,15 +657,21 @@ tests in `SkyEclipseTests`.
 frame, and an identical-camera 170 -> 140 check at the new ramp crest moved mean RGB by only 0.002% of
 channel range. Linear fog remains a route-depth instrument; it cannot supply visible moving atmosphere.
 
-`AmbientMist` supplies that moving layer with the project's existing mist language: one prewarmed,
-world-space ParticleSystem emitted 14-42 m ahead from the player root, using an ambient-only clone of
-`DeathMist`'s shared soft particle material. The texture and shader stay shared; the clone only adds a
-3-9 m camera fade so a sheet caught at speed dissolves before it fills the view. The shipped field is
-four particles per second, 48 maximum, 8-14 m sheets, cold additive alpha .18-.26, with an .22 maximum
-screen size. Before prewarm and every .25 scaled seconds, one Default-layer-only downward ray places
-the box 0.8 m above the route at its 28 m forward anchor and tilts it to the ground normal; a miss restores
-the authored centre and zero rotation. Enemies, interactables and triggers cannot steer the atmosphere.
-There are no collisions, lights, shadows, probes or gameplay writes. It runs on scaled time so pause and
-hitstop freeze the atmosphere with the world; death/Pyre mist stay unscaled because they explain an event.
-Its job is slow parallax and drift around the route. It must never become a cloud ceiling, a bloom source,
-or enough additive wash to mute an amber projectile or bone-white cue.
+`CloudSea` supplies the moving layer the level actually calls for: one fixed world-space ocean below every
+structure, spanning x -150..150 and z -165..515 around the shipped route (-19.5..19.5, -60..409.5). Its
+surface sits at y -5; three crossing swells plus the irregular cloud-bank lift total at most 1.10 x the
+1.50 m wave height, so the highest possible crest is y -3.35, still 2.35 m below the lowest platform
+underside at y -1. The course therefore
+reads as one set of ruins suspended above a common rolling cloud bed, rather than a local puff following
+the player.
+
+The effect is one 3,977-vertex / 23,040-index grid and one transparent URP draw. Long vertex swells make
+the horizon physically rise and fall. In the fragment pass, a slow low-frequency field bends a three-octave
+billow flow while stretched smaller noise erodes their boundaries in the other direction; the two spatial
+scales are about 3.7x apart, so this reads as nested soft bodies with torn wispy edges instead of stretched flat
+noise or bright contour rings. The broad edge
+feather lives 80-100 m beyond either end of Level_01 and disappears into linear fog before the rectangle
+can show. It has no particles, collisions, lights, shadows, probes, per-frame C# work or gameplay state.
+All colour channels remain below 1.0, and ordinary alpha blending plus depth testing keeps it behind solid
+course geometry without spending the attack-tell bloom budget. Shader `_Time.y` is scaled in play, so pause
+and hitstop freeze this world atmosphere; death/Pyre mist remain unscaled because they explain an event.

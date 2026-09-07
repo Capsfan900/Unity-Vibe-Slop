@@ -10,6 +10,38 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Cloud ocean beneath the map — 2026-09-07
+
+Sol at extra-high effort implemented the user's clarified target: a continuous rolling cloud sea below
+the course. Lead reviewed/refined the material, regenerated shipped content and ran editor verification.
+This supersedes the earlier player-relative route mist; distant haze remains at 36–140 m.
+
+- **Quick EditMode: 709/709 passed**, no failures/skips, 9.7 s;
+  `TestResults/EditMode-20260907-175659.xml`. Includes five CloudSea tests for shipped material,
+  route coverage/clearance, mesh budget and disable/re-enable lifecycle. The 138 slow level-line tests
+  were excluded because this pass changes no route geometry or movement; prior full result is below.
+- **Full FeatureTests: 777/777 passed**, no failures/skips, fresh Play session, warm GameManager,
+  timeScale 1 and neutral input. `TestResults/cloud-ocean/features-final.txt`. Test cap was 60 fps;
+  original targetFrameRate -1 and vSyncCount 1 restored afterward.
+- **Health Check: 0 errors, 1764 existing warnings.** Fixed the validator's shader-name-only assumption
+  to also accept the actual URP SubShader pipeline tag. That final editor-only fix compiled without
+  console errors and the validator was rerun; it does not alter the tested runtime implementation.
+- Both offline assemblies compile with zero errors (runtime zero warnings; editor 16 existing warnings).
+  Cloud shader supported in the open editor, zero shader messages. Saved Level_01 and Sandbox reopen
+  with one CloudSea each, zero AmbientMist components, and the serialized M_CloudSea material.
+  Campaign mesh: 3977 vertices / 23040 indices; Sandbox: 3185 vertices.
+- Real renders reviewed from opening, original start, elevated span and late descent, plus close detail.
+  Final images: `RouteShots/cloud-ocean/`. Broad billows and finer counter-flowing wisps sit below the
+  platforms; the maximum crest is y -3.35, 2.35 m beneath the lowest authored platform underside.
+- Fixed-camera live captures change over 8.34 seconds of scaled time. Paused captures have identical
+  pixels at timeScale 0 after temporarily disabling camera post-processing to exclude animated grain.
+  Camera state was restored. Evidence: `TestResults/cloud-ocean/motion-pause.txt` and motion/pause PNGs.
+
+This is a shader-animated surface, not volumetric fluid simulation. Standalone/WebGL GPU performance
+and the user's artistic acceptance remain unproven. Existing two ramps, opening spawn, combat,
+projectile weave and downhill movement are unchanged by this presentation pass. Restore tag:
+`pre-cloud-ocean-2026-09-07` at `7a68d19`; revert the single `[Sol]` cloud-ocean commit to undo it.
+
 ### Two-ramp Level 1 correction — 2026-09-07
 
 - **Full FeatureTests: 776/777 passed**, zero skipped. `Items_RestoredOnRespawn` failed;
