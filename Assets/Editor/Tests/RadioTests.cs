@@ -18,6 +18,20 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void InputIsAcceptedInEveryStateExceptEditing()
+        {
+            // The bug (2026-09-06, "skipping does not work"): NEXT/PREVIOUS/TOGGLE were gated to
+            // GameState.Playing only, so opening the pause menu, the level-up screen or dying silently
+            // swallowed the keypress even though the radio itself keeps playing through pause. Editing is
+            // the one state that must still block: the level editor binds [ and ] to EditorPrev/EditorNext.
+            foreach (GameState s in System.Enum.GetValues(typeof(GameState)))
+            {
+                bool expected = s != GameState.Editing;
+                Assert.AreEqual(expected, RadioMath.AcceptsInput(s), s + " should accept radio input: " + expected);
+            }
+        }
+
+        [Test]
         public void PreviousIsTheCarStereoRule()
         {
             Assert.IsFalse(RadioMath.PreviousRestartsCurrent(1f, 3f), "early in a track, PREVIOUS goes back");

@@ -115,11 +115,19 @@ namespace VibeGame1
         {
             if (source == null) return;
             var input = InputReader.I;
-            if (input != null && GameManager.IsPlaying)
+            // GameManager.IsPlaying (State == Playing) used to gate this whole block, which meant PAUSED,
+            // LEVEL-UP and DEAD ate every keypress even though the fade below keeps the radio audible
+            // through pause and hitstop (found 2026-09-06: "skipping does not work"). RadioMath.AcceptsInput
+            // blocks only GameState.Editing, where the level editor owns the same [ and ] keys.
+            if (input != null && (GameManager.I == null || RadioMath.AcceptsInput(GameManager.I.State)))
             {
-                if (input.RadioNextPressed) Next();
-                if (input.RadioPreviousPressed) Previous();
-                if (input.RadioTogglePressed) Toggle();
+                // A click on the PRESS, not inside Next()/Previous()/Toggle() themselves (2026-09-06 audio
+                // pass): Next() is also called by Update's own track-end auto-advance below, and that must
+                // stay silent -- a click every few minutes with nobody touching the radio would read as a
+                // phantom input. The physical button needs a sound; the playlist rolling over does not.
+                if (input.RadioNextPressed) { AudioManager.Play(Sfx.Click, 0.5f, 1.1f); Next(); }
+                if (input.RadioPreviousPressed) { AudioManager.Play(Sfx.Click, 0.5f, 0.9f); Previous(); }
+                if (input.RadioTogglePressed) { AudioManager.Play(Sfx.Click, 0.5f, IsOn ? 0.75f : 1.25f); Toggle(); }
             }
             // Volume: the music slider, faded on unscaled time (the radio keeps playing through pause and hitstop).
             float master = AudioManager.I != null ? AudioManager.I.musicVolume * AudioManager.I.masterVolume : 0.4f;

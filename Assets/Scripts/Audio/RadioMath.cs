@@ -34,6 +34,22 @@ namespace VibeGame1
             return k < 0f ? 0f : (k > 1f ? 1f : k);
         }
 
+        /// <summary>
+        /// Whether NEXT/PREVIOUS/TOGGLE should react to the player's keypress this frame. The radio's own
+        /// volume fade already runs on unscaled time so the bed keeps playing through pause and hitstop
+        /// (<see cref="LevelRadio.Update"/>) — the keys that skip a track were gated to
+        /// <c>GameState.Playing</c> only, so PAUSED, LEVEL-UP and DEAD all silently ate the keypress even
+        /// though the radio was still audible (found 2026-09-06: "skipping does not work"). The one state
+        /// that must still block is <see cref="GameState.Editing"/> — the level editor binds the SAME
+        /// physical keys, <c>[</c> and <c>]</c>, to <c>EditorPrev</c>/<c>EditorNext</c> (cycling a piece's
+        /// kind); letting the radio also react there would skip a track every time a level author cycles
+        /// a piece.
+        /// </summary>
+        public static bool AcceptsInput(GameState state)
+        {
+            return state != GameState.Editing;
+        }
+
         /// <summary>"Audio/Radio/<folder>" -- the Resources path a level's playlist is loaded from.</summary>
         public static string ResourcesFolder(string levelFolder)
         {
