@@ -5,7 +5,8 @@ namespace VibeGame1
     /// <summary>
     /// THE FLARE GRAPPLE (2026-09-06, replaces SentryDash). While a <see cref="SentryFlare"/> still glows,
     /// aiming near it and pressing DASH pulls the player to it along the hook's arc and, on arrival,
-    /// TOSSES them upward (motor.Launch: an entry point, never a velocity write -- rule 10). The flare is
+    /// TOSSES them upward and hands them a couple of seconds of hangtime (motor.Launch(up, hang): an
+    /// entry point, never a velocity write -- rule 10). The flare is
     /// spent by the use. It is meant to be used creatively: a flare thrown over a gap is a bridge, one
     /// thrown up a wall is a lift, and one you leave alone is nothing.
     ///
@@ -22,8 +23,15 @@ namespace VibeGame1
         public float coneDeg = 20f;
         [Tooltip("Seconds of pull to the flare. The hook's 0.35.")]
         public float pullSeconds = 0.35f;
-        [Tooltip("Metres per second straight up on arrival: the toss. 14 is a balloon-and-a-bit.")]
-        public float tossUpSpeed = 14f;
+        [Tooltip("Metres per second straight up on arrival: the toss. 18 against gravity -30 is a 5.4 m " +
+                 "rise -- two jumps and a bit -- and the hang window below means the jump cut can no longer " +
+                 "eat it, so that 5.4 m is what you get every single time.")]
+        public float tossUpSpeed = 18f;
+        [Tooltip("Seconds of HANGTIME the toss asks the motor for (FirstPersonMotor.BeginHangTime): the fall " +
+                 "is slowed for this long so the toss buys height first and float after. Bounded on purpose -- " +
+                 "a landing, a dash, a wall jump, a wall run or another pull all end it early, and it expires " +
+                 "on its own if you do nothing.")]
+        public float tossHangSeconds = 2f;
         [Tooltip("Lens punch on the toss, degrees.")]
         public float tossFovKick = 8f;
         [Tooltip("Colour of the line and the burst.")]
@@ -126,7 +134,9 @@ namespace VibeGame1
             inFlight = null;
             // Arrived OR cut short by a lintel: the toss still happens. A pull that ends in nothing is a
             // dropped input; a pull that ends in a lift is always a move.
-            motor.Launch(tossUpSpeed);
+            // Launch(upSpeed, hangSeconds): the motor owns the hang as a state of its own -- a traversal
+            // piece never writes a velocity or a gravity (rule 10). Balloons keep calling Launch(upSpeed).
+            motor.Launch(tossUpSpeed, tossHangSeconds);
             Tosses++;
             if (CameraFX.I != null)
             {

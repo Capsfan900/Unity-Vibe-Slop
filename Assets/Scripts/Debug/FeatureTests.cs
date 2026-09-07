@@ -1954,7 +1954,51 @@ namespace VibeGame1
             Check("Flare_TossesUp", grapple.Tosses == tossesBefore + 1 && motor.Velocity.y > 8f,
                 "tosses=" + grapple.Tosses + " velY=" + motor.Velocity.y.ToString("0.0"));
             Check("Flare_IsSpentByTheUse", flare == null, "a used flare is gone");
-            yield return WaitRealtime(1.2f);
+
+            // ---- the raised toss and its BOUNDED hangtime (2026-09-06, the user) ------------------
+            // The toss leaves at tossUpSpeed and opens a hang window; the rise is never scaled, so the
+            // apex is tossUpSpeed^2/2g (5.4 m at 18 against -30) and the seconds are spent on the FALL.
+            Check("Flare_TossLeavesAtTheRaisedSpeed", motor.Velocity.y > grapple.tossUpSpeed - 3f,
+                "velY=" + motor.Velocity.y.ToString("0.0") + " toss=" + grapple.tossUpSpeed.ToString("0.0"));
+            Check("Flare_HangWindowOpens", motor.IsHanging && motor.HangRemaining > grapple.tossHangSeconds - 0.5f,
+                "hanging=" + motor.IsHanging + " left=" + motor.HangRemaining.ToString("0.00"));
+            float tossY = combat.transform.position.y;
+            float peakY = tossY;
+            float riseTimer = 0f;
+            while (riseTimer < 0.9f)
+            {
+                peakY = Mathf.Max(peakY, combat.transform.position.y);
+                riseTimer += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            // 4.5 m is the old toss (a nominal 3.3, a felt 1.9 once the jump cut ate it) plus a margin:
+            // a pass that quietly loses the height fails here, not in a playtest.
+            Check("Flare_TossRisesHigherThanAJump", peakY - tossY > 4.5f,
+                "rise=" + (peakY - tossY).ToString("0.0") + " m from y=" + tossY.ToString("0.0"));
+
+            // Still in the air a second and a half later, unless the floor legally ended the window.
+            yield return WaitRealtime(0.7f);
+            Check("Flare_HangSurvivesTheFall", motor.IsGrounded || motor.IsHanging,
+                "grounded=" + motor.IsGrounded + " hanging=" + motor.IsHanging
+                + " left=" + motor.HangRemaining.ToString("0.00") + " velY=" + motor.Velocity.y.ToString("0.0"));
+            // ...and a float is a float: nothing like a normal 1.6 s fall (-48 m/s) is on the clock.
+            Check("Flare_HangIsAFloatNotAFall", motor.IsGrounded || motor.Velocity.y > -20f,
+                "velY=" + motor.Velocity.y.ToString("0.0"));
+
+            // A dash is a deliberate air action and SPENDS the window. Conditional on the dash actually
+            // firing, so a stamina refusal can never redden this.
+            bool airborneBeforeDash = !motor.IsGrounded;
+            motor.RequestDash();
+            yield return null; yield return null;
+            Check("Flare_DashSpendsTheHang", !airborneBeforeDash || !motor.IsDashing || !motor.IsHanging,
+                "dashing=" + motor.IsDashing + " hanging=" + motor.IsHanging);
+
+            // And it expires on its own: past the window there is no float left to find.
+            yield return WaitRealtime(grapple.tossHangSeconds + 0.4f);
+            Check("Flare_HangExpiresOnItsOwn", !motor.IsHanging && motor.HangRemaining <= 0f,
+                "hanging=" + motor.IsHanging + " left=" + motor.HangRemaining.ToString("0.00"));
+
+            yield return WaitRealtime(0.4f);
             yield return ResetPlayerState();
         }
 

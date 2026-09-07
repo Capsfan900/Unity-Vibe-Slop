@@ -222,6 +222,16 @@ namespace VibeGame1
         [Range(0.2f, 1f)] public float launchGravityScale = 0.55f;
         [Tooltip("Air steer rate multiplier inside the float window.")]
         public float launchSteerBoost = 1.6f;
+        [Header("Flare toss - the bounded HANGTIME")]
+        [Tooltip("Gravity multiplier while a flare toss hang window is open AND the body is falling. The " +
+                 "RISE is never scaled, so a toss always reaches tossUpSpeed^2/(2g) and a level can be " +
+                 "authored against it; 0.22 of -30 is -6.6 m/s^2 before the fall multiplier, -9.9 after: a " +
+                 "float you steer, still visibly a fall. The window LENGTH is the caller's (FlareGrapple).")]
+        [Range(0.1f, 1f)] public float hangGravityScale = 0.22f;
+        [Tooltip("Seconds any one hang window may last, whatever a caller asks for. A bounded window is the " +
+                 "whole point: 2 s of hangtime is a move, an unbounded one is a hover.")]
+        public float hangSecondsCap = 2.5f;
+
         [Tooltip("Horizontal speed a pop trims the player to, m/s. A 22 m/s dash carried through an orb overshoots the next one by a storey; the re-armed dash is what closes the gap, so the carry only needs to be steerable.")]
         public float launchCarryCap = 9f;
 
@@ -501,6 +511,7 @@ namespace VibeGame1
                     // branch at all means the run was ridden to its end rather than bailed early.
                     bool perfect = PerfectMath.GraceJumpIsPerfect(now - wallRunLeftAt, perfectWallJumpWindow);
                     vel = WallRunMath.Exit(vel, rn, rd, WallRunSettings, dashSpeed);
+                    EndHang();
                     wallRunLeftAt = -99f;
                     jumpPressedAt = -99f;
                     if (look != null) look.AddRollKick(Mathf.Sign(WallSide(rn)) * -wallRunExitRollKick, 0.28f);
@@ -533,6 +544,7 @@ namespace VibeGame1
 
             lastWallNormal = n;
             hasLastWall = true;
+            EndHang();
             wallJumpsUsed++;
             jumpPressedAt = -99f;
             EndSlide();   // not forced: under a low ceiling we stay slid and stand once clear
@@ -633,6 +645,7 @@ namespace VibeGame1
             wallRunElapsed = 0f;
             wallRunNormal = n;
             wallRunDir = runDir;
+            EndHang();
             wallRunsUsed++;
             // The face you are running is the face you may not re-enter, by exactly the rule that stops a
             // single wall being a free ladder. TryWallJump's run branch reads this back on the way out.
@@ -841,6 +854,9 @@ namespace VibeGame1
         // Water: refreshed by WaterVolume.OnTriggerStay through TouchWater; expires on the motor clock.
         float waterUntil = -99f;
         float launchedAt = -99f;
+        // The flare toss hang window, on the motor clock (never Time.time - rule 1). Opened only by
+        // BeginHangTime, closed by the clock or by any deliberate air action; see EndHang.
+        float hangUntil = -99f;
         WaterVolume waterVolume;
         // Grapple burst: armed on arrival, opened when control is back, closed by the window or a fire.
         float pullBurstUntil = -99f;
@@ -947,6 +963,7 @@ namespace VibeGame1
                 wallJumpsUsed = 0;
                 wallRunsUsed = 0;
                 hasLastWall = false;   // a landing forgives the wall you last used
+                EndHang();             // the floor ends the hang: hangtime is air, by definition
                 if (!wasGrounded)
                 {
                     LastLandingSpeed = Mathf.Abs(vel.y);   // captured before vel.y is clamped to -2
@@ -1127,7 +1144,9 @@ namespace VibeGame1
                     // direction you chose.
                     // THE FLOAT: for launchFloatSeconds after a balloon pop the steer turns faster, so
                     // the re-armed dash can be aimed at the next orb (the gravity half is below).
-                    bool floating = now - launchedAt <= launchFloatSeconds;
+                    // A flare toss steers on the same boost for the length of ITS window: the two seconds
+                    // exist to be aimed with, and this is the same knob, not a second one.
+                    bool floating = now - launchedAt <= launchFloatSeconds || TraversalMath.BurstOpen(now, hangUntil);
                     hv = AirSteer(hv, wish, airSteerDegPerSec * (floating ? launchSteerBoost : 1f), dt);
                     hv = AirAccelerate(hv, wish, groundSpeed * SpeedMultiplier, airAccel, dt);
                     // WEIGHT. Speed above a run bleeds slowly while airborne (airCarryDecay): a wall exit
@@ -1142,9 +1161,17 @@ namespace VibeGame1
                 }
 
                 // A balloon pop hangs: gravity is scaled inside the float window (see launchFloatSeconds).
-                float gNow = now - launchedAt <= launchFloatSeconds ? gravity * launchGravityScale : gravity;
+                // A FLARE TOSS hangs longer and only on the way DOWN (see BeginHangTime) - the rise stays
+                // honest, and the seconds are spent where hangtime is actually read.
+                bool hanging = TraversalMath.BurstOpen(now, hangUntil);
+                float gNow = hanging
+                    ? gravity * HangGravityScale(vel.y, hangGravityScale)
+                    : (now - launchedAt <= launchFloatSeconds ? gravity * launchGravityScale : gravity);
                 vel.y += FallGravity(gNow, vel.y, IsGrounded, fallGravityMultiplier) * dt;
-                if (!IsGrounded && vel.y > 0f && !input.JumpHeld) vel.y += gravity * jumpCutGravityMultiplier * dt;
+                // The jump CUT shortens a jump whose key you released. A toss is not a jump - nobody
+                // pressed jump - and the cut was quietly eating up to two thirds of it, so a toss that
+                // opens a hang window is exempt for the length of that window.
+                if (!hanging && !IsGrounded && vel.y > 0f && !input.JumpHeld) vel.y += gravity * jumpCutGravityMultiplier * dt;
 
                 bool canJump = now - lastGroundedTime <= coyoteTime;
                 bool buffered = now - jumpPressedAt <= jumpBuffer;
@@ -1178,6 +1205,7 @@ namespace VibeGame1
                     && (stamina == null || stamina.TrySpend(stamina.dashCost, StaminaAction.Dash)))))
                 {
                     EndSlide();
+                    EndHang();   // a dash is a deliberate air action: it spends the hang, it does not ride it
                     dashDir = wish.sqrMagnitude > 0.01f ? wish.normalized : new Vector3(transform.forward.x, 0f, transform.forward.z).normalized;
                     dashUntil = now + dashDuration;
                     dashFromGround = IsGrounded || now - lastGroundedTime <= coyoteTime;
@@ -1281,6 +1309,27 @@ namespace VibeGame1
         public static float FallGravity(float gravity, float vy, bool grounded, float fallMultiplier)
         {
             return (!grounded && vy < 0f) ? gravity * fallMultiplier : gravity;
+        }
+
+        /// <summary>
+        /// Gravity multiplier inside a flare toss hang window. RISING is untouched (1) so the toss apex
+        /// is exactly what the toss speed buys; only the FALL is scaled, which is where hangtime is
+        /// felt. Pure - FlareTossTests calls it with no scene.
+        /// </summary>
+        public static float HangGravityScale(float vy, float scale)
+        {
+            if (vy > 0f) return 1f;
+            return Mathf.Clamp(scale, 0.1f, 1f);
+        }
+
+        /// <summary>
+        /// Apex height in metres of a launch at <paramref name="upSpeed"/> against gravity of magnitude
+        /// <paramref name="gravityMagnitude"/>, with no jump cut - which is what a hang window guarantees.
+        /// </summary>
+        public static float LaunchApex(float upSpeed, float gravityMagnitude)
+        {
+            if (upSpeed <= 0f || gravityMagnitude <= 0f) return 0f;
+            return upSpeed * upSpeed / (2f * gravityMagnitude);
         }
 
         /// <summary>Turn the horizontal velocity toward <paramref name="wish"/> at <paramref name="degPerSec"/>
@@ -1508,6 +1557,7 @@ namespace VibeGame1
             wallRunLeftAt = -99f;
             waterUntil = -99f;
             launchedAt = -99f;
+            hangUntil = -99f;
             waterVolume = null;
             pullBurstUntil = -99f;
             pullBurstPending = false;
@@ -1542,6 +1592,9 @@ namespace VibeGame1
         /// </summary>
         public void Launch(float upSpeed, bool trimCarry)
         {
+            // A plain launch (a balloon) is NOT a hang: any window still open from a flare toss closes
+            // here, so an orb popped mid-float hands back the ordinary balloon arc, unchanged.
+            EndHang();
             dashUntil = 0f;
             airDashUsed = false;
             wallJumpsUsed = 0;
@@ -1556,6 +1609,40 @@ namespace VibeGame1
             launchedAt = now;
             if (OnLaunched != null) OnLaunched();
         }
+
+        /// <summary>
+        /// A launch that also opens a bounded HANGTIME window: the flare toss (2026-09-06, the user).
+        /// Identical to <see cref="Launch(float)"/> - the same capped-jump rise, the same air-kit reset -
+        /// plus <paramref name="hangSeconds"/> of slowed FALL, so the toss buys height first and float
+        /// after. Balloons call the plain overload and are untouched by any of it.
+        /// </summary>
+        public void Launch(float upSpeed, float hangSeconds)
+        {
+            Launch(upSpeed, false);
+            BeginHangTime(hangSeconds);
+        }
+
+        /// <summary>
+        /// Open the hang window: for <paramref name="seconds"/> (clamped by <see cref="hangSecondsCap"/>)
+        /// a FALLING body is pulled down at <see cref="hangGravityScale"/> of gravity and the jump cut is
+        /// suspended. It is a WINDOW, not a state you can live in: it expires on the motor clock, and a
+        /// landing, a dash, a wall jump, a wall run, a pull or a balloon all end it early
+        /// (<c>EndHang</c>). A traversal piece calls this; it never writes a velocity (rule 10).
+        /// </summary>
+        public void BeginHangTime(float seconds)
+        {
+            float s = Mathf.Clamp(seconds, 0f, Mathf.Max(0f, hangSecondsCap));
+            hangUntil = s > 0f ? now + s : -99f;
+        }
+
+        /// <summary>True while a flare toss hang window is open. Tests and the harness read it.</summary>
+        public bool IsHanging { get { return TraversalMath.BurstOpen(now, hangUntil); } }
+
+        /// <summary>Seconds left of the hang window, 0 when closed.</summary>
+        public float HangRemaining { get { return IsHanging ? hangUntil - now : 0f; } }
+
+        /// <summary>Close the hang window now. Every deliberate air action funnels through here.</summary>
+        void EndHang() { hangUntil = -99f; }
 
         /// <summary>
         /// Re-arm the dash without firing one: cooldown cleared, air charge restored. What a balloon
@@ -1628,6 +1715,7 @@ namespace VibeGame1
         {
             EndSlide(true);
             EndWallRun(WallRunEnd.Cancelled);
+            EndHang();   // another pull is a new move; it does not inherit the last toss window
             dashUntil = 0f;
             dashRequested = false;
             jumpPressedAt = -99f;
