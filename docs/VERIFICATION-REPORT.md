@@ -10,6 +10,19 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Latest run — 2026-09-06, after the five team passes and the prompt owner key
+
+| Suite | Result | Notes |
+|---|---|---|
+| EditMode, full | **677 / 677 pass, 0 failed, 0 skipped** (233.9 s, `c0ed46d`) | Grew 616 → 677 across the audio, UI, VFX and combat passes plus the five `PromptOwnerTests`. Run from the live editor after a domain reload, editor unfocused — which is fine for EditMode. |
+| `FeatureTests`, play mode | **NOT RE-RUN since the five passes** | Last figure is 765 / 766 (2026-09-06, before the audio/UI/VFX/combat commits and before the owner key). The four new `Prompt_Owner*` checks are therefore unproven in play; the pure rule under them is pinned by `PromptOwnerTests`. |
+
+**Still unplayed by a human**: everything the five passes changed — the cold blue palette, the ringed planets,
+the ghost sentry, the bigger flare, the higher flare toss and its two seconds of float, the streaming radio,
+the new sounds and the audio settings panel — plus the prompt owner key. Reasoned and tested, not felt.
+
+### Earlier
+
 | Suite | Scope | Result |
 |---|---|---|
 | EditMode tests | Pure functions — `ParryMath`, `PostureMath`, `UpgradeMath`, `PuppetSpinTests`, `LockOnTrackingTests`, `ParryImpulseTests`, `PyreArcTests` — plus `MarionetteDataTests`, `RevenantDataTests`, **`HalberdierDataTests`** (13: the generated-clip table, the lunge held to each clip's sampled Hips travel, the TravelRoot keeping the mesh over the collider, the Generic/no-root-node import), `WandDataTests`, the `LevelSpan1-3` wall-run lines, `WallRunTunables` / `WallRunImpulse`, `StaminaTunables`, `AirFeelTests`, `MovementYardTests` and the new `SlideFeelTests` | **552 / 552 pass, 0 skipped** (2026-09-05 09:40, 213 s; the 549/552 run before it was the rework's own perch pins, closed by moving the perches — see HANDOFF) |

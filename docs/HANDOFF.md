@@ -3,12 +3,25 @@
 **Rewritten at the end of every session; describes a moment, not the project.** Read this first when picking
 up where the last chat stopped, then [SESSION-PROTOCOL.md](SESSION-PROTOCOL.md).
 
-Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent teams).
+Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, five subagent teams).
 
 ## What happened
 
 **2026-09-06 was a long session. Newest first.**
 
+0. **AFTER this handoff was first written, five more passes landed and were regenerated.** Each is one
+   commit, so each reverts alone: `d954c61` + `8397d86` audio-engineer (the silent systems got sounds, a
+   licence gap closed, the radio streams songs and skipping works, the placeholder tones are gone),
+   `c6428ee` ui-designer (an audio settings panel, a QA sweep, one palette at the centre of the screen),
+   `25e5498` vfx-art-team (the world goes cold: blue palette, ringed planets, a ghost sentry, a bigger
+   flare), `bb72aee` combat-designer (the flare toss goes higher and buys two seconds of float), then
+   `4fdf763` re-ran every generator — materials, data, prefabs, HUD, menu, level and sandbox.
+0b. **The standing prompt got an OWNER KEY** (`c0ed46d`) — the residual item 4 below records, closed on the
+   user's word. Every standing write carries a `PromptOwner` key; a non-empty cue still takes the line
+   (last speaker wins), but a clear only lands when the clearer still holds it, or nobody does. So a SURGE
+   expiring can no longer blank a live "GRAPPLE  [DASH]" that will never re-raise itself.
+   `PromptView.AcceptsStandingWrite` is pure and pinned by `PromptOwnerTests`; four `Prompt_Owner*` checks
+   in the feature suite prove the view obeys it. DATAFLOW "THE PROMPT LINE" is updated.
 1. **The HUD pass LANDED** (`0d1c73c`). The top-right is one column now: radio on top, Best Runs beneath it and
    shipping COLLAPSED (best time + "+N MORE"), auto-expanding for 4 s when the leaderboard changes — no new input.
    The wand name and cooldown bar are gone from the loadout pane (only HudBuilder and HUDController read them;
@@ -40,7 +53,7 @@ Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent team
 
 ## State of the tree
 
-- **Committed and clean** as of `7c9fd88`, unless the in-flight HUD agent above has since written files.
+- **Committed and clean** as of `c0ed46d`.
 - Revert points: `pre-team-passes-2026-09-06` (before any subagent work), `pre-combat-plan-2026-09-06` (before
   the combat plan). Every team pass is its own commit prefixed with the team name, so one regression reverts alone.
 - Generators re-run since the last code change: `3`, `4`, `4b`, `5`, `7`, level-from-definition, Health Check.
@@ -53,8 +66,8 @@ Last session: **2026-09-06, all day** (Fable 5.1 then Opus 5, four subagent team
 
 | Suite | Result | When |
 |---|---|---|
-| EditMode, full | **616 / 616** | 2026-09-06, after the HUD column pass |
-| Feature suite, play mode | **765 / 766** | 2026-09-06, on Level_01, after the HUD column pass |
+| EditMode, full | **677 / 677**, 0 skipped, 233.9 s | 2026-09-06, after the five passes AND the owner key (`c0ed46d`) |
+| Feature suite, play mode | **765 / 766** — STALE | 2026-09-06, but BEFORE the five passes and the owner key. **Re-run it.** |
 
 The single failure is `Flask_DrinkCoroutineAndInterruptOnHit`, a timing flake: it passes twice in isolation and
 its detail flips between runs. A run showing ~20 failures means the editor was throttled while unfocused, not a
@@ -68,6 +81,10 @@ the Grunt and Heavy pads for melee.
 
 ## Do first next session
 
+0. **Re-run the feature suite in play mode.** EditMode is green at 677/677, but the play-mode figure predates
+   the audio, UI, VFX and combat commits and the prompt owner key — the editor was in play mode (the user was
+   testing) when the owner key landed, so it was never run. Level_01, fresh session, `GameManager.I != null`
+   first.
 1. **Play a span and the Drillmaster**, then retune from what it actually feels like. Everything else is guesswork
    until then, and there is a lot of untested feel stacked up.
 2. **Answer the combat-designer's open questions** in `docs/plans/combat-plan-2026-09-06.md` and
@@ -76,8 +93,17 @@ the Grunt and Heavy pads for melee.
 
 ## Open questions for the user
 
-1. Should reflected bolts ever kill a sentry outright, or only ever open it?
-2. Should the flare grapple cost anything, or stay a free reward?
-3. Is a rear watch region (an enemy punishing you for circling behind) fair in first person?
-4. Should the standing prompt slot get an owner key, so one writer's clear cannot blank another's cue?
+**Three of the four are ANSWERED (2026-09-06) — do not re-ask them.**
+
+1. ~~Should reflected bolts ever kill a sentry outright, or only ever open it?~~ **They kill, and already do.**
+   The user: *"this system is already in place it kills the enemy and they explode with the flare."* A span
+   IS clearable at range; the dash line is the faster, showier one, not the only one.
+2. ~~Should the flare grapple cost anything?~~ **No — free.** The user: *"does nothing its free."* The two
+   deflects that earned it are the whole price. Do not spend stamina or the dash cooldown on it.
+3. **STILL OPEN — and it needs describing before it can be answered.** A "rear watch region" is item F of
+   `docs/plans/soulslike-report-gap-analysis-2026-09-06.md`: an enemy that punishes you for circling behind
+   it. The user asked what it meant. Put it to them in play terms — "you strafe around a Legendary's back
+   and it whips a rear attack you never saw the wind-up for, because the wind-up is behind your camera" —
+   and do not build F until they have called it.
+4. ~~An owner key on the standing prompt slot?~~ **Yes, and it is BUILT** (`c0ed46d`, item 0b above).
 
