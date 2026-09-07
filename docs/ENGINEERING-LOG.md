@@ -3029,3 +3029,37 @@ level.** Any change to a pop's numbers on the prefab re-judges every chain throu
 | Enemy standoff distance | `agent.stoppingDistance = attackRange * 0.7` parks the 2.2×-scale boss ~2.1 m from the camera, too close to read in first person. Known, not yet changed. |
 | Blender measures a forge FBX when the bridge is down | `Tools/measure_forge_fbx.py`, run with the forge tool's own venv (`ai_skelly_tool/.venv/Scripts/python.exe`), prints bounds, bone heads, facing slices, per-clip arm span and per-clip Hips travel in **Unity axes**: `unity = (-bl.x, bl.z, -bl.y)`. Import with `ignore_leaf_bones=False` or Blender drops the hands, toes and head. The forge places every bone on the drawing's z = 0 plane, so read facing off the mesh (feet, head, extremities), never the skeleton. |
 | `Sword.parryPostureDamage = 25` is arithmetic, not tuning | 25 × 1.4 (`Marionette_SpinPass.parryPostureMultiplier`) × 6 = 210, exactly the Pale Marionette's `maxPosture`, and FeatureTests' Knight beat counts it at ×1.3. `MarionetteDataTests.SixCleanDeflects_BreakIt` asserts the six-deflect break against `Sword.asset`; `WeaponSilhouetteTests.SixDeflectEconomy_TheSwordStaysAt25` guards it from the weapon side. A weapon pass that touches this number silently re-tunes two boss fights — keep the arithmetic landing on 6 or move `maxPosture` in the same edit. |
+
+---
+
+## Running generator 3 alone silently nulls every item's viewmodel
+
+**Symptom (2026-09-06).** A one-line tuning change in `DataFactory` was applied the correct way — edit the
+initialiser, re-run `3. Create Data`, read the shipped asset back off disk (rule 9). The asset was right.
+But `git diff` afterwards showed two files nobody had touched:
+
+```
+-  viewmodelPrefab: {fileID: 5387924563961540692, guid: e637fe0a881c1514dbfbf7c11212cdb9, type: 3}
++  viewmodelPrefab: {fileID: 0}
+```
+
+`Grapple.asset` and `WallSurge.asset` had lost their held-item models. Nothing logged, nothing failed, and
+the value the change was actually about was correct — so a session that diffed only the file it edited, or
+committed with `git commit -am`, would have shipped the player holding nothing.
+
+**Root cause.** `viewmodelPrefab` is a ScriptableObject field that `DataFactory` (step 3) creates and
+`PrefabFactory` (step 4) fills in — the prefab it points at does not exist until step 4 builds it. Step 3
+rewrites the asset from its initialisers, so running it alone always leaves the field null. It is not a
+bug in either generator; it is the pipeline order being load-bearing in a direction that is invisible from
+the asset the change was about.
+
+**Invariant.** **Steps 3 and 4 are one operation.** Any run of `3. Create Data` is followed by
+`4. Build Prefabs` before the tree is diffed or committed, and the check is `git status` over the WHOLE
+tree — not the asset the change was aimed at. This is the same failure family as rule 9: what a generator
+writes is not what you told it to write, and the only proof is reading the result back.
+
+**Corollary, same session.** `PrefabFactory.BuildAll` re-serialises `Player.prefab` and the enemy prefabs
+with reordered `fileID`s and identical content — a ~1300-line diff that means nothing. Check whether a
+prefab diff is substantive before committing it (`git diff -U0 | grep -v fileID | sort | uniq -c`: churn
+shows as equal `+`/`-` counts of identical lines). Revert pure churn so a real prefab change is visible in
+the history.
