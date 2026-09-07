@@ -1,44 +1,64 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
 
 namespace VibeGame1.EditorTools
 {
     /// <summary>
-    /// Cuts a playtest build — never a dev build. <see cref="Windows"/>, <see cref="WebGL"/> and
-    /// <see cref="All"/> are the entry points an `execute_code` call (compiles as C# 6) should use directly;
-    /// the <c>VibeGame1/Build/…</c> menu items below call the same methods and just log the summary, since
-    /// `execute_menu_item` over MCP reports success without actually running anything.
+    /// Cuts a playtest build — never a dev build. <see cref="Windows"/>, <see cref="WebGL"/>,
+    /// <see cref="All"/> and <see cref="Preflight"/> are the entry points an `execute_code` call should use
+    /// directly; the <c>VibeGame1/Build/…</c> menu items are thin wrappers, since `execute_menu_item` over
+    /// MCP reports success without actually running anything.
+    ///
+    /// <para><b>The contract is that this works whatever state the project is in.</b> Add a level, add an
+    /// enemy, leave the editor in play mode, leave the scene list stale — running <see cref="Windows"/>
+    /// either produces a correct build or says in one sentence exactly what to fix. Everything it needs it
+    /// either repairs itself (the scene list) or refuses to guess about (a broken compile).</para>
+    ///
+    /// <para><b>Every run also writes its summary to <c>Builds/last-build.txt</c> and logs it.</b> A build
+    /// blocks Unity's main thread for minutes, which drops the MCP websocket, so the return value of the
+    /// call that started the build is routinely lost. The file is the reliable channel — read it rather
+    /// than trusting the tool result.</para>
     ///
     /// <para>Output lands at the repo root under <c>Builds/Windows/</c> and <c>Builds/WebGL/</c> — never
-    /// under <c>Assets/</c>, and both folders are already covered by the root <c>.gitignore</c>
-    /// (<c>/[Bb]uilds/</c>). Each output gets a <c>build-info.txt</c> stamped with the git SHA, branch, UTC
-    /// build time and Unity version so a playtest bug report can be traced back to the exact build.</para>
+    /// under <c>Assets/</c>, and both are covered by the root <c>.gitignore</c> (<c>/[Bb]uilds/</c>). Each
+    /// output gets a <c>build-info.txt</c> stamped with the git SHA, branch, UTC build time, Unity version
+    /// and the exact scene list, so a playtest bug report traces back to one build.</para>
     ///
-    /// <para>Playtest configuration, deliberately: <see cref="BuildOptions.None"/>, no development build.
-    /// The project's dev keys (F5/F6/F7/F8/F9) are gated <c>#if UNITY_EDITOR || DEVELOPMENT_BUILD</c> in
-    /// <c>DebugKeys.cs</c>, so they compile out of this build target automatically — nothing to strip here.
-    /// The F10 in-game level editor is NOT gated the same way (only its EXPORT button hides outside the
-    /// editor via <c>#if !UNITY_EDITOR</c>); a playtester can still open it. That is a gameplay-gating
-    /// decision, not build plumbing, so this script does not change it — see the report.</para>
+    /// <para>Playtest configuration, deliberately: <see cref="BuildOptions.None"/>, no development build, so
+    /// the dev keys gated <c>#if UNITY_EDITOR || DEVELOPMENT_BUILD</c> in <c>DebugKeys.cs</c> compile out.
+    /// The F10 in-game level editor is NOT gated that way and remains reachable — a gameplay-gating
+    /// decision, not build plumbing, so this script does not change it. See <c>docs/BACKLOG.md</c>.</para>
     /// </summary>
     public static class BuildRunner
     {
-        const string ExpectedFirstScene = "Assets/Scenes/MainMenu.unity";
+        const string MainMenuScene = "Assets/Scenes/MainMenu.unity";
+
+        /// <summary>
+        /// The sandbox ships. <c>MainMenuController.LoadSandbox</c> and every custom-level row load it by
+        /// name, so a build without it has a main menu with dead buttons.
+        /// </summary>
+        const string SandboxScene = "Assets/Scenes/Sandbox.unity";
+
         const string WindowsExeName = "vibegame1.exe";
+        const ManagedStrippingLevel PlaytestStripping = ManagedStrippingLevel.High;
 
         static string RepoRoot => Directory.GetParent(Application.dataPath).FullName;
-        static string WindowsOutDir => Path.Combine(RepoRoot, "Builds", "Windows");
-        static string WebGLOutDir => Path.Combine(RepoRoot, "Builds", "WebGL");
+        static string BuildsRoot => Path.Combine(RepoRoot, "Builds");
+        static string WindowsOutDir => Path.Combine(BuildsRoot, "Windows");
+        static string WebGLOutDir => Path.Combine(BuildsRoot, "WebGL");
+        static string LastBuildFile => Path.Combine(BuildsRoot, "last-build.txt");
 
-        // ---------------------------------------------------------------- menu items (log only — call the
-        // static methods below directly from execute_code, never rely on the menu item over MCP)
+        // ---------------------------------------------------------------- menu items (log only)
 
         [MenuItem("VibeGame1/Build/Windows")]
         public static void WindowsMenuItem() => Debug.Log(Windows());
@@ -49,7 +69,21 @@ namespace VibeGame1.EditorTools
         [MenuItem("VibeGame1/Build/All")]
         public static void AllMenuItem() => Debug.Log(All());
 
+        [MenuItem("VibeGame1/Build/Preflight (no build)")]
+        public static void PreflightMenuItem() => Debug.Log(Preflight());
+
         // ---------------------------------------------------------------- entry points
+
+        public static string Windows()
+        {
+            return RunBuild(BuildTarget.StandaloneWindows64, NamedBuildTarget.Standalone, WindowsOutDir,
+                            Path.Combine(WindowsOutDir, WindowsExeName), false);
+        }
+
+        public static string WebGL()
+        {
+            return RunBuild(BuildTarget.WebGL, NamedBuildTarget.WebGL, WebGLOutDir, WebGLOutDir, true);
+        }
 
         public static string All()
         {
@@ -59,34 +93,82 @@ namespace VibeGame1.EditorTools
             return sb.ToString();
         }
 
-        public static string Windows()
+        /// <summary>
+        /// Everything <see cref="RunBuild"/> checks, without building — including the scene-list drift it
+        /// WOULD repair. Cheap, safe to run any time, and the right first call when a build misbehaves.
+        /// </summary>
+        public static string Preflight()
         {
-            return RunBuild(BuildTarget.StandaloneWindows64, WindowsOutDir,
-                Path.Combine(WindowsOutDir, WindowsExeName), false);
-        }
+            var sb = new StringBuilder();
+            sb.Append("playMode=").Append(EditorApplication.isPlaying)
+              .Append(" compiling=").Append(EditorApplication.isCompiling)
+              .Append(" compileFailed=").Append(EditorUtility.scriptCompilationFailed)
+              .Append(" windowsSupported=").Append(IsSupported(BuildTarget.StandaloneWindows64))
+              .Append(" webglSupported=").Append(IsSupported(BuildTarget.WebGL))
+              .Append(" backend=").Append(PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone))
+              .Append(" stripping=").Append(PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone))
+              .Append(" dirtyScenes=").Append(DirtyOpenScenes().Count);
 
-        public static string WebGL()
-        {
-            return RunBuild(BuildTarget.WebGL, WebGLOutDir, WebGLOutDir, true);
+            string[] wanted;
+            string drift;
+            string sceneError = ResolveSceneList(out wanted, out drift);
+            sb.Append(" | scenes=").Append(sceneError ?? string.Join(", ", wanted));
+            if (drift != null) sb.Append(" | WOULD REPAIR: ").Append(drift);
+            return sb.ToString();
         }
 
         // ---------------------------------------------------------------- shared build path
 
-        static string RunBuild(BuildTarget target, string outDir, string locationPathName, bool isWebGL)
+        static string RunBuild(BuildTarget target, NamedBuildTarget named, string outDir,
+                               string locationPathName, bool isWebGL)
         {
             try
             {
-                string sceneError = ValidateScenes(out string[] scenes);
-                if (sceneError != null) return sceneError;
+                // ---- guards: refuse clearly rather than produce a build that lies -------------------
+                if (EditorApplication.isPlaying)
+                {
+                    EditorApplication.ExitPlaymode();
+                    return Emit("BUILD REFUSED (" + target + "): the editor was in play mode. Play mode has " +
+                                "now been exited — re-run the same call. (Exiting takes a frame and a domain " +
+                                "reload, so it cannot be done inside this one.)");
+                }
+                if (EditorApplication.isCompiling)
+                    return Emit("BUILD REFUSED (" + target + "): scripts are still compiling. Wait for the " +
+                                "spinner and re-run.");
+                if (EditorUtility.scriptCompilationFailed)
+                    return Emit("BUILD REFUSED (" + target + "): the project has compile errors. A build " +
+                                "here would silently ship the last good assemblies. Fix the console first.");
+                if (!IsSupported(target))
+                    return Emit("BUILD REFUSED (" + target + "): that build target's module is not installed " +
+                                "in Unity " + Application.unityVersion + ". Add it in Unity Hub > Installs > " +
+                                "Add modules.");
+
+                // ---- scene list: self-healing, because adding a level must not break the build -------
+                string[] scenes;
+                string drift;
+                string sceneError = ResolveSceneList(out scenes, out drift);
+                if (sceneError != null) return Emit("BUILD REFUSED (" + target + "): " + sceneError);
+                if (drift != null) ApplySceneList(scenes);
+
+                // ---- warn, never silently bake, about unsaved scene edits ----------------------------
+                List<string> dirty = DirtyOpenScenes();
+                string dirtyNote = dirty.Count == 0
+                    ? null
+                    : "WARNING: unsaved edits in " + string.Join(", ", dirty) + " — the build used the " +
+                      "version ON DISK, not what is open in the editor.";
+
+                AssetDatabase.SaveAssets();
 
                 if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
                 Directory.CreateDirectory(outDir);
 
+                // ---- config enforced here, so a build does not depend on what someone last clicked ---
+                PlayerSettings.SetManagedStrippingLevel(named, PlaytestStripping);
                 if (isWebGL)
                 {
                     // GitHub Pages cannot set the Content-Encoding header Brotli needs, so ship gzip with
-                    // the decompression fallback so it still works even if a host serves no encoding header
-                    // at all.
+                    // the decompression fallback so it still works even if a host serves no encoding
+                    // header at all.
                     PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
                     PlayerSettings.WebGL.decompressionFallback = true;
                     // Assets/WebGLTemplates/Playtest — full-viewport canvas, click-to-play pointer lock
@@ -106,57 +188,182 @@ namespace VibeGame1.EditorTools
                 BuildReport report = BuildPipeline.BuildPlayer(options);
                 sw.Stop();
 
-                AssetDatabase.SaveAssets(); // persist the WebGL player-setting changes above to ProjectSettings.asset
+                AssetDatabase.SaveAssets(); // persist the player-setting changes above
 
+                BuildSummary summary = report.summary;
+                if (summary.result != BuildResult.Succeeded)
+                    return Emit("BUILD FAILED (" + target + "): result=" + summary.result +
+                                " errors=" + summary.totalErrors + "\n" + FirstErrors(report));
+
+                string cleanupNote = StripDoNotShip(outDir);
                 string infoError = null;
-                try { WriteBuildInfo(outDir); }
+                try { WriteBuildInfo(outDir, scenes, named, sw.Elapsed); }
                 catch (Exception e) { infoError = e.Message; }
 
-                var summary = report.summary;
                 long sizeBytes = SafeDirectorySize(outDir);
-
                 var result = new StringBuilder();
-                result.Append("target=").Append(target)
-                      .Append(" result=").Append(summary.result)
+                result.Append("BUILD OK target=").Append(target)
                       .Append(" outputPath=").Append(locationPathName)
                       .Append(" sizeMB=").Append((sizeBytes / (1024f * 1024f)).ToString("F1"))
-                      .Append(" duration=").Append(sw.Elapsed)
-                      .Append(" totalErrors=").Append(summary.totalErrors)
-                      .Append(" totalWarnings=").Append(summary.totalWarnings)
-                      .Append(" totalSize=").Append(summary.totalSize);
-                if (infoError != null) result.Append(" build-info.txt FAILED: ").Append(infoError);
-                return result.ToString();
+                      .Append(" duration=").Append(sw.Elapsed.ToString(@"mm\:ss"))
+                      .Append(" scenes=").Append(scenes.Length)
+                      .Append(" stripping=").Append(PlaytestStripping)
+                      .Append(" warnings=").Append(summary.totalWarnings);
+                if (drift != null) result.Append("\nSCENE LIST REPAIRED: ").Append(drift);
+                if (dirtyNote != null) result.Append("\n").Append(dirtyNote);
+                if (cleanupNote != null) result.Append("\n").Append(cleanupNote);
+                if (infoError != null) result.Append("\nbuild-info.txt FAILED: ").Append(infoError);
+                return Emit(result.ToString());
             }
             catch (Exception e)
             {
-                return "BUILD FAILED (" + target + "): " + e;
+                return Emit("BUILD FAILED (" + target + "): " + e);
             }
         }
 
+        // ---------------------------------------------------------------- scene list
+
         /// <summary>
-        /// Enabled scenes from EditorBuildSettings, in order. Fails loudly (returns an error string, never
-        /// throws) if the list is empty or MainMenu is not index 0 — a playtest build must boot to the menu.
+        /// The scene list a playtest build must have: MainMenu at index 0, then every scene named by a
+        /// campaign level in <see cref="LevelRegistry"/>, then the sandbox. Derived from data every run, so
+        /// adding a level to the registry puts its scene in the next build with nothing else to remember.
+        /// Returns an error string if a required scene file does not exist; otherwise null, with
+        /// <paramref name="drift"/> describing how EditorBuildSettings currently disagrees (null if it
+        /// already matches).
         /// </summary>
-        static string ValidateScenes(out string[] scenes)
+        static string ResolveSceneList(out string[] scenes, out string drift)
         {
-            scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
-            if (scenes.Length == 0)
-                return "BUILD FAILED: EditorBuildSettings has no enabled scenes.";
-            if (scenes[0] != ExpectedFirstScene)
-                return "BUILD FAILED: build index 0 is '" + scenes[0] + "', expected '" + ExpectedFirstScene +
-                       "'. Fix File > Build Profiles > Scene List (or EditorBuildSettings) before cutting a playtest build.";
+            scenes = null;
+            drift = null;
+
+            var wanted = new List<string> { MainMenuScene };
+
+            LevelRegistry registry = LoadRegistry();
+            if (registry != null)
+            {
+                foreach (LevelDefinition level in registry.Ordered())
+                {
+                    if (level == null || string.IsNullOrEmpty(level.sceneName)) continue;
+                    string path = "Assets/Scenes/" + level.sceneName + ".unity";
+                    if (!File.Exists(Path.Combine(RepoRoot, path)))
+                        return "level '" + level.SafeLevelId + "' names scene '" + level.sceneName +
+                               "' but " + path + " does not exist. Create it or fix the LevelDefinition.";
+                    if (!wanted.Contains(path)) wanted.Add(path);
+                }
+            }
+
+            if (File.Exists(Path.Combine(RepoRoot, SandboxScene)) && !wanted.Contains(SandboxScene))
+                wanted.Add(SandboxScene);
+
+            foreach (string required in wanted)
+                if (!File.Exists(Path.Combine(RepoRoot, required)))
+                    return "required scene " + required + " does not exist.";
+
+            scenes = wanted.ToArray();
+
+            string[] current = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+            if (!current.SequenceEqual(scenes))
+                drift = "was [" + string.Join(", ", current) + "] -> now [" + string.Join(", ", scenes) + "]";
             return null;
         }
 
-        static void WriteBuildInfo(string outDir)
+        static void ApplySceneList(string[] scenes)
         {
-            string sha = RunGit("rev-parse --short HEAD");
-            string branch = RunGit("rev-parse --abbrev-ref HEAD");
-            string text = "git_sha=" + sha + "\n" +
-                          "git_branch=" + branch + "\n" +
-                          "built_utc=" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\n" +
-                          "unity_version=" + Application.unityVersion + "\n" +
-                          "product_version=" + PlayerSettings.bundleVersion + "\n";
+            EditorBuildSettings.scenes = scenes
+                .Select(p => new EditorBuildSettingsScene(p, true))
+                .ToArray();
+        }
+
+        static LevelRegistry LoadRegistry()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:LevelRegistry"))
+            {
+                var r = AssetDatabase.LoadAssetAtPath<LevelRegistry>(AssetDatabase.GUIDToAssetPath(guid));
+                if (r != null) return r;
+            }
+            return null;
+        }
+
+        // ---------------------------------------------------------------- helpers
+
+        static bool IsSupported(BuildTarget target)
+        {
+            return BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target);
+        }
+
+        static List<string> DirtyOpenScenes()
+        {
+            var dirty = new List<string>();
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene s = SceneManager.GetSceneAt(i);
+                if (s.isDirty) dirty.Add(string.IsNullOrEmpty(s.name) ? "(untitled)" : s.name);
+            }
+            return dirty;
+        }
+
+        /// <summary>Unity leaves <c>*_BurstDebugInformation_DoNotShip</c> beside the player. Obey the name.</summary>
+        static string StripDoNotShip(string outDir)
+        {
+            try
+            {
+                var removed = new List<string>();
+                foreach (string dir in Directory.GetDirectories(outDir, "*DoNotShip*", SearchOption.TopDirectoryOnly))
+                {
+                    Directory.Delete(dir, true);
+                    removed.Add(Path.GetFileName(dir));
+                }
+                return removed.Count == 0 ? null : "removed non-shipping folders: " + string.Join(", ", removed);
+            }
+            catch (Exception e)
+            {
+                return "could not remove *DoNotShip* folders: " + e.Message;
+            }
+        }
+
+        /// <summary>The actual reasons a build failed, not just the result enum.</summary>
+        static string FirstErrors(BuildReport report)
+        {
+            const int max = 8;
+            var lines = new List<string>();
+            foreach (BuildStep step in report.steps)
+            {
+                foreach (BuildStepMessage m in step.messages)
+                {
+                    if (m.type != LogType.Error && m.type != LogType.Exception) continue;
+                    lines.Add("  [" + step.name + "] " + m.content);
+                    if (lines.Count >= max) return string.Join("\n", lines);
+                }
+            }
+            return lines.Count == 0 ? "  (no error messages in the build report)" : string.Join("\n", lines);
+        }
+
+        static string Emit(string summary)
+        {
+            try
+            {
+                Directory.CreateDirectory(BuildsRoot);
+                File.WriteAllText(LastBuildFile,
+                    DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\n" + summary + "\n");
+            }
+            catch { /* the log below is still the record */ }
+            Debug.Log("[BuildRunner] " + summary);
+            return summary;
+        }
+
+        static void WriteBuildInfo(string outDir, string[] scenes, NamedBuildTarget named, TimeSpan duration)
+        {
+            string text =
+                "git_sha=" + RunGit("rev-parse --short HEAD") + "\n" +
+                "git_branch=" + RunGit("rev-parse --abbrev-ref HEAD") + "\n" +
+                "git_dirty=" + (string.IsNullOrEmpty(RunGit("status --porcelain")) ? "no" : "YES") + "\n" +
+                "built_utc=" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\n" +
+                "build_seconds=" + ((int)duration.TotalSeconds) + "\n" +
+                "unity_version=" + Application.unityVersion + "\n" +
+                "product_version=" + PlayerSettings.bundleVersion + "\n" +
+                "scripting_backend=" + PlayerSettings.GetScriptingBackend(named) + "\n" +
+                "managed_stripping=" + PlayerSettings.GetManagedStrippingLevel(named) + "\n" +
+                "scenes=" + string.Join(";", scenes) + "\n";
             File.WriteAllText(Path.Combine(outDir, "build-info.txt"), text);
         }
 
@@ -175,7 +382,7 @@ namespace VibeGame1.EditorTools
                 {
                     string stdout = p.StandardOutput.ReadToEnd().Trim();
                     p.WaitForExit(5000);
-                    return string.IsNullOrEmpty(stdout) ? "unknown" : stdout;
+                    return stdout;
                 }
             }
             catch (Exception e)

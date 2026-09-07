@@ -21,29 +21,80 @@ Nothing else to click. Releases need no settings — anyone with the repo URL ca
 
 ## Cutting a build (the lead runs this in the open editor)
 
-Exit play mode first. Then, from `execute_code` (or the `VibeGame1/Build/…` menu, which does the same
-thing but only logs — don't rely on `execute_menu_item` over MCP, it can report success without building):
+From `execute_code` (or the `VibeGame1/Build/…` menu, which does the same thing but only logs — don't rely
+on `execute_menu_item` over MCP, it can report success without building):
 
 ```csharp
+VibeGame1.EditorTools.BuildRunner.Preflight() // -> checks everything, builds nothing. Run this first.
 VibeGame1.EditorTools.BuildRunner.Windows()   // -> Builds/Windows/vibegame1.exe + build-info.txt
 VibeGame1.EditorTools.BuildRunner.WebGL()     // -> Builds/WebGL/index.html + build-info.txt
 VibeGame1.EditorTools.BuildRunner.All()       // both, in order
 ```
 
-Each call returns a one-line summary (target, result, output path, size, duration, error/warning counts) —
-read it, don't assume success. `Builds/` lives at the repo root, outside `Assets/`, and is already
-gitignored (`/[Bb]uilds/` in `.gitignore`) — a build must never enter repo history.
+**Read `Builds/last-build.txt`, not the return value of the call.** Every run writes its summary there and
+logs it to the console. A build blocks Unity's main thread for minutes, which drops the MCP websocket, so
+the call that started the build routinely returns `success:false` with a null message *for a build that
+succeeded*. The file is the reliable channel. (Once the Library cache is warm an incremental build takes
+about five seconds and the call does return normally — the drop only bites on a cold build.)
 
-The build fails loudly (returns an error string, does not throw) if `EditorBuildSettings` scene index 0
-is not `Assets/Scenes/MainMenu.unity` — fix the scene list before building.
+`Builds/` lives at the repo root, outside `Assets/`, and is gitignored (`/[Bb]uilds/`) — a build must never
+enter repo history.
 
-This is a **playtest build**, not a dev build: `BuildOptions.None`, development build OFF. The project's
-`F5`/`F6`/`F7`/`F8`/`F9` dev keys are gated `#if UNITY_EDITOR || DEVELOPMENT_BUILD` in
-`Assets/Scripts/Debug/DebugKeys.cs`, so they are compiled out of this build entirely — nothing to strip.
-**The `F10` in-game level editor is not gated the same way** — only its EXPORT button is
-(`#if !UNITY_EDITOR` in `Assets/Scripts/Level/LevelEditor.cs`); a playtester can still open F10 and roam
-in fly-cam. That's a gameplay decision this build script does not make — flag it if it should be
-dev-gated too.
+### It is designed to work whatever state the project is in
+
+You should be able to add a level, add an enemy, and rebuild without remembering anything. `BuildRunner`
+either fixes the problem itself or refuses with one sentence naming the fix:
+
+| State | What happens |
+|---|---|
+| Editor is in play mode | Exits play mode, refuses this run, tells you to re-run. Exiting costs a frame and a domain reload, so it cannot happen inside the same call. |
+| Scripts still compiling | Refuses. Wait for the spinner. |
+| Project has compile errors | **Refuses.** A build here silently ships the last good assemblies — a build that lies about what is in it. |
+| Build target module not installed | Refuses, naming the Unity Hub path to add it. |
+| Scene list is stale / a new level was added | **Repairs it**, and says what it changed. See below. |
+| A required scene file is missing | Refuses, naming the `LevelDefinition` and the path it expected. |
+| An open scene has unsaved edits | Builds anyway, and **warns** that it used the version on disk. It will not silently bake a half-finished edit. |
+
+**The scene list is derived from data on every build**, never trusted from `EditorBuildSettings`:
+`MainMenu.unity` at index 0, then the scene named by every campaign level in `LevelRegistry` (in
+`orderIndex` order), then `Sandbox.unity`. Add a `LevelDefinition` to the registry and its scene is in the
+next build with nothing else to remember. The sandbox ships deliberately — `MainMenuController.LoadSandbox`
+and every custom-level row load it by name, so a build without it has a main menu with dead buttons.
+
+### Build configuration is enforced at build time
+
+Set in `BuildRunner`, not in the Inspector, so a build never depends on what someone last clicked:
+
+- **`BuildOptions.None`** — a playtest build, not a development build. The `F5`–`F9` dev keys are gated
+  `#if UNITY_EDITOR || DEVELOPMENT_BUILD` in `Assets/Scripts/Debug/DebugKeys.cs`, so they compile out
+  entirely. **The `F10` in-game level editor is not gated that way** — only its EXPORT button is
+  (`#if !UNITY_EDITOR` in `Assets/Scripts/Level/LevelEditor.cs`), so a playtester can still open F10 and
+  roam in fly-cam. A gameplay decision this script does not make — see `docs/BACKLOG.md`.
+- **Managed stripping: `High`** on both Standalone and WebGL. This is worth ~26 MB (see below) and is the
+  one setting here that can break the game at runtime rather than at build time, because the linker cannot
+  see reflection. **Any change to it must be re-proved by launching the build**, not by a test suite —
+  nothing in either suite runs the player.
+- `*_BurstDebugInformation_DoNotShip` folders are deleted from the output after every build. Obey the name.
+
+`build-info.txt` records the SHA, branch, **whether the tree was dirty**, UTC time, build duration, Unity
+version, scripting backend, stripping level and the exact scene list.
+
+### Size, and where it goes
+
+The Windows build is **~96 MB**, of which roughly 10 MB is this game (assets ~9 MB, `Assembly-CSharp.dll`
+~0.6 MB) and the rest is Unity. Two changes on 2026-09-07 took it down from ~148 MB:
+
+- **Six unused packages removed** from `Packages/manifest.json`: `com.unity.ai.inference` (which alone
+  shipped a 14 MB `DirectML.dll` into a melee platformer), `visualscripting`, `purchasing`, `analytics`,
+  `timeline`, `xr.legacyinputhelpers`. None had a reverse dependency or a single reference in `Assets/`.
+- **Managed stripping was `Disabled` on Standalone** — not merely low, off. Setting it to `High` took
+  `vibegame1_Data/Managed` from 37 MB to 11 MB (`System.Xml`, `System.Data`, `System.Drawing` were all
+  shipping into a game that parses no XML and opens no database).
+
+Unity's floor for a stripped URP game is ~50–60 MB of engine you cannot get back. Content is what scales
+from here. **IL2CPP is not installed** for Windows Standalone (only the Mono variations are present in the
+Hub install), so the Standalone backend is `Mono2x`; installing *Windows Build Support (IL2CPP)* in Unity
+Hub would cut the managed side further at the cost of much slower builds.
 
 ## Publishing
 

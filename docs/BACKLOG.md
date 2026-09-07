@@ -340,7 +340,33 @@ in-game editor is a fine feedback tool if the build is going to trusted testers.
 
 ## Publish the first playtest build (opened 2026-09-07)
 
-Everything needed is committed (`97f2540`): `BuildRunner`, the WebGL `Playtest` template, both publish
-scripts and `docs/DISTRIBUTION.md`. **Nothing has been built or published yet** — no build has ever been
-cut through `BuildRunner`, so its output is unproven. Blocked on one-time GitHub settings the user must
-click (Pages → Deploy from a branch → `gh-pages` → `/ (root)`), and on the F10 decision above.
+**The build half is done.** `BuildRunner` has now cut real Windows builds (2026-09-07): output verified,
+`build-info.txt` correct, the player launches and reaches the menu with a clean `Player.log`. `BuildRunner`
+was also hardened so a build works whatever state the project is in — see `docs/DISTRIBUTION.md`,
+"It is designed to work whatever state the project is in".
+
+**Still unpublished.** No WebGL build has been cut, and nothing is on GitHub. Blocked on one-time settings
+only the user can click (Pages → Deploy from a branch → `gh-pages` → `/ (root)`), and on the F10 decision
+above.
+
+## The settings menu can overwrite "native resolution" with a fixed one (opened 2026-09-07)
+
+`SettingsData.screenWidth/screenHeight` use `0` as the sentinel for *"whatever the display is already at"*,
+and `SettingsApplier.ApplyDisplay` correctly falls back to `Screen.width/height` when it sees it. That
+design is right and nothing about it needs changing.
+
+**But `SettingsMenu.cs:439-442` destroys the sentinel.** Cycling the Resolution row calls
+`NearestResolutionIndex(0, 0, …)` and writes back a concrete `resolutionOptions[i]` — so touching that row
+once converts "native" into a hard number that persists forever in `vg1.settings.screenW/H`. On this
+machine it had been left at **1366×768 on a 2560×1440 display**, which is what "the resolution is wrong"
+in the built exe actually was. Clearing the two keys back to `0` restored native immediately.
+
+The user's instruction (2026-09-07): *"it just needs to detect native and use that, nothing else, don't
+overcomplicate those"*. Intended shape: the Resolution row should either be removed entirely (native
+always, display-mode row kept), or gain an explicit "Native" entry at index 0 that writes `0/0` back, so
+the sentinel is reachable once it has been left. **Not changed** — `SettingsMenu` and `SettingsData` are
+Fable systems and this is a UI/behaviour change, not a build fix.
+
+Worth knowing regardless: launching a Unity player with `-screen-width/-screen-height/-screen-fullscreen`
+**persists those values** to `HKCU:\Software\vibegame1\vibegame1`, so they affect every later launch with no
+flags. Do not smoke-test a build with forced resolution flags.
