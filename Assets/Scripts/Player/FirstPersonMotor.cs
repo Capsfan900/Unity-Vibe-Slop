@@ -481,9 +481,20 @@ namespace VibeGame1
             if (wallRunning)
             {
                 Vector3 rn = wallRunNormal, rd = wallRunDir;
-                // PERFECT: left the wall on its last breath (the loan about to run out). Judged before
-                // EndWallRun, which resets the run's clock.
-                bool perfect = PerfectMath.WallJumpFromRunIsPerfect(wallRunElapsed, wallRunMaxDuration, perfectWallJumpWindow);
+                // NO PERFECT HERE (2026-09-07, the user's call). This branch used to award one for
+                // leaving on the loan's "last breath" -- PerfectMath.WallJumpFromRunIsPerfect against
+                // wallRunMaxDuration. Two things were wrong with it and both made the reward a lottery
+                // rather than a skill:
+                //   1. The moment MOVED. A run ends at maxDuration only if speed survives; a 6 m/s entry
+                //      with the stick released decays to wallRunMinSustainSpeed at ln(6/4)/0.35 = 1.16 s,
+                //      and a low bar ends it earlier still. The same wall could put the window anywhere
+                //      across a ~0.6 s band chosen by entry speed, stick hold and stamina -- none of
+                //      which the player is counting. On a decayed run this branch was unreachable.
+                //   2. NOTHING TOLD THE PLAYER. The window sat before an end no cue preceded.
+                // The exit grace below is now the ONLY wall-jump perfect: one anchor, the drop, which
+                // already has a cue (the sag and Sfx.Land in PlayerFeedback). See ENGINEERING-LOG's
+                // "a cue that fires too close to the impact" -- the same bug, already fixed once for the
+                // parry, whose invariant is cueLead ~= 0.20 + perfectWindow / 2.
                 vel = WallRunMath.Exit(vel, rn, rd, WallRunSettings, dashSpeed);
                 lastWallNormal = rn;
                 hasLastWall = true;
@@ -491,7 +502,6 @@ namespace VibeGame1
                 if (look != null) look.AddRollKick(Mathf.Sign(WallSide(rn)) * -wallRunExitRollKick, 0.28f);
                 EndWallRun(WallRunEnd.Jumped);
                 if (OnWallJumped != null) OnWallJumped();
-                if (perfect) Perfect(PerfectKind.WallJump, perfectWallJumpRefund);
                 return true;
             }
 

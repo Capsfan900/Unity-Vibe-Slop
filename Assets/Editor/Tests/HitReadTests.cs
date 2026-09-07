@@ -14,7 +14,7 @@ namespace VibeGame1.Tests
     /// <see cref="PuppetVisuals.ResolveRate(float,float,float)"/>) so the mapping is testable with no
     /// instance, no scene and no spawned enemy.</para>
     ///
-    /// <para><b>2. The Sunbreaker no longer shares the enemy bolt's hue.</b> Read straight off the shipped
+    /// <para><b>2. Verdigris no longer shares the enemy bolt's hue.</b> Read straight off the shipped
     /// <c>Assets/Data/Weapons/Hammer.asset</c> and <see cref="Projectile.HotCore"/>, exactly the way
     /// <c>WandDataTests.EveryWandColour_IsTellableFromEveryOther</c> already holds the wand set to a
     /// >= 45 deg hue floor.</para>
@@ -44,7 +44,7 @@ namespace VibeGame1.Tests
         [Test]
         public void AFinisherScaleHit_GetsTheCeilingReaction()
         {
-            // At/over 30% of max HP -- a Sunbreaker finisher on a grunt, or any hit near a boss phase
+            // At/over 30% of max HP -- a Verdigris finisher on a grunt, or any hit near a boss phase
             // break -- the reaction maxes out. Past the ceiling fraction, MORE damage buys no more pop:
             // there is nothing brighter than white on this channel (see WriteBody's Color.Lerp clamp).
             float boost, decay;
@@ -100,7 +100,7 @@ namespace VibeGame1.Tests
         }
 
         // ---------------------------------------------------------------------------------------
-        // 2. The Sunbreaker clears the bolt's hue
+        // 2. Verdigris clears the bolt's hue
         // ---------------------------------------------------------------------------------------
 
         const string HammerPath = "Assets/Data/Weapons/Hammer.asset";
@@ -123,7 +123,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheSunbreakerExists()
+        public void VerdigrisExists()
         {
             var hammer = AssetDatabase.LoadAssetAtPath<WeaponData>(HammerPath);
             Assert.IsNotNull(hammer, HammerPath + " missing -- PrefabFactory and the weapon pedestal both " +
@@ -131,7 +131,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheSunbreakerClearsTheBoltsHueByAtLeast45Degrees()
+        public void VerdigrisClearsTheBoltsHueByAtLeast45Degrees()
         {
             var hammer = AssetDatabase.LoadAssetAtPath<WeaponData>(HammerPath);
             Assert.IsNotNull(hammer, HammerPath);
@@ -149,7 +149,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheSunbreakerIsStillWarm()
+        public void VerdigrisStaysOutOfTheColdWorldBand()
         {
             // "Warm" here means it does not fall in cold-blue territory (roughly 150-330 deg on the wheel,
             // the world's whole palette since the 2026-09-06 cold pass) -- clearing the bolt must not
@@ -159,8 +159,10 @@ namespace VibeGame1.Tests
             float h = Hue(hammer.neon);
             bool warm = h <= 150f || h >= 330f;
             Assert.IsTrue(warm, "Hammer.neon sits at " + h.ToString("0") +
-                " deg, inside the cold-world band (150-330) -- rule 10 reserves warm for a combat tell or " +
-                "fire, and the Sunbreaker is meant to read as a Pyre weapon, not as scenery.");
+                " deg, inside the cold-world band (150-330) -- rule 10 reserves that band for the WORLD, " +
+                "and a weapon that wears the world's colour reads as scenery. Verdigris sits at ~75 deg: " +
+                "on the warm side of the wheel, but far enough round it to clear the bolt. Both edges " +
+                "matter -- see VerdigrisClearsTheBoltsHueByAtLeast45Degrees for the other one.");
         }
     }
 }

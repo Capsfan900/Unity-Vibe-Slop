@@ -100,7 +100,7 @@ prove the world is running. A paused run does not error — it produces a plausi
 that costs a session real time to disbelieve.
 
 **Nothing in the weapon pass has been played by a human**, and that is unchanged by this session. Specifically
-unproven: whether Rosethorn at 9 base damage reads as a breaker or just as weak; whether the Sunbreaker's
+unproven: whether Rosethorn at 9 base damage reads as a breaker or just as weak; whether Verdigris's
 mechanical creak reads as tension or as input latency; whether the new pooled, capped `WeaponImpactFx` hit
 confirm reads at all now that it is no longer the brightest thing on screen.
 

@@ -54,7 +54,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(14f, m.wallRunAccel, 1e-4f, "wallRunAccel");
             Assert.AreEqual(13.75f, m.wallRunTopSpeed, 1e-4f, "wallRunTopSpeed (1.25x groundSpeed: the wall is faster than the floor)");
             Assert.AreEqual(0.15f, m.wallRunLostGrace, 1e-4f, "wallRunLostGrace");
-            Assert.AreEqual(0.15f, m.wallRunExitGrace, 1e-4f, "wallRunExitGrace");
+            Assert.AreEqual(0.30f, m.wallRunExitGrace, 1e-4f, "wallRunExitGrace (0.15 -> 0.30 on 2026-09-07: it is now the ONLY wall-jump perfect and must outlast a ~0.20 s reaction)");
             Assert.AreEqual(17.6f, m.airSoftCap, 1e-4f, "airSoftCap (1.6x groundSpeed)");
             Assert.AreEqual(3f, m.airDrag, 1e-4f, "airDrag");
             Assert.AreEqual(4f, m.groundOverspeedDecay, 1e-4f, "groundOverspeedDecay");

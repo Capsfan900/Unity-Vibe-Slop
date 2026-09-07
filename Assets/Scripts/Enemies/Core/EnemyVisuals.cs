@@ -91,7 +91,7 @@ namespace VibeGame1
 
         // ---- the hit reaction scales with the blow, not with a fixed pop ---------------------------
         // HitFlash() used to be one constant (tintBoost 0.7, decayRate 5.5/s regardless of damage), so an
-        // 88-damage Sunbreaker finisher and a 9-damage dagger jab produced the identical pop and the
+        // 88-damage Verdigris finisher and a 9-damage dagger jab produced the identical pop and the
         // player could not tell a heavy landing from a chip. The reaction now scales off damage AS A
         // FRACTION of the victim's OWN max health (never a raw number -- 20 damage means something
         // different to a grunt and to a 2.2x boss), read straight off Health.OnDamaged so no other file

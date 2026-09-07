@@ -148,7 +148,7 @@ namespace VibeGame1.Tests
             if (!yaml.Contains("perfectWallJumpWindow:"))
                 Assert.Ignore("Player.prefab predates the perfect-timing fields — run VibeGame1/4. Build Prefabs " +
                               "(a missing YAML key deserialises to the field initialiser, which is not proof).");
-            Assert.AreEqual(0.14f, m.perfectWallJumpWindow, 1e-4f, "perfectWallJumpWindow");
+            Assert.AreEqual(0.26f, m.perfectWallJumpWindow, 1e-4f, "perfectWallJumpWindow");
             Assert.AreEqual(20f, m.perfectWallJumpRefund, 1e-4f, "perfectWallJumpRefund");
             Assert.AreEqual(0.04f, m.perfectDashJumpMinDelay, 1e-4f, "perfectDashJumpMinDelay");
             Assert.AreEqual(0.12f, m.perfectDashJumpWindow, 1e-4f, "perfectDashJumpWindow");
@@ -157,8 +157,11 @@ namespace VibeGame1.Tests
             Assert.AreEqual(30f, m.perfectBurstBonus, 1e-4f, "perfectBurstBonus");
 
             // The learnable band: under ~0.08 s (Celeste's coyote) is a reflex nobody can practise; over
-            // ~0.20 s (Sekiro's un-spammed deflect) is free. Every window sits between.
-            foreach (var w in new[] { m.perfectWallJumpWindow, m.perfectDashJumpWindow, m.perfectBurstWindow })
+            // ~0.20 s (Sekiro's un-spammed deflect) is free. Every window the player PRE-TIMES sits
+            // between. The wall jump is deliberately outside it and is asserted separately below: it is
+            // the one perfect the player REACTS to rather than anticipates, so it is sized to reaction
+            // time, not to the pre-timing band. Widening any of the others to match would be a mistake.
+            foreach (var w in new[] { m.perfectDashJumpWindow, m.perfectBurstWindow })
                 Assert.That(w, Is.InRange(0.08f, 0.20f), "window " + w + "s is outside the learnable band");
             Assert.LessOrEqual(m.perfectWallJumpWindow, m.wallRunExitGrace,
                 "the perfect grace window is wider than the exit grace itself, so part of it can never fire.");
@@ -182,5 +185,46 @@ namespace VibeGame1.Tests
             Assert.AreEqual(3f, feel.perfectFovKick, 1e-4f, "perfectFovKick");
             Assert.AreEqual(0.6f, feel.perfectPromptSeconds, 1e-4f, "perfectPromptSeconds");
         }
+
+        // ---------------------------------------------------------------- reachable by reaction
+
+        /// <summary>
+        /// THE TEST WHOSE ABSENCE LET A BUG SHIP. A perfect the player must PRE-TIME is a skill; a
+        /// perfect they are told about too late to hit is a lottery that punishes the correct response.
+        ///
+        /// <para>Until 2026-09-07 the wall-jump perfect was judged against <c>wallRunMaxDuration</c>
+        /// expiring, with the only cue (the let-go sag and <c>Sfx.Land</c>) firing AT the drop and an
+        /// exit grace of 0.15 s. This project's own measured human reaction is ~0.20 s
+        /// (ENGINEERING-LOG, "a cue that fires too close to the impact"), so a player who reacted to the
+        /// cue pressed after the grace had shut, fell through to the ordinary wall-jump path and PAID
+        /// 12 stamina. Reacting was strictly worse than not reacting.</para>
+        ///
+        /// <para>The parry already had this bug and already fixed it, with the invariant
+        /// <c>cueLead ~= 0.20 + perfectWindow / 2</c>. This asserts the movement side of the same rule:
+        /// where the cue arrives at the moment the window opens, the window itself must outlast a
+        /// reaction. Read off the shipped prefab, never a field initialiser (rule 9).</para>
+        /// </summary>
+        [Test]
+        public void TheWallJumpPerfect_IsReachableByReaction()
+        {
+            var m = Motor();
+            if (m == null) Assert.Ignore("Player.prefab not built yet - run VibeGame1/4. Build Prefabs.");
+
+            const float Reaction = 0.20f;   // ENGINEERING-LOG's measured figure, the same one the parry uses
+
+            Assert.GreaterOrEqual(m.wallRunExitGrace, Reaction,
+                "the exit grace (" + m.wallRunExitGrace + " s) is shorter than a human reaction (" +
+                Reaction + " s), so a player who reacts to the wall dropping them misses the grace " +
+                "entirely, falls through to the FindWall path and is CHARGED stamina for reacting " +
+                "correctly. This is exactly the bug the parry's cueLead fixed.");
+
+            Assert.GreaterOrEqual(m.perfectWallJumpWindow, Reaction,
+                "the perfect window (" + m.perfectWallJumpWindow + " s) closes before a " + Reaction +
+                " s reaction lands. The cue fires AT the drop, so the window IS the reaction budget.");
+
+            Assert.LessOrEqual(m.perfectWallJumpWindow, m.wallRunExitGrace,
+                "the perfect window outlasts the exit grace, so part of it can never fire.");
+        }
+
     }
 }

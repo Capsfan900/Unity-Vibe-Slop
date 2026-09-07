@@ -295,7 +295,14 @@ namespace VibeGame1
                 };
                 string name = names[i];
                 if (row.title != null) row.title.text = "CUSTOM   " + name.ToUpperInvariant();
-                if (row.meta != null) row.meta.text = "made in the level editor  -  F10 in play to edit it";
+                // The custom level PLAYS in every build; only the F10 fly-cam entry is development-only
+                // (InputReader.LevelEditorPressed), so a shipped player must not be told to press it.
+                if (row.meta != null) row.meta.text =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    "made in the level editor  -  F10 in play to edit it";
+#else
+                    "made in the level editor";
+#endif
                 if (row.status != null) row.status.text = "CUSTOM";
                 if (row.button != null)
                 {

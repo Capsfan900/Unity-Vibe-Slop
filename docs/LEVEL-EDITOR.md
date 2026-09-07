@@ -119,6 +119,14 @@ puts you straight into PLAY. Long lists run off the bottom of the panel in v1.
   scene without a prefab of its own; every number on it is written there (rule 9).
 - Input goes through `InputReader` only (rule 2): fourteen optional actions on the Player map
   (`LevelEditor`, `EditorPlace` … `EditorDown`) in `Assets/InputSystem_Actions.inputactions`.
+- **F10 is editor / development builds only (2026-09-07).** `InputReader.LevelEditorPressed` is behind
+  `#if UNITY_EDITOR || DEVELOPMENT_BUILD` and compiles to `false` in a shipped player — the editor is a
+  development tool, and without the gate a playtester could drop into a fly camera mid-run, which both
+  leaves the level and invalidates a speedrun time. It is gated at `InputReader` rather than at
+  `LevelEditor`'s three `Update` branches because rule 2 makes that the one place the key exists.
+  **This does not disable the editor.** A custom level still loads and plays in every build: the main
+  menu's CUSTOM rows set `PendingLoadPath`, and `LoadPendingAndPlay` calls `Enter()`/`Play()` directly.
+  `TestMenu`'s LEVEL EDITOR row is behind the same symbols and EXPORT behind `#if UNITY_EDITOR`.
 - PLAY bakes a runtime `NavMeshSurface`; if the bake fails, spawned enemies stand still rather than throw.
 
 ## What v1 leaves out

@@ -50,7 +50,7 @@ namespace VibeGame1
         /// <summary>Swing time of the lightest weapon in the shipped ladder (Rosethorn, 0.22 s). The
         /// bottom of the mass curve. Data, not a duplicate: this only interprets what the ladder says.</summary>
         public const float LightSwing = 0.22f;
-        /// <summary>Swing time of the heaviest weapon in the shipped ladder (Sunbreaker, 0.86 s).</summary>
+        /// <summary>Swing time of the heaviest weapon in the shipped ladder (Verdigris, 0.86 s).</summary>
         public const float HeavySwing = 0.86f;
 
         /// <summary>

@@ -178,7 +178,7 @@ Implemented in `Assets/Scripts/Debug/DebugKeys.cs`; compiled out of release buil
   not drain: the only thing that spends it is the super, and the only thing that resets it is dying.
 - **Super attack (`Q`).** At full Pyre, the equipped weapon unleashes its own super, and each of the
   four is different: the sword's **Emberfall Arc** is one huge 170° sweep, the dagger's **Thornstorm**
-  is nine fast stabs into a narrow cone that shreds posture, the hammer's **Sunbreak** is a slow
+  is nine fast stabs into a narrow cone that shreds posture, the hammer's **Bronzefall** is a slow
   overhead into the ground that quakes 360° and throws everything 6 m back, and the test blade's
   **Oathbreaker** is an instant 12 m nova. The banner tells you which one `Q` is holding.
 - **The wand has a cooldown.** The riposte fires your equipped wand, and after a discharge that wand

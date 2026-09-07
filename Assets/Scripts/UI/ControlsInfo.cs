@@ -32,7 +32,7 @@ namespace VibeGame1
             H + "ITEMS AND MENUS" + HE + "\n" +
             D + "E" + DE + "  use item      " + D + "F" + DE + "  flask (or CHOOSE WAND at an altar)      " + D + "1 2 3 / wheel" + DE + "  weapon      " + D + "Tab" + DE + "  level up      " + D + "Esc" + DE + "  pause\n" +
             "\n" +
-            H + "LEVEL EDITOR" + HE + "  (F10, or F1 > LEVEL EDITOR; see docs/LEVEL-EDITOR.md)\n" +
+            H + "LEVEL EDITOR" + HE + "  (editor and development builds only - F10, or F1 > LEVEL EDITOR; see docs/LEVEL-EDITOR.md)\n" +
             D + "WASD / Space / Ctrl / Shift" + DE + "  fly, up, down, fast      " + D + "Tab" + DE + "  toggle the cursor (free on enter)\n" +
             D + "LMB tap" + DE + "  place      " + D + "LMB hold 0.18 s" + DE + "  grab and carry a piece      " + D + "RMB / X" + DE + "  delete the aimed piece\n" +
             D + "Wheel" + DE + "  size      " + D + "Shift + wheel / [ ]" + DE + "  piece kind      " + D + "Ctrl + wheel / V" + DE + "  variant      " + D + "T" + DE + "  rotate 90 deg\n" +

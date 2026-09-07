@@ -1460,7 +1460,7 @@ namespace VibeGame1.EditorTools
             //             extent above fist   reach (offset+radius)   swing      combo
             //   Rosethorn      0.32 m              1.30 + 0.90         0.22 s      4
             //   Cerulean Edge  0.62 m              2.10 + 1.15         0.44 s      3
-            //   Sunbreaker     0.72 m              2.50 + 1.70         0.86 s      2
+            //   Verdigris      0.72 m              2.50 + 1.70         0.86 s      2
             //
             // Every step is roughly x2 in swing time and +0.4-0.8 m of reach. A player who swaps
             // weapons should notice inside one swing, without reading a stat.
@@ -1475,7 +1475,7 @@ namespace VibeGame1.EditorTools
             //                    health/s   HIT-posture/s   deflect-posture   parry window   reach
             //   Rosethorn          44.0         59.1              18             x1.35       2.20 m
             //   Cerulean Edge      73.9         36.4              25             x1.00       3.25 m
-            //   Sunbreaker         81.6         30.2              40             x0.75       4.20 m
+            //   Verdigris          81.6         30.2              40             x0.75       4.20 m
             //
             //   ROSETHORN  — THE BREAKER. Kills slowest of anything in the game and BREAKS fastest, by
             //                a wide margin: it is the only weapon whose swings take a Grunt's posture
@@ -1540,7 +1540,8 @@ namespace VibeGame1.EditorTools
             EditorUtility.SetDirty(sword);
 
             var hammer = GetOrCreate<WeaponData>(WeaponsDir + "/Hammer.asset");
-            hammer.displayName = "Sunbreaker";
+            // RENAMED 2026-09-07, and the rename is the FIX -- see the colour note below. Was "Sunbreaker".
+            hammer.displayName = "Verdigris";
             // HIT-READ PASS (2026-09-07): was Hex("#E0661A"), hue ~23 deg -- only ~5 deg from
             // Projectile.HotCore (the enemy bolt, ~28 deg). In a parry game the bolt is the single most
             // important thing to read and the player's own weapon must not compete with it, exactly the
@@ -1550,8 +1551,17 @@ namespace VibeGame1.EditorTools
             // amber/gold sits at 40-55 deg, inside the forbidden 45 deg radius around the bolt on both
             // sides (a magenta-red escape collides with the unblockable cue's ~356-358 deg red family
             // instead). Hex("#A8D12E") sits at hue ~75 deg: ~47 deg clear of the bolt and ~51 deg clear
-            // of Rosethorn's green (~126 deg) -- a bright, heavy brass/gold rather than a pure orange,
-            // which still reads as "Sunbreaker" (sun-forged) without competing with the bolt.
+            // of Rosethorn's green (~126 deg).
+            //
+            // NAME PASS (2026-09-07, the user's call). The hue above is forced -- there is NO warm hue
+            // that clears the bolt, so the >=45 deg rule and the word "sun" cannot both be kept. The
+            // previous pass kept the name and claimed #A8D12E "still reads as Sunbreaker"; photographed
+            // under the real pipeline it reads OLIVE-LIME, and a weapon called the Sunbreaker looking
+            // like a garden tool is worse than a weapon with a different name. So the NAME moved instead
+            // of the colour: #A8D12E is almost exactly the green that grows on corroded bronze, and the
+            // maul's head is a blocky brass mass -- as "Verdigris" the colour reads as age on metal,
+            // which is intentional, rather than as an amber that missed. Do not "fix" this back to gold
+            // without moving Projectile.HotCore first; the bolt owns warm.
             hammer.neon = Hex("#A8D12E");
             // THE CRUSHER. baseDamage 46 -> 52 takes the health-damage crown outright (81.6/s against
             // the sword's 73.9, and 88.4 on the 1.7x finisher — twice a sword hit, in one legible beat),
@@ -1579,7 +1589,8 @@ namespace VibeGame1.EditorTools
             // the set and by far the biggest posture number: the hammer already trades speed for weight,
             // and its super doubles down rather than apologising for it. Nothing else knocks enemies back
             // 6 metres or shakes the camera this hard.
-            hammer.superName = "Sunbreak"; hammer.superKind = SuperKind.Quake;
+            // "Bronzefall": the Quake IS a fall, and it echoes the sword's "Emberfall Arc". Was "Sunbreak".
+            hammer.superName = "Bronzefall"; hammer.superKind = SuperKind.Quake;
             hammer.superDamage = 200f; hammer.superPostureDamage = 130f;
             hammer.superRadius = 7.5f; hammer.superArcDeg = 360f; hammer.superHits = 1;
             hammer.superWindup = 0.52f; hammer.superActive = 0.12f; hammer.superRecover = 0.46f;

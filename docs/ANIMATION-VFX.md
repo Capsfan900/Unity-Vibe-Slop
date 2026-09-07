@@ -141,7 +141,7 @@ recovery leg** and taken **out of** it, never added to the attack. Total attack 
 | Weapon | `dur` / `hitDelay` | strike | hold | recovery (was) |
 |---|---|---|---|---|
 | Cerulean Edge | 0.38 / 0.12 | 0.076 | 0.070 | 0.114 (0.184) |
-| Sunbreaker | 0.70 / 0.30 | 0.140 | 0.070 | 0.190 (0.260) |
+| Verdigris | 0.70 / 0.30 | 0.140 | 0.070 | 0.190 (0.260) |
 | Rosethorn | 0.22 / 0.06 | 0.044 | 0.052 | 0.064 (0.116) |
 | Oathbreaker | 0.30 / 0.08 | 0.060 | 0.070 | 0.090 (0.160) |
 
@@ -493,19 +493,51 @@ separates from a 0.016-albedo wall are **reasoned from arithmetic, not seen**. P
 `Assets/Editor/Tests/WeaponImpactVfxTests.cs` (11 assertions across peak, ladder, shockwave gating,
 ribbon weight and the albedo hierarchy).
 
-**Still open in this lane, and both need another owner's file:**
+**RESOLVED 2026-09-07 — the maul no longer wears the bolt's colour.** This lane's first open item was
+that `Hammer.neon` (then `#E0661A`) sat ~5° of hue from `Projectile.HotCore`, so a maul swing painted the
+screen the colour the player is trained to read as "deflect this". It is now `#A8D12E` (hue ~75°, 47°
+clear), in `DataFactory` **and** in the paired `Energise` tint at `PrefabFactory.cs:266`, and
+`HitReadTests` holds the floor. The first attempt kept the name and the colour read olive; the weapon was
+renamed **Verdigris** instead, which is what makes a patina green on a brass maul head look deliberate.
+There is no warm hue that clears the bolt — do not move this back without moving the bolt first.
 
-1. **The Sunbreaker is AMBER, and amber is the bolt.** `Hammer.neon` (0.878, 0.400, 0.102) and its
-   `Energise` tint sit ~5° of hue from `Projectile.HotCore` (1.6, 0.95, 0.38). The trail draws that hue at
-   1.15 across the frame on every strike, so a maul swing paints the screen the colour the player is
-   trained to read as "deflect this". Rule 10 licenses warm for fire, and a Pyre weapon has a claim — but
-   the collision is with the one object that can kill you at 32 m/s. Needs `DataFactory` (`neon`) and
-   `PrefabFactory` (`Energise`), which this lane does not own.
-2. **Every non-blade part of every weapon shares ONE material.** Head, guard, grip and pommel are all
+**Still open in this lane, and it needs another owner's file:**
+
+1. **Every non-blade part of every weapon shares ONE material.** Head, guard, grip and pommel are all
    `M_WeaponCore`, so there is no value break between the steel and the leather — the head reads as an
    extension of the haft. `MaterialFactory` can add the key; only `PrefabFactory` can assign it.
 
 ---
+
+### 3.11 A perfect parry announced itself in TEXT ✅ 2026-09-07
+
+**The ask, verbatim.** *"the perfect parry needs to have a minimal shockwave visual to know it was
+performed, over the words."*
+
+**Finding.** The world's vocabulary for a Perfect (sparks + a 0.85 m crescent + a 0.22x flash) was the
+same vocabulary a scraped block used, only more of it. The thing that actually said PERFECT was the teal
+word in `HUDController.OnParry` — and reading a word costs a beat the player does not have at 32 m/s.
+
+**Shipped.** One `SlashFx.Ring` fired from `ParryImpact.Shockwave`, all numbers in `ParryImpulse`:
+0.34 m radius (**30% of screen height** at 1.05 m and the shipped 95° vFOV), 0.18 s, `#A8E6DA` — the
+same teal as the word it replaces. Normal is the level direction to the attacker, so it is a wave-front
+seen face-on; origin is the contact point the sparks and the crescent already use, pushed 0.12 m down
+the line.
+
+- **A closed hoop is the message.** Blocked, Guard and Hit are all spark fans; only a Perfect throws a
+  ring, so presence alone distinguishes it.
+- **It is the SMALLEST wave in the game**, deliberately: under the maul's 1.10 m landed-hit shockwave
+  and inside the 0.85 m crescent it completes. It is a confirmation, not a payoff.
+- **It does not bloom.** Peak 0.98 through `SlashFx`'s 1.0 normalisation. The licensed bright moment of
+  a deflect is `EnemyVisuals.ParryGlow` at 3.2 on the ENEMY, and it only means "you deflected" because
+  nothing player-side competes with it.
+- **It cannot lie.** `ParryImpact.Deflect` is called only from `ParryController.NotifyDeflected`, only
+  from the `ParryResult.Perfect` branch.
+
+**Not seen, only reasoned.** Nobody looked at the screen. Pinned by 5 assertions in `ParryImpactTests`.
+**One thing to look for in the playtest:** teal at 168° sits ~20° from two shipped level trims (ghost
+green ~142°, ice cyan ~186°). They are static 0.013–0.082 albedo surfaces and this is a moving
+additive hoop for 0.18 s, so confusion is not expected — but that is reasoned, not seen.
 
 ## 4. Standing rules for this project's effects
 

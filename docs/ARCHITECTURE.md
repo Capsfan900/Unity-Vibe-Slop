@@ -206,7 +206,7 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   something happening to them, not something they did.
 - **Super attack (`Q`, full Pyre).** One per weapon, authored entirely as `WeaponData.super*` fields.
   Sword *Emberfall Arc* (one 170° sweep), dagger *Thornstorm* (nine stabs in a 70° cone, posture-heavy),
-  hammer *Sunbreak* (0.52 s wind-up into a 360° quake, 130 posture, 6 m knockback), dev blade
+  hammer *Bronzefall* (0.52 s wind-up into a 360° quake, 130 posture, 6 m knockback), dev blade
   *Oathbreaker* (instant 12 m nova). `SuperKind` chooses only how the blow is drawn; the geometry is
   the numbers. `UltimateAbility` is the driver — repointed, not replaced, so `Q` and the prefab wiring
   survive. Rule 1 holds: `affectsPlayer:false` slow-mo, realtime waits.
@@ -1030,11 +1030,11 @@ and the extent above the fist now spans **0.32–0.72 m, a 2.3× spread** where 
 | **Rosethorn** (dagger) | Needle stiletto | **Unchanged to the millimetre.** Thinnest section in the set, hard taper, barely a guard. The reference the player already likes — the one weapon the length pass does not touch. Green `#5FD66A`. | `0.50` | 0.32 m | 0.22 s, 4-hit |
 | **Oathbreaker (TEST)** (dev) | Serrated arcane kris | The only **non-straight** blade, barbed down one edge, twin rings at two radii, pale violet `#C6A6FF` so it can never be read as Rosethorn. Deliberately *between* dagger and sword. | `0.46` | 0.50 m | 0.32 s |
 | **Cerulean Edge** (sword) | Cruciform arming sword | A real sword at last: 8-slice tapered blade, wide knobbed quillons, hand-and-a-half grip, disc pommel. Held across the lower-right corner so the whole length reads. Steel-blue `#8FB5D9`. | `0.46` | 0.62 m | 0.44 s, 3-hit |
-| **Sunbreaker** (hammer) | Maul | A long haft the fist grips **low**, carrying a blocky mass head, cheeks and a spike three quarters of a metre above the hand — the only weapon whose mass is at the *far* end, where the commitment can be seen. Ember `#E0661A`. | `0.50` | 0.72 m | 0.86 s, 2-hit |
+| **Verdigris** (hammer) | Maul | A long haft the fist grips **low**, carrying a blocky mass head, cheeks and a spike three quarters of a metre above the hand — the only weapon whose mass is at the *far* end, where the commitment can be seen. Patina `#A8D12E` — see `DataFactory`, the hue is forced by the bolt. | `0.50` | 0.72 m | 0.86 s, 2-hit |
 
 **Reach is still not encoded in the viewmodel** — `hitOffset` / `hitRadius` are camera-space and always
 were (a 0.6 m model does not reach 2.1 m). The geometry *sells* the reach; the data *is* the reach
-(Rosethorn 1.3 + 0.9, Cerulean Edge 2.1 + 1.15, Sunbreaker 2.5 + 1.7), and the two are tuned to agree in
+(Rosethorn 1.3 + 0.9, Cerulean Edge 2.1 + 1.15, Verdigris 2.5 + 1.7), and the two are tuned to agree in
 direction, never in metres. Every step up the set is roughly 2× in swing time and +0.4–0.8 m of reach, so
 a swap is noticed inside one swing without reading a stat.
 

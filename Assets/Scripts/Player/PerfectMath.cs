@@ -43,6 +43,14 @@ namespace VibeGame1
         /// <paramref name="windowBefore"/> seconds or less left — the wall is about to give up and you
         /// left it on its last breath. Jumping the instant you attach is ordinary.
         /// </summary>
+        /// <remarks>
+        /// NO LONGER CALLED BY THE MOTOR (2026-09-07). Kept as a pure law with its test because it
+        /// documents a shape that was tried and rejected: judging a perfect against a duration the
+        /// player cannot perceive and did not start. A run can end early by speed decay or by an empty
+        /// bar, so <paramref name="maxDuration"/> is not where the run actually ends -- and no cue
+        /// preceded it either way. <see cref="GraceJumpIsPerfect"/> is the only wall-jump perfect now.
+        /// Do not wire this back in without a cue that leads the moment by ~0.20 s.
+        /// </remarks>
         public static bool WallJumpFromRunIsPerfect(float elapsed, float maxDuration, float windowBefore)
         {
             if (maxDuration <= 0f || windowBefore <= 0f) return false;

@@ -157,7 +157,28 @@ namespace VibeGame1
         public bool DebugWallRunDiagPressed => debugWallRunDiag != null && debugWallRunDiag.WasPressedThisFrame();
 
         // ---- the in-game level editor (F10 toggles; the rest only mean anything while it is open) ----
-        public bool LevelEditorPressed => levelEditor != null && levelEditor.WasPressedThisFrame();
+
+        /// <summary>
+        /// F10. <b>Editor and development builds only</b> — in a shipped player this is always false.
+        /// The in-game level editor is a development tool (docs/LEVEL-EDITOR.md; the 2026-09-05 decision
+        /// froze it at v1), and without this gate a playtester who pressed F10 in the middle of a run
+        /// was dropped into a fly camera with the motor idle — which is both a way to leave the level
+        /// and a way to invalidate a speedrun time. Gated HERE rather than in
+        /// <see cref="LevelEditor"/>'s three <c>Update</c> branches because hard rule 2 makes this the
+        /// one place the key exists, so every present and future consumer is covered by one line.
+        ///
+        /// <para>This does NOT disable the editor's code. A custom level still loads and plays in a
+        /// shipped build — the main menu's CUSTOM rows set <see cref="LevelEditor.PendingLoadPath"/> and
+        /// <c>LoadPendingAndPlay</c> calls <c>Enter</c>/<c>Play</c> directly, never through input.
+        /// Only the fly-cam ENTRY is gated. <c>TestMenu</c>'s LEVEL EDITOR row is already behind the
+        /// same symbols, and the EXPORT button behind <c>#if UNITY_EDITOR</c>.</para>
+        /// </summary>
+        public bool LevelEditorPressed =>
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            levelEditor != null && levelEditor.WasPressedThisFrame();
+#else
+            false;
+#endif
         public bool EditorPlacePressed => editorPlace != null && editorPlace.WasPressedThisFrame();
         /// <summary>Left button held: past a short hold on a placed piece this is a GRAB, released = drop.</summary>
         public bool EditorPlaceHeld => editorPlace != null && editorPlace.IsPressed();

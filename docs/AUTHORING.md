@@ -442,7 +442,7 @@ code-shaped — see below.
 
 **Weapons are four LENGTHS, and the framing rules are enforced by measurement, not by shortness.**
 Extent above the fist spans 0.32 m (Rosethorn, the reference the player likes — never touch it) to
-0.71 m (Sunbreaker). What keeps the frame readable is POSE: `WeaponSilhouetteTests` asserts that every
+0.71 m (Verdigris). What keeps the frame readable is POSE: `WeaponSilhouetteTests` asserts that every
 held pose stays off the crosshair disc, covers ≤5% of the frame, and keeps the tip in frame. Author a new
 weapon at whatever length its identity needs, then make those tests pass. Three things are load-bearing
 when you add one:

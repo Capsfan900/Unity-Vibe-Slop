@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ce1fe6d462959d4f879b04f78fe535b, type: 3}
   m_Name: Hammer
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.WeaponData
-  displayName: Sunbreaker
+  displayName: Verdigris
   neon: {r: 0.65882355, g: 0.81960785, b: 0.18039216, a: 1}
   viewmodelPrefab: {fileID: 5162901324134690919, guid: 310351ac8eee4dc4fb35e0fcb9dcc049, type: 3}
   viewmodelScale: 0.5
@@ -35,7 +35,7 @@ MonoBehaviour:
   parryWindowMultiplier: 0.75
   parryPostureDamage: 40
   pyreBonus: 5
-  superName: Sunbreak
+  superName: Bronzefall
   superKind: 2
   superDamage: 200
   superPostureDamage: 130

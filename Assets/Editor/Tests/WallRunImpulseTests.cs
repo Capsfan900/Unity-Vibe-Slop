@@ -49,7 +49,11 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0.40f, feel.wallRunStepVolume, 1e-4f);
             Assert.AreEqual(1.4f, feel.wallRunDropPitch, 1e-4f);
             Assert.AreEqual(0.03f, feel.wallRunDropOffset, 1e-5f);
-            Assert.AreEqual(0.15f, feel.wallRunDropTime, 1e-4f);   // == wallRunExitGrace: the sag ends with the window
+            // The sag stays 0.15 s. It USED to equal wallRunExitGrace; since 2026-09-07 the grace is
+            // 0.30 s (it is now the only wall-jump perfect and must outlast a reaction), and the lens
+            // sag deliberately did NOT follow it -- a 0.30 s sag reads as sluggish. The sag is the CUE,
+            // the grace is the budget to answer it; they are no longer the same number.
+            Assert.AreEqual(0.15f, feel.wallRunDropTime, 1e-4f);
             Assert.AreEqual(0.02f, feel.wallRunLostDrift, 1e-5f);
             Assert.AreEqual(44f, feel.wallRunGritRate, 1e-4f, "wallRunGritRate");
             Assert.AreEqual(3, feel.wallRunStepSparks, "wallRunStepSparks");

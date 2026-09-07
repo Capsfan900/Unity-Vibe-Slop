@@ -20,7 +20,7 @@ namespace VibeGame1.Tests
     /// <item>Rosethorn — the BREAKER. Worst killer, best hit-posture, widest parry window.</item>
     /// <item>Cerulean Edge — the INSTRUMENT. The middle of every column, and untouched by this pass
     /// because its <c>parryPostureDamage</c> 25 is the constant two boss fights are built on.</item>
-    /// <item>Sunbreaker — the CRUSHER. Best killer, worst hit-posture; it breaks people through the
+    /// <item>Verdigris — the CRUSHER. Best killer, worst hit-posture; it breaks people through the
     /// DEFLECT (40, the crown) behind the narrowest parry window in the game.</item>
     /// </list></para>
     ///

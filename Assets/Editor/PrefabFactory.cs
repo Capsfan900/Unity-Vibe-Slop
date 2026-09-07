@@ -201,7 +201,7 @@ namespace VibeGame1.EditorTools
         ///   Cerulean Edge — SWORD. A real cruciform arming sword: 8-slice tapered blade, wide knobbed
         ///                   quillons, hand-and-a-half grip, disc pommel. 0.62 m. The generalist, and it
         ///                   finally looks like the thing every other weapon is measured against.
-        ///   Sunbreaker    — MAUL. A long haft the fist grips LOW, carrying a blocky mass head, cheeks
+        ///   Verdigris    — MAUL. A long haft the fist grips LOW, carrying a blocky mass head, cheeks
         ///                   and a spike three quarters of a metre above the hand. 0.72 m, and the mass
         ///                   is at the far end where the commitment can be seen.
         ///   Rosethorn     — NEEDLE. UNCHANGED, to the millimetre. Thinnest section in the set, hard
@@ -240,7 +240,7 @@ namespace VibeGame1.EditorTools
                 var prefab = Save(root, $"{WeaponDir}/VM_Sword.prefab");
                 AssignViewmodel("Assets/Data/Weapons/Sword.asset", prefab);
             }
-            // Sunbreaker — a two-handed MAUL. The fist grips low on a long haft and the whole mass
+            // Verdigris — a two-handed MAUL. The fist grips low on a long haft and the whole mass
             // (blocky head, cheeks, spike) rides three quarters of a metre above it, so the wind-up
             // travels visibly further than any blade's and the commitment is legible before contact.
             // Slow heavy pulse; the energy band climbs the haft and stops in the head, where the
@@ -628,7 +628,12 @@ namespace VibeGame1.EditorTools
             motor.maxWallRuns = 6;
             motor.wallRunCooldown = 0.20f;
             motor.wallRunLostGrace = 0.15f;
-            motor.wallRunExitGrace = 0.15f;
+            // 0.15 -> 0.30 (2026-09-07). The exit grace is now the ONLY wall-jump perfect, and this
+            // project's own measured reaction is ~0.20 s (ENGINEERING-LOG). At 0.15 a player who
+            // reacted to the drop cue pressed AFTER the grace shut, fell through to the FindWall path
+            // and PAID 12 stamina -- reacting was strictly worse than not reacting. 0.30 lets a 0.20 s
+            // reaction land with room either side.
+            motor.wallRunExitGrace = 0.30f;
             motor.wallRunCameraRoll = 13f;
             motor.wallRunExitRollKick = 7f;
             // Momentum: a soft cap with exponential drag on the excess, never a flat ceiling.
@@ -669,7 +674,10 @@ namespace VibeGame1.EditorTools
             motor.launchCarryCap = 9f;   // pop → aim → dash: the carry is steerable, the dash is the reach
             // Perfect timing (rule 9; PerfectTimingTests reads these back). Windows of 0.12-0.14 s around
             // a physical moment -- see PerfectMath for why that band and not frame-perfect or free.
-            motor.perfectWallJumpWindow = 0.14f;
+            // 0.14 -> 0.26 (2026-09-07), sized to the same ~0.20 s reaction so the perfect is
+            // REACHABLE BY REACTION rather than only by pre-timing. Stays <= wallRunExitGrace (0.30) or
+            // part of it could never fire; PerfectTimingTests holds both edges.
+            motor.perfectWallJumpWindow = 0.26f;
             motor.perfectWallJumpRefund = 20f;
             motor.perfectDashJumpMinDelay = 0.04f;
             motor.perfectDashJumpWindow = 0.12f;

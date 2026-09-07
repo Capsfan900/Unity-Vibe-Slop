@@ -418,33 +418,26 @@ flags. Do not smoke-test a build with forced resolution flags.
 
 ---
 
-## The Sunbreaker reads olive, not gold (opened 2026-09-07)
+## ~~The maul reads olive, not gold~~ — RESOLVED 2026-09-07 by renaming it *Verdigris*
 
-**The state.** `hammer.neon` shipped as `#A8D12E` in `57626eb` (hue ~75°). It was moved there from `#E0661A`
+**The bind.** `hammer.neon` shipped as `#A8D12E` in `57626eb` (hue ~75°), moved there from `#E0661A`
 (hue ~23°) because the old amber sat **~5° from the enemy bolt**, and in a parry game the player's own
-weapon must not compete with the one thing that has to read fastest. `#A8D12E` clears the bolt by 47°,
-satisfying the ≥45° rule the wand set already holds.
+weapon must not compete with the one thing that has to read fastest. `#A8D12E` clears the bolt by 47° and
+satisfies the ≥45° rule the wand set already holds — but photographed under the real pipeline it read
+olive-lime, and the weapon was called the *Sunbreaker*.
 
-**The problem, photographed under the real pipeline this session, not guessed:** it reads olive-lime. A
-weapon called the *Sunbreaker* looks like a garden tool.
+**Why there was no easy answer.** The bolt (~28°) and the unblockable cue's red family (~357°) between
+them forbid roughly **312°–73°** of the wheel, which is every hue that reads as gold, amber or brass. Hue
+separation and "warm" were mutually exclusive for this weapon. **This constraint has not gone away** — any
+future pass that wants a gold maul has to move `Projectile.HotCore` first.
 
-**Why there is no easy answer.** The bolt occupies the warm end of the wheel. Every hue that reads as gold,
-amber or brass is inside 45° of it. Hue separation and "warm" are mutually exclusive for this weapon —
-which is why this is a decision and not a bug.
+**What was decided (the user's call, 2026-09-07):** the colour stays and **the name moved**. The maul is
+now **Verdigris**, its super **Bronzefall** (was *Sunbreak*). `#A8D12E` is close to the green that grows on
+corroded bronze and the maul's head is a blocky brass mass, so as *Verdigris* the hue reads as age on metal
+— intentional — rather than as an amber that missed. The rationale is written into `DataFactory` beside
+the value so a later pass does not "fix" it back.
 
-**The three shapes it could take:**
-
-1. **Keep `#A8D12E`.** The rule holds, the read is unambiguous, and the name becomes the odd thing.
-   Cheapest, and defensible: readability beats flavour in a parry game.
-2. **Go brass-warm (~`#D9A441`, hue ~40°) and separate by VALUE and SATURATION instead of hue.** The bolt
-   is a saturated emissive; a desaturated warm metal at lower emissive brightness can still be told apart
-   at speed. This deliberately suspends the ≥45° rule for one weapon, so it needs the reason written into
-   `MaterialFactory`/`DataFactory` beside the value, or a later pass will "fix" it back.
-3. **Rename the weapon** to match the colour it now is, and leave the hue alone.
-
-**Whichever wins, TWO places change together** — `DataFactory`'s `hammer.neon` **and** the hardcoded copy at
-`PrefabFactory.cs:266` driving the viewmodel `EnergyGlow.tint`, because `Energise` does not read
-`WeaponData.neon`. They are linked by a comment only. Then re-run generators 3 **and** 4 as one operation
-(rule 9), and re-photograph with `WeaponShots.Shoot()` — it renders with the real pipeline.
-
-**Fable data. Parked on the user's word.**
+**Still true for anyone touching this:** the colour lives in **TWO** places — `DataFactory`'s `hammer.neon`
+**and** the hardcoded copy at `PrefabFactory.cs:266` driving the viewmodel `EnergyGlow.tint`, because
+`Energise` does not read `WeaponData.neon`. They are linked by a comment only. Change both, then re-run
+generators 3 **and** 4 as one operation (rule 9).

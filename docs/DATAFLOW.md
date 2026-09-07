@@ -375,7 +375,7 @@ ViewmodelArm.LateUpdate  [DefaultExecutionOrder 200 — AFTER both viewmodels]
   that equips and then captures must let a frame pass (`ViewmodelCapture.LoadoutTour` does).
 - **Four weapon lengths, one framing rule.** Extent above the fist (prefab height above `Grip*` ×
   `viewmodelScale`, as `DataFactory` ships it): Rosethorn **0.32 m**, Oathbreaker **0.50 m**, Cerulean Edge
-  **0.62 m**, Sunbreaker **0.72 m** — a 2.3× spread where the dagger pass had 1.2×. Length is free because
+  **0.62 m**, Verdigris **0.72 m** — a 2.3× spread where the dagger pass had 1.2×. Length is free because
   it is no longer what keeps the frame readable: `WeaponSilhouette` rasterises the real prefab from the
   player's eye and `WeaponSilhouetteTests` holds every shipped weapon in every held pose to (1) never
   crossing the crosshair disc, (2) never covering more than a small fraction of the frame, (3) tip inside
@@ -681,7 +681,7 @@ InputReader.UltimatePressed → UltimateAbility.Update → TrySuper()
 |---|---|---|---:|---:|---:|---:|---:|
 | **Cerulean Edge** (sword) | Emberfall Arc | Cleave | 150 × 1 | 70 | 5.5 m | 170° | 0.30 |
 | **Rosethorn** (dagger) | Thornstorm | Flurry | 34 × 9 | 26 ea | 4 m | 70° | 0.14 |
-| **Sunbreaker** (hammer) | Sunbreak | Quake | 200 × 1 | 130 | 7.5 m | 360° | 0.52 |
+| **Verdigris** (hammer) | Bronzefall | Quake | 200 × 1 | 130 | 7.5 m | 360° | 0.52 |
 | **Oathbreaker** (dev) | Oathbreaker | Nova | 600 × 1 | 400 | 12 m | 360° | 0.06 |
 
 **Invariants**
@@ -1595,6 +1595,10 @@ Tuning: GameFeelSettings.dash* / slide* / wallRun* — written by DataFactory (r
 ```
 
 **Invariants**
+- `ParryImpact.Shockwave` → `SlashFx.Ring` (teal `#A8E6DA`, 0.34 m, 0.18 s, normal = level direction
+  to the attacker, origin = `PlayerCombat.ContactPoint` + 0.12 m). The world's confirmation that a
+  Perfect resolved, so the deflect reads without reading the `PERFECT` word; numbers in `ParryImpulse`,
+  peak 0.98, no bloom exception. Reachable only from `ParryController.NotifyDeflected`.
 - `*Impulse` is the math, `*Fx` is the component — the `ParryImpulse` / `ParryImpact` split, so every curve is
   an EditMode test, not prose.
 - **Force, not light.** Nothing in a slide or dash crosses the 1.05 bloom threshold; emission on an enemy means
@@ -1738,6 +1742,10 @@ LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocumen
    arenas / pedestals / sky / kill zone / NavMesh / Player / Managers / HUD   stay in the builder (campaign only)
 
 LevelEditor.Update  (GameState.Editing; InputReader is the only input reader — 15 optional Editor* actions)
+   F10 is EDITOR / DEVELOPMENT BUILDS ONLY — InputReader.LevelEditorPressed compiles to `false` in a
+   shipped player (2026-09-07), so a playtester cannot fly out of a run. The editor's CODE still runs:
+   a CUSTOM level loads and plays in every build because PendingLoadPath calls Enter()/Play() DIRECTLY,
+   never through input. Only the fly-cam entry is gated.
    F10 ─► Enter(): returnPosition, fly camera on PlayerLook, cursor locked, panel shown
    Aim(): ray from the lens → grid snap (1 m platforms/water, 0.5 m else; Alt = free) → preview cube
    [ ] kind · V variant · = − size ladder · T rotate (axis swap / flow turn), Shift+T the reverse turn
