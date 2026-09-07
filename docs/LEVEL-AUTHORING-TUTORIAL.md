@@ -130,6 +130,30 @@ flowchart TD
 
 The report says `ok` or gives a reason per item. Fix the reason, never the test.
 
+### Measuring without the editor
+
+`python Tools/level_arc_offline.py` mirrors `LevelArcAnalyzer.AnalyzeHop` and the traversal checks in
+pure Python, so a shape can be measured while the lead has Unity. It parses the `Reshapes`, `RouteBeacons`
+and `Waters` tables straight out of `LevelDefinitionAuthoring.cs` and the boxes out of the level asset —
+nothing is typed twice, because the one time it was, a rail centre was transcribed 0.2 m off and the tool
+happily agreed with the typo. `--after` applies the reshape table first (before/after in one diff);
+`--torches` prints the URP 4-light cluster budget. The editor's report and the `Level*Tests` stay the
+authority; this is how you arrive at the number you ask the lead to confirm.
+
+### The number to watch is CLEAN LAUNCH POINTS, not the gap
+
+`AnalyzeHop` samples 25 take-off spots on the departing deck and reports how many have at least one clean
+arc. **Shrinking a gap can make a hop worse.** Growing the take-off deck moves those sample points with
+it, and room added on the wrong side of an obstruction buys nothing while the gap number improves — the
+2026-09-06 openness pass grew `T2_L8` and watched `T2_L8 → T2_L9` go from gap 4.24 / 10 clean points to
+gap 3.91 / **8**, because the extra deck was east of the tower the hop has to round. The fix was to grow
+the **landing** deck instead (`T2_L9` matched to `T2_L3`, its twin one lap below): gap 3.20, 13 clean
+points. Read both columns, every hop, before and after.
+
+Same class of trap on a rail: a rail's inner face belongs **flush with the deck edge with its body
+hanging outside**. A 0.2 m rail standing *on* the deck costs a capsule radius of take-off room either
+side of it, which is a whole sampled column of launch points on a narrow deck.
+
 ---
 
 ## 4 · Feel (the in-game editor)

@@ -516,6 +516,22 @@ that the hem waves rather than wobbles, and that a 3.6 m aura at 1.45 still read
     what enforces it. Prefer a construction that makes a mistake impossible over a constant that a later
     pass can quietly raise.
 
+12. **A torch is the FAR instrument; trim is the NEAR one. Never swap their jobs.** (2026-09-06, the route
+    beacon ruling.) At 20-40 m a route marker is only readable because it *blooms* — a sub-degree emitter
+    under the 1.05 threshold shrinks to a dim pixel and vanishes. The torch ember (`M_Torch`, 1.15) is a
+    licensed bloom exception (fire = safety), so it is the only navigational thing that survives distance;
+    `FlickerLight` culls the LIGHT at 42 m but never the ember mesh, so a distant beacon torch costs one
+    distance check. Trim is the opposite job: it is read at 2-8 m, it says "this is the edge you are about
+    to leave", and all four keys sit under 1.05 by rule 9, so a trim can never do the distant job by being
+    raised — raising it just makes a static edge speak the tell language. Spend torches for "where next",
+    trim for "where the edge is", and if a beacon under-reads at distance spend SIZE or COUNT, never
+    intensity: the bolt (`Projectile.HotCorePeak` 1.6) must stay at least 1.35x any torch, because both are
+    warm and only one of them can kill you. **The budget that binds is local overlap, not the total**: URP's
+    per-object limit is 4 on both shipped RP assets, and the 5th light reaching a surface is dropped by the
+    renderer after being paid for in culling and in the flicker Update — and *which* one is dropped changes
+    as the camera moves, so an over-budget cluster reads as a torch popping on and off as you run past.
+    Pinned by `Assets/Editor/Tests/TorchDensityTests.cs` (Level_01 peaks at 3 of 4).
+
 ---
 
 ## Sources

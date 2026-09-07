@@ -49,8 +49,8 @@ MonoBehaviour:
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Fast_1
-    center: {x: 0, y: 0, z: 28}
-    size: {x: 2.5, y: 1, z: 6}
+    center: {x: 0.75, y: 0, z: 28.5}
+    size: {x: 4, y: 1, z: 7}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
@@ -63,28 +63,28 @@ MonoBehaviour:
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Causeway
-    center: {x: 0, y: 1.5, z: 54}
-    size: {x: 3, y: 1, z: 22}
+    center: {x: -1, y: 1.5, z: 54}
+    size: {x: 5, y: 1, z: 22}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Rail_L
-    center: {x: -1.6, y: 2.6, z: 54}
-    size: {x: 0.2, y: 1.2, z: 22}
+    center: {x: -3.6, y: 2.325, z: 54}
+    size: {x: 0.2, y: 0.65, z: 22}
     materialKey: NeonCyan
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Rail_R
-    center: {x: 1.6, y: 2.6, z: 54}
-    size: {x: 0.2, y: 1.2, z: 22}
+    center: {x: 1.6, y: 2.325, z: 54}
+    size: {x: 0.2, y: 0.65, z: 22}
     materialKey: NeonCyan
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Obelisk_W
-    center: {x: -4.5, y: 3.5, z: 50}
+    center: {x: -6.4, y: 3.5, z: 50}
     size: {x: 1.2, y: 7, z: 1.2}
     materialKey: Stone
     trim: 0
@@ -98,8 +98,8 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Fallen_Obelisk
-    center: {x: 0, y: 3.7, z: 63}
-    size: {x: 5, y: 0.8, z: 1.2}
+    center: {x: -1, y: 3.7, z: 63}
+    size: {x: 7, y: 0.8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
@@ -204,63 +204,63 @@ MonoBehaviour:
     isStatic: 1
   - name: T2_L1
     center: {x: 7, y: 4.5, z: 116}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 4.8, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L2
-    center: {x: 7, y: 6, z: 124}
-    size: {x: 4, y: 1, z: 4}
+    center: {x: 7.25, y: 6, z: 124}
+    size: {x: 4.5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L3
     center: {x: 0, y: 7.5, z: 131}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L4
     center: {x: -7, y: 9, z: 124}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 4.8, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L5
     center: {x: -7, y: 10.5, z: 116}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 4.8, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L6
     center: {x: 0, y: 12, z: 111}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L7
     center: {x: 7, y: 13.5, z: 116}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 4.8, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L8
-    center: {x: 7, y: 15, z: 124}
-    size: {x: 4, y: 1, z: 4}
+    center: {x: 7.25, y: 15, z: 124}
+    size: {x: 4.5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L9
     center: {x: 0, y: 16.5, z: 131}
-    size: {x: 4, y: 1, z: 4}
+    size: {x: 5, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
@@ -283,19 +283,19 @@ MonoBehaviour:
     center: {x: 0, y: 19.5, z: 150}
     size: {x: 4, y: 1, z: 10}
     materialKey: Platform
-    trim: 0
-    trimMaterialKey: NeonPink
+    trim: 1
+    trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_Bridge_Rail_L
-    center: {x: -2.1, y: 20.6, z: 150}
-    size: {x: 0.2, y: 1.2, z: 10}
+    center: {x: -2.1, y: 20.325, z: 150}
+    size: {x: 0.2, y: 0.65, z: 10}
     materialKey: NeonYellow
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T2_Bridge_Rail_R
-    center: {x: 2.1, y: 20.6, z: 150}
-    size: {x: 0.2, y: 1.2, z: 10}
+    center: {x: 2.1, y: 20.325, z: 150}
+    size: {x: 0.2, y: 0.65, z: 10}
     materialKey: NeonYellow
     trim: 0
     trimMaterialKey: NeonPink
@@ -581,15 +581,15 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Boss_Approach_Rail_L
-    center: {x: -3.1, y: 28.6, z: 291}
-    size: {x: 0.2, y: 1.2, z: 16}
+    center: {x: -3.1, y: 28.325, z: 291}
+    size: {x: 0.2, y: 0.65, z: 16}
     materialKey: NeonPink
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: Boss_Approach_Rail_R
-    center: {x: 3.1, y: 28.6, z: 291}
-    size: {x: 0.2, y: 1.2, z: 16}
+    center: {x: 3.1, y: 28.325, z: 291}
+    size: {x: 0.2, y: 0.65, z: 16}
     materialKey: NeonPink
     trim: 0
     trimMaterialKey: NeonPink
@@ -900,6 +900,30 @@ MonoBehaviour:
     basePosition: {x: -6, y: 28, z: 303}
   - name: Torch_Boss_Gate_R
     basePosition: {x: 6, y: 28, z: 303}
+  - name: Torch_Beacon_T1_Causeway_1
+    basePosition: {x: -3.2, y: 2, z: 51}
+  - name: Torch_Beacon_T1_Causeway_2
+    basePosition: {x: -3.2, y: 2, z: 57}
+  - name: Torch_Beacon_T2_L3
+    basePosition: {x: -2.2, y: 8, z: 132.8}
+  - name: Torch_Beacon_T2_L4
+    basePosition: {x: -8.8, y: 9.5, z: 122.2}
+  - name: Torch_Beacon_T2_L5
+    basePosition: {x: -8.8, y: 11, z: 114.2}
+  - name: Torch_Beacon_T2_L7
+    basePosition: {x: 8.8, y: 14, z: 117.6}
+  - name: Torch_Beacon_T2_L8
+    basePosition: {x: 8.9, y: 15.5, z: 125.6}
+  - name: Torch_Beacon_T2_L9
+    basePosition: {x: -1.7, y: 17, z: 132.5}
+  - name: Torch_Beacon_T2_L10
+    basePosition: {x: 6.7, y: 18.5, z: 137.5}
+  - name: Torch_Beacon_T3_Pillar_1
+    basePosition: {x: -1, y: 21.5, z: 197.2}
+  - name: Torch_Beacon_T3_Pillar_3
+    basePosition: {x: -4, y: 23.5, z: 206.9}
+  - name: Torch_Beacon_T3_Pillar_4
+    basePosition: {x: -1.2, y: 24.5, z: 214}
   pedestals:
   - name: WandPedestal_Start
     groundPosition: {x: 0, y: 0, z: -2}
@@ -922,8 +946,8 @@ MonoBehaviour:
     radius: 1.1
   waters:
   - name: T1_Water_Fast
-    center: {x: 0, y: 0.52, z: 28}
-    size: {x: 2.2, y: 0.04, z: 5.6}
+    center: {x: 0.75, y: 0.52, z: 28.5}
+    size: {x: 3.4, y: 0.04, z: 6.4}
     flowDirection: {x: 0, y: 0, z: 1}
     flowSpeed: 6
   - name: T3_Water_Span

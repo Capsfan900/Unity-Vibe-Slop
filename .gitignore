@@ -109,3 +109,4 @@ InitTestScene*.unity*
 # generated dashboard page (/dashboard)
 Tools/dashboard/out/
 TestResults/
+__pycache__/

@@ -18,10 +18,178 @@ namespace VibeGame1.EditorTools
     /// chain pops (rule 7: shapes), and two water LINES ride the fast slide deck in T1 and the T3 span,
     /// the second one turning the run toward the first step. The three legendaries and the boss are
     /// untouched: those are the fights.</para>
+    ///
+    /// <para><b>The openness pass (2026-09-06).</b> A second, additive pass on the same asset, for the
+    /// complaint that the level read as cramped and flat. It reshapes named boxes in place — it creates
+    /// and destroys nothing — to give the run air: every rail drops below a sliding eyeline, the T1
+    /// causeway widens away from its wall-run corridor, the one water slide line grows to a size worth a
+    /// committed entry, and the spiral's eleven identical 4 m squares grow until every gap in the climb
+    /// is inside the reach contract instead of at its edge. A rhythm of route beacons puts a light on the
+    /// deck you are leaving and the one you are arriving on, because the torch budget had all gone to the
+    /// arenas and the run was dark. See <see cref="Reshapes"/> for the numbers and the reason each one is
+    /// safe.</para>
     /// </summary>
     public static class LevelDefinitionAuthoring
     {
         public const string Level01 = "Assets/Data/Levels/Level_01_Level.asset";
+
+        // ================================================================ the openness pass (2026-09-06)
+        //
+        // WHY. Level_01 read as cramped and flat: the run was a chain of 4 m squares between 1.2 m rails,
+        // and the rails were the worst of it. A SLIDING player's eye sits 0.8 m above the deck
+        // (slideHeight 0.9 on the shipped Player.prefab), so a 1.2 m rail put the whole world above the
+        // eyeline: the causeway, the bridge and the boss approach — the level's three longest straights,
+        // and the three places you most want to be sliding — were slid BLIND, in a trench. Everything in
+        // this table is either "you can see over it now" or "the deck is wide enough to steer on".
+        //
+        // HOW IT IS SAFE. Every entry is an ABSOLUTE center/size, so the pass is idempotent, and every
+        // entry moves geometry in the direction that can only ADD room:
+        //   * rails get SHORTER, never taller — an arc that was clean stays clean;
+        //   * T1_Causeway and T1_Fast_1 widen WESTWARD / EASTWARD AWAY from their wall-run corridor, so
+        //     the face the wall run is flown against and its 1.0 m standoff are bit-identical;
+        //   * the spiral pads grow, which SHRINKS every gap between them (see the table).
+        // The x-coordinates that LevelSpan*Tests pin are held exactly: T2_Buttress.max.x == T2_L2.min.x
+        // (5.0, Buttress_DoesNotStandOnTheL2Deck), every ledge beside T2_Wall_East stays inside
+        // x < 10.5 - 2r = 9.7 and every ledge beside T2_Wall_West outside x > -10.6 + 2r = -9.8
+        // (TheLedgesBesideTheWallStayClearOfTheRunLine), T1_Causeway.max.x stays 1.5 against
+        // T1_Wall_Causeway.min.x 3.4, and T1_Wall_Landing.min.x 2.6 still clears T1_Rail_R.max.x 1.7.
+        public struct Reshape
+        {
+            public string name; public Vector3 center, size; public string why;
+            public Reshape(string n, Vector3 c, Vector3 s, string w) { name = n; center = c; size = s; why = w; }
+        }
+
+        public static readonly Reshape[] Reshapes =
+        {
+            // ---- the rails: 1.2 m -> 0.65 m. Bottom stays flush with its deck top; only the height moves.
+            // A rail's INNER face is flush with the deck edge and its body hangs OUTSIDE it — that is the
+            // shipped pattern (T1_Causeway.max.x 1.5, T1_Rail_R spans 1.5..1.7) and it is not cosmetic: a
+            // rail standing on the deck eats a capsule radius of take-off room either side of its 0.2 m.
+            // T1_Rail_L follows the widened causeway to its new west edge -3.5, so it spans -3.7..-3.5.
+            new Reshape("T1_Rail_L", new Vector3(-3.6f, 2.325f, 54f), new Vector3(0.2f, 0.65f, 22f),
+                        "the causeway's west rail follows the widened deck out to its new edge, and drops below a sliding eyeline"),
+            new Reshape("T1_Rail_R", new Vector3(1.6f, 2.325f, 54f), new Vector3(0.2f, 0.65f, 22f),
+                        "the east rail drops so the causeway is slid with the east perch and its bolt in view"),
+            new Reshape("T2_Bridge_Rail_L", new Vector3(-2.1f, 20.325f, 150f), new Vector3(0.2f, 0.65f, 10f),
+                        "the bridge out of the spiral is 20 m up: the drop should be visible from it, not hidden by it"),
+            new Reshape("T2_Bridge_Rail_R", new Vector3(2.1f, 20.325f, 150f), new Vector3(0.2f, 0.65f, 10f), "as above"),
+            new Reshape("Boss_Approach_Rail_L", new Vector3(-3.1f, 28.325f, 291f), new Vector3(0.2f, 0.65f, 16f),
+                        "16 m of approach to the boss gate, currently slid blind"),
+            new Reshape("Boss_Approach_Rail_R", new Vector3(3.1f, 28.325f, 291f), new Vector3(0.2f, 0.65f, 16f), "as above"),
+
+            // ---- T1: the causeway stops being a tightrope.
+            // 3 m wide over 22 m was the level's defining pinch and it was not a chosen one. It widens to
+            // 5 m WESTWARD ONLY (max.x stays 1.5): the wall-run corridor on the east — T1_Wall_Causeway's
+            // west face at x 3.4, run line x 2.95, standoff 1.0 m — does not move by a millimetre.
+            new Reshape("T1_Causeway", new Vector3(-1f, 1.5f, 54f), new Vector3(5f, 1f, 22f),
+                        "22 m of 3 m-wide deck is a corridor, not a causeway; 5 m is enough to steer a slide and to choose a side"),
+            // The slide gate has to keep spanning the deck it gates (CheckLintel.spansTheDeck: the lintel's
+            // x range must contain the deck's), so it grows with it: 5 m -> 7 m, recentred on the new deck.
+            // Heights are untouched, so clearance stays 1.30 m — a slide fits, standing does not, and the
+            // 1.60 m top is still jumpable. It costs time, never access.
+            new Reshape("T1_Fallen_Obelisk", new Vector3(-1f, 3.7f, 63f), new Vector3(7f, 0.8f, 1.2f),
+                        "the slide gate follows the deck out so it still spans it"),
+            // MEASURED, and the reason this entry exists at all: with the causeway recentred on x -1, the
+            // bolt line from T1_Perch_W's muzzle (-7.5, 5.5, 44) to the causeway's chest point (-1, 3.2, 54)
+            // enters the old obelisk's slab (x -5.1..-3.9) at z 49.5, y 4.2 and is BLOCKED. Moved to
+            // x -6.4 the line is clear, and the post becomes the marker for the causeway's new west edge.
+            new Reshape("T1_Obelisk_W", new Vector3(-6.4f, 3.5f, 50f), new Vector3(1.2f, 7f, 1.2f),
+                        "it stood exactly in the west perch's bolt line onto the widened causeway"),
+            // The one dedicated slide line in the level was 2.5 x 6 m. A slide costs stamina now, so it has
+            // to pay: 4 x 7 m, widened EAST (min.x stays -1.25, so the 0.25 m seam with T1_Stone_3 does not
+            // close) and lengthened NORTH. The south edge does NOT move: the 8.5 m entry gap from
+            // T1_Stone_1 is what gates this line to a slide-jump, and a base jump clears ~7.3 m.
+            new Reshape("T1_Fast_1", new Vector3(0.75f, 0f, 28.5f), new Vector3(4f, 1f, 7f),
+                        "6 m of water for an 8.5 m committed entry was a bad trade; 7 m of it, 4 m wide, is a line"),
+
+            // ---- T2: the spiral's eleven identical 4 m squares.
+            // Every pad grows to ~4.8 x 5. The point is not the area, it is what it does to the GAPS,
+            // which were sitting at or past the reach contract's 4.5 m ceiling for a 1.5 m rise:
+            //     Entry->L1 5.1 -> 4.5   L1->L2 4.0 -> 3.0   L2->L3 4.2 -> 3.2   L3->L4 4.2 -> 2.9
+            //     L4->L5   4.0 -> 3.0    L5->L6 3.1 -> 2.1   L6->L7 3.1 -> 2.1   L7->L8 4.0 -> 3.0
+            //     L8->L9   4.2 -> 3.2    L9->L10 1.4 -> 0.7
+            // A climb of eleven contract-edge leaps onto 4 m squares becomes a climb you can carry speed
+            // through. L2 and L8 widen EAST ONLY because x 5.0 is pinned: T2_Buttress's east face is the
+            // L2 deck's west edge and the buttress chimney is measured from it.
+            //
+            // A SHORTER GAP IS NOT AUTOMATICALLY A BETTER HOP, and this table is where that was learned:
+            // growing a take-off deck moves the sampled take-off points with it, and if the extra room is
+            // on the WRONG side of an obstacle the hop loses launch points while the gap number improves.
+            // Every entry below is measured hop by hop against the shipped asset (Tools/level_arc_offline.py),
+            // not argued from the gap alone.
+            new Reshape("T2_L1", new Vector3(7f, 4.5f, 116f), new Vector3(4.8f, 1f, 5f), "the spiral's first pad; 1.0 m of standoff left to T2_Wall_East's run line"),
+            new Reshape("T2_L2", new Vector3(7.25f, 6f, 124f), new Vector3(4.5f, 1f, 5f), "east only: min.x 5.0 is the buttress's face"),
+            new Reshape("T2_L3", new Vector3(0f, 7.5f, 131f), new Vector3(5f, 1f, 5f), "the north turn of the spiral"),
+            new Reshape("T2_L4", new Vector3(-7f, 9f, 124f), new Vector3(4.8f, 1f, 5f), "the west wall's mount ledge; 1.1 m of standoff left"),
+            new Reshape("T2_L5", new Vector3(-7f, 10.5f, 116f), new Vector3(4.8f, 1f, 5f), "clear of T2_Perch_W in plan (z 109-112)"),
+            new Reshape("T2_L6", new Vector3(0f, 12f, 111f), new Vector3(5f, 1f, 5f), "the south turn, over the west perch"),
+            new Reshape("T2_L7", new Vector3(7f, 13.5f, 116f), new Vector3(4.8f, 1f, 5f), "the second lap"),
+            new Reshape("T2_L8", new Vector3(7.25f, 15f, 124f), new Vector3(4.5f, 1f, 5f), "east only, and the buttress chimney's exit ledge — a bigger target for the climb"),
+            // L9 is the north turn of the SECOND lap and stands directly over L3, the north turn of the
+            // first. It was the one pad in the spiral left at 4 x 4 while the deck it answers grew to
+            // 5 x 5, and the cost was measured: L8 -> L9 is the spiral's hardest hop (it must clear the
+            // tower's north-east corner) and growing L8 alone made it WORSE — 10 clean take-off points
+            // out of 25 in the shipped asset, 8 with L8 grown, 13 with L9 matched to L3. Matching it also
+            // makes the two laps read as the same turn seen twice, which is what a spiral is for.
+            new Reshape("T2_L9", new Vector3(0f, 16.5f, 131f), new Vector3(5f, 1f, 5f),
+                        "the second lap's north turn, matched to T2_L3 directly below it"),
+        };
+
+        /// <summary>
+        /// Route decks whose neon edge was off. A ledge with no trim is a ledge you read late, and
+        /// <c>T2_Bridge</c> was the only deck on the whole critical path without one — an unlit 10 m
+        /// plank 20 m up. Trim is decoration with no collider and no NavMesh, so this is free.
+        /// </summary>
+        public static readonly string[] TrimOn = { "T2_Bridge" };
+
+        /// <summary>
+        /// Trim keys corrected with the trim. <c>T2_Bridge</c> carried <c>NeonPink</c> in a gold span —
+        /// turning its trim on unchanged would have lit an azure edge on a T2 tile and broken the span
+        /// language (T1 cyan, T2 gold, T3 red, wall-run pieces cyan everywhere). The bridge RAILS stay
+        /// unlit on the vfx team's veto: at 0.65 m their top edge sits at a sliding player's eye height,
+        /// and four emissive bars across the middle of the frame is exactly where the alert tell is read.
+        /// </summary>
+        public static readonly string[,] TrimKey = { { "T2_Bridge", "NeonYellow" } };
+
+        /// <summary>
+        /// ROUTE BEACONS. The torch budget was spent on the four arenas (4-6 each) and the run got almost
+        /// nothing: three torches for the whole 21 m spiral, four for 66 m of T3, two for the 22 m
+        /// causeway. A torch has no collider (<c>LevelPieceFactory.Torch</c>) and its ember is the only
+        /// object in the palette licensed to bloom, so it is the only navigational mark that survives
+        /// distance — trim is the near instrument ("here is the edge"), a torch is the far one ("that is
+        /// where next"). One per deck at its LEADING OUTER corner lights the deck you are leaving and the
+        /// one you are arriving on without ever standing where you land.
+        ///
+        /// <para><b>The placement law, from the vfx team's audit, and the reason this list is shorter
+        /// than the decks it serves.</b> <c>AdditionalLightsPerObjectLimit</c> is 4 on both RP assets, so
+        /// the 5th light reaching a surface is dropped after being paid for — and WHICH one is dropped
+        /// changes as you move, which reads as a torch popping on and off as you run past. So: no torch
+        /// may have more than three other torch lights within its 9 m range, which on a route means
+        /// beacons no closer than 6.5 m. That is why there is no beacon on T2_L1 or T2_L2 (the spiral
+        /// folds back over itself and <c>Torch_T2_Buttress</c> already stands 1.8 m from L2), and why the
+        /// three T3 beacons are 8 m apart rather than the 5 m the pillars are. Measured, not guessed:
+        /// <c>Tools/level_arc_offline.py --torches</c> prints the worst cluster, and
+        /// <c>TorchDensityTests</c> fails the build if this list ever drifts past 4.</para>
+        /// </summary>
+        public static readonly TorchDef[] RouteBeacons =
+        {
+            new TorchDef { name = "Torch_Beacon_T1_Causeway_1", basePosition = new Vector3(-3.2f, 2f, 51f) },
+            new TorchDef { name = "Torch_Beacon_T1_Causeway_2", basePosition = new Vector3(-3.2f, 2f, 57f) },
+            // The spiral, second half of each lap: L1 and L2 are already read from the entry pair and the
+            // buttress torch, and beaconing them tips the L5/L6/L7 stack over the limit.
+            new TorchDef { name = "Torch_Beacon_T2_L3", basePosition = new Vector3(-2.2f, 8f, 132.8f) },
+            new TorchDef { name = "Torch_Beacon_T2_L4", basePosition = new Vector3(-8.8f, 9.5f, 122.2f) },
+            new TorchDef { name = "Torch_Beacon_T2_L5", basePosition = new Vector3(-8.8f, 11f, 114.2f) },
+            new TorchDef { name = "Torch_Beacon_T2_L7", basePosition = new Vector3(8.8f, 14f, 117.6f) },
+            new TorchDef { name = "Torch_Beacon_T2_L8", basePosition = new Vector3(8.9f, 15.5f, 125.6f) },
+            new TorchDef { name = "Torch_Beacon_T2_L9", basePosition = new Vector3(-1.7f, 17f, 132.5f) },
+            new TorchDef { name = "Torch_Beacon_T2_L10", basePosition = new Vector3(6.7f, 18.5f, 137.5f) },
+            // T3: on the pillars, at the OUTER corner of the top face — a 2.5 m square you land on at
+            // speed gets nothing in the middle of it — every 8 m rather than every pillar.
+            new TorchDef { name = "Torch_Beacon_T3_Pillar_1", basePosition = new Vector3(-1f, 21.5f, 197.2f) },
+            new TorchDef { name = "Torch_Beacon_T3_Pillar_3", basePosition = new Vector3(-4f, 23.5f, 206.9f) },
+            new TorchDef { name = "Torch_Beacon_T3_Pillar_4", basePosition = new Vector3(-1.2f, 24.5f, 214f) },
+        };
 
         // ---------------------------------------------------------------- the perches
         // A perch is a 3 x 1 x 3 stone shelf hung BESIDE the course, outside every wall-run wall in plan
@@ -90,8 +258,10 @@ namespace VibeGame1.EditorTools
         public static readonly Water[] Waters =
         {
             // The fast slide deck in T1 (top 0.5): a slide on water never decays, so the slide-jump off
-            // its end leaves at the full carry. A LINE the tech route rides.
-            new Water("T1_Water_Fast", new Vector3(0f, 0.52f, 28f), new Vector3(2.2f, 0.04f, 5.6f), Vector3.forward, 6f),
+            // its end leaves at the full carry. A LINE the tech route rides. Grown with the deck under it
+            // (see Reshapes: T1_Fast_1 is now 4 x 7 centred on x 0.75, z 28.5) with 0.3 m of dry stone
+            // left at every edge, so the sheet still reads as lying ON the deck rather than as the deck.
+            new Water("T1_Water_Fast", new Vector3(0.75f, 0.52f, 28.5f), new Vector3(3.4f, 0.04f, 6.4f), Vector3.forward, 6f),
             // The T3 span after the fallen lintel (top 24.5): skate the run, then the last sheet turns the
             // flow toward T3_Step_1 at (3, 25.5, 241) — a line that TURNS the run (rule 7).
             new Water("T3_Water_Span", new Vector3(0f, 24.52f, 229.5f), new Vector3(3.6f, 0.04f, 13f), Vector3.forward, 6f),
@@ -121,6 +291,24 @@ namespace VibeGame1.EditorTools
         /// </summary>
         public static string Apply(LevelDefinition def)
         {
+            // The openness pass runs FIRST and edits boxes it does not own the existence of, only their
+            // shape: it looks each one up BY NAME and writes an absolute centre and size, so a second run
+            // writes the same numbers and nothing is ever created or destroyed here.
+            int reshaped = 0;
+            if (def.platforms != null)
+                foreach (var r in Reshapes)
+                    foreach (var pf in def.platforms)
+                        if (pf != null && pf.name == r.name) { pf.center = r.center; pf.size = r.size; reshaped++; }
+            if (def.platforms != null)
+            {
+                foreach (var name in TrimOn)
+                    foreach (var pf in def.platforms)
+                        if (pf != null && pf.name == name) pf.trim = true;
+                for (int i = 0; i < TrimKey.GetLength(0); i++)
+                    foreach (var pf in def.platforms)
+                        if (pf != null && pf.name == TrimKey[i, 0]) pf.trimMaterialKey = TrimKey[i, 1];
+            }
+
             // Perches: remove ours, re-add. Named with "_Perch_" so nothing else can collide.
             var platforms = new List<PlatformDef>(def.platforms ?? new PlatformDef[0]);
             platforms.RemoveAll(p => p != null && p.name != null && p.name.Contains("_Perch_"));
@@ -159,8 +347,18 @@ namespace VibeGame1.EditorTools
                 waters.Add(new WaterDef { name = w.name, center = w.center, size = w.size, flowDirection = w.flow, flowSpeed = w.speed });
             def.waters = waters.ToArray();
 
-            return string.Format("Level_01 reworked: {0} perches, {1} spawns moved onto them, {2} balloons (T3 arc), {3} water sheets; {4} platforms total.",
-                                 Perches.Length, moved, balloons.Count, waters.Count, def.platforms.Length);
+            // Route beacons, the same way: remove ours by prefix, re-add. The level's hand-placed torches
+            // (Torch_T1_*, Torch_Boss_* and the rest) are never touched — this pass owns "Torch_Beacon_".
+            var torches = new List<TorchDef>(def.torches ?? new TorchDef[0]);
+            torches.RemoveAll(t => t != null && t.name != null && t.name.StartsWith("Torch_Beacon_"));
+            foreach (var b in RouteBeacons)
+                torches.Add(new TorchDef { name = b.name, basePosition = b.basePosition });
+            def.torches = torches.ToArray();
+
+            return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
+                                 "{3} balloons (T3 arc), {4} water sheets, {5} route beacons; {6} platforms and {7} torches total.",
+                                 reshaped, Perches.Length, moved, balloons.Count, waters.Count, RouteBeacons.Length,
+                                 def.platforms.Length, def.torches.Length);
         }
     }
 }

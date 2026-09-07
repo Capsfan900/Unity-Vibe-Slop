@@ -1741,6 +1741,16 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   inside the shooter's band, crossing no box); `Level Arc Report` prints all three; `LevelTraversalTests`
   holds them off a copy of the asset. A pop's spacing is DERIVED from the flown pop, never copied from
   another level (ENGINEERING-LOG, "A balloon chain laid to the yard's spacing").
+- **`Apply`'s first block RESHAPES by name and owns nothing's existence** (openness pass, 2026-09-06).
+  `LevelDefinitionAuthoring.Reshapes` is a table of `name -> absolute centre/size`; `Apply` looks each one
+  up in `def.platforms` and overwrites those two fields, creating and destroying nothing, so a second run
+  writes the same numbers. `TrimOn` / `TrimKey` and the `Torch_Beacon_`-prefixed `RouteBeacons` follow the
+  same remove-ours-then-re-add discipline as the perches. **A shorter gap is not automatically a better
+  hop:** growing a take-off deck moves the sampled take-off points with it, and extra room on the wrong
+  side of an obstacle costs clean launch points while the gap number improves (measured on `T2_L8 → T2_L9`:
+  gap 4.24 → 3.91 but 10 → 8 clean points; fixed by growing the LANDING deck `T2_L9` instead, 3.20 / 13).
+  `Tools/level_arc_offline.py` parses those tables straight out of the C# and measures every hop, the
+  torch density and the pinned x-coordinates without the editor; `--after`, `--torches`.
 - **The runtime editor and `8. Build Level From Definition` share ONE piece factory.** A piece that renders
   differently in the two is a bug in the factory, not in either caller. `LevelEditorTests.RuntimeAndEditorFactoriesAgree`
   builds a small document both ways and compares names and positions.
@@ -1857,7 +1867,9 @@ SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, 
 
 ```
 VibeGame1/1. Project Setup -> ProjectSetup.SetupSceneEnvironment()
-    RenderSettings.fogColor        = VoidColor        #060D18   lin lum .0039
+    mainCam.backgroundColor        = VoidColor        #060D18   lin lum .0039  (never seen: the dome covers it)
+    RenderSettings.fogColor        = FogColor         #0E1C34   lin lum .0117  = the dome's horizon band x0.7
+    RenderSettings.fogStart / End  = 36 / 170  -> 25 m 0% · 50 m 10% · 64 m 21% · 87 m 38% · 100 m 48%
     RenderSettings.ambientSkyColor = AmbientSky       #344C78 x1.35   .1348  platform TOPS
     RenderSettings.ambientEquator  = AmbientEquator   #3F5E88 x1.35   .2045  every wall + every BACKLIT enemy
     RenderSettings.ambientGround   = AmbientGround    #0E1326 x1.35   .0110
@@ -1878,6 +1890,25 @@ VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat
 ```
 
 **Palette invariants**
+- **Fog is the SKY bleeding in, never a hole punched in it (A5, 2026-09-06).** `fogColor` must sit
+  between the dome's zenith (`#060A17`, .0032) and its horizon band (`#13233F`, .0170) and **above a
+  shadowed stone face** (~.009 linear), so distance *lightens* dark surfaces and only slightly darkens
+  lit decks — aerial perspective, not extinction. The pre-A5 fog was the zenith value applied in every
+  direction, i.e. 4.3x darker than the sky behind the geometry. `SkyEclipseTests.FogIsTheSkyBleedingIn_NotAHolePunchedInIt`.
+- **`fogStartDistance`'s floor is ~31 m, not the dome radius of 25.** The eclipse **halo** is a flat soft
+  disc of lateral radius `discR * 2.3` = 19.8 m parked 24.1 m down the eclipse axis, so its corners are
+  `sqrt(24.1² + 19.8²)` = **31.2 m** out — the widest thing in the sky mesh. A start between 25 and 31
+  fogs a *wedge* across the halo. `SkyEclipseTests.TheSkyIsFogImmuneByGeometryNotByAssumption` measures
+  the built mesh rather than trusting the number.
+- **Fog can never touch a landing target.** Every jump in Level_01 lands within 12 m (longest:
+  `T3_Entry` → `T3_Pillar_1`, 9 m; the T3 pillar hops are 5-6 m) and combat resolves at 3-8 m, so both
+  sit at fog factor exactly zero. The ramp is for the route *ahead* — pillar line 24 m, span far end
+  48 m, next arena 64-90 m. `SkyEclipseTests.FogNeverTouchesCombatOrALandingTarget`.
+- **`SandboxBuilder.EnsureEnvironment` no longer mirrors fog by hand** — it reads `ProjectSetup.FogColor
+  / FogStartDistance / FogEndDistance` directly, because the hand-mirrored copies had already drifted
+  (the sandbox was still violet `#0C0912` after the cold pass took the level blue). Its **ambient is
+  still drifted and warm** (`#7A5540` equator vs ProjectSetup's `#3F5E88`) — known, deliberately not
+  fixed in A5.
 - **The cold pass changed HUE, never LIGHT LEVEL.** Every environment colour was fitted to the Rec.709
   linear luminance of the blood-red value it replaced. `SkyEclipseTests.TheColdPassChangedHueAndNotLightLevel`
   pins the four numbers; `FeatureTests.Lighting_EquatorLitsVerticals` (0.15 floor) is the play-mode half.
@@ -1887,6 +1918,15 @@ VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat
 - **The sky can only bloom through one material.** Submesh 0's tint is exactly 1.0 and vertex colours clamp
   at 1.0, so planets, rings, stars and the whole field physically cannot cross the 1.05 threshold.
   `Starfield.PlanetPeakCeiling` 0.55 is the intent on top of that guarantee.
+- **The torch light budget is LOCAL OVERLAP, not the total.** A torch is a point light, range **9**,
+  intensity 2.5, no shadows, light at deck +1.9 (`LevelPieceFactory.Torch`), plus `FlickerLight`
+  (cullDistance 42, hysteresis 4, frameStride 2) which disables the LIGHT past 42 m and leaves the ember
+  mesh — so a distant torch costs one distance check and still reads as a beacon. Both shipped RP assets
+  cap `AdditionalLightsPerObjectLimit` at **4**; the 5th light reaching a surface is dropped after being
+  paid for, and which one is dropped changes with the camera (visible popping). Level_01's 44 torches peak
+  at **3** reaching lights, and the 12 route beacons added by the openness pass (56 total) still peak at
+  **3** — which is why there is no beacon on `T2_L1`, `T2_L2` or `T2_L6`. `Assets/Editor/Tests/TorchDensityTests.cs` pins the
+  rule and the instrument; `VibeGame1/Audit Level Lights` (`LightAudit`) measures the built scene.
 
 **Invariants**
 - `LevelManager.Warp()` finds checkpoints **by name**. The checkpoints are `Checkpoint_1`..`Checkpoint_4`,
