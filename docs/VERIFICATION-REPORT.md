@@ -10,6 +10,35 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Builds — 2026-09-07, both targets now proven
+
+Neither suite runs the built player, so a build is only ever proven by producing it and launching it.
+Both halves of the pipeline have now been exercised.
+
+| Target | Result | How it was proven |
+|---|---|---|
+| **Windows** (`StandaloneWindows64`, Mono2x, stripping High) | **95.6 MB**, builds in ~5 s warm | Output verified on disk, `build-info.txt` correct, and **the player was launched and reached the menu** with a `Player.log` clean but for D3D12's standard debug-layer line. |
+| **WebGL** (IL2CPP → WASM, stripping High) | **30.8 MB gzipped**, 4:56, 3 warnings, 0 errors | First WebGL build ever cut. All four `Build/` assets plus `index.html` serve **HTTP 200 at full length** from a plain static server, which also exercises the gzip decompression fallback. |
+
+**30.8 MB is the wire size, not a pre-compression figure** — the `.unityweb` files carry the `1f8b` gzip
+magic. Uncompressed they are 58.7 MB (`wasm` 31.0 → 8.7, `data` 27.4 → 22.0, `framework` 0.3 → 0.1). A
+playtester on a Pages link waits for 30.8 MB; the 96 MB Windows number is the download only for the zip.
+
+The three WebGL warnings are benign and expected: IL2CPP splitting three large TextMeshPro methods
+(`TMP_TextParsingUtilities::.cctor`, `TextMeshPro::GenerateTextMesh`, `TextMeshProUGUI::GenerateTextMesh`)
+into their own `.cpp` files because they are costly to compile.
+
+**Still unproven for WebGL: that it actually runs.** Serving proves the bytes are reachable and correctly
+laid out; only a browser proves the WASM instantiates, the pointer-lock gate works and the game is
+playable at frame rate. The `Playtest` template's click-to-play gate and progress bar are present in the
+served `index.html` but have never been clicked.
+
+**A build spills `Data/lib_burst_generated.*` into the project root** — Burst writing relative to the
+working directory. It is referenced nowhere in `Assets/` and is now covered by `/[Dd]ata/` in `.gitignore`,
+so it no longer dirties the tree. `ProjectSettings.asset` also goes dirty after a WebGL build: `BuildRunner`
+enforces `webGLTemplate: PROJECT:Playtest`, `webGLCompressionFormat: 1` (gzip) and
+`webGLDecompressionFallback: 1` by design.
+
 ### Latest run — 2026-09-07, verifying the three-lane weapon pass (`73fd3bd`)
 
 Measured this session from the user's open editor. Tree clean at `73fd3bd`.

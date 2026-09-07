@@ -11,6 +11,8 @@
 /[Oo]bj/
 /[Bb]uild/
 /[Bb]uilds/
+# Burst spills lib_burst_generated.* into a root-level Data/ during a WebGL build.
+/[Dd]ata/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log

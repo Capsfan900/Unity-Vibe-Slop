@@ -91,6 +91,28 @@ The Windows build is **~96 MB**, of which roughly 10 MB is this game (assets ~9 
   `vibegame1_Data/Managed` from 37 MB to 11 MB (`System.Xml`, `System.Data`, `System.Drawing` were all
   shipping into a game that parses no XML and opens no database).
 
+**WebGL is the number that matters for a link.** The first WebGL build was cut 2026-09-07: **30.8 MB, and
+that is already gzipped** — Unity ships the `.unityweb` files pre-compressed (they carry the `1f8b` gzip
+magic), so it is the wire size a playtester actually waits for, not a pre-compression figure. Uncompressed
+the payload is 58.7 MB: `WebGL.wasm` 31.0 → 8.7 MB, `WebGL.data` 27.4 → 22.0 MB, `WebGL.framework.js`
+0.3 → 0.1 MB, plus a 48 KB uncompressed loader. It builds in **4:56** — well under the 10-20 min an
+IL2CPP-to-WASM build is usually braced for. WebGL is always IL2CPP, so the Standalone Mono note below does
+not apply to it.
+
+Two side effects of a WebGL build, both harmless and both now handled. `ProjectSettings.asset` goes dirty
+because `BuildRunner` enforces `webGLTemplate: PROJECT:Playtest`, `webGLCompressionFormat: 1` (gzip) and
+`webGLDecompressionFallback: 1` — that fallback is what lets the gzipped build load from a server that
+sends no `Content-Encoding` header, including GitHub Pages and a bare `python -m http.server`. And Burst
+spills `Data/lib_burst_generated.{cpp,wasm}` into the **project root**, written relative to the working
+directory; it is referenced nowhere in `Assets/` and is covered by `/[Dd]ata/` in `.gitignore`.
+
+To check a WebGL build locally before publishing, serve it and open it — opening `index.html` from `file://`
+will not work:
+
+```
+cd Builds/WebGL && python -m http.server 8123 --bind 127.0.0.1
+```
+
 Unity's floor for a stripped URP game is ~50–60 MB of engine you cannot get back. Content is what scales
 from here. **IL2CPP is not installed** for Windows Standalone (only the Mono variations are present in the
 Hub install), so the Standalone backend is `Mono2x`; installing *Windows Build Support (IL2CPP)* in Unity

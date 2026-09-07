@@ -345,9 +345,15 @@ in-game editor is a fine feedback tool if the build is going to trusted testers.
 was also hardened so a build works whatever state the project is in — see `docs/DISTRIBUTION.md`,
 "It is designed to work whatever state the project is in".
 
-**Still unpublished.** No WebGL build has been cut, and nothing is on GitHub. Blocked on one-time settings
-only the user can click (Pages → Deploy from a branch → `gh-pages` → `/ (root)`), and on the F10 decision
-above.
+**The WebGL half is now done too (2026-09-07).** First WebGL build cut: **30.8 MB gzipped** (the wire size —
+the `.unityweb` files ship pre-compressed), 4:56, 3 benign IL2CPP warnings, 0 errors. Every asset serves
+HTTP 200 at full length from a plain static server, which also exercises the gzip decompression fallback.
+Numbers in `docs/VERIFICATION-REPORT.md`, "Builds — 2026-09-07".
+
+**Still unpublished, and two things still stand in the way.** Nothing is on GitHub. Blocked on one-time
+settings only the user can click (Pages → Deploy from a branch → `gh-pages` → `/ (root)`), and on the F10
+decision above. Also **still unproven: that the WebGL build RUNS** — serving proves the bytes are reachable
+and correctly laid out, but only a browser proves the WASM instantiates and the pointer-lock gate works.
 
 ## The settings menu can overwrite "native resolution" with a fixed one (opened 2026-09-07)
 
