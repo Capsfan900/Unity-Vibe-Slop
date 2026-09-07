@@ -110,3 +110,6 @@ InitTestScene*.unity*
 Tools/dashboard/out/
 TestResults/
 __pycache__/
+
+# gh-pages publish worktree (Tools/publish/Publish-WebGL.ps1) — never committed to master
+/.worktrees/

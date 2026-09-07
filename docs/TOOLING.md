@@ -423,6 +423,16 @@ to tell "the window is wrong" from "the player is early".
 | `.claude/settings.json` | Permission allowlist for routine Unity MCP + read-only Bash. `execute_code` and `manage_asset` are deliberately **excluded** — both can destroy work. |
 | `CREDITS.md` | CC0 audio sources and licences. |
 
+## 10. Playtest builds
+
+`Assets/Editor/BuildRunner.cs` cuts a non-dev playtest build (`BuildOptions.None`, development build OFF)
+to `Builds/Windows/` and `Builds/WebGL/` at the repo root (gitignored). Call the static methods directly
+from `execute_code` — `VibeGame1.EditorTools.BuildRunner.Windows()` / `.WebGL()` / `.All()` — never rely on
+the `VibeGame1/Build/…` menu items over MCP, they only log. Publish with `Tools/publish/Publish-WebGL.ps1`
+(GitHub Pages via a `gh-pages` worktree) and `Tools/publish/Publish-WindowsRelease.ps1` (zipped GitHub
+Release). Full runbook, one-time GitHub settings and how to trace a bug report to a build SHA:
+[docs/DISTRIBUTION.md](DISTRIBUTION.md).
+
 ## Subagent teams (2026-09-06)
 
 Five project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to
