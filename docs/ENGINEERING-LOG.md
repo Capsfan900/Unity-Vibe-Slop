@@ -11,6 +11,38 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## `execute_menu_item` over MCP reports success and does nothing
+
+**2026-09-06.** The surge-turret pass was verified by running `VibeGame1/3. Create Data` and
+`VibeGame1/4. Build Prefabs` through the MCP `execute_menu_item` tool. Both returned
+`success: true`, the console showed no error, and `pshooter_enemy03.asset` did not exist afterwards.
+`AssetDatabase.FindAssets("t:EnemyData")` listed the same eleven enemies as before.
+
+**Root cause.** Not established. The bridge logs
+`[ExecuteMenuItem] Handling menu item command` and then the item's body never runs — the tool's own
+message is honest about this ("Attempted to execute menu item ... Check Unity logs"), so its success
+flag means *the request was delivered*, not *the menu item ran*. It is a fire-and-forget dispatch with
+no result channel.
+
+**Fix.** Invoke the generator directly instead, which is synchronous and returns:
+
+    var t = System.Type.GetType("VibeGame1.EditorTools.DataFactory, Assembly-CSharp-Editor");
+    t.GetMethod("CreateAll").Invoke(null, null);
+    UnityEditor.AssetDatabase.SaveAssets();
+    UnityEditor.AssetDatabase.Refresh();
+
+**Invariant. A generator is not run until you have read back what it was supposed to produce.**
+Drive the rebuild pipeline from `execute_code` against `VibeGame1.EditorTools.<Class>.<Method>()`, and
+end every step by loading the asset it creates and asserting a field on it. `execute_menu_item`
+returning `success` is not evidence of anything.
+
+Related trap: `read_console` with a `filter_text` can return a single entry that is tens of thousands
+of characters long — `Health Check` logs all 1744 warnings as ONE message. Capture the log through
+`Application.logMessageReceived` inside `execute_code` and slice out the section you want, rather than
+paging the console.
+
+---
+
 ## A pane the runtime resizes needs stretched children, and the y under it needs a named constant
 
 **2026-09-06.** BEST RUNS moved out of its own column into the top-right stack, under the radio, and now
