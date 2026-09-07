@@ -49,6 +49,10 @@ namespace VibeGame1.EditorTools
             // the same collider — a different body. See BuildGhostBody.
             BuildEnemy("pshooter_enemy01", EnemyPaths.Data("pshooter_enemy01"), false, true);
             BuildEnemy("pshooter_enemy02", EnemyPaths.Data("pshooter_enemy02"), false);
+            // pshooter_enemy03 is the SURGE TURRET (2026-09-06, user-directed): a small round turret that
+            // dies in one hit and pays a speed surge for every bolt you deflect. See BuildTurretBody and
+            // SurgeTurret; it is the one enemy whose brain is a subclass other than the boss's.
+            BuildEnemy("pshooter_enemy03", EnemyPaths.Data("pshooter_enemy03"), false, EnemyBody.Turret);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -1069,10 +1073,20 @@ namespace VibeGame1.EditorTools
             public Transform[] hem;         // ghost only
         }
 
-        static void BuildEnemy(string name, string dataPath, bool isBoss) { BuildEnemy(name, dataPath, isBoss, false); }
+        /// <summary>
+        /// Which body a parkour/souls enemy is built out of. The RIG is identical in every case (same
+        /// collider, same agent, same ArmPivot/WeaponPivot names, so every authored wind-up pose lands
+        /// where it always did); only the geometry differs.
+        /// </summary>
+        enum EnemyBody { Pill, Ghost, Turret }
 
-        static void BuildEnemy(string name, string dataPath, bool isBoss, bool ghost)
+        static void BuildEnemy(string name, string dataPath, bool isBoss) { BuildEnemy(name, dataPath, isBoss, EnemyBody.Pill); }
+
+        static void BuildEnemy(string name, string dataPath, bool isBoss, bool ghost) { BuildEnemy(name, dataPath, isBoss, ghost ? EnemyBody.Ghost : EnemyBody.Pill); }
+
+        static void BuildEnemy(string name, string dataPath, bool isBoss, EnemyBody body)
         {
+            bool ghost = body == EnemyBody.Ghost;
             var root = new GameObject(name);
             root.layer = Layers.Enemy;
 
@@ -1102,7 +1116,10 @@ namespace VibeGame1.EditorTools
             }
             else
             {
-                ctrl = root.AddComponent<EnemyController>();
+                // THE TURRET's brain is a SUBCLASS (SurgeTurret : EnemyController, the BossController
+                // precedent): OnParried is the only signal that says "the player deflected a bolt *I* fired",
+                // and that is where the speed surge is paid. Everything else about it is an ordinary enemy.
+                ctrl = body == EnemyBody.Turret ? root.AddComponent<SurgeTurret>() : root.AddComponent<EnemyController>();
                 ctrl.data = Load<EnemyData>(dataPath);
                 // parkour_enemies only (2026-09-06 split): the shooter goes on a body whose data shoots.
                 // A melee Grunt or a legendary no longer carries an inert one. See Projectile.cs.
@@ -1110,8 +1127,14 @@ namespace VibeGame1.EditorTools
                 {
                     root.AddComponent<ProjectileShooter>();
                     // A sentry DETONATES on a posture break and throws a flare (SentryBurst). Rule 9 numbers.
-                    var burst = root.AddComponent<SentryBurst>();
-                    burst.flareUpSpeed = 9f; burst.flareOutSpeed = 3f; burst.flareGravity = 4f; burst.flareLife = 4.5f;
+                    // NOT the turret: it is a target, not a duel. Its posture is out of reach and it dies in
+                    // one hit, so a flare would be a grapple reward for something you were going to kill by
+                    // touching it — and a row of five floating flares down one ramp is clutter, not traversal.
+                    if (body != EnemyBody.Turret)
+                    {
+                        var burst = root.AddComponent<SentryBurst>();
+                        burst.flareUpSpeed = 9f; burst.flareOutSpeed = 3f; burst.flareGravity = 4f; burst.flareLife = 4.5f;
+                    }
                 }
             }
 
@@ -1122,9 +1145,9 @@ namespace VibeGame1.EditorTools
             var flash = visual.AddComponent<EmissiveFlash>();
 
             var lungeRoot = Empty("LungeRoot", visual.transform, Vector3.zero);
-            EnemyBodyParts parts = ghost
-                ? BuildGhostBody(lungeRoot.transform, bodyMat)
-                : BuildPillBody(lungeRoot.transform, bodyMat);
+            EnemyBodyParts parts = body == EnemyBody.Ghost ? BuildGhostBody(lungeRoot.transform, bodyMat)
+                                 : body == EnemyBody.Turret ? BuildTurretBody(lungeRoot.transform, bodyMat)
+                                 : BuildPillBody(lungeRoot.transform, bodyMat);
 
             var alert = Prim(PrimitiveType.Cube, "Alert", visual.transform, new Vector3(0f, 2.5f, 0f), new Vector3(0.25f, 0.25f, 0.25f), Mat("M_AlertTell"));
             alert.SetActive(false);
@@ -1279,6 +1302,89 @@ namespace VibeGame1.EditorTools
                 weaponPivot = hand.transform,
                 floatRoot = floatRoot.transform,
                 hem = hem,
+            };
+        }
+
+        /// <summary>
+        /// THE SURGE TURRET (2026-09-06, the user's ask: "a small little circle shaped turret that just
+        /// shoots the player and dies in one hit but boosts the player's speed when they parry").
+        /// <c>pshooter_enemy03</c> only.
+        ///
+        /// <para><b>It has to be read at 30 m, in first person, in a frame that is sliding down a ramp,</b>
+        /// and it has to be unmistakable from the two sentries it shares a family with. It separates from
+        /// them on THREE axes at once, because one is never enough in a moving frame:</para>
+        /// <list type="bullet">
+        /// <item><b>Shape.</b> A sphere inside a hoop — the only ROUND silhouette among enemies. The ghost
+        /// is a domed tatter, the Heavy Sentry an upright pill, both read as bodies with a top and a
+        /// bottom. This reads as a machine, and a circle is the one shape that stays a circle no matter
+        /// which way the frame is rolling. The hoop is set in the plane PERPENDICULAR to the turret's
+        /// facing, and the turret tracks the player the whole time it is awake, so from the player's eye
+        /// it is always presenting a full circle, never an edge-on line.</item>
+        /// <item><b>Size.</b> The data ships <c>scale 0.55</c>, so everything here is roughly half a
+        /// sentry. "Small" is half the user's sentence, and small is also what makes a row of five read as
+        /// a ROW rather than as a wall.</item>
+        /// <item><b>Value.</b> Mid steel, between the ghost's near-white and the Heavy Sentry's near-black,
+        /// so all three separate from each other by brightness alone at a distance where hue is gone.</item>
+        /// </list>
+        ///
+        /// <para><b>The rig is the standard one.</b> ArmPivot and WeaponPivot exist at the same names and
+        /// carry no geometry: this body never melees (<c>rangedOnly</c>), and an empty pivot means every
+        /// authored wind-up pose still applies to something rather than throwing. There is no weapon
+        /// renderer, exactly as on the ghost.</para>
+        ///
+        /// <para><b>The one warm pinprick is the muzzle</b> (M_EnemyEye, under the bloom cap), sunk into
+        /// the front of the core where the bolt leaves. It is the facing read and it is the same ember
+        /// every other enemy uses, so "which way is it pointing" is answered the same way everywhere.</para>
+        /// </summary>
+        static EnemyBodyParts BuildTurretBody(Transform lungeRoot, Material bodyMat)
+        {
+            var eyeMat = Mat("M_EnemyEye");
+
+            // The stalk: a thin post from the ground to the core. Without it the sphere reads as a floating
+            // orb — which is the ghost's language, not a turret's — and there is no cue that it is BOLTED to
+            // the ramp and will not chase you.
+            Prim(PrimitiveType.Cylinder, "Stalk", lungeRoot, new Vector3(0f, 0.42f, 0f), new Vector3(0.26f, 0.42f, 0.26f), bodyMat);
+            Prim(PrimitiveType.Cylinder, "Base", lungeRoot, new Vector3(0f, 0.06f, 0f), new Vector3(0.72f, 0.06f, 0.72f), bodyMat);
+
+            // The core: a true sphere, 1.0 m across before the data's 0.55 scale. This is what EnemyVisuals
+            // flashes, so it is the piece that carries the deflect.
+            var core = Prim(PrimitiveType.Sphere, "Body", lungeRoot, new Vector3(0f, 1.10f, 0f), Vector3.one, bodyMat);
+
+            // THE HOOP. Twelve short bars on a 0.68 m ring in the XY plane, each rolled to sit tangent, so
+            // the join reads as one continuous circle rather than as twelve blocks. Twelve and not eight:
+            // eight is visibly a polygon at 10 m, and the whole point of this enemy is that it is a CIRCLE.
+            var ring = Empty("Ring", lungeRoot, new Vector3(0f, 1.10f, 0f));
+            const int ringSegments = 12;
+            const float ringRadius = 0.68f;
+            for (int i = 0; i < ringSegments; i++)
+            {
+                float deg = i * (360f / ringSegments);
+                float a = deg * Mathf.Deg2Rad;
+                var bar = Prim(PrimitiveType.Cube, "Ring" + i, ring.transform,
+                               new Vector3(Mathf.Sin(a) * ringRadius, Mathf.Cos(a) * ringRadius, 0f),
+                               new Vector3(0.15f, 0.40f, 0.15f), bodyMat);
+                // Rolled about Z so the bar's long axis lies along the tangent; a 0.40 bar on a 0.356 m
+                // chord overlaps its neighbours slightly, which is what closes the hoop.
+                bar.transform.localRotation = Quaternion.Euler(0f, 0f, -deg);
+            }
+
+            // The muzzle, half-sunk into the core's front face (radius 0.5) so it reads as an APERTURE
+            // rather than as a bead stuck on. This is parts.eye: EnemyVisuals owns its colour from here.
+            var muzzle = Prim(PrimitiveType.Sphere, "Eye", lungeRoot, new Vector3(0f, 1.10f, 0.44f),
+                              new Vector3(0.30f, 0.30f, 0.18f), eyeMat);
+
+            // Empty pivots, no geometry: it never swings anything. Same names, same heights relative to the
+            // core, so nothing that poses an enemy has to special-case this body.
+            var shoulder = Empty("ArmPivot", lungeRoot, new Vector3(0.35f, 1.10f, 0f));
+            var hand = Empty("WeaponPivot", shoulder.transform, new Vector3(0f, -0.30f, 0f));
+
+            return new EnemyBodyParts
+            {
+                body = core.GetComponent<Renderer>(),
+                eye = muzzle.GetComponent<Renderer>(),
+                weapon = null,
+                armPivot = shoulder.transform,
+                weaponPivot = hand.transform,
             };
         }
 

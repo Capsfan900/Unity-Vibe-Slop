@@ -50,6 +50,9 @@ MonoBehaviour:
   parriedProjectileDamage: 30
   parriedProjectilePosture: 40
   parrySpeedGain: 6
+  parrySurgeStep: 0
+  parrySurgeMaxStacks: 0
+  parrySurgeSeconds: 2
   soulValue: 550
   bodyColor: {r: 0.84705883, g: 0.8235294, b: 0.76862746, a: 1}
   emission: {r: 0.46470588, g: 1.3176471, b: 1.2235295, a: 1.5}

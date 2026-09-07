@@ -42,7 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
-        static GameObject pSentryGrunt, pSentryHeavy;
+        static GameObject pSentryGrunt, pSentryHeavy, pSurgeTurret;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
 
@@ -796,6 +796,13 @@ namespace VibeGame1.EditorTools
             // the front row stay MELEE (the user's "little pill guys for combat").
             Box("Pad_pshooter_enemy01", new Vector3(-14f, padY, z - 8f), new Vector3(4f, 1f, 4f), mEnemy, root);
             var sSentry = Spawner("Spawn_pshooter_enemy01", new Vector3(-14f, spawnY, z - 8f), pSentryGrunt, false, root);
+            // pshooter_enemy03: a ROW of three surge turrets on the same second row. See turretX below.
+            var sTurrets = new GameObject[turretX.Length];
+            for (int i = 0; i < turretX.Length; i++)
+            {
+                Box("Pad_pshooter_enemy03_" + (i + 1), new Vector3(turretX[i], padY, z - 8f), new Vector3(3f, 1f, 3f), mEnemy, root);
+                sTurrets[i] = Spawner("Spawn_pshooter_enemy03_" + (i + 1), new Vector3(turretX[i], spawnY, z - 8f), pSurgeTurret, false, root);
+            }
 
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
@@ -816,7 +823,24 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_Halberdier", new Vector3(0.75f, FloorTop, switchZ), sHalberdier, "ARGENT HALBERDIER", root);
             Switch("Wake_Legendary_Drillmaster", new Vector3(14f, FloorTop, z - 8f + 3.2f), sDrill, "DRILLMASTER", root);
             Switch("Wake_pshooter_enemy01", new Vector3(-14f, FloorTop, z - 8f + 3.2f), sSentry, "SENTRY", root);
+            for (int i = 0; i < turretX.Length; i++)
+                Switch("Wake_pshooter_enemy03_" + (i + 1), new Vector3(turretX[i], FloorTop, z - 8f + 3.2f),
+                       sTurrets[i], "TURRET " + (i + 1), root);
         }
+
+        /// <summary>
+        /// THE SURGE TURRET ROW (2026-09-06). Three of them, not one, because ONE turret cannot show what
+        /// this enemy is: the whole design is the LADDER a row pays out (x1.12, x1.24, x1.36 on the HUD
+        /// status strip), and a single pad would only ever prove the first rung. In the campaign they live
+        /// on a long descending ramp; the sandbox is flat, so three in a line at 5 m spacing is the nearest
+        /// honest rehearsal — parry, run, parry, run, then stand still and watch the strip walk back down.
+        ///
+        /// <para>The second row (z -26) between the Sentry pad (x -14, edge -12) and the Warden's second-row
+        /// neighbour the Drillmaster (x 14, edge 11.75). x -8, -3 and 2 with 3 m pads leaves 2.5 m clear of
+        /// the Sentry and 8.25 m clear of the Drillmaster, and every one of them sleeps behind its own wake
+        /// switch like every other pad, so the arena is still quiet on load.</para>
+        /// </summary>
+        static readonly float[] turretX = { -8f, -3f, 2f };
 
         /// <summary>
         /// A wake switch: stone post on Default (walkable, bakes) with a small emissive lamp on
@@ -973,7 +997,7 @@ namespace VibeGame1.EditorTools
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
                                               pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
-                                              pSentryGrunt, pSentryHeavy };
+                                              pSentryGrunt, pSentryHeavy, pSurgeTurret };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -988,6 +1012,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_Drillmaster"),
                 LoadEnemyData("pshooter_enemy01"),
                 LoadEnemyData("pshooter_enemy02"),
+                LoadEnemyData("pshooter_enemy03"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1035,6 +1060,7 @@ namespace VibeGame1.EditorTools
             pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
             pSentryGrunt = LoadPrefab("pshooter_enemy01");
             pSentryHeavy = LoadPrefab("pshooter_enemy02");
+            pSurgeTurret = LoadPrefab("pshooter_enemy03");
             pBalloon = LoadPrefab("Balloon");
         }
 

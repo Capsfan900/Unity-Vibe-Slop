@@ -774,6 +774,52 @@ THE SENTRY FLARE (2026-09-06; parkour_enemies)
       stopped being grappleable. A natural expiry is silent; only Consume() bangs (ring + flash + sparks).
       Trail: a 6-point recorded history (ring buffer, no allocation) -- it used to be a 2-point straight
       tangent, which pointed along the current velocity on a parabolic path.
+THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
+  "a small little circle shaped turret that just shoots the player and dies in one hit but boosts the
+   player's speed when they parry" (the user). It lives in a ROW on a long descending ramp: a target, not
+   a duel. Same bolt, same 0.28 s cue lead, same ProjectileShooter as every other span enemy.
+
+  THE BRAIN IS A SUBCLASS.  SurgeTurret : EnemyController  (the BossController precedent; nothing in
+    Enemies/Core changes, and GetComponent<EnemyController>() finds it exactly as it finds the boss).
+    OnParried is the ONLY signal that says "the player perfectly deflected a bolt *I* fired" -- PlayerCombat
+    calls it on AttackInfo.attacker, and Projectile puts the shooter there.
+
+  PlayerCombat.ReceiveAttack → ParryResult.Perfect → attacker.OnParried(postureDamage)
+    → SurgeTurret.OnParried: base first (recoil, posture), then
+       postureDamage <= 0 → RETURN.  That is UltimateAbility line 261's courtesy call, not a parry; the
+         super must not hand out the whole ladder for free.
+       → ParrySurge.Grant(motor, data.parrySurgeStep, parrySurgeMaxStacks, parrySurgeSeconds)
+       → Sfx.Tick at a pitch that RISES with the stack (audio only: no new HUD element)
+    ...and independently, inside Projectile as for any sentry, the deflected bolt turns around, shoves the
+    player along their look (parrySpeedGain 9) and comes home to kill the 1 HP body. The parry IS the kill.
+
+  ParrySurge (on the PLAYER, added at runtime by Grant -- the Player prefab is untouched)
+    the ONLY driver of FirstPersonMotor.SpeedMultiplier (FirstPersonMotor.cs:301), the existing item-speed
+    hook nothing shipped had used. No motor entry point added, no velocity written (hard rule 10), no new
+    resource. StatusStripView already renders it as "SPEED x1.36".
+    stacks = SurgeMath.Grant(stacks, max)          one per deflect, capped
+    SpeedMultiplier = SurgeMath.Multiplier(stacks, step) = 1 + stacks x step
+    Update (TimeScaleController.PlayerDelta, hard rule 1 -- hitstop never freezes the surge or its timer):
+      SurgeMath.DropDue → ONE stack falls every parrySurgeSeconds of not parrying, never all at once.
+    RESTORING 1 -- four covered paths, because a stuck multiplier is the worst bug this feature could have:
+      the ladder walks down to zero on its own; GameEvents.PlayerDied and PlayerRespawned → Clear();
+      OnDisable (a level reload, a teardown, the component going away) → Clear(), unconditionally.
+      It never writes the multiplier at all while it holds no stacks, so it cannot fight a future item.
+
+  SHIPPED NUMBERS (DataFactory, rule 9; pinned by SurgeTurretTests)
+    maxHP 1          one hit from anything kills it. maxPosture 200 -- out of reach on purpose, so it never
+                     staggers and never raises a DEATHBLOW glyph on a body that is already dead.
+    NO SentryBurst   PrefabFactory skips it for this body: a target throws no flare. Five floating grapple
+                     flares down one ramp is clutter, not traversal.
+    bolt             interval 1.1 s (> 2 x cue lead, so two cues never overlap), speed 36 m/s, homing
+                     240 deg/s (it must turn DOWN as well as across at a player descending past it),
+                     band 2.5 .. 36 m, lead 1.0.
+    surge            step 0.12 (+1.32 m/s a parry on groundSpeed 11), maxStacks 5 → ceiling x1.60,
+                     parrySurgeSeconds 2 → the full ladder is gone 10 s after the last parry.
+    body             scale 0.55, #6F7C8A over #A8C4DC x0.9 (under the 1.05 bloom cap). Separates from the
+                     two sentries on shape (a sphere in a hoop -- the only round silhouette), size (half)
+                     and value (mid steel between the ghost's near-white and the Heavy Sentry's near-black).
+
 FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEFORE the motor)
   every frame while playing, not pulling, not executing:
     Target = nearest-to-crosshair Grappleable flare within range 30 m, coneDeg 20, world ray clear
@@ -885,6 +931,9 @@ NEAR-BREAK read   (EnemyPostureBar.LateUpdate + EnemyVisuals.SetPostureRatio)
    Rising edge only (was-not-near-break → is) → AudioManager.Play(Sfx.Tension) once (2026-09-06 audio pass:
    this read was pure visual before — a player not looking at THIS enemy's bar got no warning at all. Not a
    repeating beat: several near-break enemies ticking every ~0.22 s would spam the shared one-shot pool).
+THE SURGE TURRET  (pshooter_enemy03; sandbox pads x -8 / -3 / 2, z -26, a ROW of three) -- SurgeTurret,
+   an EnemyController subclass. rangedOnly, so Chase holds the perch and tracks; 1 HP, unreachable posture,
+   no flare. Its OnParried pays a speed surge through ParrySurge. Full flow above, "THE SURGE TURRET".
 THE DRILLMASTER   (Legendary_Drillmaster; sandbox pad x 14, z -26, SpawnEnemyInFront 9) -- the showcase body:
    every signature on cooldown, a 1.25 s DELAYED overhead in a 0.5 s fight, a feint, an unblockable kick,
    a far-band lunge, flaskPunishChance 1.0, posture 150. Knight silhouette in slate and cold blue.

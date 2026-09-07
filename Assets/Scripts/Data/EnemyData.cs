@@ -103,6 +103,19 @@ namespace VibeGame1
         [Tooltip("Metres per second added along the look on a perfect deflect of a bolt.")]
         public float parrySpeedGain = 6f;
 
+        [Header("Parry surge — pshooter_enemy03 (2026-09-06)")]
+        [Tooltip("How much FirstPersonMotor.SpeedMultiplier one deflected bolt from this enemy is worth. " +
+                 "0 (the default) means this enemy pays no surge at all, which is every enemy but the turret. " +
+                 "Driven by SurgeTurret -> ParrySurge; the multiplier is the existing item-speed hook and the " +
+                 "HUD status strip already shows it. See SurgeMath.")]
+        public float parrySurgeStep;
+        [Tooltip("The ceiling: how many deflects may stack. 1 + step x maxStacks is the fastest the player " +
+                 "can ever be made by this enemy.")]
+        public int parrySurgeMaxStacks;
+        [Tooltip("Seconds of NOT parrying before ONE stack falls off. Stacks are lost one at a time, never " +
+                 "all at once, so a missed turret costs a step rather than the whole ramp.")]
+        public float parrySurgeSeconds = 2f;
+
         [Header("Reward")]
         public int soulValue = 40;
 

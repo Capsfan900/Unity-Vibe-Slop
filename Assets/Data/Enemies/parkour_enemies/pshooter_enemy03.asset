@@ -10,22 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
-  m_Name: Grunt
+  m_Name: pshooter_enemy03
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.EnemyData
-  displayName: Grunt
-  maxHP: 60
-  maxPosture: 60
-  postureRegen: 6
-  postureRegenDelay: 2.5
-  staggerSeconds: 3
-  moveSpeed: 5.6
-  turnSpeed: 400
-  aggroRange: 16
-  attackRange: 2.2
+  displayName: Surge Turret
+  maxHP: 1
+  maxPosture: 200
+  postureRegen: 0
+  postureRegenDelay: 99
+  staggerSeconds: 0.1
+  moveSpeed: 0
+  turnSpeed: 300
+  aggroRange: 36
+  attackRange: 2.5
   attackCooldown: 0.15
   parryRecoilSeconds: 0.42
   aggression: 0.9
-  flaskPunishChance: 0.35
+  flaskPunishChance: 0
   windupTurnMultiplier: 0.32
   stepSpeedMultiplier: 0.38
   stepAcceleration: 8
@@ -38,25 +38,25 @@ MonoBehaviour:
   backStepSpeedMultiplier: 0.3
   strafeSpeedMultiplier: 0.34
   lungeMinDistance: 1.1
-  shootsProjectiles: 0
-  rangedOnly: 0
+  shootsProjectiles: 1
+  rangedOnly: 1
   projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
-  projectileInterval: 1.6
-  projectileSpeed: 40
-  projectileMinRange: 3
-  projectileMaxRange: 32
+  projectileInterval: 1.1
+  projectileSpeed: 36
+  projectileMinRange: 2.5
+  projectileMaxRange: 36
   projectileLead: 1
-  projectileHomingDegPerSec: 180
+  projectileHomingDegPerSec: 240
   parriedProjectileDamage: 30
   parriedProjectilePosture: 40
   parrySpeedGain: 9
-  parrySurgeStep: 0
-  parrySurgeMaxStacks: 0
+  parrySurgeStep: 0.12
+  parrySurgeMaxStacks: 5
   parrySurgeSeconds: 2
-  soulValue: 40
-  bodyColor: {r: 0.22745098, g: 0.2, b: 0.2509804, a: 1}
-  emission: {r: 0.49882355, g: 0.07058824, b: 0.09411766, a: 1.2}
-  scale: 1
+  soulValue: 15
+  bodyColor: {r: 0.43529412, g: 0.4862745, b: 0.5411765, a: 1}
+  emission: {r: 0.59294116, g: 0.6917647, b: 0.7764706, a: 0.9}
+  scale: 0.55
   moveset: {fileID: 11400000, guid: 78cd427c827643142ae64ec09cd63bf9, type: 2}
   combos:
   - hits:

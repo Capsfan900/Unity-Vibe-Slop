@@ -345,6 +345,86 @@ namespace VibeGame1.EditorTools
             sentryHeavy.bodyColor = Hex("#25303F"); sentryHeavy.emission = Hex("#8FB6E0") * 1.0f;
             EditorUtility.SetDirty(sentryHeavy);
 
+            // ---- pshooter_enemy03: THE SURGE TURRET (2026-09-06, the user's ask) -------------------------
+            // "a small little circle shaped turret that just shoots the player and dies in one hit but
+            // boosts the player's speed when they parry."
+            //
+            // It is a target, not a duel: it lives on a long descending ramp, in a row, and the player slides
+            // past parrying as they go. Copied from pshooter_enemy01 so a retune of the sentries' bolt carries
+            // over, then flipped to the target role.
+            var turret = GetOrCreate<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
+            EditorUtility.CopySerialized(sentryGrunt, turret);
+            turret.name = "pshooter_enemy03";
+            turret.displayName = "Surge Turret";
+            turret.shootsProjectiles = true; turret.rangedOnly = true; turret.flaskPunishChance = 0f;
+
+            // ONE HIT, FROM ANYTHING. 1 HP: a swing, a reflected bolt, a wand, a riposte -- every damage
+            // source in the game does at least 1. Not 0 (Health treats a zero-max body as a divide it has
+            // never been asked to do) and not 10 (the dagger's chip on a passing swing would leave it up).
+            turret.maxHP = 1f;
+            // ...and NO posture game. Posture is deliberately out of reach: the largest single parry in the
+            // game is the dev blade's 60 x a 1.5 parryPostureMultiplier = 90, so 200 can never be broken by
+            // one deflect. Without this the turret would stagger and raise a DEATHBLOW glyph for the ~0.3 s
+            // the reflected bolt is in the air -- a duel prompt on a body that is already dead. It also
+            // means no posture break, so SentryBurst's flare never fires; the prefab does not carry one.
+            turret.maxPosture = 200f; turret.postureRegen = 0f; turret.postureRegenDelay = 99f;
+            turret.staggerSeconds = 0.1f;
+            // It never moves. moveSpeed is dead weight on a rangedOnly body (EnemyController.Chase stops the
+            // locomotion outright) but is written small so nothing that reads it draws a walking turret.
+            turret.moveSpeed = 0f; turret.turnSpeed = 300f;
+            // The band. It must be shooting at you from the top of a ramp you are still sliding down, so it
+            // wakes at 36 m (further than the sentries' 32: on a descent you SEE it long before you reach it,
+            // and a turret that only starts firing at 32 m gives you one bolt instead of three) and keeps
+            // firing to 2.5 m so the last one on the row is still parriable as you go past it.
+            turret.aggroRange = 36f; turret.attackRange = 2.5f;
+            turret.projectileMinRange = 2.5f; turret.projectileMaxRange = 36f;
+            // FASTER BEAT than a sentry's 1.6 s. This body has 1 HP and exists for one exchange: the row is
+            // the encounter, so each turret has to put a bolt in front of you inside the ~1 s you are within
+            // its arc at slide speed. 1.1 s. Not 0.7: two bolts overlapping in flight from the same turret
+            // gives two cues 0.28 s apart and the parry stops being one clean read.
+            turret.projectileInterval = 1.1f;
+            // Same bolt, same tell, same cue lead as every other bolt in the game -- deliberately NOT a new
+            // projectile. 36 m/s (the Heavy Sentry's speed rather than the Grunt's 40) because the turret
+            // shoots from further out and the flight must stay readable across the extra 4 m. 240 deg/s of
+            // homing, up from 180, because the player is DESCENDING past it at speed on a slope: the bolt has
+            // to turn down as well as across, or the one parry this body exists for is never offered.
+            turret.projectileSpeed = 36f; turret.projectileLead = 1.0f; turret.projectileHomingDegPerSec = 240f;
+            // A single reflect kills it (1 HP), which is the point: the parry IS the kill. Kept at 30 rather
+            // than lowered to 1 so a stray reflect off a neighbouring sentry still reads the same everywhere.
+            turret.parriedProjectileDamage = 30f; turret.parriedProjectilePosture = 40f;
+            // The deflect impulse itself stays at the sentries' 9 m/s: the punch is a shared feel contract
+            // and this enemy's own reward is the SURGE below, not a bigger shove.
+            turret.parrySpeedGain = 9f;
+
+            // ---- THE SURGE. FirstPersonMotor.SpeedMultiplier, via SurgeTurret -> ParrySurge. -------------
+            // 0.12 per deflect on a groundSpeed of 11 is +1.32 m/s a parry: felt on the very first one, but
+            // not a jolt that throws your landing. Not 0.20 -- one lucky parry would then be worth more than
+            // the four that follow it, and the ramp stops being the reward.
+            turret.parrySurgeStep = 0.12f;
+            // Five stacks, ceiling x1.60 (17.6 m/s). Five so a row reads as a LADDER you are climbing -- five
+            // separate confirmations, five audible steps -- rather than a switch that flips on the second
+            // turret. Not 8 (x1.96): past ~x1.6 the level's jump arcs and the motor's air control stop being
+            // something a human can aim, and the run-out at the bottom of a ramp becomes a coin flip.
+            turret.parrySurgeMaxStacks = 5;
+            // One stack falls every 2 s of not parrying. Not 1.2: the bolt metronome is 1.1 s and the travel
+            // between two turrets on a ramp is a second or two, so a shorter timer would bleed a stack
+            // between two honest parries. Not 4: five stacks would then survive 20 s, long enough to carry
+            // the whole ramp's boost into the next span, and a reward that outlives its span is just a buff.
+            // Full ladder from the top with no further parries: 5 x 2 = 10 s to walk back to x1.00.
+            turret.parrySurgeSeconds = 2f;
+
+            // Cheap: it dies to a touch and it is meant to be taken in rows of five or more.
+            turret.soulValue = 15;
+            // THE READ. It must be unmistakable from pshooter_enemy01 (a tall pale ghost) and 02 (a big dark
+            // pill) at 30 m in a moving frame. It separates on all three axes at once: SHAPE (a small sphere
+            // in a ring -- the only round silhouette among enemies), SIZE (0.55 scale, roughly half the
+            // height of either sentry) and VALUE (mid steel, between the ghost's near-white and the heavy's
+            // near-black). The hue stays cold like every other body: warm means a combat tell or it means
+            // fire (ANIMATION-VFX section 4), and this thing is read WHILE an amber bolt crosses it.
+            turret.bodyColor = Hex("#6F7C8A"); turret.emission = Hex("#A8C4DC") * 0.9f;
+            turret.scale = 0.55f;
+            EditorUtility.SetDirty(turret);
+
             var boss = GetOrCreate<BossData>(EnemyPaths.Data("Boss"));
             boss.displayName = "THE HOLLOW WARDEN";
             boss.maxHP = 380f; boss.maxPosture = 220f; boss.postureRegen = 12f; boss.postureRegenDelay = 3f; boss.staggerSeconds = 4f;
