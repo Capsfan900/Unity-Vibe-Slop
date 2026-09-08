@@ -469,48 +469,71 @@ is the anti-turtle: the one unblockable, so simply holding guard is never a comp
 at 0.62. It does **not** hold the Marionette's beat identity, and that is deliberate — a visible stumble
 after a deflect is the reward here, not a metronome that must not drift.
 
-### The Flurry Brawler — the volume prototype (2026-09-07)
+### The Flurry Brawler — the ladder prototype (2026-09-07, v15 body)
 
 `Legendary_FlurryBrawler`. **A prototype and a sandbox exhibit**, like the other three: a pad at
 x −22 / z −26 (the west end of the second row), a wake switch (`FLURRY BRAWLER`), and in no
 `LevelDefinition` and no `LevelRegistry`. The fourth forge body (`Assets/Enemies/FlurryBrawler.fbx`,
-24 clips), and the first UNARMED one.
+**v15, 32 clips**), and the first UNARMED one.
 
-**Its job in one sentence:** an unarmed brawler that fights in VOLUME — four-beat strings thrown at a
-0.73 s beat, whose only openings are the breath between phrases and the end of the flurry.
+**Its job in one sentence:** an unarmed pressure fighter whose punch-strings come in a LADDER the player
+can hear — two, four, eight — so the reward for holding the beat one rung longer is a punish window one
+rung bigger, and holding the longest rung clean breaks it outright.
 
 **It does not duplicate a roster job.** The Marionette is a metronome you HOLD, the Halberdier answers
 DISTANCE, the Revenant is a body you READ; this one teaches *stay on the beat through a string, and do
-not swing inside it*. Its beat is deliberately **above** the Marionette's 0.69 s floor: 0.732 s cold and
-0.72 s once a deflect streak has pushed the combo gap onto its 0.10 s floor, so the fastest thing this
-enemy can ever throw still clears the parry contract, and the fastest cadence in the game stays the
-Marionette's.
+not swing inside it* — and then keeps making the string longer. Its beat is deliberately **above** the
+Marionette's 0.69 s floor: 0.732 s cold and 0.72 s once a deflect streak has pushed the combo gap onto
+its 0.10 s floor, so the fastest thing this enemy can ever throw still clears the parry contract, and
+the fastest cadence in the game stays the Marionette's.
 
-**The economy.** With the sword (`parryPostureDamage 25`) a deflected jab or cross is 28.75 and a
-deflected FLURRY is 50, so the signature string `jab, cross, jab, FLURRY` is 136.25 of a **160** posture
-bar: hold a whole phrase and one more clean beat breaks it, and nothing less does. 190 HP is low for a
-duellist on purpose — a player who cannot hold the rhythm can block (worth zero posture, so it never
-breaks it) and cash the flurry's 0.86 s effective recovery for damage instead. The unblockable **kick**
-is the price of turtling; the unblockable **shoulder charge** (3.90 m of the clip's own measured travel,
-gated to ≥ 3.6 m) is the price of backing off.
+**The ladder is the design.** Same beat, longer hold, bigger payoff, bigger punish — and all four move
+together, because a rung the player is not paid differently for is a rung they cannot hear.
 
-**Eight attacks, eight clips, every one named on the attack** (`EnemyAttackData.clip`) — the Halberdier's
-rule, because a generated clip is unreachable through the pipeline's canonical mapping. Two of those
-clips carry more punches than blows (`Burst2`, `Burst4`): the extra punches are anticipation and
-follow-through, and the parry rides the cue exactly as it does on the Marionette's whirl.
+| Rung | Attack | Clip | Punches of art | Tell | Deflect | Opening (effective) |
+|---|---|---|---|---|---|---|
+| 1 | `Brawler_OneTwo` | `Burst2` | 2 | 0.50 s | ×1.3 | 0.35 s (the breath floor) |
+| 2 | `Brawler_Flurry` | `Burst4` | 4 | 0.72 s | ×2.0 | 0.86 s |
+| 3 | `Brawler_Barrage` | `Burst8` | 8 | 0.86 s | ×2.6 | **1.10 s** |
 
-**Its travel is measured, never read off the sidecar.** `FlurryBrawler.clips.json` records SOURCE
-motion, and on this body the export factor is not the Halberdier's uniform ~1.3× — the attack and step
-clips measure 1.18–1.24× OVER the sidecar while Walk and Run measure 0.90× UNDER it. Every
-`lungeDistance` is the Hips travel measured on the imported clip (`Tools/measure_forge_fbx.py`) and
-`FlurryBrawlerDataTests.EveryLungeIsTheClipsOwnTravel` holds the two together. `Burst4`'s 0.21 m of
-travel is LATERAL and ships as a lunge of **0**: `PuppetVisuals.CompensateTravel` cancels the pose's XZ
-so the mesh never leaves the capsule that gets hit.
+`Brawler_UppercutLoad` (`UppercutAlt`) is the **announcer** in front of rung 3: 1.05 s of rising arm,
+the longest tell on the body, and it means eight beats are coming.
+
+**The economy: exactly one phrase breaks the bar.** With the sword (`parryPostureDamage 25`, the
+calibration constant) the bar is **160** and `jab, cross, LOAD, BARRAGE` deflected clean is 161.25 — the
+only one of the eighteen authored phrases that reaches it. The older signature `jab, cross, jab, FLURRY`
+is 136.25, a whole clean phrase that is deliberately *not* enough. 190 HP stays low on purpose: block is
+worth zero posture, so a player who cannot hold the beat still has the damage route.
+`FlurryBrawlerDataTests.TheEconomy_ExactlyOnePhraseBreaksTheBar` holds the uniqueness, not just the sum.
+
+**Twelve attacks, twelve clips, every one named on the attack** (`EnemyAttackData.clip`) — the
+Halberdier's rule, because a generated clip is unreachable through the pipeline's canonical mapping.
+Three of those clips carry more punches than blows (`Burst2`, `Burst4`, `Burst8`): the extra punches are
+anticipation and follow-through, and the parry rides the cue exactly as it does on the Marionette's
+whirl. `EnemyController` resolves one impact per attack, so a multi-hit phrase is a CHAIN of attacks —
+never one clip with several active windows, which would need a second damage path (hard rule 3).
+
+**Four clips are refused, and each refusal is arithmetic**
+(`TheClipsThisFightRefuses_AreRefusedByArithmetic`). `Hook`'s contact sits 0.09 s into a 0.54 s clip, so
+even at the 0.45 s wind-up floor it would need to play at ×0.16 against a ×0.4 clamp — the punch would
+land a third of a second before the blow. `Combo2`'s contact is 5.45 s in, over ×3.5 at any legal tell.
+`Combo1` fits the clamp but its fists peak at 5–6 m/s against 22–31 for the jabs, so by the project's
+own rule (*a generated clip is only an attack if its tip moves like one*) it has no strike in it.
+`ShoulderCharge` is refused because v15 deleted the only thing it was for.
+
+**Its travel is measured on the CLIP, and v15 moved it.** `FlurryBrawler.clips.json` records SOURCE
+motion and lies in both directions on this body. In v14 `ShoulderCharge` walked the Hips **3.90 m** and
+was this fight's answer to distance; in v15 it walks none at all, and `Jab1`'s 0.20 m step is gone too.
+So `Brawler_Charge` keeps its name, its job and its unblockable and moves onto **`Slam`** — the only v15
+clip that both travels (1.48 m forward, 0.89 m right, with an airborne window) and carries an
+`OnAttackHit` — shipping **1.55 m**, and the jab's RANGE carries the commit band its lunge used to.
+`FlurryBrawlerDataTests.EveryLungeIsTheClipsOwnTravel` holds the data to the imported clip, and
+`PuppetVisuals.CompensateTravel` cancels the pose's XZ so the mesh never leaves the capsule that gets hit.
 
 **No blade trail.** `EnemyWeaponTrail` sweeps a strip from the `RightHand` bone to `weaponFxPos`, which
 is right for an axe head that really sits there and wrong twice over on a brawler: the marker is a fist,
-and `Jab2`, `Uppercut` and `Burst4` are all anchored on the LEFT wrist. A two-handed trail would be a
-change to `EnemyWeaponTrail` and is a lead call, not something an enemy smuggles in.
+and `Jab2`, `UppercutLeft`, `Clap` and `Slam` are all anchored on the LEFT wrist. A two-handed trail
+would be a change to `EnemyWeaponTrail` and is a lead call, not something an enemy smuggles in.
 
 ### The Argent Halberdier — the reach prototype
 
@@ -902,8 +925,12 @@ column to the right), the loadout (a narrow pane, top-left), and the clock (a pi
 tiles; every menu is a scrim with a glass card on it; every button is a glass pill. Type is one family on
 one scale, values in bone (`#E8E2D6`), labels quieter than values, offsets on an 8 px rhythm. **The UI
 never blooms**: no graphic on the canvas exceeds 1.0 in any channel (`HudGlassTests`), because light on
-screen means "you deflected". BEST RUNS is a fourth pane, top-right and hidden until a board exists; the
-key-bind reference is not on the playing HUD at all — `ControlsInfo` feeds the settings INFO card and the F1
+screen means "you deflected". BEST RUNS was a fourth pane, top-right, and was REMOVED 2026-09-07 at the user's ask
+(a table of times is a menu readout, not something you ask the HUD while looking at the crosshair);
+`Leaderboard` and the ghost delta survive, and `GhostHud` ships `BoardVisible` false so its fallback
+text cannot draw the old loose block in the pane's place. The radio, top-right, is the one piece of
+glass that moves: `M_RadioAura` swirls a spectrum around its rim, capped under 1.0 like everything
+else here. The key-bind reference is not on the playing HUD at all — `ControlsInfo` feeds the settings INFO card and the F1
 menu. Weapon name in bone; teal is left to the wand alone so the accent means one
 thing. The fluid bars and the Pyre fire are styling passes applied afterwards through
 `Editor/HudExtensions.cs`, which find `HealthBar` / `StaminaBar` / `PyreBar` by name.

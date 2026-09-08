@@ -69,7 +69,7 @@ namespace VibeGame1.Tests
                 Assert.AreNotEqual("RadioPane", go.name,
                     "RadioView toggles the radio pane every frame from LevelRadio.HasPlaylist; a second writer fights it");
                 Assert.AreNotEqual("BestRunsPane", go.name,
-                    "GhostHud toggles BEST RUNS from the leaderboard; a second writer fights it");
+                    "the BEST RUNS pane was removed on 2026-09-07; nothing may reference it again");
                 Assert.AreNotEqual("Crosshair", go.name, "the level editor AIMS with the crosshair");
                 Assert.AreNotEqual("PromptText", go.name, "the level editor writes its PLAYING banner to the prompt line");
                 Assert.AreNotEqual("ScreenFlash", go.name, "the flash is a full-screen overlay, not a readout");

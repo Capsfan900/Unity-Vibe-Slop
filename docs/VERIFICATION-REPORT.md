@@ -10,6 +10,45 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Longer opening, HUD pass, flourish, brawler v15 — 2026-09-07
+
+- **Quick EditMode: 785/785**, zero failures/skips, 11.2 s; 138 slow `LevelLines` tests excluded as
+  intended. `TestResults/EditMode-20260908-192039.xml`.
+- **Full EditMode: 923/923**, zero failures/skips, 212.7 s,
+  `TestResults/EditMode-20260908-192436.xml`. This is the post-fix rerun of the opening-turret
+  `Vector3` distance-tolerance assertion that left the previous run at 921/922.
+- **Full FeatureTests: 808/808**, zero failures/skips, 61.1 s, fresh unpaused `Level_01` session with
+  `GameManager.I != null` and `Time.timeScale == 1` verified before the run.
+- **Health Check: 0 errors**, 1836 existing warnings.
+- **Live opening probe on the new 144 m hill: PASS.** Five distinct deflects, all on the slope, peak
+  multiplier **1.60**, run-out reached. Contacts at progress 16.85 / 33.85 / 55.01 / 78.48 / 98.56 of
+  144; cue-to-contact 0.283 / 0.307 / 0.300 / 0.303 / 0.384 s. The slide sustained across 144 m, which
+  was the authoring agent's stated most-likely failure. `TestResults/long-opening/opening-144m.txt`.
+- Brawler v15: 32 clips split, data written, prefab rebuilt with animator, 18 moveset entries, sandbox
+  rebuilt. `MiniBossFactory` logged the manifest fallback for every generated clip
+  (`nothing skinned to RightHand`), confirming `Hook`'s 0.16 anchor and therefore its refusal.
+
+Generators rerun on 2026-09-08: materials, data, all prefabs, Forge clip split, mini-bosses, HUD,
+Sandbox/NavMesh, Level_01 authoring and canonical build/NavMesh, and Main Menu. Automated verification
+does not establish the feel of the Brawler ladder, the flourish/rebind interaction, HUD readability, or
+the solar crossing transition; those still require a human playtest.
+
+**An unexplained speed reading, recorded rather than resolved.** The probe reports
+`maxSpeed=36.50` against the shipped `FirstPersonMotor.maxHorizontalSpeed = 27.5`, whose own comment
+says "Nothing above is designed; nothing above may survive a bug either". A live sampler confirmed
+**36.50 m/s with `IsDashing` false on every frame** (0 dash frames), and the clamp at
+`FirstPersonMotor.cs:1284` is unconditional except for that dash test and runs immediately before
+`vel.x/vel.z` are written. `HorizontalSpeed` reads that same `vel`.
+
+The most likely explanation is a MEASUREMENT artifact, not a live overspeed: both runs recorded a
+**worst frame of ~0.97-0.99 s** (editor stalls while the bridge was polled), and the sampler runs on
+`EditorApplication.update`, which can fire between an `AddImpulse` (the probe's entry impulse, and each
+parry's impulse) and the next movement step that would clamp it. That is a transient read of an
+unclamped `vel`, not a sustained speed. **This is not proven.** It is not fixed either: the motor is a
+Fable system and retuning it needs the user's say-so. Anyone relying on the probe's absolute speed
+figures should treat them as suspect until a run without editor stalls is taken.
+
+
 ### Crest atmosphere and turret reliability — 2026-09-07
 
 Saved opening: 120 m run, 30 m drop, 14 m width, spawn (0,30.3,-139). The five existing turrets

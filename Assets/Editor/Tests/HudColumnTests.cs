@@ -55,23 +55,48 @@ namespace VibeGame1.Tests
 
         static Transform Find(GameObject root, string name) { return Find(root.transform, name); }
 
-        // ---- 1. one column: the radio, then BEST RUNS under it ---------------------------------------
+        // ---- 1. the corner column, after BEST RUNS was removed (2026-09-07) --------------------------
 
         [Test]
-        public void TheColumnStacksTheRadioThenBestRuns_WithOneGapBetweenThem()
+        public void TheHudShipsNoBestRunsPaneAndNoBestRunsText()
         {
-            Assert.AreEqual(-32f, HudBuilder.BestRunsX, 0.001f, "BEST RUNS left the corner column; it must share the radio's right edge");
-            Assert.AreEqual(-32f - HudBuilder.RadioHeight - HudBuilder.ColumnGap, HudBuilder.BestRunsTop, 0.001f,
-                "BEST RUNS does not start one gap under the radio's lower edge");
+            // The user's ask, 2026-09-07: "remove the best runs tab from the in game UI." A leaderboard
+            // is a menu readout. Both draw paths must be silent - this is the HUD one; GhostHud's own
+            // canvas is covered by TheGhostBoardShipsHidden below.
+            var hud = Hud();
+            foreach (var name in new[] { "BestRunsPane", "BestRunsTitle", "BestRunsText" })
+                Assert.IsNull(Find(hud, name), name + " is still on HUD.prefab - re-run VibeGame1/5. Build HUD");
+
+            foreach (var t in hud.GetComponentsInChildren<TMP_Text>(true))
+                Assert.IsFalse(t.text != null && t.text.ToUpperInvariant().Contains("BEST RUNS"),
+                    t.name + " still reads BEST RUNS");
         }
 
         [Test]
-        public void CollapsingBestRunsKeepsTheYTheHintAndTheEditorPanelWereTunedTo()
+        public void TheGhostBoardShipsHidden_SoTheFallbackTableNeverDrawsInThePanesPlace()
         {
-            // The old layout put the FULL table at y -32 and everything below hung off its bottom, -272.
-            // Moving it under the radio only fits because it ships collapsed: 116 (radio) + 16 (gap) +
-            // 108 (collapsed) lands on exactly the same lower edge, so the hint line and the 700-tall
-            // level-editor panel keep the y they were tuned to and the panel still ends above the canvas.
+            // GhostHud builds its own canvas and used to draw "<b>BEST RUNS</b>" plus the table whenever
+            // the HUD carried no pane. Removing the pane alone would have REVERTED the UI to that block,
+            // so the board ships off; GhostRacing's "Ghost/Toggle Leaderboard Panel" still turns it on.
+            var go = new GameObject("GhostHudDefaults");
+            try
+            {
+                var gh = go.AddComponent<GhostHud>();   // edit mode: no Awake, so this is the shipped default
+                Assert.IsFalse(gh.BoardVisible, "GhostHud.BoardVisible ships true - the loose BEST RUNS block is back on screen");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void TheColumnAnchorKeepsTheYTheHintAndTheEditorPanelWereTunedTo()
+        {
+            // BestRunsBottom outlived the pane it was named for: the hint line (-12) and the 700-tall
+            // F10 editor panel (-48) are still positioned off it, so it must stay at -272. The heights
+            // it is composed from are no longer a pane's size, only this anchor's arithmetic.
+            Assert.AreEqual(-32f, HudBuilder.BestRunsX, 0.001f, "the corner column left the radio's right edge");
+            Assert.AreEqual(-32f - HudBuilder.RadioHeight - HudBuilder.ColumnGap, HudBuilder.BestRunsTop, 0.001f,
+                "the column anchor no longer starts one gap under the radio's lower edge");
+            Assert.AreEqual(HudBuilder.BestRunsChrome + 2f * HudBuilder.BestRunsRowHeight, HudBuilder.BestRunsCollapsedHeight, 0.001f);
             Assert.AreEqual(-272f, HudBuilder.BestRunsBottom, 0.001f,
                 "BestRunsBottom moved; the hint (-12) and the level-editor panel (-48, 700 tall) hang off it");
             float editorBottom = HudBuilder.BestRunsBottom - 48f - 700f;
@@ -80,94 +105,37 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheCollapsedPaneIsATitleAPersonalBestAndAMoreLine_AndTheFullTableIsEightRows()
+        public void OnlyTheFlowMeterFillsTheGapUnderTheRadio()
         {
-            Assert.AreEqual(HudBuilder.BestRunsChrome + 2f * HudBuilder.BestRunsRowHeight, HudBuilder.BestRunsCollapsedHeight, 0.001f,
-                "collapsed is the personal best plus the '+N MORE' line — two rows, no more");
-            Assert.AreEqual(HudBuilder.BestRunsChrome + Leaderboard.DisplayCount * HudBuilder.BestRunsRowHeight, HudBuilder.BestRunsHeight, 0.001f,
-                "the expanded glass no longer holds one row per Leaderboard.DisplayCount");
-            Assert.Less(HudBuilder.BestRunsCollapsedHeight, HudBuilder.BestRunsHeight, "collapsed is not smaller than expanded");
-            Assert.AreEqual(HudBuilder.BestRunsTop - HudBuilder.BestRunsHeight, HudBuilder.BestRunsExpandedBottom, 0.001f);
-            // Expanding may cover the hint band and the F10-only editor panel for a few seconds, but it
-            // must never reach anything that is always on screen further down the frame.
-            Assert.Greater(HudBuilder.BestRunsExpandedBottom, -CanvasH * 0.5f,
-                "expanded, BEST RUNS reaches into the lower half of the screen — that is the fight, not the furniture");
+            // The band the removed board left is now the FLOW METER's, at the user's ask (2026-09-07).
+            // Exactly one pane may live there, it must fit the band to the pixel so the hint line and the
+            // F10 panel keep their tuned y, and nothing else may drift in beside it.
+            var hud = Hud();
+            var flow = Find(hud, "FlowMeter");
+            if (flow == null) Assert.Ignore("HUD.prefab predates the flow meter — run VibeGame1/5. Build HUD");
+            var fr = CanvasRect(flow.GetComponent<RectTransform>());
+            Assert.AreEqual(HudBuilder.BestRunsTop, fr.yMax, 0.01f, "the flow meter's top left the band");
+            Assert.AreEqual(HudBuilder.BestRunsBottom, fr.yMin, 0.01f,
+                "the flow meter's bottom is not BestRunsBottom; the hint line would collide with it");
+            Assert.AreEqual(HudBuilder.FlowWidth, fr.width, 0.01f);
+            AssertNothingElseInTheBand(hud);
         }
 
-        [Test]
-        public void ThePaneShipsCollapsed_UnderTheRadio_SharingItsColumn()
+        static void AssertNothingElseInTheBand(GameObject hud)
         {
-            var hud = Hud();
-            var best = Find(hud, "BestRunsPane");
-            if (best == null) Assert.Ignore("no BestRunsPane on HUD.prefab — run VibeGame1/5. Build HUD");
             var radio = Find(hud, "RadioPane");
-            var b = CanvasRect(best.GetComponent<RectTransform>());
+            if (radio == null) Assert.Ignore("no RadioPane - run VibeGame1/5. Build HUD");
             var r = CanvasRect(radio.GetComponent<RectTransform>());
+            var band = new Rect(r.x, HudBuilder.BestRunsBottom, r.width, HudBuilder.BestRunsCollapsedHeight);
 
-            Assert.AreEqual(r.xMax, b.xMax, 0.01f, "BEST RUNS and the radio do not share a right edge; that is two columns, not one");
-            Assert.AreEqual(r.width, b.width, 0.01f, "BEST RUNS is not the radio's width; the column reads as two panes of different families");
-            Assert.LessOrEqual(b.yMax, r.yMin + 0.01f, "BEST RUNS is not UNDER the radio " + b + " vs " + r);
-            Assert.AreEqual(HudBuilder.ColumnGap, r.yMin - b.yMax, 0.01f, "the gap between the radio and BEST RUNS is not the column gap");
-            Assert.AreEqual(HudBuilder.BestRunsCollapsedHeight, b.height, 0.01f,
-                "the pane does not ship COLLAPSED — a table of eight times is a menu, not a HUD readout");
-            Assert.IsFalse(best.gameObject.activeSelf, "the pane must still ship HIDDEN; GhostHud shows it once there is a board");
-        }
-
-        [Test]
-        public void TheBoardTextStretchesWithTheGlass_SoAShrunkPaneCannotSpill()
-        {
-            var hud = Hud();
-            var text = Find(hud, "BestRunsText");
-            if (text == null) Assert.Ignore("no BestRunsText — run VibeGame1/5. Build HUD");
-            var rt = text.GetComponent<RectTransform>();
-            Assert.AreEqual(0f, rt.anchorMin.y, 0.001f, "the board text is a FIXED rect; a 108 px pane would still draw eight rows past its bottom");
-            Assert.AreEqual(1f, rt.anchorMax.y, 0.001f, "the board text does not follow the pane's height");
-            Assert.AreEqual(TextOverflowModes.Truncate, text.GetComponent<TMP_Text>().overflowMode,
-                "the board must never spill the glass, whatever the backend sends");
-        }
-
-        [Test]
-        public void TheRuntimeGetsTheMetricsItResizesTheGlassWith()
-        {
-            var hud = Hud();
-            var hc = hud.GetComponent<HUDController>();
-            Assert.IsNotNull(hc);
-            // Hard rule 9: shipped on the prefab, because HUDController cannot read an editor-assembly const.
-            Assert.AreEqual(HudBuilder.BestRunsChrome, hc.bestRunsChrome, 0.001f, "bestRunsChrome is not the builder's chrome");
-            Assert.AreEqual(HudBuilder.BestRunsRowHeight, hc.bestRunsRowHeight, 0.001f, "bestRunsRowHeight drifted from the builder");
-            Assert.AreEqual(Leaderboard.DisplayCount, hc.bestRunsMaxRows, "bestRunsMaxRows is not Leaderboard.DisplayCount");
-            Assert.That(hc.bestRunsExpandSeconds, Is.InRange(2f, 8f),
-                "the board settles back after " + hc.bestRunsExpandSeconds + "s — under 2 it is a flicker, over 8 it is not collapsed by default");
-            // The two heights the runtime can reach are exactly the two the layout was proven against.
-            Assert.AreEqual(HudBuilder.BestRunsCollapsedHeight, hc.BestRunsPaneHeight(2), 0.001f);
-            Assert.AreEqual(HudBuilder.BestRunsHeight, hc.BestRunsPaneHeight(Leaderboard.DisplayCount), 0.001f);
-        }
-
-        [Test]
-        public void TheRowCountIsReadFromTheTextTheBoardSent()
-        {
-            // The pane is sized from the data it holds: a one-run board is a one-row pane.
-            Assert.AreEqual(0, HUDController.LineCount(""));
-            Assert.AreEqual(1, HUDController.LineCount("<b>1. 00:12.34</b>"));
-            Assert.AreEqual(2, HUDController.LineCount("<b>1. 00:12.34</b>\n<alpha=#66>+7 MORE"));
-            Assert.AreEqual(8, HUDController.LineCount("a\nb\nc\nd\ne\nf\ng\nh"));
-        }
-
-        [Test]
-        public void ExpandedTheBoardStillClearsEverythingThatIsAlwaysOnScreen()
-        {
-            var hud = Hud();
-            var best = Find(hud, "BestRunsPane");
-            if (best == null) Assert.Ignore("no BestRunsPane on HUD.prefab — run VibeGame1/5. Build HUD");
-            var b = CanvasRect(best.GetComponent<RectTransform>());
-            var expanded = new Rect(b.x, b.yMax - HudBuilder.BestRunsHeight, b.width, HudBuilder.BestRunsHeight);
-
-            foreach (var other in new[] { "RadioPane", "Clock", "Vitals", "Loadout" })
+            foreach (Transform tr in hud.transform)
             {
-                var tr = hud.transform.Find(other);
-                if (tr == null) continue;
-                var r = CanvasRect(tr.GetComponent<RectTransform>());
-                Assert.IsFalse(expanded.Overlaps(r), "the EXPANDED board " + expanded + " covers " + other + " " + r);
+                if (tr.name == "LevelEditorPanel") continue;   // F10 only, and it starts below the band
+                if (tr.name == "FlowMeter") continue;          // the band is its, and the test above pins it
+                var rect = tr.GetComponent<RectTransform>();
+                if (rect == null) continue;
+                Assert.IsFalse(band.Overlaps(CanvasRect(rect)),
+                    tr.name + " now sits in the band the removed board left under the radio");
             }
         }
 

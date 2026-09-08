@@ -108,13 +108,68 @@ namespace VibeGame1.EditorTools
             // enters the old obelisk's slab (x -5.1..-3.9) at z 49.5, y 4.2 and is BLOCKED. Moved to
             // x -6.4 the line is clear, and the post becomes the marker for the causeway's new west edge.
             new Reshape("T1_Obelisk_W", new Vector3(-6.4f, 3.5f, 50f), new Vector3(1.2f, 7f, 1.2f),
-                        "it stood exactly in the west perch's bolt line onto the widened causeway"),
+                        "it stood exactly in the west perch's bolt line onto the widened causeway. Re-measured " +
+                        "2026-09-07 against the perch's new home at (-11.5, 3.5, 53): both bolt lines pass x -8.8 " +
+                        "or further west at this slab's z, so x -6.4 stays clear and the post keeps marking the " +
+                        "causeway's west edge"),
             // The one dedicated slide line in the level was 2.5 x 6 m. A slide costs stamina now, so it has
             // to pay: 4 x 7 m, widened EAST (min.x stays -1.25, so the 0.25 m seam with T1_Stone_3 does not
             // close) and lengthened NORTH. The south edge does NOT move: the 8.5 m entry gap from
             // T1_Stone_1 is what gates this line to a slide-jump, and a base jump clears ~7.3 m.
             new Reshape("T1_Fast_1", new Vector3(0.75f, 0f, 28.5f), new Vector3(4f, 1f, 7f),
                         "6 m of water for an 8.5 m committed entry was a bad trade; 7 m of it, 4 m wide, is a line"),
+
+            // ================================================================================
+            // ---- T1: THE OPENING BREATHES (2026-09-07, the user's ask: "more runway before the
+            // first enemy so you can have more time to parry, and space that ramp and all the
+            // objects a tad bit more").
+            //
+            // WHAT WAS ACTUALLY WRONG, measured rather than felt. The parry WINDOW is not a level
+            // number: Projectile.CueLead is a flat 0.28 s everywhere and ProjectileShooter.CueMargin
+            // holds a near bolt's flight at 0.44 s, so no amount of geometry buys a longer cue. What
+            // geometry owns is WHERE the cue lands and how long the sentry has been in view first.
+            // T1_Perch_W at (-7.5, 3.5, 44) has a muzzle at y 5.4, and EnemyController.WakeRange for a
+            // shooter is max(aggroRange, projectileMaxRange) = 32 m. Solving 32 m from that muzzle down
+            // the route centreline puts the wake at z 13.1 - on T1_Stone_1, BEFORE the level's first
+            // ramp. Add the shipped 0.7 s arm-up (projectileAcquireDelay) at ~11 m/s and the first bolt
+            // launches near z 21, flies 25 m in 0.63 s, and arrives at z ~27.5: the gap between
+            // T1_Stone_2 and T1_Stone_3 / T1_Fast_1. The level's first parry cue was landing on the
+            // player MID-AIR, over the one hop in T1 that is a real choice. The budget was never short;
+            // it was already spent.
+            //
+            // THE FIX IS TWO SHAPES, not a timing change (nothing in EnemyData, Projectile or
+            // PlayerStats is touched by this pass):
+            //   1. the perch moves out and up-route to (-11.5, 3.5, 53) - see Perches below. The wake
+            //      solves to z ~23.3, so the whole first ramp is run before the sentry is even awake
+            //      (+10.2 m of runway), and the first bolt now arrives around z 38, mid-deck on
+            //      T1_Stone_4, with both feet down and the causeway dead ahead.
+            //   2. the four stones and the first ramp get their "tad" of space here. Every entry is
+            //      ABSOLUTE and grows the deck ALONG THE AXIS THE GAP IS NOT MEASURED ON, so not one
+            //      hop distance in the chain changes and every hop gains launch points:
+            //          Stone_1  5 x 5   -> 7 x 6.4, grown SOUTH and sideways. Its north edge stays at
+            //                   z 16.5 exactly, so the ramp overlap (0.2 m) and the 8.5 m slide-jump
+            //                   gate onto T1_Fast_1 are bit-identical; the 3.5 m step off Ground_Start
+            //                   becomes 2.1 m and the opening reads as a plaza instead of two islands.
+            //          Stone_2  4 x 4   -> 5.5 x 4, grown WEST only. max.x stays 5.5, so it still
+            //                   clears T1_Wall_Start's run line (TheOpeningLineSkipsTheFourStones).
+            //          Stone_3  4 x 4   -> 5 x 4, grown WEST only. min.x -6.5; max.x stays -1.5 so the
+            //                   0.25 m seam with T1_Fast_1 does not close, and T1_Ramp_Stone34's
+            //                   yawed base (x -4.4..-1.6) stops hanging over the west lip.
+            //          Stone_4  5 x 6   -> 6 x 6, grown WEST only. max.x 2.5 still stands off
+            //                   T1_Wall_Causeway's run line (x 3.0) by 0.5 m.
+            //      Widening Stone_1 to 7 and Stone_2 west to x 0 is also what lets T1_Ramp_Stone12 go
+            //      3.0 -> 3.5 m wide and become FULLY SUPPORTED at both ends - the second ramp in the
+            //      level that is, and the first thing the player runs up.
+            new Reshape("T1_Stone_1", new Vector3(0f, -0.5f, 13.3f), new Vector3(7f, 1f, 6.4f),
+                        "the first deck grows SOUTH (north edge pinned at z 16.5): 3.9 m more run-up into the level's " +
+                        "first ramp, a 2.1 m step off Ground_Start instead of 3.5, and the 8.5 m Fast_1 gate untouched"),
+            new Reshape("T1_Stone_2", new Vector3(2.75f, 0f, 22f), new Vector3(5.5f, 1f, 4f),
+                        "grown WEST to x 0 so the widened first ramp lands fully on it; max.x 5.5 is held for the wall-run line"),
+            new Reshape("T1_Stone_3", new Vector3(-4f, 0.5f, 30f), new Vector3(5f, 1f, 4f),
+                        "grown WEST to x -6.5; the 0.25 m seam with T1_Fast_1 at x -1.25 is held, and T1_Ramp_Stone34 stops overhanging"),
+            new Reshape("T1_Stone_4", new Vector3(-0.5f, 1f, 38f), new Vector3(6f, 1f, 6f),
+                        "grown WEST with the causeway it feeds; this is where the first bolt now arrives, so it is the " +
+                        "one deck in the chain that has to be stood on rather than crossed"),
 
             // ---- T2: the spiral's eleven identical 4 m squares.
             // Every pad grows to ~4.8 x 5. The point is not the area, it is what it does to the GAPS,
@@ -362,7 +417,20 @@ namespace VibeGame1.EditorTools
             // east one sits NORTH of T1_Wall_Causeway's end (z 58) and covers the wall-run landing and the
             // hop onto Stone_5 - a line from the east to the causeway's centre crosses the wall (x 3.4-4.4,
             // top 6) and is blocked, measured by the arc report 2026-09-05.
-            new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-7.5f, 3.5f, 44f), 90f, "T1_Causeway,T1_Stone_4"),
+            // MOVED 2026-09-07 from (-7.5, 3.5, 44), which was 1 m north of T1_Ramp_Causeway's top edge:
+            // you crested the ramp and the sentry was beside you. Its 32 m wake radius reached back to
+            // z 13.1, so it armed before the level's FIRST ramp and its opening bolt landed in the air
+            // over the Stone_2 -> Stone_3 choice (the arithmetic is under the T1 opening block in
+            // Reshapes). From (-11.5, 3.5, 53) the same radius solves to z ~23.3: the first ramp is run
+            // unopposed, the arm-up burns on the approach, and the first bolt arrives around z 38 - mid
+            // deck on the widened T1_Stone_4, feet down, running straight at the causeway, so the parry
+            // boost throws the player up the line they are already on (perch rule 4).
+            // x -11.5 rather than -8: at z 53 the perch is broadside to the causeway, and the nearest
+            // causeway chest point must stay OUTSIDE projectileMinRange 6 m or the sentry goes quiet
+            // exactly where it is meant to be firing. From here it is 7.3 m - in band the whole way.
+            // Both claimed decks stay in band with a clear line: T1_Stone_4 at 25.0 m and T1_Causeway at
+            // 10.7 m, and both lines pass west of T1_Obelisk_W (x -7.0..-5.8) and of T1_Fallen_Obelisk.
+            new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-11.5f, 3.5f, 53f), 90f, "T1_Causeway,T1_Stone_4"),
             // (16, 60): the projectile band's near edge moved 6 -> 10 m on 2026-09-05 (a bolt must be cued 0.28 s out
             // at 32 m/s), and the old (11, 63) perch was 6.8 m from T1_Wall_Landing. From here the landing is
             // 12.4 m and Stone_5 19 m, both lines clear of the east obelisk (z 66.5) and the causeway wall (z <= 58).
@@ -450,7 +518,11 @@ namespace VibeGame1.EditorTools
             // ramp runs straight up that band: base 0.2 m inside Stone_1's lip, top 0.2 m onto Stone_2.
             // 0.5 m over 3.5 m of gap is 7.3 deg and there is no way to make it steeper - a ramp that
             // stopped short would be a jump with a shorter run-up, not a launch (see above).
-            new Ramp("T1_Ramp_Stone12", new Vector3(2.0f, 0.0f, 16.3f), 3.0f, 3.90f, 0.5f, 0f,
+            // WIDENED 2026-09-07, 3.0 -> 3.5 m, recentred x 2.0 -> 1.75. With Stone_1 at x -3.5..3.5 and
+            // Stone_2 grown west to x 0..5.5 the shared band is x 0..3.5, so this ramp is now FULLY
+            // SUPPORTED at both ends - the only one besides T1_Ramp_Causeway. The run stays 3.90 m
+            // because the deck gap it spans is unchanged by design: the extra room went into the decks.
+            new Ramp("T1_Ramp_Stone12", new Vector3(1.75f, 0.0f, 16.3f), 3.5f, 3.90f, 0.5f, 0f,
                      "the opening's second hop becomes a run: you leave the start pad on a jump (the verb the " +
                      "level teaches first) and then do not touch the air again until the one hop that matters"),
             // Stone_3 (top 1.0) -> Stone_4 (top 1.5). Yawed 18 deg so the ramp leans back east with the
@@ -718,44 +790,104 @@ namespace VibeGame1.EditorTools
             def.killZone.size = new Vector3(200f, 2f, 500f);
         }
 
-        /// <summary>A separate downhill opening before Ground_Start; the complete original route follows it.</summary>
+        /// <summary>
+        /// A separate downhill opening before Ground_Start; the complete original route follows it.
+        ///
+        /// EVERYTHING HERE IS DERIVED FROM FOUR NUMBERS (OpeningRun / OpeningGrade / OpeningBottomZ /
+        /// OpeningSeam) and a progress coordinate measured DOWN THE SLOPE FROM ITS TOP, because that is
+        /// the coordinate the encounter is actually authored in: the volley's progressOrigin sits on the
+        /// ramp's top edge, so a gate value and a perch value are the same kind of number and the whole
+        /// ladder moves as one when the hill's length changes.
+        ///
+        /// 2026-09-07 rework, from play. Two reports: "the ramp needs to be longer at the top", and
+        /// "the turret is not aggroing soon enough (the first one on the left)".
+        ///  * The hill is 120 m -> 144 m of run at the SAME 1:4 grade. The bottom is pinned at
+        ///    z -15.8 / y 0 (T0_RunOut and then Ground_Start follow it), so the extra 24 m appears at the
+        ///    top: the crest rises y 30 -> y 36 and moves z -139.8 -> -165.6.
+        ///  * progressOrigin moves WITH the ramp's top edge. This is the load-bearing part. If the origin
+        ///    had stayed at z -135.8 the new 24 m would be pure run-up, the player would cross gate 0 at
+        ///    ~21 m/s instead of ~13, and the first bolt's flight would fall from 0.31 s to 0.33 s while
+        ///    arriving at 22 m/s - the OPPOSITE of what was asked for. With the origin on the lip, gate 0
+        ///    is crossed at the slowest moment the player will ever have on this hill, exactly as before.
+        ///  * The first perch moves from progress 22 to progress 30. That is the whole "aggro" fix, and it
+        ///    is placement, not tuning. Every other beat in the ladder opens 26-32 m before its perch;
+        ///    beat 1 alone opened at 22, so its bolt flew 0.31 s against 0.45-0.65 s for the rest. At 30 it
+        ///    flies ~0.46 s and still contacts at ~15 m/s. In WORLD space the perch also climbs 17 m up the
+        ///    hill (z -113.8 -> -129.8): it is now the first landmark on the slope, lit and tracking from
+        ///    the crest, instead of a shape 25 m ahead and nearly beside the lane.
+        ///  * memberProgressGates[0] IS 0 AND STAYS 0. It was raised to 14 earlier the same day to "buy
+        ///    runway"; the user reported the sliding parry rhythm broke. A gate is a FLOOR on where a beat
+        ///    may open, not a schedule - raising it deletes the first beat's approach and pushes the whole
+        ///    sequential ladder later into the slide. Runway is bought by moving GEOMETRY, which is what
+        ///    this pass does. Gate 1 moves 16 -> 18 only to follow beat 1's contact point 2 m down the
+        ///    hill, so the pause between contact 1 and launch 2 stays at the shipped ~0.14 s.
+        ///  * Perches 2-5 keep their progress (47 / 71 / 96 / 113) and therefore their arrival speeds and
+        ///    contact spacing exactly; they simply sit 24 m further up the hill in world space. The 47 m
+        ///    of empty slope below the last contact is the pass's other deliberate shape: the exhale, where
+        ///    a five-stack 1.60x surge is finally FELT before the run-out hands the player to Ground_Start.
+        /// </summary>
         public static void ApplyOpeningDescent(LevelDefinition def)
         {
-            // A broad crest gives room to orient before committing. The 1:4 grade now runs for 120 m,
-            // long enough for all five parry beats to live on the descent instead of crowding Ground_Start.
-            // Both slope ends overlap their decks by 0.2 m; the run-out still meets Ground_Start at y 0.
+            // The four numbers. The grade is 1:4 and the bottom is pinned; changing OpeningRun alone
+            // lengthens the hill upward and carries the crest, the start, the ladder and the kill bounds.
+            const float OpeningRun = 144f;
+            const float OpeningGrade = 0.25f;
+            const float OpeningBottomZ = -15.8f;
+            const float OpeningSeam = 0.2f;      // deck/ramp overlap at both ends of the slope
+            const float LaneWidth = 14f;
+
+            float topZ = OpeningBottomZ - OpeningRun;      // -159.8
+            float topY = OpeningRun * OpeningGrade;        // 36
+            // A point at <paramref name="progress"/> metres down the slope, offset sideways and upward
+            // from the walking surface. Every piece below is placed with this, so the hill's length is
+            // the only thing that has to change to move all of it.
+            Vector3 slope(float progress, float x, float above)
+            {
+                return new Vector3(x, topY - OpeningGrade * progress + above, topZ + progress);
+            }
+
+            // The crest is a threshold, not a room: 12 m deep so the drop is a decision rather than a
+            // stumble, 14 m wide to match the lane exactly (a deck wider than its ramp is a lip over
+            // nothing at the seam). From here the eye runs 148 m to the run-out.
             var platforms = new List<PlatformDef>(def.platforms);
             platforms.RemoveAll(p => p.name == "T0_Entry" || p.name == "T0_RunOut");
-            platforms.Add(new PlatformDef { name = "T0_Entry", center = new Vector3(0f, 29.5f, -139.8f),
-                size = new Vector3(14f, 1f, 8.4f), materialKey = "Platform", trim = true,
+            const float EntryDepth = 12f;
+            platforms.Add(new PlatformDef { name = "T0_Entry",
+                center = new Vector3(0f, topY - 0.5f, topZ + OpeningSeam - EntryDepth * 0.5f),
+                size = new Vector3(LaneWidth, 1f, EntryDepth), materialKey = "Platform", trim = true,
                 trimMaterialKey = "NeonCyan" });
-            platforms.Add(new PlatformDef { name = "T0_RunOut", center = new Vector3(0f, -0.5f, -11.9f),
-                size = new Vector3(14f, 1f, 8.2f), materialKey = "Platform", trim = true,
+            platforms.Add(new PlatformDef { name = "T0_RunOut",
+                center = new Vector3(0f, -0.5f, OpeningBottomZ - OpeningSeam + 8.2f * 0.5f),
+                size = new Vector3(LaneWidth, 1f, 8.2f), materialKey = "Platform", trim = true,
                 trimMaterialKey = "NeonCyan" });
             def.platforms = platforms.ToArray();
 
             var ramps = new List<RampDef>(def.ramps);
             ramps.RemoveAll(r => r.name == "T0_Ramp_Descent");
-            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, 30f, -135.8f),
-                width = 14f, run = 120f, rise = -30f, thickness = RampThickness, materialKey = "Stone" });
+            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, topY, topZ),
+                width = LaneWidth, run = OpeningRun, rise = -OpeningRun * OpeningGrade,
+                thickness = RampThickness, materialKey = "Stone" });
             def.ramps = ramps.ToArray();
 
             // Five existing surge turrets punctuate the whole hill: LEFT, RIGHT, LEFT, then two overhead.
-            // The lower pads alternate beyond the 14 m slide lane. The last pair share one connected open
-            // Z-shaped dais whose offset decks leave both downward shot lines clear.
+            // The lower pads alternate 0.2 m beyond the 14 m slide lane, tops flush with the slope so each
+            // reads as a widening of the lane rather than an object in it. The last pair share one
+            // connected open Z-shaped dais whose offset decks leave both downward shot lines clear.
             var spawns = new List<SpawnDef>(def.spawns);
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_"));
             platforms.RemoveAll(p => p.name.StartsWith("T0_TurretPad_") ||
                                      p.name.StartsWith("T0_OverheadDais_"));
-            var lowerShots = new[]
+            // Progress down the slope, in metres from the crest lip. 30 is the fix: it gives beat 1 the
+            // 26-32 m of announcement every other beat already had.
+            var lowerPerches = new[]
             {
-                new Vector3(-8.7f, 24.6f, -113.8f),
-                new Vector3( 8.7f, 18.35f, -88.8f),
-                new Vector3(-8.7f, 12.35f, -64.8f),
+                slope( 30f, -8.7f, 0.1f),
+                slope( 47f,  8.7f, 0.1f),
+                slope( 71f, -8.7f, 0.1f),
             };
-            for (int i = 0; i < lowerShots.Length; i++)
+            for (int i = 0; i < lowerPerches.Length; i++)
             {
-                var shot = lowerShots[i];
+                var shot = lowerPerches[i];
                 string suffix = (i + 1).ToString();
                 platforms.Add(new PlatformDef
                 {
@@ -774,57 +906,60 @@ namespace VibeGame1.EditorTools
             // Two offset crowns joined around the east edge read as one floating platform without putting
             // a solid ceiling through the rear sentry's shot. Cyan marks the two occupied terraces; the
             // narrow stone spine, return and tapered undersides keep the silhouette light above the slope.
+            // The group is RIGID: it is placed from one anchor on the front terrace and every other piece
+            // is a local offset from it, so the tuned 6.75 m route clearance and the rear muzzle height
+            // (too high a muzzle makes capped homing overfly a falling runner) survive any change to the
+            // hill's length untouched.
+            Vector3 dais = slope(97f, 0f, 7.25f);
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Front", center = new Vector3(3.2f, 13f, -38.8f),
+                name = "T0_OverheadDais_Front", center = dais + new Vector3(3.2f, 0f, 0f),
                 size = new Vector3(5f, 1f, 5f), materialKey = "Stone", trim = true,
                 trimMaterialKey = "NeonCyan"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Rear", center = new Vector3(-3.2f, 8.5f, -21.8f),
+                name = "T0_OverheadDais_Rear", center = dais + new Vector3(-3.2f, -4.5f, 17f),
                 size = new Vector3(5f, 1f, 4f), materialKey = "Stone", trim = true,
                 trimMaterialKey = "NeonCyan"
             });
-            // The rear terrace follows the falling player: too high a muzzle makes capped homing
-            // overfly the runner. Three overlapping descending beams connect both floating crowns.
             for (int step = 0; step < 3; step++)
                 platforms.Add(new PlatformDef
                 {
                     name = "T0_OverheadDais_Spine_" + step,
-                    center = new Vector3(4.8f, 12.5f - step * 1.35f, -34.45f + step * 5.2f),
+                    center = dais + new Vector3(4.8f, -0.5f - step * 1.35f, 4.35f + step * 5.2f),
                     size = new Vector3(1.8f, 1.7f, 4.9f), materialKey = "Stone"
                 });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Return", center = new Vector3(1.6f, 8.5f, -20.8f),
+                name = "T0_OverheadDais_Return", center = dais + new Vector3(1.6f, -4.5f, 18f),
                 size = new Vector3(7.8f, 0.8f, 1.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_FrontUnder", center = new Vector3(3.2f, 12.85f, -38.8f),
+                name = "T0_OverheadDais_FrontUnder", center = dais + new Vector3(3.2f, -0.15f, 0f),
                 size = new Vector3(3.8f, 0.3f, 3.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_FrontKeel", center = new Vector3(3.2f, 12.4f, -38.8f),
+                name = "T0_OverheadDais_FrontKeel", center = dais + new Vector3(3.2f, -0.6f, 0f),
                 size = new Vector3(2.2f, 0.6f, 2.2f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_RearUnder", center = new Vector3(-3.2f, 8.55f, -21.8f),
+                name = "T0_OverheadDais_RearUnder", center = dais + new Vector3(-3.2f, -4.45f, 17f),
                 size = new Vector3(3.8f, 0.3f, 3.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_RearKeel", center = new Vector3(-3.2f, 8.3f, -21.8f),
+                name = "T0_OverheadDais_RearKeel", center = dais + new Vector3(-3.2f, -4.7f, 17f),
                 size = new Vector3(2.2f, 0.2f, 2.2f), materialKey = "Stone"
             });
 
             var overheadShots = new[]
             {
-                new Vector3( 3.2f, 13.6f, -39.8f),
-                new Vector3(-3.2f, 9.1f, -22.8f),
+                dais + new Vector3( 3.2f,  0.6f, -1f),   // progress 96, 7.6 m above the slope
+                dais + new Vector3(-3.2f, -3.9f, 16f),   // progress 113, 7.35 m above the slope
             };
             for (int i = 0; i < overheadShots.Length; i++)
             {
@@ -854,21 +989,30 @@ namespace VibeGame1.EditorTools
                 recoveryGap = 0.11f,
                 readinessTimeout = 1.1f,
                 shotResolutionTimeout = 1.25f,
-                progressOrigin = new Vector3(0f, 0f, -135.8f),
+                // The lip of the hill. Gate values are metres down the slope from here, which is also how
+                // the perches above are placed, so a gate and its perch are directly comparable.
+                progressOrigin = new Vector3(0f, 0f, topZ),
                 progressDirection = Vector3.forward,
-                memberProgressGates = new[] { 0f, 16f, 40f, 64f, 87f }
+                // Announcement per beat (perch progress minus gate): 30, 29, 31, 32, 26. Before this pass
+                // beat 1 alone opened at 22 and its bolt flew half as long as every other one.
+                // DO NOT RAISE THE FIRST GATE. See the summary above - it was tried on 2026-09-07 and the
+                // sliding parry rhythm broke. Move geometry instead.
+                memberProgressGates = new[] { 0f, 18f, 40f, 64f, 87f }
             });
             def.projectileSequences = sequences.ToArray();
 
-            def.playerStart = new Vector3(0f, 30.3f, -139f);
+            // 2.5 m of crest ahead of the player: enough to read the hill and start the run, close enough
+            // that perch 1 is inside its 36 m horizontal wake radius (33.6 m from here) at spawn, so it is
+            // awake and tracking before the player has moved.
+            def.playerStart = new Vector3(0f, topY + 0.3f, topZ - 2.5f);
             def.playerStartYaw = 0f;
             foreach (var pedestal in def.pedestals)
                 if (pedestal.name == "WandPedestal_Start")
-                    pedestal.groundPosition = new Vector3(3f, 30f, -139f);
+                    pedestal.groundPosition = new Vector3(3f, topY, topZ - 2.5f);
 
             // Catch falls behind the new crest while retaining the final arena's z 450 boundary.
-            def.killZone.center = new Vector3(0f, -30f, 145f);
-            def.killZone.size = new Vector3(200f, 2f, 610f);
+            def.killZone.center = new Vector3(0f, -30f, 130f);
+            def.killZone.size = new Vector3(200f, 2f, 640f);
         }
 
         /// <summary>

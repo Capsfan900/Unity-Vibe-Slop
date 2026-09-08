@@ -56,6 +56,7 @@ namespace VibeGame1
             d.filmGrain = GetInt("grain", d.filmGrain ? 1 : 0) != 0;
             d.masterVolume = GetFloat("volMaster", d.masterVolume);
             d.musicVolume = GetFloat("volMusic", d.musicVolume);
+            d.weaponTwirlBinding = GetString("bindTwirl", d.weaponTwirlBinding);
 
             d.Clamp();
             return d;
@@ -81,6 +82,7 @@ namespace VibeGame1
             SetInt("grain", d.filmGrain ? 1 : 0);
             SetFloat("volMaster", d.masterVolume);
             SetFloat("volMusic", d.musicVolume);
+            SetString("bindTwirl", d.weaponTwirlBinding);
 
             PlayerPrefs.Save();
 
@@ -101,7 +103,7 @@ namespace VibeGame1
         {
             foreach (var k in new[] { "mouseSens", "stickSens", "fov", "quality", "screenW", "screenH",
                                       "displayMode", "vsync", "fpsCap", "bloom", "grain",
-                                      "volMaster", "volMusic" })
+                                      "volMaster", "volMusic", "bindTwirl" })
                 PlayerPrefs.DeleteKey(KeyPrefix + k);
             PlayerPrefs.Save();
             current = null;
@@ -111,5 +113,9 @@ namespace VibeGame1
         static int GetInt(string k, int fallback) { return PlayerPrefs.GetInt(KeyPrefix + k, fallback); }
         static void SetFloat(string k, float v) { PlayerPrefs.SetFloat(KeyPrefix + k, v); }
         static void SetInt(string k, int v) { PlayerPrefs.SetInt(KeyPrefix + k, v); }
+        /// <summary>A stored string, never null: PlayerPrefs happily returns whatever was written, and a
+        /// null binding path would reach Clamp as null rather than as "no override".</summary>
+        static string GetString(string k, string fallback) { return PlayerPrefs.GetString(KeyPrefix + k, fallback ?? "") ?? ""; }
+        static void SetString(string k, string v) { PlayerPrefs.SetString(KeyPrefix + k, v ?? ""); }
     }
 }

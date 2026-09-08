@@ -189,5 +189,67 @@ namespace VibeGame1.Tests
             if (p == null) Assert.Ignore("TestMenu has no infoButton yet");
             Assert.IsNotNull(p.objectReferenceValue, "TestMenu.infoButton is null — F1 → INFO would do nothing");
         }
+
+        // ------------------------------------------------------------------ the rebind row
+
+        [Test]
+        public void BothPrefabsCarryTheFlourishKeyRow_WithWordedButtonsAndNoSlider()
+        {
+            foreach (var path in new[] { HudPath, MenuPath })
+            {
+                var menu = Load(path);
+                string which = path.Contains("HUD") ? "HUD" : "MainMenu";
+                SettingsMenu.Row row = null;
+                for (int i = 0; i < menu.rows.Length; i++)
+                    if (menu.rows[i] != null && menu.rows[i].kind == SettingsMenu.RowKind.WeaponTwirlKey) row = menu.rows[i];
+
+                Assert.IsNotNull(row, which + ": no FLOURISH KEY row — run 5. Build HUD and 9. Build Main Menu");
+                Assert.IsNull(row.slider, which + ": the rebind row must have no slider");
+                Assert.IsNotNull(row.value, which + ": the rebind row has no value text — it IS the readout");
+
+                var dec = row.decrease.GetComponentInChildren<TMPro.TMP_Text>();
+                var inc = row.increase.GetComponentInChildren<TMPro.TMP_Text>();
+                Assert.AreEqual(SettingsMenu.RebindButtonLabel(false), dec.text,
+                    which + ": the left button must say REBIND, not '<' — a key is not a list position");
+                Assert.AreEqual(SettingsMenu.RebindButtonLabel(true), inc.text,
+                    which + ": the right button must say RESET");
+            }
+        }
+
+        [Test]
+        public void TheActionsAssetStillCarriesTheActionAndItsDefaultKey()
+        {
+            const string assetPath = "Assets/InputSystem_Actions.inputactions";
+            Assert.IsTrue(System.IO.File.Exists(assetPath), assetPath + " missing");
+            string json = System.IO.File.ReadAllText(assetPath);
+            StringAssert.Contains("\"name\": \"" + InputReader.WeaponTwirlActionName + "\"", json,
+                "the rebindable action is gone from the actions asset — the settings row would be dead");
+            StringAssert.Contains("\"action\": \"" + InputReader.WeaponTwirlActionName + "\"", json,
+                "the action exists but nothing is bound to it");
+            StringAssert.Contains("\"path\": \"" + SettingsData.WeaponTwirlDefaultBinding + "\"", json,
+                "the shipped default key is not " + SettingsData.WeaponTwirlDefaultBinding);
+        }
+
+        [Test]
+        public void ThePlayerPrefabShipsTheFlourish_WithTheValuesTheBuilderWrites()
+        {
+            // Hard rule 9: a field initialiser on WeaponTwirl never reaches a prefab already on disk.
+            // These are the numbers PrefabFactory writes; if they drift, the shipped feel drifts.
+            var player = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player.prefab");
+            if (player == null) Assert.Ignore("Player.prefab missing — run VibeGame1/4. Build Prefabs");
+            var twirl = player.GetComponentInChildren<WeaponTwirl>(true);
+            Assert.IsNotNull(twirl, "Player.prefab has no WeaponTwirl — the flourish key would do nothing " +
+                                    "in a build. Run VibeGame1/4. Build Prefabs.");
+            // includeInactive: TRUE, and not for tidiness. A prefab ASSET is not in a scene, so every
+            // object in it reports activeInHierarchy false, and the no-argument GetComponentInParent
+            // skips inactive objects - it returns null here even when both components sit on the SAME
+            // GameObject. The one-argument overload is the only one that tells the truth off disk.
+            Assert.IsNotNull(twirl.GetComponentInParent<WeaponViewmodel>(true),
+                "WeaponTwirl is not under the WeaponViewmodel — it would find no grip to spin");
+            Assert.AreEqual(0.42f, twirl.spinSeconds, 1e-4f, "shipped spinSeconds drifted from PrefabFactory");
+            Assert.AreEqual(1, twirl.spinsPerPress, "shipped spinsPerPress drifted from PrefabFactory");
+            Assert.AreEqual(6, twirl.maxQueuedSpins, "shipped maxQueuedSpins drifted from PrefabFactory");
+            Assert.AreEqual(Vector3.right, twirl.axis, "shipped spin axis drifted from PrefabFactory");
+        }
     }
 }

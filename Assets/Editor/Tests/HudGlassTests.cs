@@ -183,48 +183,20 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheBestRunsPaneIsGlass_AndClearsTheClockAndTheEditorPanel()
+        public void ThereIsNoBestRunsGlassLeftOnTheHud()
         {
+            // Removed 2026-09-07 at the user's ask. This test used to prove the pane WAS glass; it now
+            // proves the glass is gone, because dead glass nobody can reach is this HUD's own bug ("a
+            // pane a system can no longer fill must not be left on screen").
             var hud = Hud();
-            var best = hud.transform.Find("BestRunsPane");
-            if (best == null) Assert.Ignore("no BestRunsPane on HUD.prefab — run VibeGame1/5. Build HUD after the best-runs glass pass");
-            Glass(hud, "BestRunsPane");
-            // Descendants, not direct children: Pane() parents content under its content transform.
-            bool title = false, text = false;
-            foreach (var tr in best.GetComponentsInChildren<Transform>(true))
-            {
-                if (tr.name == "BestRunsTitle") title = true;
-                if (tr.name == "BestRunsText") text = true;
-            }
-            Assert.IsTrue(title, "the pane has no BEST RUNS title");
-            Assert.IsTrue(text, "the pane has no BestRunsText — GhostHud writes its table there");
-            Assert.IsFalse(best.gameObject.activeSelf, "the pane must ship HIDDEN; GhostHud shows it once there is a board");
+            foreach (var tr in hud.GetComponentsInChildren<Transform>(true))
+                Assert.IsFalse(tr.name.StartsWith("BestRuns"),
+                    tr.name + " survived the BEST RUNS removal - re-run VibeGame1/5. Build HUD");
 
-            // Through SerializedObject: the field is being added alongside this test and the assertion
-            // must not depend on the runtime assembly's shape on the day.
             var hc = hud.GetComponent<HUDController>();
             Assert.IsNotNull(hc);
-            var paneProp = new SerializedObject(hc).FindProperty("bestRunsPane");
-            if (paneProp != null)
-                Assert.AreSame(best.gameObject, paneProp.objectReferenceValue, "HUDController.bestRunsPane is not the pane by name");
-
-            const float W = 1920f;
-            var bestR = CanvasRect(best.GetComponent<RectTransform>(), W);
-            var clock = hud.transform.Find("Clock");
-            Assert.IsNotNull(clock, "no Clock pill");
-            var clockR = CanvasRect(clock.GetComponent<RectTransform>(), W);
-            Assert.IsFalse(bestR.Overlaps(clockR), "BEST RUNS " + bestR + " overlaps the clock pill " + clockR);
-
-            var editor = hud.transform.Find("LevelEditorPanel");
-            if (editor != null)
-            {
-                var edR = CanvasRect(editor.GetComponent<RectTransform>(), W);
-                Assert.IsFalse(bestR.Overlaps(edR), "BEST RUNS " + bestR + " overlaps the level-editor panel " + edR +
-                    " (seen in play 2026-09-05; the panel moved to y -300 to clear it)");
-            }
-
-            foreach (var img in best.GetComponentsInChildren<Image>(true))
-                Assert.LessOrEqual(img.color.maxColorComponent, BloomCap, img.name + " on BEST RUNS is over the bloom cap");
+            Assert.IsNull(new SerializedObject(hc).FindProperty("bestRunsPane"),
+                "HUDController still serialises a bestRunsPane reference");
         }
 
         [Test]

@@ -1,49 +1,69 @@
-# Handoff — crest atmosphere, sun opacity and turret reliability
+# Handoff — HUD, flourish, Brawler v15, solar transitions and 144 m opening
 
 ## What happened
 
-2026-09-07. The user asked for four things after the two-ramp / solar-realm work:
+2026-09-08. The previously uncommitted continuation pass has been recovered, audited, regenerated and
+verified. It contains five related feature lanes:
 
-1. Fog "looks like a patch meant for that smaller section" from the new higher spawn.
-2. The spheres should be **more opaque, not see-through** from outside — the only sphere change.
-3. The first ramp a little longer and wider again.
-4. The turret AI "works but is a bit jank" — the user confirmed **tracking is good**; the
-   complaint is shot timing and projectiles missing.
+- A top-right flow meter shows aggregate speed multiplier, horizontal speed, surge state/decay and a
+  display-only clean-deflect chain. The old BEST RUNS pane is removed; the radio has a subdued animated
+  rainbow rim.
+- F11 performs a cosmetic weapon flourish. Its keyboard binding is persisted and rebindable from the
+  in-game settings menu; title-screen RESET works, while live rebinding remains deliberately unavailable
+  there because the title scene has no `InputReader`.
+- The Flurry Brawler v15 is a sandbox-only prototype with 32 generated clips, twelve named attacks and
+  an 18-entry moveset built through the data/prefab/mini-boss pipeline.
+- The opening descent is 144 m long, with the five-turret parry ladder retained and T1 geometry opened
+  up through `LevelDefinitionAuthoring`.
+- Solar portals now fade/part their shells on approach and cover the synchronous teleport with a short
+  screen transition.
 
-Delivered as one `[Sol]` commit, with Astra consulting on engineering review.
+The new `.claude/skills/astra-engineering-company/` protocol is also present and indexed from
+`AGENTS.md`; it is plain Markdown so any coding-agent harness can map its capability tiers locally.
 
-- **Cloud sea** is now 900 x 1400 m at y -5 on a 90 x 144 grid (13,195 vertices), so its edges sit
-  beyond the 300 m route camera from the raised crest. A cloud-only 80..280 m haze keeps bank detail
-  past the unchanged 36..140 m route fog and settles into fog colour before the far clip.
-- **Solar shells** use premultiplied blending with `_SurfaceOpacity` 0.92 on the exterior theme
-  materials, so they attenuate the courts behind them instead of only adding glow. Zero surface
-  opacity reproduces the previous additive look exactly and is kept for the corona and for the
-  interior realm ceiling (which also keeps its serialized 0.20 emission override).
-- **Opening ramp** is 120 m run / 30 m drop / 14 m wide at the same 1:4 grade, bottom still z -15.8;
-  spawn `(0, 30.3, -139)`. The same five turrets spread to progress 22/47/71/96/113 m.
-- **Turret reliability**: relative swept-sphere contact (both bodies' motion between frames, with
-  teleport/hitstop history guards), a closing-rate ETA that feeds cue/weave/BoltRegistry, and an
-  opening-only 1.25 s deadline for an unresolved launched shot. **Lead, homing, bolt speed and the
-  tracking the user likes are unchanged.**
+## State of the tree
 
-## Verified
+All intended generators were rerun in the user's open Unity 6000.5.10f1 editor on 2026-09-08:
 
-- Quick EditMode **732/732**; full EditMode **870/870** (227.9 s,
-  `TestResults/EditMode-20260907-212401.xml`); full FeatureTests **808/808**.
-- Live opening probe at **60 fps and 30 fps**: five distinct parries on the slope, full **1.60x**,
-  run-out reached. `TestResults/crest-polish/opening-60fps.txt`, `opening-30fps.txt`.
-- Health Check **0 errors / 1764 existing warnings**. Both offline assemblies compile.
-- Eight real renders in `RouteShots/crest-polish/` — crest, overview, exterior suns, interior.
+1. Create Materials and Data
+2. Build Prefabs
+3. Split Forge Animation Clips and Build Mini-Bosses
+4. Build HUD and Sandbox/NavMesh
+5. Rework Level_01 and build the canonical level/NavMesh
+6. Build Main Menu
 
-A probe-side trap is recorded in ENGINEERING-LOG: the automatic parry forecast was landing exactly
-on the 0.13 s perfect-window boundary, and one 978 ms editor stall invalidated a 30 fps trial.
-Those were tester corrections; no combat window moved.
+Generated scenes, prefabs, materials, attack/data assets and animator controllers are current. The four
+other legendary animator-controller diffs are expected collateral from rebuilding all animated mini-bosses.
+`.claude/settings.local.json` is the user's local untracked configuration and must remain uncommitted.
 
-Restore tag `pre-crest-polish-2026-09-07` at `16443c0`. Reverting this one commit undoes the pass.
+## Verification
+
+- Offline editor build compiles both assemblies: 0 errors, 18 existing warnings.
+- Health Check: 0 errors / 1836 existing warnings.
+- Quick EditMode: 785/785 passed; 138 `LevelLines` tests excluded; 11.2 s.
+  `TestResults/EditMode-20260908-192039.xml`.
+- Full EditMode: 923/923 passed, zero skipped; 212.7 s.
+  `TestResults/EditMode-20260908-192436.xml`.
+- Full FeatureTests: 808/808 passed, zero skipped; 61.1 s. The run was fresh and unpaused, with
+  `GameManager.I != null` and `Time.timeScale == 1` checked first.
+- The previously recorded 144 m opening probe passed all five distinct slope deflects and reached the
+  run-out at 1.60x. Absolute peak-speed readings remain suspect when editor polling stalls; no Fable motor
+  code was changed or retuned.
+
+Automated checks prove wiring, shipped values and state machines. They do not prove that the Brawler
+ladder feels fair, the flourish/rebind interaction feels correct, the flow meter/aura read well during a
+run, or the solar crossing looks clean at normal frame rate.
 
 ## Do first next session
 
-1. **Only the user can judge feel.** Play the opening: does the five-shot ladder read fairly at the
-   new length, and do the suns and cloud ocean look right from the crest?
-2. Standalone/WebGL GPU cost of the 13k-vertex cloud sea and the four opaque shells is unmeasured.
-3. In-flight UI work follows this commit — see the next handoff section once it lands.
+1. Human-play the in-game flourish rebind: bind H, close/reopen/reload, confirm H works and F11 does not,
+   cancel with Esc, RESET to F11, and confirm single/queued twirls return exactly to rest without changing
+   combat pose or hitboxes.
+2. Play the 144 m opening and inspect flow-meter fading, parry-chain reset, radio aura, and the solar
+   entry/return/death/reset transitions at normal frame rate.
+3. Fight the Flurry Brawler in Sandbox and judge body placement, left-hand strikes, uppercut readability
+   and ladder fairness. It is intentionally not in the campaign.
+
+## Open questions for the user
+
+Human feel and appearance acceptance only; no implementation decision is blocking the verified tree.

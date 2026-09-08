@@ -186,6 +186,31 @@ When you widen an arena doorway, widen its **gate and its trigger with it** (`Ar
 `exitGateSize`, `triggerSize`) — a 9 m door with a 6 m trigger is a door you walk through at x 4 while the
 fight never starts.
 
+### The third number: WHERE THE FIRST CUE LANDS
+
+A perch has one more measurement and the arc report does not print it, because it is not about the bolt
+line — it is about **when the encounter starts**. The parry window is not yours: `Projectile.CueLead` is a
+flat 0.28 s for every attack in the game and `ProjectileShooter.CueMargin` floors a near bolt's flight at
+0.44 s, so **no shape you draw makes a parry easier by giving the player more of a window**. Two things
+DO belong to you:
+
+- **When the sentry wakes.** `EnemyController.WakeRange` is `max(aggroRange, projectileMaxRange)` — 32 m
+  for `pshooter_enemy01`. Solve that radius against the line the player runs and you get the exact z the
+  encounter begins at. That is the "runway": everything before it is unopposed.
+- **What the player is DOING when the cue lands.** Add `projectileAcquireDelay` (0.7 s) of approach at
+  running speed, then the flight (`distance / projectileSpeed`, floored to 0.44 s), and you get the impact
+  point. **If that point is over a gap, the level's first parry is asked of a player in mid-air**, and no
+  amount of extra distance fixes it — they had the time and spent it on the jump.
+
+That is exactly what was wrong with T1's opening on 2026-09-07: `T1_Perch_W` at z 44 solved to a wake at
+z 13.1, *before the level's first ramp*, and its opening bolt arrived at z ~27.5 — the gap between
+`T1_Stone_2` and `T1_Stone_3`. Moving the perch to `(-11.5, 3.5, 53)` moved the wake to z 23.3 and the
+impact to z 37.9, mid-deck. Nothing about the bolt changed. When a player says "I need more time to
+parry", do this arithmetic before you lengthen anything: **the budget is usually not short, it is spent.**
+
+The other edge of the same band bites in the opposite direction: a perch standing broadside inside
+`projectileMinRange` goes **silent** exactly where it is meant to be firing. Check both edges.
+
 A blocker the probe names is not automatically a bug. Two slide gates and four pillars are *supposed* to
 be in the way; that is what a gate and a pillar are. Read the name, then decide.
 

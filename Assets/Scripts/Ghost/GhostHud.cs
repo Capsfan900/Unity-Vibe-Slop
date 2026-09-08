@@ -27,9 +27,15 @@ namespace VibeGame1
         TMP_Text boardText;
         GhostPlayer ghost;
         readonly StringBuilder sb = new StringBuilder(512);
-        readonly StringBuilder brief = new StringBuilder(96);
 
-        public bool BoardVisible { get; private set; } = true;
+        /// <summary>
+        /// The leaderboard table. Ships OFF (2026-09-07, the user's ask): BEST RUNS is a menu readout,
+        /// not something a player reads at the crosshair mid-run, and the HUD's glass pane for it was
+        /// removed in the same pass. The data and the table are still here - GhostRacing's
+        /// "Ghost/Toggle Leaderboard Panel" context menu turns it on for debugging. The live ghost
+        /// DELTA under the timer is separate and always on.
+        /// </summary>
+        public bool BoardVisible { get; private set; }
 
         void Awake()
         {
@@ -48,13 +54,12 @@ namespace VibeGame1
         void OnDisable()
         {
             if (subscribed != null) { subscribed.Changed -= RefreshBoard; subscribed = null; }
-            if (hud != null && hud.bestRunsPane != null) hud.bestRunsPane.SetActive(false);
         }
 
         /// <summary>
         /// Subscribe to whatever Leaderboard exists NOW, once. OnEnable alone was not enough: this canvas
         /// is built in Awake and the Leaderboard is a singleton on another object, so on any load order
-        /// where it comes up second the subscription was silently skipped and the BEST RUNS pane never
+        /// where it comes up second the subscription was silently skipped and the board never
         /// updated for the rest of the session. Update() re-tries, the same lazy-subscribe idiom
         /// RadioView uses for LevelRadio.
         /// </summary>
@@ -128,9 +133,6 @@ namespace VibeGame1
         void Update()
         {
             TrySubscribe();
-            // The HUD usually spawns after this canvas: while the board is still on the fallback text and
-            // the HUD's pane turns up, move the table into the pane (HudPane re-tries once a second).
-            if (BoardVisible && boardText != null && boardText.text.Length > 0 && HudPane() != null) RefreshBoard();
             if (deltaText == null) return;
             var timer = SpeedrunTimer.I;
 
@@ -150,21 +152,6 @@ namespace VibeGame1
 
         // ---- leaderboard ----------------------------------------------------------------------------
 
-        HUDController hud;
-        float hudLookupAt = -1f;
-
-        /// <summary>The HUD's glass BEST RUNS pane, if the HUD prefab carries one. Looked up lazily and
-        /// re-tried every second: the HUD may spawn after this canvas, and a scene change replaces it.</summary>
-        HUDController HudPane()
-        {
-            if (hud == null && Time.unscaledTime - hudLookupAt > 1f)
-            {
-                hudLookupAt = Time.unscaledTime;
-                hud = FindAnyObjectByType<HUDController>();
-            }
-            return hud != null && hud.bestRunsText != null ? hud : null;
-        }
-
         /// <summary>One leaderboard row, in the HUD's language: rank, time, deaths, verified mark.</summary>
         static void AppendRow(StringBuilder b, int index, RunEntry e)
         {
@@ -176,32 +163,22 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// Rebuilds the board in TWO readings and hands both to the HUD: the brief one it wears at rest
-        /// (the personal best plus a "+N MORE" line, so a collapsed pane reads as collapsible rather
-        /// than broken) and the full table it opens to for a few seconds when the board changes.
-        /// HUDController owns which of the two is on screen and how tall the glass is; this method only
-        /// knows the times. Without a HUD pane the fallback text is exactly what it always was.
+        /// Rebuilds the table on this canvas' own text. This is now the ONLY draw path: the HUD carries
+        /// no BEST RUNS pane to hand a table to (removed 2026-09-07), so with <see cref="BoardVisible"/>
+        /// false - the shipped state - nothing about the leaderboard reaches the screen.
         /// </summary>
         public void RefreshBoard()
         {
             if (boardText == null) return;
-            var pane = HudPane();
-            if (!BoardVisible)
-            {
-                boardText.text = "";
-                if (pane != null && pane.bestRunsPane != null) pane.bestRunsPane.SetActive(false);
-                return;
-            }
+            if (!BoardVisible) { boardText.text = ""; return; }
 
             var board = Leaderboard.I;
             sb.Length = 0;
-            brief.Length = 0;
             int rows = 0;
 
             if (board == null || board.Top.Length == 0)
             {
                 sb.Append("<alpha=#77>no runs yet - finish the level");
-                brief.Append("<alpha=#77>no runs yet - finish the level");
             }
             else
             {
@@ -211,27 +188,12 @@ namespace VibeGame1
                     if (e == null) continue;
                     if (rows > 0) sb.Append('\n');
                     AppendRow(sb, rows, e);
-                    if (rows == 0) AppendRow(brief, 0, e);
                     rows++;
                 }
-                if (rows == 0) { sb.Append("<alpha=#77>no runs yet - finish the level"); brief.Append("<alpha=#77>no runs yet - finish the level"); }
-                // The affordance: a collapsed pane says how much it is holding back.
-                else if (rows > 1) brief.Append("\n<alpha=#66>+").Append(rows - 1).Append(" MORE");
+                if (rows == 0) sb.Append("<alpha=#77>no runs yet - finish the level");
             }
 
-            if (pane != null)
-            {
-                // Into the HUD's glass pane, which carries its own BEST RUNS title strip.
-                pane.SetBestRuns(brief.ToString(), sb.ToString());
-                if (pane.bestRunsPane != null) pane.bestRunsPane.SetActive(true);
-                boardText.text = "";
-            }
-            else
-            {
-                // No pane (a scene without HUD.prefab, or a prefab that predates it): the old block,
-                // heading and all, on this canvas.
-                boardText.text = "<b>BEST RUNS</b>\n" + sb.ToString();
-            }
+            boardText.text = "<b>BEST RUNS</b>\n" + sb.ToString();
         }
 
 

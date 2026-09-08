@@ -964,9 +964,9 @@ Managers prefab → LevelRadio (one 2D AudioSource, volume = AudioManager.musicV
   InputReader.RadioPreviousPressed ([) → Previous() RadioMath.PreviousRestartsCurrent(elapsed, 3 s): restart, else back
   InputReader.RadioTogglePressed (\) → Toggle()     TurnOff → MusicDuck = 1
   track ends (source stopped, not AudioListener.pause) → Next()
-  OnTrackChanged → RadioView (HUD root, RadioPane in the top-right CORNER; BEST RUNS sits UNDER it in the same
-                   column since 2026-09-06 — BestRunsX -32, BestRunsTop -164, collapsed 108 tall, which leaves
-                   BestRunsBottom / HintText / LevelEditorPanel on the y they were tuned to): rebuilds the
+  OnTrackChanged → RadioView (HUD root, RadioPane in the top-right CORNER; the BEST RUNS pane that used to sit
+                   under it was REMOVED 2026-09-07 — HudBuilder.BestRuns* survive only as the column anchor
+                   (BestRunsBottom -272) that HintText / LevelEditorPanel hang off): rebuilds the
                    station ("<displayName> FM") / title (ticker in a RectMask2D, unscaled) / "TRACK i/n" strings and
                    fires a 0.45 s slide + ember→bone flash; Progress drives a BarView by anchors; polls HasPlaylist
                    each frame and toggles the pane ROOT (a level with no mp3s shows nothing; OFF shows PAUSED).
@@ -1467,6 +1467,37 @@ per 0.09 s while a volume row is moving, so master is audible on a silent screen
 > multiplies a one-shot by `masterVolume × trim` — there is no third gain to point a slider at.
 > `SettingsAudioTests.ThereIsNoSfxRow_BecauseThereIsNoSfxBus` fails if one appears.
 
+**Flow meter (top-right, under the radio) (2026-09-07).** `HudBuilder` emits the `FlowMeter` group
+into the band the removed BEST RUNS pane left (`BestRunsTop` -164 to `BestRunsBottom` -272, width 300).
+`FlowMeterView` reads, per frame: `FirstPersonMotor.SpeedMultiplier` -> the `x1.42` value (the aggregate
+every speed source writes, which is what "from any source" means), `FirstPersonMotor.HorizontalSpeed`
+-> the `27 M/S` line, `ParrySurge.Stacks` -> the five pips, and `ParrySurge.SecondsToNextDrop` -> the
+ember decay hairline (a `BarView` - anchors, never `Image.fillAmount`). The PARRY CHAIN is counted
+**in the view** from `GameEvents.ParryResolved`: `Perfect` increments, `Blocked`/`Hit` reset,
+`PlayerDied`/`PlayerRespawned` clear. It is display-only by construction - nothing in the game may read
+it back. The pane's `CanvasGroup` sits at alpha 0 whenever there is no boost and no chain, lingering
+1.5 s so a LOSS is watchable, and the root is in `HUDController.editorHiddenRoots` (F10 takes run
+readouts off screen). A boost from a non-surge source shows its multiplier with the pips dark, which is
+truthful rather than a lie about stacks.
+
+**Rebindable keys (one, so far) (2026-09-07).** `SettingsMenu` row `WeaponTwirlKey` ("FLOURISH KEY",
+CONTROL section) -> `InputReader.BeginWeaponTwirlRebind(onComplete, onCancel)` -> Input System
+`PerformInteractiveRebinding` (pointer deltas and sticks excluded, ESC cancels) -> a control-path
+**string** back to `SettingsMenu` -> `SettingsData.weaponTwirlBinding` -> `SettingsStore.Save`
+(PlayerPrefs `vg1.settings.bindTwirl`) -> `SettingsStore.Changed` -> `SettingsApplier.ApplyBindings`
+-> `InputReader.ApplyWeaponTwirlOverride`. `InputReader.Awake` applies the same stored value before
+the map is enabled, so a level that loads without the applier's deferred pass still starts on the
+player's key. `""` means "no override": `SettingsData.SanitizeBindingPath` empties anything malformed,
+over-long or bound to escape, and an empty value calls `RemoveBindingOverride(0)` - the action can
+never end up bound to nothing. Consumer: `WeaponTwirl.Update` polls `InputReader.WeaponTwirlPressed`
+behind `GameManager.IsPlaying`. Hard rule 2 is intact - `SettingsMenu` contains no
+`UnityEngine.InputSystem` reference.
+
+> **The flourish is cosmetic and must stay that way.** `WeaponTwirl` spins `WeaponViewmodel.grip`'s
+> local rotation, which the viewmodel never writes (it only sets that transform's local POSITION, when
+> aligning a newly equipped model) and which nothing downstream reads. It cannot reach a swing, a parry
+> window or a hitbox. Delete the component and the viewmodel behaves exactly as it did.
+
 **Invariants**
 - Sensitivity is applied OUTWARD onto `PlayerLook`'s public fields. Settings code never edits
   `PlayerLook.cs`; that is the architecture, not a workaround for file ownership.
@@ -1889,27 +1920,87 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   as axis-aligned in ramp-local space, an error ≤ 1 − cos 15.4° of capsule height, and counts an arc that
   touches a ramp on the way down as an ARRIVAL because a body that lands on a slope is on the route). Run it
   with `--noramps` for the before. Making `BoxesFrom` ramp-aware is the additive hook and is a lead call.
+- **The T1 opening's runway is a PERCH placement, not a timing number** (2026-09-07). A parry cue is a
+  flat 0.28 s everywhere (`Projectile.CueLead`) and `ProjectileShooter.CueMargin` floors a near bolt's
+  flight at 0.44 s, so **no level geometry can lengthen the window**. What the level owns is two things:
+  how far the player runs before a sentry is awake, and whether their feet are down when the cue lands.
+  A shooter's wake radius is `EnemyController.WakeRange = max(aggroRange, projectileMaxRange)` — 32 m for
+  `pshooter_enemy01` — so solving that radius against the route centreline gives the exact z at which an
+  encounter begins. `T1_Perch_W` used to stand at `(-7.5, 3.5, 44)`, one metre past `T1_Ramp_Causeway`'s
+  top edge: it solved to a wake at **z 13.1**, *before* the level's first ramp, and its opening bolt
+  (0.7 s `projectileAcquireDelay`, then a 25 m / 0.62 s flight) arrived at **z ~27.5** — the gap between
+  `T1_Stone_2` and `T1_Stone_3`, i.e. in mid-air over the only hop in T1 that is a choice. Moved to
+  `(-11.5, 3.5, 53)` the same arithmetic gives a wake at **z 23.3** (the whole first ramp is run
+  unopposed, 35.6 m from the muzzle at the ramp's top edge against a 32 m wake) and a first impact at
+  **z 37.9**, mid-deck on `T1_Stone_4`, feet down, causeway ahead — so the parry boost throws the player
+  along the line they are already on. `x -11.5` is set by the OTHER band edge: broadside to the causeway,
+  the nearest chest point must stay outside `projectileMinRange` 6 m or the sentry goes silent exactly
+  where it is meant to fire; from here it is 7.3 m. `LevelT1OpeningTests` pins all four numbers off the
+  shipped asset and the shipped `EnemyData`.
+- **The stones around that ramp grew along the axis their gaps are NOT measured on** (same pass). Four
+  `Reshapes` entries: `T1_Stone_1` 5 x 5 → **7 x 6.4** grown SOUTH (north edge pinned at z 16.5, so the
+  ramp's 0.2 m seam and the 8.5 m committed gate onto `T1_Fast_1` are bit-identical, while the step off
+  `Ground_Start` goes 3.5 m → 2.1 m), `T1_Stone_2` 4 x 4 → **5.5 x 4** west (max.x held at 5.5 for
+  `T1_Wall_Start`'s run line), `T1_Stone_3` 4 x 4 → **5 x 4** west (the 0.25 m seam with `T1_Fast_1`
+  held), `T1_Stone_4` 5 x 6 → **6 x 6** west. Not one hop distance in the chain got longer and two got
+  shorter: `Ground_Start → T1_Stone_1` 3.50 / 18 clean points → **2.10 / 23**, `T1_Stone_2 → T1_Stone_3`
+  5.00 / 11 (best clearance 1.63) → **4.27 / 14 (2.12)**, `T1_Stone_3 → T1_Stone_4` clearance 3.59 → 99
+  (nothing in the arc at all). `T1_Ramp_Stone12` widened 3.0 → **3.5 m** and recentred x 2.0 → 1.75,
+  which puts it inside both decks' x span at both ends — the second **fully supported** ramp in the level
+  and the first one the player runs up.
 - **`Apply` also writes the arena gates** (second openness pass, 2026-09-07). `LevelDefinitionAuthoring.Gates`
   matches a `LevelDefinition.ArenaDef` by `gateName` and writes only the X of `gateSize`, `triggerSize` and
   (where the arena has one) `exitGateSize` — absolute and idempotent like the rest. It exists because the
   arena doorways widened 6 m → 9 m and **a doorway, its gate and its trigger are one measurement**: a 9 m
   door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
-- **Opening descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` runs `ApplyDescent`, then
-  `ApplyOpeningDescent`. The second pass adds a separate 14 m wide crest at y 30 / z -144..-135.6,
-  `T0_Ramp_Descent` (120 m run, 30 m drop, z -135.8..-15.8), and a level run-out at y 0 / z -16..-7.8.
-  The run-out overlaps the rear of the unchanged `Ground_Start` by 0.2 m; the entire original course
-  follows. `playerStart` is (0,30.3,-139), on the crest facing downhill (yaw 0), and `WandPedestal_Start`
-  is beside it at (3,30,-139). `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart`
-  into `StartSpawn`; `LevelDefinitionBuilder` places the saved player there and wires the level manager
-  for pre-checkpoint respawns. Existing checkpoints remain in place. Kill bounds cover the extended crest through z 450.
-  The pass replaces only its two named decks and ramp and is idempotent. `LevelDescentTests` checks
-  the shipped start, full-width level joins, two large descents, migration from the erroneous late
-  spawn, and preservation of the existing route and encounter. `LevelRampPlacementTests` checks
-  every shipped slope for deck contact and obstruction.
-  Five surge turrets sit at slope progress 22/47/71/96/113 m: left, right, left, then right/left overhead.
-  The front overhead terrace is at y 13.5 and the rear at y 9, joined around the right side by descending
-  stone beams. That rear height keeps the last bolt within the unchanged homing envelope as the player
-  descends. All five contacts belong on the slope; the original first span follows the run-out.
+- **Opening descent (2026-09-07, lengthened the same day):** `LevelDefinitionAuthoring.Apply` runs
+  `ApplyDescent`, then `ApplyOpeningDescent`. The second pass is authored from **four numbers**
+  (`OpeningRun` 144, `OpeningGrade` 0.25, `OpeningBottomZ` -15.8, `OpeningSeam` 0.2) and a **progress
+  coordinate measured down the slope from its lip**; every deck, perch, gate and bound below is derived
+  from them by a local `slope(progress, x, above)` helper, so changing the hill's length moves the whole
+  opening as one piece. It adds a 14 m wide, 12 m deep crest at **y 36 / z -171.6..-159.6**,
+  `T0_Ramp_Descent` (**144 m run, 36 m drop**, z -159.8..-15.8, still exactly 1:4), and a level run-out at
+  y 0 / z -16..-7.8. The bottom of the hill is **pinned** because the run-out and then the unchanged
+  `Ground_Start` follow it, so the 2026-09-07 lengthening (120 -> 144 m of run, from "the ramp needs to be
+  longer at the top") appears entirely **above** the lip. The run-out overlaps the rear of `Ground_Start`
+  by 0.2 m; the entire original course follows. `playerStart` is **(0,36.3,-162.3)**, 2.5 m back from the
+  lip facing downhill (yaw 0), and `WandPedestal_Start` is beside it at (3,36,-162.3).
+  `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart` into `StartSpawn`;
+  `LevelDefinitionBuilder` places the saved player there and wires the level manager for pre-checkpoint
+  respawns. Existing checkpoints remain in place. Kill bounds are (0,-30,130) x (200,2,640), covering the
+  raised crest from z -190 through the arena's z 450. The pass replaces only its own named pieces and is
+  idempotent. `LevelDescentTests` checks the shipped start, full-width level joins, two large descents,
+  migration from the erroneous late spawn, the unopposed payoff straight, and preservation of the existing
+  route and encounter. `LevelRampPlacementTests` checks every shipped slope for deck contact and obstruction.
+  Five surge turrets sit at slope progress **30/47/71/96/113 m**: left, right, left, then right/left
+  overhead. The overhead pair is placed as a **rigid group** off one anchor at slope progress 97, so the
+  tuned 6.0-6.6 m route clearance and the rear muzzle height (too high a muzzle makes capped homing overfly
+  a falling runner) survive any change to the hill's length. All five contacts belong on the slope, around
+  progress 16/28/51/76/97; the 47 m of empty slope below the last contact is the deliberate exhale, where
+  the five-stack 1.60x surge is felt before the run-out hands the player to `Ground_Start`.
+- **The T0 volley's gate coordinate, and why `memberProgressGates[0]` is 0 (2026-09-07).**
+  `T0_SurgeVolley.progressOrigin` sits **on the ramp's top edge** (0,0,-159.8) with
+  `progressDirection = forward`, so a gate value and a perch's slope progress are the same kind of number.
+  Gates are `{ 0, 18, 40, 64, 87 }`. Two rules came out of play that day:
+  **(a) a gate is a FLOOR on where a beat may open, not a schedule.** `memberProgressGates[0]` was raised
+  0 -> 14 to "buy runway before the first enemy"; the user reported the sliding parry rhythm broke ("the
+  logic for those was somewhat working ... but now its off"). Raising it did not add approach, it deleted
+  the first beat's approach and pushed the whole sequential ladder later into the slide. It is back at 0
+  and `OpeningTurretTests` pins it there. Runway is bought by moving **geometry**.
+  **(b) the origin must ride the lip.** When the hill was lengthened, `progressOrigin` moved up with it. Had
+  it stayed at z -135.8 the new 24 m would have been pure run-up: the player would cross gate 0 at ~21 m/s
+  instead of ~13, and the first bolt's flight would have *shortened*. On the lip, gate 0 is still crossed at
+  the slowest moment on the hill.
+  **The perch fix.** "The turret is not aggroing soon enough (the first one on the left)" was an
+  *announcement* problem, not a wake-range one: every other beat opens 26-32 m above its perch, but beat 1
+  opened at 22, so its bolt flew ~0.31 s against 0.45-0.65 s for the rest. Perch 1 moved to slope progress
+  30 (world z -113.8 -> **-129.8**, 17 m further up the hill). Announcements are now **30/29/31/32/26 m**,
+  its bolt flies ~0.46 s, and it is 33.6 m horizontally from `playerStart` -- inside the sentry's 36 m wake
+  radius (`EnemyController` measures wake with y flattened), so it is awake and tracking before the player
+  has moved. Contact speed is essentially unchanged (~15 m/s). `ProjectileVolleySequence` only grants the
+  0.7 s `projectileAcquireDelay` arm-up to **member 0**; members 1-4 fire the first frame past their gate,
+  in band, with a line and a frontal arrival, which is why gate 1 moved 16 -> 18 (following beat 1's contact
+  2 m down the hill) to keep the shipped ~0.14 s pause between contact 1 and launch 2.
 - **Final descent (2026-09-07):** `ApplyDescent` retains a 10 m wide
   entry at y 28 feeding `T4_Ramp_Descent` (48 m run, 12 m drop), then a 24.4 m run-out at y 16.
   Three `Spawn_T4_Surge_*` entries use the existing `pshooter_enemy03` prefab on side pads at
@@ -2004,6 +2095,10 @@ Sanctum (top y 0, pink)          wand altar - the loadout is chosen before the c
   Checkpoint_1
 Tile 1  THE SHATTERED CAUSEWAY   low, fast, horizontal - stepping stones + a railed dash run
   (cyan)                         arena top y 4    Legendary_Ninja
+                                 opening spacing (2026-09-07): Stone_1 7 x 6.4 @ (0,-0.5,13.3) | Stone_2 5.5 x 4 @ (2.75,0,22)
+                                   Stone_3 5 x 4 @ (-4,0.5,30) | Stone_4 6 x 6 @ (-0.5,1,38)
+                                   T1_Ramp_Stone12 base (1.75,0,16.3) 3.5 wide, 3.90 run, +0.5 - fully supported both ends
+                                   T1_Perch_W (-11.5, 3.5, 53): wakes at z 23.3, first bolt lands z 37.9 on Stone_4
                                  wall-run walls (right, both run north, both optional):
                                    T1_Wall_Start    (7.1, 2.5, 22.5)  1.2 x 7 x 20   skips the four stones
                                    T1_Wall_Causeway (3.9, 2.5, 50)    1.0 x 7 x 16 → T1_Wall_Landing (4.6, 2, 64.5) 4 x 1 x 10
@@ -2209,16 +2304,17 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
                         banner, re-derived from the last PyreChanged since it has no pane to hang off).
                         The editor parks the CharacterController, so every one of those was a frozen
                         readout claiming to be live. NOT in the list, on purpose — ONE OWNER PER PANE:
-                        RadioPane (RadioView), BestRunsPane (GhostHud), the crosshair (the editor aims
-                        with it) and PromptText (the editor writes PLAYING to it). HudStateTests pins it.
-   GhostHud (its own runtime canvas) → builds the board TWICE (brief = the PB + "+N MORE", full = every
-                                       row) and hands both to HUDController.SetBestRuns; the pane is the
-                                       glass under the RADIO in the one top-right column (300 wide at
-                                       (−32, −164), COLLAPSED at 108 tall = 2 rows). A change to the
-                                       board expands it to bestRunsExpandSeconds 4 s of full table and
-                                       it settles back on its own — no bind, and the glass is SIZED FROM
-                                       THE ROWS IT HOLDS (chrome 64 + rows × 22, ≤ Leaderboard.DisplayCount).
-                                       Falls back to its own text, heading and all, when the pane is absent
+                        RadioPane (RadioView), the crosshair (the editor aims with it) and PromptText
+                        (the editor writes PLAYING to it). HudStateTests pins it.
+   GhostHud (its own runtime canvas) → GhostDelta ONLY on screen: ±s under the run timer, green ahead /
+                                       red behind, fading out whenever the ghost has no delta. Its
+                                       leaderboard table still builds from Leaderboard.Changed but
+                                       BoardVisible ships FALSE (2026-09-07, the user's ask: "remove the
+                                       best runs tab from the in game UI"), so RefreshBoard writes an
+                                       empty string and nothing draws. GhostRacing's context menu
+                                       "Ghost/Toggle Leaderboard Panel" turns it on for debugging. There
+                                       is no HUD pane path any more — HUDController has no BEST RUNS
+                                       fields, and HudBuilder emits no BestRunsPane
    HintText (top-right, one line)     contextual hints ONLY — the static bind list is gone from play:
                                        ControlsInfo.Text → the settings INFO card (SettingsPanelKit, one
                                        emitter for the pause path AND the title path) and F1 → INFO
@@ -2304,15 +2400,15 @@ FluidBar.shader (fragment)   bar-space x = uv.x × _Fill; surface = level + wave
 - **The playing HUD carries no bind dump.** `ControlsInfo` is the one source of the key reference; it is
   shown on the settings INFO card (both prefabs, one emitter) and reached from F1. `HudGlassTests.
   ThePlayingHudCarriesNoBindDump` and `SettingsPrefabTests.BothPrefabs_CarryTheSameInfoTab` hold it.
-- **BEST RUNS is a glass pane, and it clears the clock and the level-editor panel** by rect; the pane
-  ships hidden AND collapsed, and `GhostHud` owns showing it.
-- **The top-right is ONE column: radio, BEST RUNS, hint, level-editor panel.** Every y below the radio
-  hangs off `HudBuilder.BestRunsBottom`, which the collapsed pane keeps at -272 — the value the hint and
-  the 700-tall editor panel were tuned against. Expanding BEST RUNS grows the glass DOWN over the hint
-  band and the F10-only editor panel for a few seconds; it never reaches anything that is always on
-  screen. `HudColumnTests` pins the stack, the gap, the collapsed height and the expanded clearance.
-- **A pane the runtime RESIZES needs stretched children.** `BestRunsText` is anchored to the glass on all
-  four sides; as a fixed rect it kept drawing eight rows out of the bottom of a 108 px pane.
+- **BEST RUNS is GONE from play (2026-09-07).** Removing it meant closing TWO draw paths: `HudBuilder`'s
+  glass pane AND `GhostHud`'s fallback text block, which would otherwise have drawn the old loose
+  `"<b>BEST RUNS</b>" + table` in the pane's place and looked worse than before. `HudColumnTests`
+  asserts the prefab carries no `BestRuns*` object and no label reading BEST RUNS, and that
+  `GhostHud.BoardVisible` ships false.
+- **The top-right is ONE column: radio, hint, level-editor panel.** Every y below the radio still hangs
+  off `HudBuilder.BestRunsBottom` (-272) — the constants outlived the pane they were named for and are
+  now nothing but that anchor. Do not re-tune them; the hint (-12) and the 700-tall editor panel (-48)
+  are positioned against them and `HudColumnTests` pins the numbers.
 - **The status strip is one multi-line TMP label, rebuilt on change.** `StatusStripView.RowCount` /
   `IsEmpty` / `Text` are the test surface (`FeatureTests > HUD_StatusStrip*`); rows are rich-text
   lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.

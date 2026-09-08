@@ -17,10 +17,10 @@ MonoBehaviour:
   impactDelay: 0.04
   strikeDuration: 0.12
   recovery: 0.45
-  range: 2.2
+  range: 2.35
   coneDeg: 45
   damage: 11
-  lungeDistance: 0.2
+  lungeDistance: 0
   comboGap: 0.2
   parryPostureMultiplier: 1.15
   unblockable: 0

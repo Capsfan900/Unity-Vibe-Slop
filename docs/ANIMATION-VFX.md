@@ -10,6 +10,22 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) (feel contracts, art direction) ·
 
 ## 1. The principles worth holding to
 
+### The radio's rainbow border (2026-09-07)
+
+`M_RadioAura` on `VibeGame1/UI/RainbowBorder` draws a swirling spectrum around the radio pane's rim.
+It is a HUD decoration and is budgeted as one: brightest fragment 0.9954, under the stricter 1.0 UI cap,
+so it never competes with a combat tell. The interior alpha is zero — the glass, the ticker and the
+progress bar read through it untouched.
+
+Two things about it are deliberate. The hue is laid out along a **perimeter arc-length** coordinate
+rather than an `atan2` sweep, because an angular sweep races across the short ends of a 300x116 rect
+and stalls along the long ones. And it animates on **unscaled** time, unlike the cloud sea: the radio
+keeps playing through hitstop and the pause menu, so a frozen border reads as a crashed HUD rather
+than as the world holding its breath. `RainbowBorderView` feeds `_Aspect` and `_T`, and clones its
+material per instance so the shipped asset is never dirtied.
+
+Regenerate through `MaterialFactory.CreateRadioAura()` (also called by `CreateAll`).
+
 ### Solar arena presentation (2026-09-07)
 
 The four campaign boss courts have rotating portal suns with cyan, gold, azure and green themes.
@@ -700,3 +716,63 @@ The separate physical portal radii remain 12/13/12/18 m, preserving retry and on
 The higher crest uses a 900x1400 m cloud bed and a separate 80..280 m cloud-haze range. Gameplay
 fog remains 36..140 m. Exterior suns use 0.92 surface opacity to obscure the old courts, while the
 corona and realm ceilings retain their additive appearance via zero surface-opacity overrides.
+
+## The solar portal crossing — 2026-09-07
+
+**The ask, verbatim.** *"also make the transition / telport when jumping into the spehres more cinetmatic
+and a smooth transtion it shoudl instantly cut to the aniomatio and not show the inside of the spehre"*
+
+**What was actually wrong, and it was not the teleport.** The drawn sun is far bigger than the thing that
+transports you: visual radii 22/23/22/31 m against gameplay trigger radii 12/13/12/18 m. So the camera is
+inside the drawn shell for **10-13 m** before `SolarArenaPortal.Enter` ever fires. `VibeGame1/Solar Arena`
+is `Cull Back`, and a back-face-culled sphere renders **nothing** from inside — so crossing the surface was
+a one-frame POP: an opaque sun, then the bare court, with no transition at all. The teleport that followed
+was itself uncovered. Two separate faults, one of which the ask names.
+
+**The shape shipped: anticipation, snap, settle — the house rule, spent on a doorway.**
+
+| Beat | What | Numbers |
+|---|---|---|
+| **Membrane** (anticipation) | the shell parts ahead of the camera instead of popping | `ShellFade`: 1 at `r+7 m`, **0 at `r+0.6 m`** — outside the surface, always |
+| **Descent** | the sun's light closes over the eye as you fall toward the core | `Wash`: 0.42 at the surface, `^3.5` to **0.92** at the trigger |
+| **Cut** (snap) | opaque, in the calling frame | `+0.08` step to 1.0 — a snap, not a flashbang |
+| **Hold** | the covered window | `0.09 s` **and** `>= 3 rendered frames` |
+| **Reveal** (settle) | `(1-u)^2` ease-out, white-hot resolving to the theme hue | `0.42 s`, colour settled by `40%` of it |
+
+**Why a bleach and not a fade, an iris or a wipe.** A star does not fade you out, it overexposes you. The
+cover is the portal's own theme colour lifted 75% toward white (`HotTint`) and the reveal resolves to the
+saturated theme (`SettleTint`) — which is the *same four colours as the point light inside the matching
+realm*, so the cut ends in the colour of the room it opens on. An iris or a wipe would have imposed a
+shape the sun does not have; a plain fade-to-black would have said "loading". Nothing here exceeds 1.0 in
+any channel, because it draws on the HUD canvas and **the UI never blooms**.
+
+**How the teleport is guaranteed to be covered, and it is not the hold length.**
+`SolarArenaPortal.Enter` teleports first and calls `SolarTransition.Cut` **after**, in the same synchronous
+call, and `ScreenFlash.Curtain` writes `image.color` inside that call rather than deferring to its own
+Update. Unity renders no frame inside a callback, so there is no frame in which the destination is on
+screen uncovered — and because the cover is downstream of a successful teleport, it can never play for a
+crossing that did not happen. The hold then keeps it covered on **both** a clock and a frame budget:
+a wall-clock hold alone is not a frame guarantee, since a hitch can burn 0.09 s inside a single Update.
+
+**The wash cannot lie.** It is a pure function of camera distance, so it is reversible — a player who
+turns around walks back out of the glow, and nothing irreversible has been claimed. It is additionally
+disarmed once `BossArenaTrigger.Cleared` is true, because every shipped return point sits **inside** the
+drawn shell (15-16 m against 22-31 m) and a sun that can no longer take you must not close over the eye.
+
+**`_Fade`, and why scaling `_Alpha` was not enough.** The shader's alpha is
+`saturate(_Alpha * (0.68 + band*0.32) + rim * 0.22)` — the rim term is independent, so a shell dimmed by
+`_Alpha` keeps a glowing outline forever. `_Fade` multiplies the **final** colour and alpha, ships at 1
+from `MaterialFactory.CreateSolar`, and is driven per RENDERER by a `MaterialPropertyBlock`, so a player
+flying through a sun never dirties the shared asset. Each shell parts against its own radius: the corona
+is 1.06x the body and would otherwise still be drawn after the camera had crossed it.
+
+**Cost.** One distance check per portal per frame; a property-block write only inside the ~6.4 m membrane
+band (a flat 1 costs nothing); one extra multiply in the fragment shader. Nothing was disabled and no
+renderer is toggled — the dissolve is a stronger guarantee than hiding the shell for N frames, because it
+holds for *every* camera position inside the surface rather than for a window.
+
+**Not seen, only reasoned.** Nobody looked at the screen. That 0.42 coverage at the surface hides the old
+court well enough, that 0.92 at the trigger makes the cut read as a snap rather than a punch, and that
+0.42 s is the right reveal for a 32 m/s runner are **arithmetic, not observation**. Pinned by 13
+tests in `Assets/Editor/Tests/SolarTransitionTests.cs`, including a proof that `ShellFade` is exactly
+zero at every camera distance at or inside each shipped sun's drawn surface.

@@ -14,17 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
   displayName: The Flurry Brawler
   entries:
-  - label: jab, cross, jab, FLURRY (the signature string)
-    combo:
-      hits:
-      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
-      - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
-      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
-      - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
-    weight: 4
-    minRange: 0
-    maxRange: 3.4
-    cooldown: 0
   - label: jab, cross (the beat)
     combo:
       hits:
@@ -34,7 +23,18 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 0
-  - label: jab, jab, cross, UPPERCUT
+  - label: jab, cross, jab, FLURRY (the signature string)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+      - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+      - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
+    weight: 3.5
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 0
+  - label: jab, jab, cross, UPPERCUT (the right ender)
     combo:
       hits:
       - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
@@ -45,7 +45,17 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 0
-  - label: one-two (the fast pair)
+  - label: cross, jab, UPPERCUT-LEFT (the mirror ender)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+      - {fileID: 11400000, guid: c8110c1e7d24fd34d89d213f178b9a9d, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 0
+  - label: 'one-two (rung 1: the fast pair)'
     combo:
       hits:
       - {fileID: 11400000, guid: 6641020dade2b2f47970f1161bafbde6, type: 2}
@@ -62,6 +72,35 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 0
+  - label: 'FLURRY alone (rung 2: the punish window)'
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
+    weight: 1
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 5
+  - label: 'LOAD, BARRAGE (rung 3: the top of the ladder)'
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 6905652e4a347884ab16070767f8d06f, type: 2}
+      - {fileID: 11400000, guid: 4a1a23eb7c6919a49a52f7513b8ffdf1, type: 2}
+    weight: 1.6
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 11
+  - label: jab, cross, LOAD, BARRAGE (the full climb -- deflected clean this IS the
+      break)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+      - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+      - {fileID: 11400000, guid: 6905652e4a347884ab16070767f8d06f, type: 2}
+      - {fileID: 11400000, guid: 4a1a23eb7c6919a49a52f7513b8ffdf1, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 13
   - label: jab, jab, HAMMERFIST (fast, fast, SLOW)
     combo:
       hits:
@@ -80,14 +119,24 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 6
-  - label: FLURRY alone (the punish window)
+  - label: CLAP (you cannot walk around this one)
     combo:
       hits:
-      - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
+      - {fileID: 11400000, guid: 77c23a206fcc39f44b45d83dd2fc33f7, type: 2}
+    weight: 1.4
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 6
+  - label: jab, cross, CLAP (the circle closes)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
+      - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
+      - {fileID: 11400000, guid: 77c23a206fcc39f44b45d83dd2fc33f7, type: 2}
     weight: 1
     minRange: 0
     maxRange: 3.4
-    cooldown: 5
+    cooldown: 8
   - label: KICK (unblockable, anti-turtle)
     combo:
       hits:
@@ -105,30 +154,30 @@ MonoBehaviour:
     minRange: 0
     maxRange: 2.8
     cooldown: 5
-  - label: CHARGE into jab, cross (unblockable opener)
+  - label: LEAP-IN into jab, cross (unblockable opener)
     combo:
       hits:
       - {fileID: 11400000, guid: 6baab504a7926c34a8dece731ebfe9d8, type: 2}
       - {fileID: 11400000, guid: 4258a8b6a268b8549a025fea9fbd6631, type: 2}
       - {fileID: 11400000, guid: 3fa93328d4574894fa69491e40facd46, type: 2}
     weight: 4
-    minRange: 3.6
-    maxRange: 6.5
+    minRange: 2.6
+    maxRange: 4.5
     cooldown: 0
-  - label: CHARGE into the FLURRY
+  - label: LEAP-IN into the FLURRY
     combo:
       hits:
       - {fileID: 11400000, guid: 6baab504a7926c34a8dece731ebfe9d8, type: 2}
       - {fileID: 11400000, guid: 87918c2b84f18194193cb5fe6c157a82, type: 2}
     weight: 3
-    minRange: 3.6
-    maxRange: 6.5
+    minRange: 2.6
+    maxRange: 4.5
     cooldown: 0
-  - label: SHOULDER CHARGE (unblockable, to the aggro edge)
+  - label: LEAP-IN (the close)
     combo:
       hits:
       - {fileID: 11400000, guid: 6baab504a7926c34a8dece731ebfe9d8, type: 2}
     weight: 1.5
-    minRange: 3.6
-    maxRange: 16
+    minRange: 2.6
+    maxRange: 4.5
     cooldown: 0

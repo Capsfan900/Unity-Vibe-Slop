@@ -37,35 +37,89 @@ namespace VibeGame1.Tests
             Assert.That(Mathf.Sign(shots[0].position.x), Is.EqualTo(-1f), "first is left");
             Assert.That(Mathf.Sign(shots[1].position.x), Is.EqualTo(1f), "second is right");
             Assert.That(Mathf.Sign(shots[2].position.x), Is.EqualTo(-1f), "third returns left");
-            Assert.That(shots.Select(s => s.position), Is.EqualTo(new[]
+            // Progress down the 144 m slope from its lip at z -159.8: 30 / 47 / 71 / 96 / 113.
+            // Compare with a TOLERANCE, element by element. NUnit uses Vector3.Equals, which is exact
+            // float equality per component - unlike Vector3.==, which is approximate. These positions are
+            // computed from a slope() helper, so a value that prints as (3.20, 19.60, -63.80) can still
+            // differ from the same literal in its low bits, and the failure reads "Expected: (3.20, 19.60,
+            // -63.80) But was: (3.20, 19.60, -63.80)", which tells you nothing.
+            var expected = new[]
             {
-                new Vector3(-8.7f, 24.6f, -113.8f),
-                new Vector3( 8.7f, 18.35f, -88.8f),
-                new Vector3(-8.7f, 12.35f, -64.8f),
-                new Vector3( 3.2f, 13.6f, -39.8f),
-                new Vector3(-3.2f,  9.1f, -22.8f)
-            }));
+                new Vector3(-8.7f, 28.6f, -129.8f),
+                new Vector3( 8.7f, 24.35f, -112.8f),
+                new Vector3(-8.7f, 18.35f, -88.8f),
+                new Vector3( 3.2f, 19.6f, -63.8f),
+                new Vector3(-3.2f, 15.1f, -46.8f)
+            };
+            for (int i = 0; i < expected.Length; i++)
+                Assert.That(Vector3.Distance(shots[i].position, expected[i]), Is.LessThan(0.001f),
+                    "perch " + (i + 1) + " is at " + shots[i].position + ", authored as " + expected[i]);
 
-            Assert.That(volley.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -135.8f)));
+            Assert.That(volley.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -159.8f)));
             Assert.That(volley.progressDirection, Is.EqualTo(Vector3.forward));
-            Assert.That(volley.memberProgressGates, Is.EqualTo(new[] { 0f, 16f, 40f, 64f, 87f }));
+            Assert.That(volley.memberProgressGates, Is.EqualTo(new[] { 0f, 18f, 40f, 64f, 87f }));
             Assert.That(volley.shotResolutionTimeout, Is.EqualTo(1.25f).Within(0.001f));
         }
 
         [Test]
-        public void OpeningIsA120MetreDescentAtOneInFourGradeWithBreathingRoom()
+        public void OpeningIsA144MetreDescentAtOneInFourGradeWithBreathingRoom()
         {
             var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
             var entry = def.platforms.Single(p => p.name == "T0_Entry");
             var runout = def.platforms.Single(p => p.name == "T0_RunOut");
-            Assert.That(ramp.basePosition, Is.EqualTo(new Vector3(0f, 30f, -135.8f)));
-            Assert.That(ramp.run, Is.EqualTo(120f).Within(0.001f));
-            Assert.That(ramp.rise, Is.EqualTo(-30f).Within(0.001f));
+            // Lengthened at the TOP on 2026-09-07 (120 -> 144 m of run). The bottom is pinned at
+            // z -15.8 / y 0 because T0_RunOut and then Ground_Start follow it, so the extra 24 m has to
+            // appear above the lip: base y 30 -> 36, base z -135.8 -> -159.8. Grade stays exactly 1:4.
+            Assert.That(ramp.basePosition, Is.EqualTo(new Vector3(0f, 36f, -159.8f)));
+            Assert.That(ramp.run, Is.EqualTo(144f).Within(0.001f));
+            Assert.That(ramp.rise, Is.EqualTo(-36f).Within(0.001f));
+            Assert.That(-ramp.rise / ramp.run, Is.EqualTo(0.25f).Within(0.0001f), "the 1:4 grade is fixed");
             Assert.That(ramp.width, Is.EqualTo(14f).Within(0.001f));
             Assert.That(Vector3.Distance(ramp.TopPosition, new Vector3(0f, 0f, -15.8f)), Is.LessThan(0.001f));
             Assert.That(entry.size.x, Is.EqualTo(14f).Within(0.001f));
+            Assert.That(entry.size.z, Is.GreaterThanOrEqualTo(10f),
+                "the crest is a threshold to read the hill from, not a doorstep");
             Assert.That(runout.size.x, Is.EqualTo(14f).Within(0.001f));
-            Assert.That(def.playerStart, Is.EqualTo(new Vector3(0f, 30.3f, -139f)));
+            Assert.That(def.playerStart, Is.EqualTo(new Vector3(0f, 36.3f, -162.3f)));
+        }
+
+        /// <summary>
+        /// The first perch is the one the player reported as waking too late. It has to be inside the
+        /// sentry's WAKE radius from the spawn point - which EnemyController measures with y flattened -
+        /// so it is already tracking before the player has moved, and inside projectileMaxRange from the
+        /// gate so its arm-up starts the instant the gate opens rather than after a closing run.
+        /// </summary>
+        [Test]
+        public void FirstPerchIsAwakeAndInRangeFromTheCrestBeforeTheGateOpens()
+        {
+            var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
+            Assert.IsNotNull(data, "shipped surge turret data missing");
+            float wake = Mathf.Max(data.aggroRange, data.projectileMaxRange);
+
+            var first = def.spawns.Single(s => s.name == "Spawn_T0_Surge_1");
+            var flat = new Vector2(first.position.x - def.playerStart.x, first.position.z - def.playerStart.z);
+            Assert.That(flat.magnitude, Is.LessThan(wake - 1.5f),
+                "perch 1 must already be awake at the player's start, with margin; wake is horizontal only");
+
+            var volley = def.projectileSequences.Single(s => s.name == "T0_SurgeVolley");
+            var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            Assert.That(volley.progressOrigin.z, Is.EqualTo(ramp.basePosition.z).Within(0.001f),
+                "the gate coordinate's origin is the lip of the hill, so gate 0 opens at the slowest " +
+                "moment on it; leaving it below the lip would hand the first beat a 21 m/s arrival");
+            Vector3 gate = RampChest(volley.progressOrigin.z + volley.memberProgressGates[0]);
+            float atGate = Vector3.Distance(first.position + Vector3.up * 1.3f, gate);
+            Assert.That(atGate, Is.LessThan(data.projectileMaxRange - 2f),
+                "perch 1 must be in band AT the gate or the arm-up does not start there");
+
+            // Announcement = how far below its gate each perch sits. Beat 1 alone used to be 22 m while
+            // the rest were 26-32, which is why its bolt flew half as long as every other one.
+            var perches = volley.spawnerNames.Select(n => def.spawns.Single(s => s.name == n)).ToArray();
+            for (int i = 0; i < perches.Length; i++)
+            {
+                float announcement = perches[i].position.z - (volley.progressOrigin.z + volley.memberProgressGates[i]);
+                Assert.That(announcement, Is.InRange(25f, 33f),
+                    perches[i].name + " announcement " + announcement + " m is out of the ladder's band");
+            }
         }
 
         [Test]
@@ -80,7 +134,9 @@ namespace VibeGame1.Tests
             {
                 var uphillEdge = new Vector3(piece.center.x, 0f, piece.center.z - piece.size.z * 0.5f);
                 float clearance = piece.center.y - piece.size.y * 0.5f - LevelDescentReport.SurfaceY(ramp, uphillEdge);
-                Assert.That(clearance, Is.GreaterThanOrEqualTo(6f), piece.name + " route clearance");
+                // The rear terrace is the tight one and lands on EXACTLY 6.00 m; the epsilon is for
+                // float32 in SurfaceY, not slack in the rule.
+                Assert.That(clearance, Is.GreaterThan(5.99f), piece.name + " route clearance");
             }
 
             var front = pieces.Single(p => p.name == "T0_OverheadDais_Front");
@@ -118,8 +174,18 @@ namespace VibeGame1.Tests
             }
 
             Assert.That(volley.memberProgressGates, Is.Ordered.Ascending);
-            Assert.That(volley.memberProgressGates.All(p => p >= 0f && p < 120f), Is.True,
+            // The first gate is 0 and must stay 0. It was raised to 14 on 2026-09-07 to buy runway and
+            // the user reported the sliding parry rhythm broke; runway is bought by lengthening the ramp
+            // ABOVE progressOrigin, never by gating the first beat later. See ENGINEERING-LOG.
+            Assert.That(volley.memberProgressGates[0], Is.EqualTo(0f),
+                "the first beat must be able to open as soon as the player is on the slope");
+            var slope = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            Assert.That(volley.memberProgressGates.All(p => p >= 0f && p < slope.run), Is.True,
                 "every launch gate lies on the descent");
+            Assert.That(def.spawns.Where(s => s.name.StartsWith("Spawn_T0_Surge_"))
+                           .All(s => s.position.z > slope.basePosition.z &&
+                                     s.position.z < slope.TopPosition.z - 20f), Is.True,
+                "every perch sits on the hill with room below the last contact to feel the surge");
         }
 
         [Test]
@@ -165,8 +231,8 @@ namespace VibeGame1.Tests
                 var host = new GameObject("T0_SurgeVolley");
                 host.transform.SetParent(root.transform, false);
                 host.AddComponent<ProjectileVolleySequence>().Configure(
-                    members, 0.11f, 1.1f, 1.25f, new Vector3(0f, 0f, -135.8f), Vector3.forward,
-                    new[] { 0f, 16f, 40f, 64f, 87f });
+                    members, 0.11f, 1.1f, 1.25f, new Vector3(0f, 0f, -159.8f), Vector3.forward,
+                    new[] { 0f, 18f, 40f, 64f, 87f });
 
                 LevelDefinitionExporter.ExportInto(root, fresh);
 
@@ -176,9 +242,9 @@ namespace VibeGame1.Tests
                 Assert.That(saved.recoveryGap, Is.EqualTo(0.11f).Within(0.0001f));
                 Assert.That(saved.readinessTimeout, Is.EqualTo(1.1f).Within(0.0001f));
                 Assert.That(saved.shotResolutionTimeout, Is.EqualTo(1.25f).Within(0.0001f));
-                Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -135.8f)));
+                Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -159.8f)));
                 Assert.That(saved.progressDirection, Is.EqualTo(Vector3.forward));
-                Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 16f, 40f, 64f, 87f }));
+                Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 18f, 40f, 64f, 87f }));
             }
             finally
             {

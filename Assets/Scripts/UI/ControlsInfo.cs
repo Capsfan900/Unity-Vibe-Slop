@@ -31,6 +31,7 @@ namespace VibeGame1
             "\n" +
             H + "ITEMS AND MENUS" + HE + "\n" +
             D + "E" + DE + "  use item      " + D + "F" + DE + "  flask (or CHOOSE WAND at an altar)      " + D + "1 2 3 / wheel" + DE + "  weapon      " + D + "Tab" + DE + "  level up      " + D + "Esc" + DE + "  pause\n" +
+            D + "F11" + DE + "  weapon flourish (cosmetic - rebind it under SETTINGS > CONTROL > FLOURISH KEY)\n" +
             "\n" +
             H + "LEVEL EDITOR" + HE + "  (editor and development builds only - F10, or F1 > LEVEL EDITOR; see docs/LEVEL-EDITOR.md)\n" +
             D + "WASD / Space / Ctrl / Shift" + DE + "  fly, up, down, fast      " + D + "Tab" + DE + "  toggle the cursor (free on enter)\n" +

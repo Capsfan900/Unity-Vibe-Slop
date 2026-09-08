@@ -30,6 +30,76 @@ the harness; do not retune movement, trigger sizes or healing to accommodate tes
 to the current checkpoint (start spawn fallback), then waits for grounded contact before drinking.
 The real trigger, inventory, wallet and interrupted-heal assertions remain unchanged.
 
+## 2026-09-07 — Two draw paths, and a prefab asset is never active
+
+**Symptom A.** Removing the HUD's BEST RUNS pane would not have removed BEST RUNS. `GhostHud` writes
+its table into the HUD pane when it finds one and otherwise falls back to drawing
+`"<b>BEST RUNS</b>" + table` on its own runtime canvas — so deleting the pane REVERTS the screen to the
+older loose block instead of clearing it. **Fix.** The builder stops emitting the pane and `GhostHud`
+ships `BoardVisible` false, closing both paths; the leaderboard data and the ghost delta are untouched.
+**Invariant.** Before deleting a readout, find every writer. A fallback renderer is a second writer.
+
+**Symptom B.** `SettingsPrefabTests` failed asserting `WeaponTwirl` sits under a `WeaponViewmodel`,
+while the two components were verifiably on the SAME GameObject of the shipped prefab.
+**Cause.** A prefab ASSET is not in a scene, so every object in it reports `activeInHierarchy == false`,
+and the no-argument `GetComponentInParent<T>()` skips inactive objects — it returns null even for a
+component on the same object. `GetComponentInChildren<T>(true)` was already correct elsewhere in the
+same file, which is why only this assertion failed. **Fix.** `GetComponentInParent<T>(true)`.
+**Invariant.** Every `GetComponent*` call against an asset loaded with `LoadAssetAtPath` needs the
+`includeInactive` overload. A shipped-value test that reads the prefab wrongly reports a false failure,
+which costs more than no test at all.
+
+**Symptom C.** `TheFirstRampIsWideAndFullySupported` failed on an overlap of `0.1999993` against a bare
+`>= 0.2f`. The authored overlap IS exactly 0.2 m; `16.30f + 3.90f` lands on `20.199999` in float. The
+identical assertion on the ramp's other end passed only by rounding luck. **Invariant.** A geometry
+assertion on an exactly-authored boundary needs the file's own 0.001 epsilon on BOTH sides, or it is a
+coin toss that fails the day the number is met precisely.
+
+## 2026-09-07 - A progress gate is a floor, not a schedule (a regression I shipped and reverted)
+
+**Symptom.** The user asked for "more runway before the first enemy so you can have more time to parry"
+on the T0 opening. I raised `memberProgressGates[0]` from `0f` to `14f` - the one authored number
+standing between the crest and the first bolt - and it read as correct on paper. Playing it, the user
+reported the opposite of an improvement: *"the logic for those was somewhat working and making so I
+could parry them when sliding but now its off"*, and *"the turret is not aggroing soon enough (the
+first one on the left)"*.
+
+**Cause.** A gate is a FLOOR on where a beat may happen, in a SEQUENTIAL volley where each member also
+waits on the previous shot resolving plus `recoveryGap`. Raising the first gate therefore did not
+insert runway in front of the ladder - it deleted the first beat's approach and pushed every later beat
+further down the slide, so the rhythm the player had learned came apart. The turret also read as
+"not aggroing" because it was awake (inside its 32 m `WakeRange`) but forbidden to fire.
+
+**Fix.** Reverted to `0f`. Runway at the top is bought by LENGTHENING THE RAMP ABOVE `progressOrigin`,
+which leaves every beat's relationship to its own turret untouched.
+
+**Invariant.** Do not buy space at the start of a sequenced encounter by delaying its first beat. Move
+the geometry the encounter sits on. And note the shape of the error: the change was verified by the
+live probe (five parries, full 1.60x) and STILL broke the feel - the probe parries on a forecast, so it
+proves the ladder is completable, never that its rhythm is learnable by a human. `OpeningTurretTests`
+now pins the first gate at 0 with this reasoning attached.
+
+## 2026-09-07 - A control path is not a binding path (the rebind that only ever gave you F11)
+
+**Symptom.** The user: *"i can bind the twirl to anything other than f11 for some reason"*. Every
+rebind appeared to fail and the flourish stayed on its default key.
+
+**Cause.** The interactive rebind read `op.selectedControl.path`. `InputControl.path` is a **runtime**
+path - `/Keyboard/f11`, leading slash, no device brackets (its own doc example is
+`"/gamepad/leftStick/x"`). A **binding** path, the only thing `ApplyBindingOverride` can resolve, is
+`<Keyboard>/f11`. `SettingsData.SanitizeBindingPath` rejects the former on purpose, so the completion
+handler took its "unusable path" branch, re-applied the saved value and called the CANCEL callback.
+Every key behaved identically; the default was the only reachable binding.
+
+**Fix.** Read `action.bindings[0].effectivePath` instead. The operation has already applied its own
+override by the time `OnComplete` runs, and what it wrote is the canonical binding path.
+
+**Invariant.** `InputControl.path` and `InputBinding.effectivePath` are different namespaces and only
+one of them is an override. `SettingsDataTests.OnlyABindingPathSurvivesSanitising_NotARuntimeControlPath`
+pins both shapes. More generally: a validator that silently downgrades a bad value to "use the default"
+hides the bug that produced it - this one turned a format error into a plausible-looking no-op, and it
+took a player noticing that one specific key "worked" to surface it.
+
 Institutional memory for `vibegame1`. Every non-obvious problem that cost real time, and the invariant
 that stops it recurring. **Read this before debugging anything weird** — there is a good chance it is
 already in here.

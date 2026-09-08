@@ -61,6 +61,17 @@ namespace VibeGame1
         /// <summary>VSync counts Unity accepts: off, every v-blank, every second v-blank.</summary>
         public static readonly int[] VSyncOptions = { 0, 1, 2 };
 
+        /// <summary>
+        /// The shipped default binding for the weapon flourish, as an Input System control path. Held
+        /// HERE rather than in <see cref="InputReader"/> so the settings feature stays a plain POCO that
+        /// an EditMode test can sanitise without the Input System loaded; InputReader reads this const
+        /// so there is still exactly one default in the project.
+        /// </summary>
+        public const string WeaponTwirlDefaultBinding = "<Keyboard>/f11";
+
+        /// <summary>Longest control path we will store. A prefs entry longer than this is junk.</summary>
+        public const int BindingPathMaxLength = 96;
+
         // ---- the settings themselves -------------------------------------------------------------
 
         public float mouseSensitivity = MouseSensDefault;
@@ -87,6 +98,15 @@ namespace VibeGame1
         /// <summary>Scale on AudioManager's authored music gain. The level radio rides this too.</summary>
         public float musicVolume = VolumeDefault;
 
+        /// <summary>
+        /// Player override for the weapon-flourish key, as an Input System control path
+        /// (e.g. <c>&lt;Keyboard&gt;/h</c>). EMPTY means "no override" — the asset's own
+        /// <see cref="WeaponTwirlDefaultBinding"/> stands. Anything unparseable is emptied by
+        /// <see cref="Clamp"/>, so a corrupt prefs entry can only ever cost the player their override,
+        /// never the key itself.
+        /// </summary>
+        public string weaponTwirlBinding = "";
+
         // ---- construction ------------------------------------------------------------------------
 
         public static SettingsData Defaults()
@@ -111,6 +131,7 @@ namespace VibeGame1
                 filmGrain = filmGrain,
                 masterVolume = masterVolume,
                 musicVolume = musicVolume,
+                weaponTwirlBinding = weaponTwirlBinding,
             };
         }
 
@@ -142,6 +163,43 @@ namespace VibeGame1
             if (IndexOf(FrameCaps, frameRateCap) < 0) frameRateCap = 0;
 
             if (qualityLevel < -1) qualityLevel = -1;
+
+            weaponTwirlBinding = SanitizeBindingPath(weaponTwirlBinding);
+        }
+
+        /// <summary>
+        /// Reduce a stored control path to something the Input System could plausibly resolve, or to
+        /// "" (meaning: use the default). Pure and total — this is the only gate between PlayerPrefs
+        /// and <c>InputAction.ApplyBindingOverride</c>, and an override that does not resolve leaves the
+        /// action with NO binding at all, which is a silently dead key.
+        ///
+        /// <para>Accepted: a non-empty path that starts with a device group (<c>&lt;Keyboard&gt;</c>,
+        /// <c>&lt;Mouse&gt;</c>, <c>&lt;Gamepad&gt;</c>, …) and contains a control after a slash.
+        /// Rejected: null, whitespace, escape (which must stay the universal cancel), anything over
+        /// <see cref="BindingPathMaxLength"/>, and anything without the <c>&lt;device&gt;/control</c>
+        /// shape.</para>
+        /// </summary>
+        public static string SanitizeBindingPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return "";
+            path = path.Trim();
+            if (path.Length == 0 || path.Length > BindingPathMaxLength) return "";
+            if (path[0] != '<') return "";
+            int close = path.IndexOf('>');
+            if (close < 2) return "";
+            int slash = path.IndexOf('/', close);
+            if (slash < 0 || slash >= path.Length - 1) return "";
+            // Escape is the cancel gesture on every listening prompt in the game; binding it would
+            // make the flourish key impossible to change back.
+            if (path.EndsWith("/escape", System.StringComparison.OrdinalIgnoreCase)) return "";
+            return path;
+        }
+
+        /// <summary>The effective flourish binding: the override if there is a usable one, else the default.</summary>
+        public string WeaponTwirlBindingOrDefault()
+        {
+            string p = SanitizeBindingPath(weaponTwirlBinding);
+            return p.Length == 0 ? WeaponTwirlDefaultBinding : p;
         }
 
         /// <summary>NaN and infinity survive Mathf.Clamp unchanged; a saved NaN sensitivity blanks the view.</summary>
@@ -188,6 +246,25 @@ namespace VibeGame1
         public static string PercentLabel(float scale)
         {
             return Mathf.RoundToInt(scale * 100f) + "%";
+        }
+
+        /// <summary>
+        /// A control path as a player reads it: <c>&lt;Keyboard&gt;/f11</c> → <c>F11</c>. Deliberately
+        /// string-only rather than <c>InputControlPath.ToHumanReadableString</c> — hard rule 2 keeps the
+        /// Input System inside <see cref="InputReader"/>, and this has to work in an EditMode test with
+        /// no devices present. <see cref="InputReader"/> supplies a nicer label when it is alive.
+        /// </summary>
+        public static string KeyLabel(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return "UNBOUND";
+            int slash = path.LastIndexOf('/');
+            string tail = slash >= 0 && slash < path.Length - 1 ? path.Substring(slash + 1) : path;
+            int close = path.IndexOf('>');
+            string device = path.Length > 1 && path[0] == '<' && close > 1 ? path.Substring(1, close - 1) : "";
+            string key = tail.ToUpperInvariant();
+            if (device == "Mouse") return "MOUSE " + key;
+            if (device == "Gamepad") return "PAD " + key;
+            return key;
         }
 
         public static string OnOffLabel(bool on)

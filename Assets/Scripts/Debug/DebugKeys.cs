@@ -10,6 +10,10 @@ namespace VibeGame1
     ///   F7  +1000 souls
     ///   F8  toggle god mode (invulnerable)
     ///   F9  toggle the wall-run diagnostic readout (why the last wall run did / did not start)
+    ///
+    /// <para>The weapon flourish used to live here on F11. It is a real player action now — the key is
+    /// rebindable on the settings screen — so <c>WeaponTwirl</c> ships on the Player prefab and polls
+    /// InputReader itself.</para>
     /// </summary>
     public class DebugKeys : MonoBehaviour
     {

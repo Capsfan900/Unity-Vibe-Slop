@@ -348,6 +348,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "WeaponTwirl",
+                    "type": "Button",
+                    "id": "1ac9460c-0bb6-47ce-ad71-3698dd8d8982",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "UseItem",
                     "type": "Button",
                     "id": "87b7ac1c-ff71-429e-b300-75329cb50405",
@@ -1304,6 +1313,17 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "DebugWallRunDiag",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "fbbe5449-eb8d-4a28-8ba2-d8d81e88afec",
+                    "path": "<Keyboard>/f11",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "WeaponTwirl",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

@@ -25,6 +25,17 @@ namespace VibeGame1
         float lastTeleportAt = -99f;
         bool exitShown;
         PlayerCombat occupant;
+        SolarArenaVisual visual;
+
+        /// <summary>The shipped theme key, used only to colour the crossing.</summary>
+        public string ThemeKey
+        {
+            get
+            {
+                return definition != null && !string.IsNullOrEmpty(definition.themeMaterialKey)
+                    ? definition.themeMaterialKey : "SolarCyan";
+            }
+        }
 
         public bool IsFinalBossPortal { get { return arena != null && arena.clearSpawner == null; } }
         public bool ExitAvailable { get { return hasReturn && arena != null && arena.Cleared; } }
@@ -43,11 +54,28 @@ namespace VibeGame1
             var col = GetComponent<SphereCollider>();
             col.isTrigger = true;
             SetExit(false);
+
+            // Hand the presentation lane the two numbers it cannot derive: how far in the transport
+            // fires, and which sun this is. Everything else about the crossing (the membrane band, the
+            // wash curve, the cut) lives in SolarTransition, so no serialized value can go stale.
+            visual = GetComponent<SolarArenaVisual>();
+            if (visual != null)
+            {
+                var scale = transform.lossyScale;
+                float uniform = Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+                visual.crossingTriggerRadius = col.radius * Mathf.Max(0.0001f, uniform);
+                visual.crossingThemeKey = ThemeKey;
+                visual.crossingArmed = false;
+            }
         }
 
         void Update()
         {
             SetExit(ExitAvailable);
+            // A cleared sun no longer transports, so it no longer closes over the eye. This is what
+            // keeps the wash from sitting on the screen at the return point, which is INSIDE the
+            // drawn shell (15-16 m against a 22-31 m visual radius on every shipped portal).
+            if (visual != null) visual.crossingArmed = arena != null && !arena.Cleared;
         }
 
         void OnTriggerEnter(Collider other)
@@ -65,6 +93,10 @@ namespace VibeGame1
             if (!arena.BeginFight(player)) return false;
 
             if (!Teleport(player, realmEntry)) return false;
+            // Fired AFTER the transport, inside the same call. Unity renders no frame between the two,
+            // so the cover cannot be late; and because it is downstream of the teleport it can never
+            // play for a crossing that did not happen.
+            SolarTransition.Cut(ThemeKey);
             lastTeleportAt = Time.unscaledTime;
             occupant = player;
             return true;
@@ -77,6 +109,7 @@ namespace VibeGame1
             if (Time.unscaledTime - lastTeleportAt < TeleportDebounce) return false;
 
             if (!Teleport(player, worldReturn)) return false;
+            SolarTransition.Cut(ThemeKey);
             lastTeleportAt = Time.unscaledTime;
             occupant = null;
             return true;
@@ -93,6 +126,8 @@ namespace VibeGame1
             occupant = null;
             lastTeleportAt = -99f;
             SetExit(false);
+            // A reset undoes a crossing; a cover armed for it must not outlive it.
+            if (ScreenFlash.I != null) ScreenFlash.I.ClearCurtain();
         }
 
         static bool Teleport(PlayerCombat player, Transform destination)

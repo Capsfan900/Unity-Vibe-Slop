@@ -864,6 +864,15 @@ namespace VibeGame1.EditorTools
             trail.fadeSeconds = 0.11f;
             trail.brightness = 1.15f;   // over the 1.05 bloom threshold, under the ~1.25 ACES ceiling
 
+            // The flourish (default F11, rebindable in SETTINGS). Shipped on the prefab rather than
+            // added on demand: it is a player action now, not a dev key. Rule 9 again — every value is
+            // written here, because Player.prefab keeps what was serialised the day it was built.
+            var twirl = vmRoot.AddComponent<WeaponTwirl>();
+            twirl.spinSeconds = 0.42f;      // one revolution; fast enough to read as a flick
+            twirl.axis = Vector3.right;     // end over end, in view
+            twirl.spinsPerPress = 1;
+            twirl.maxQueuedSpins = 6;       // mashing stacks, so holding on to it stays fun
+
             look.pivot = pivot.transform;
             look.cam = camGo.transform;
 

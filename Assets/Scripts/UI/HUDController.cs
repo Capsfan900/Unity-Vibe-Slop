@@ -29,21 +29,10 @@ namespace VibeGame1
                  "under the clear message's own 8 s lifetime or the screen blanks before the load.")]
         public float returnToMenuSeconds = 4.5f;
         public TMP_Text hintText;
-        [Tooltip("The glass BEST RUNS pane (top-right, under the radio). GhostHud writes its table into " +
-                 "bestRunsText and shows the pane only once there is a board; it ships hidden AND collapsed.")]
-        public GameObject bestRunsPane;
-        public TMP_Text bestRunsText;
-        [Tooltip("Everything in the BEST RUNS glass that is not a row: insets, the title band, the tail. " +
-                 "Shipped by HudBuilder (hard rule 9) - the runtime cannot read an editor const.")]
-        public float bestRunsChrome = 64f;
-        [Tooltip("Height of one BEST RUNS row: 17 pt plus 4 pt line spacing.")]
-        public float bestRunsRowHeight = 22f;
-        [Tooltip("Most rows the board will ever send (Leaderboard.DisplayCount).")]
-        public int bestRunsMaxRows = 8;
-        [Tooltip("Unscaled seconds the board stays EXPANDED after it changes, then settles back to the " +
-                 "personal best and a '+N MORE' line. There is no key for this on purpose: a bind nobody " +
-                 "is told about is worse than a collapsed pane.")]
-        public float bestRunsExpandSeconds = 4f;
+        // The BEST RUNS pane was removed from the HUD on 2026-09-07 at the user's ask: a leaderboard
+        // is a menu readout, not something read at the crosshair mid-run. The board itself still exists
+        // (Leaderboard + GhostHud, which ships its own board hidden) — the HUD simply does not draw it,
+        // so there is no pane, no text and no expand/collapse state here any more.
 
         [Header("Souls")]
         [Tooltip("Floor on how fast the counter rolls toward the wallet, in souls per second; a big gain " +
@@ -98,14 +87,6 @@ namespace VibeGame1
         float soulsFlash;           // seconds of gain flourish left
         RectTransform soulsRect;
 
-        // ---- best runs: collapsed by default, expanded for a beat when the board changes ----
-        string bestRunsBrief = "";  // the personal best plus "+N MORE"
-        string bestRunsFull = "";   // every row the board sent
-        float bestRunsExpandUntil = -1f;
-        bool bestRunsExpanded;
-        bool bestRunsDirty = true;
-        int bestRunsRows = 1;       // rows in the text currently on screen; counted on a CHANGE, not per frame
-        RectTransform bestRunsRect;
         Coroutine popup;
         Coroutine center;
         Coroutine toast;
@@ -172,7 +153,6 @@ namespace VibeGame1
                 soulsText.color = SoulsRest;
                 soulsRect.localScale = Vector3.one;
             }
-            if (bestRunsPane != null) bestRunsRect = bestRunsPane.GetComponent<RectTransform>();
             if (itemToastText != null) itemToastText.alpha = 0f;
             if (postureBar != null) { postureBar.SetColor(PostureBase); postureBar.Set(0f); postureBar.SetNearBreak(false); }
             ClearItemSlots();
@@ -265,7 +245,6 @@ namespace VibeGame1
             }
 
             UpdateSouls();
-            ApplyBestRuns(false);
 
             // The F10 level editor is not a run. Health, stamina, posture, the Pyre, the flask, the item
             // slots, the souls and the clock all freeze at whatever the level left them holding and then
@@ -411,75 +390,6 @@ namespace VibeGame1
             if (soulsFlash > 0f) return;
             soulsText.color = SoulsRest;
             if (soulsRect != null) soulsRect.localScale = Vector3.one;
-        }
-
-        // ---- BEST RUNS ------------------------------------------------------------------------------
-
-        /// <summary>
-        /// The board in two readings: <paramref name="brief"/> is what the pane shows at rest (the
-        /// personal best and a "+N MORE" line), <paramref name="full"/> is every row. Called by
-        /// <see cref="GhostHud"/> whenever the leaderboard changes; a change EXPANDS the pane for
-        /// <see cref="bestRunsExpandSeconds"/> and it settles back on its own. No new bind: the one
-        /// moment the whole table answers a question is the moment a run lands on it.
-        /// </summary>
-        public void SetBestRuns(string brief, string full)
-        {
-            if (bestRunsText == null) return;
-            brief = brief ?? "";
-            full = full ?? "";
-            bool changed = full != bestRunsFull;
-            bestRunsBrief = brief;
-            bestRunsFull = full;
-            if (changed && full != brief) bestRunsExpandUntil = Time.unscaledTime + bestRunsExpandSeconds;
-            bestRunsDirty = true;
-            // A pane about to be shown for the first time must ARRIVE at its size rather than grow into
-            // it from whatever the last board left behind.
-            ApplyBestRuns(bestRunsPane == null || !bestRunsPane.activeSelf);
-        }
-
-        /// <summary>Lines in a rich-text block: the row count the glass is sized from.</summary>
-        public static int LineCount(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return 0;
-            int n = 1;
-            for (int i = 0; i < s.Length; i++) if (s[i] == '\n') n++;
-            return n;
-        }
-
-        void ApplyBestRuns(bool snap)
-        {
-            if (bestRunsText == null) return;
-            bool expanded = Time.unscaledTime < bestRunsExpandUntil;
-            if (bestRunsDirty || expanded != bestRunsExpanded)
-            {
-                bestRunsExpanded = expanded;
-                bestRunsDirty = false;
-                string shown = expanded ? bestRunsFull : bestRunsBrief;
-                bestRunsText.text = shown;
-                // Sized from the data it holds: a two-run board is a two-row pane, never eight rows of
-                // glass over empty space. Counted here, on the change, never once a frame.
-                bestRunsRows = Mathf.Clamp(LineCount(shown), 1, Mathf.Max(1, bestRunsMaxRows));
-            }
-
-            if (bestRunsRect == null)
-            {
-                if (bestRunsPane == null) return;
-                bestRunsRect = bestRunsPane.GetComponent<RectTransform>();
-                if (bestRunsRect == null) return;
-            }
-            float target = BestRunsPaneHeight(bestRunsRows);
-            var size = bestRunsRect.sizeDelta;
-            if (Mathf.Abs(size.y - target) < 0.01f) return;
-            size.y = snap ? target
-                          : Mathf.MoveTowards(size.y, target,
-                                              Mathf.Max(240f, Mathf.Abs(target - size.y) * 6f) * Time.unscaledDeltaTime);
-            bestRunsRect.sizeDelta = size;
-        }
-
-        /// <summary>Height of the BEST RUNS glass holding <paramref name="rows"/> rows.</summary>
-        public float BestRunsPaneHeight(int rows)
-        {
-            return bestRunsChrome + Mathf.Max(1, rows) * bestRunsRowHeight;
         }
 
         void OnWeapon(WeaponData w)

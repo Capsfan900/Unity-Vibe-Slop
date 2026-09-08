@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,7 +14,8 @@ namespace VibeGame1
 
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
-                    debugWarpBoss, debugRestore, debugSouls, debugGodMode, debugWallRunDiag;
+                    debugWarpBoss, debugRestore, debugSouls, debugGodMode, debugWallRunDiag,
+                    weaponTwirl;
         InputAction useItem, testMenu, wandCycle, interact, lockOn, slide;
         // The in-game level editor (LevelEditor). Optional: a map without them must not crash startup.
         InputAction levelEditor, editorPlace, editorDelete, editorGrab, editorRotate, editorGrow, editorShrink,
@@ -63,6 +65,7 @@ namespace VibeGame1
             debugSouls = map.FindAction("DebugSouls", false);
             debugGodMode = map.FindAction("DebugGodMode", false);
             debugWallRunDiag = map.FindAction("DebugWallRunDiag", false);
+            weaponTwirl = map.FindAction(WeaponTwirlActionName, false);
             levelEditor = map.FindAction("LevelEditor", false);
             editorPlace = map.FindAction("EditorPlace", false);
             editorDelete = map.FindAction("EditorDelete", false);
@@ -88,6 +91,11 @@ namespace VibeGame1
             radioNext = map.FindAction("RadioNext", false);
             radioPrevious = map.FindAction("RadioPrevious", false);
             radioToggle = map.FindAction("RadioToggle", false);
+            // The player's saved key, before anything can press it. SettingsApplier pushes it again on
+            // every scene load; doing it here as well means a level whose InputReader wakes before the
+            // applier's deferred pass still starts on the right binding rather than on F11 for a frame.
+            ApplyWeaponTwirlOverride(SettingsStore.Current.weaponTwirlBinding);
+
             map.Enable();
             asset.FindActionMap("UI")?.Enable();
         }
@@ -155,6 +163,161 @@ namespace VibeGame1
         public bool DebugSoulsPressed => debugSouls != null && debugSouls.WasPressedThisFrame();
         public bool DebugGodModePressed => debugGodMode != null && debugGodMode.WasPressedThisFrame();
         public bool DebugWallRunDiagPressed => debugWallRunDiag != null && debugWallRunDiag.WasPressedThisFrame();
+
+        // ---- the weapon flourish: a real player action, and the one rebindable key ------------------
+
+        /// <summary>The action's name in <c>InputSystem_Actions.inputactions</c>. Looked up optionally,
+        /// like every action added after the template, so an older asset never crashes startup.</summary>
+        public const string WeaponTwirlActionName = "WeaponTwirl";
+
+        /// <summary>Default F11 (<see cref="SettingsData.WeaponTwirlDefaultBinding"/>): spin the weapon
+        /// in hand. Cosmetic. <see cref="WeaponTwirl"/> polls this itself. Held FALSE while the settings
+        /// screen is listening for a new key, so the key you just chose does not also fire a flourish.</summary>
+        public bool WeaponTwirlPressed => weaponTwirl != null && rebind == null && weaponTwirl.WasPressedThisFrame();
+
+        /// <summary>False when the .inputactions asset predates the action — the settings row says so
+        /// rather than offering a rebind that would go nowhere.</summary>
+        public bool HasWeaponTwirlAction => weaponTwirl != null;
+
+        InputActionRebindingExtensions.RebindingOperation rebind;
+
+        /// <summary>True while <see cref="BeginWeaponTwirlRebind"/> is listening.</summary>
+        public bool IsRebinding => rebind != null;
+
+        /// <summary>The path the flourish is actually bound to right now, override included.</summary>
+        public string WeaponTwirlEffectivePath
+        {
+            get
+            {
+                if (weaponTwirl == null || weaponTwirl.bindings.Count == 0) return SettingsData.WeaponTwirlDefaultBinding;
+                var b = weaponTwirl.bindings[0];
+                return string.IsNullOrEmpty(b.effectivePath) ? b.path : b.effectivePath;
+            }
+        }
+
+        /// <summary>How that path reads to a player ("F11"). Falls back to the string-only label in
+        /// <see cref="SettingsData.KeyLabel"/> when the Input System has nothing nicer to say.</summary>
+        public string WeaponTwirlLabel
+        {
+            get
+            {
+                string path = WeaponTwirlEffectivePath;
+                string human = null;
+                try { human = InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice); }
+                catch { human = null; }
+                return string.IsNullOrEmpty(human) ? SettingsData.KeyLabel(path) : human.ToUpperInvariant();
+            }
+        }
+
+        /// <summary>
+        /// Point the flourish at a stored control path. Empty — or anything
+        /// <see cref="SettingsData.SanitizeBindingPath"/> rejects — REMOVES the override and restores the
+        /// asset's own binding. It never leaves the action bound to nothing, which would be a silently
+        /// dead key with no way back short of deleting prefs.
+        /// </summary>
+        public void ApplyWeaponTwirlOverride(string path)
+        {
+            if (weaponTwirl == null || weaponTwirl.bindings.Count == 0) return;
+            string clean = SettingsData.SanitizeBindingPath(path);
+            if (clean.Length == 0) weaponTwirl.RemoveBindingOverride(0);
+            else weaponTwirl.ApplyBindingOverride(0, clean);
+        }
+
+        /// <summary>Back to the asset's F11.</summary>
+        public void ClearWeaponTwirlOverride()
+        {
+            if (weaponTwirl == null || weaponTwirl.bindings.Count == 0) return;
+            weaponTwirl.RemoveBindingOverride(0);
+        }
+
+        /// <summary>
+        /// Listen for one key and hand its control path back as a string. Hard rule 2 lives here: the
+        /// settings screen never touches the Input System, it calls this and gets a string back.
+        ///
+        /// <para>Pointer movement and sticks are excluded (a mouse nudge would "press" instantly),
+        /// Escape cancels rather than binds, and the operation is disposed on cancel, on completion and
+        /// on <see cref="CancelRebind"/> — a panel closed mid-listen leaves nothing running. The action
+        /// is disabled for the duration.</para>
+        ///
+        /// <para>This saves nothing: the caller owns the settings object and the store.</para>
+        /// </summary>
+        public void BeginWeaponTwirlRebind(Action<string> onComplete, Action onCancel)
+        {
+            CancelRebind();
+            if (weaponTwirl == null || weaponTwirl.bindings.Count == 0)
+            {
+                if (onCancel != null) onCancel();
+                return;
+            }
+
+            bool wasEnabled = weaponTwirl.enabled;
+            if (wasEnabled) weaponTwirl.Disable();
+
+            rebind = weaponTwirl.PerformInteractiveRebinding(0)
+                .WithControlsExcluding("<Mouse>/position")
+                .WithControlsExcluding("<Mouse>/delta")
+                .WithControlsExcluding("<Mouse>/scroll")
+                .WithControlsExcluding("<Pointer>/position")
+                .WithControlsExcluding("<Gamepad>/leftStick")
+                .WithControlsExcluding("<Gamepad>/rightStick")
+                .WithCancelingThrough("<Keyboard>/escape")
+                .OnCancel(op =>
+                {
+                    DisposeRebind();
+                    if (wasEnabled) weaponTwirl.Enable();
+                    if (onCancel != null) onCancel();
+                })
+                .OnComplete(op =>
+                {
+                    // Read the path off the BINDING, not off the control.
+                    //
+                    // The operation has already applied its override to binding 0, and what it wrote is
+                    // a canonical binding path ("<Keyboard>/h"). `op.selectedControl.path` is something
+                    // else entirely: InputControl.path is a RUNTIME path ("/Keyboard/h") - leading
+                    // slash, no device brackets - which SanitizeBindingPath rejects, correctly, because
+                    // ApplyBindingOverride cannot resolve it.
+                    //
+                    // Using it turned EVERY rebind into a cancel: sanitize returned "", the empty branch
+                    // re-applied the saved value, and the key snapped back to the default. The only key
+                    // the flourish could ever end up on was F11, which is exactly what the user hit.
+                    string path = weaponTwirl.bindings.Count > 0 ? weaponTwirl.bindings[0].effectivePath : null;
+                    DisposeRebind();
+                    if (wasEnabled) weaponTwirl.Enable();
+                    // The operation has already written an override onto the action. Whatever the caller
+                    // persists is pushed straight back through ApplyWeaponTwirlOverride, so a rejected
+                    // path (see SanitizeBindingPath) is undone rather than left half-applied.
+                    string clean = SettingsData.SanitizeBindingPath(path);
+                    if (clean.Length == 0)
+                    {
+                        ApplyWeaponTwirlOverride(SettingsStore.Current.weaponTwirlBinding);
+                        if (onCancel != null) onCancel();
+                        return;
+                    }
+                    if (onComplete != null) onComplete(clean);
+                });
+            rebind.Start();
+        }
+
+        /// <summary>Stop listening and change nothing. Safe when nothing is listening.</summary>
+        public void CancelRebind()
+        {
+            if (rebind == null) return;
+            var op = rebind;
+            rebind = null;
+            op.Cancel();
+            op.Dispose();
+            if (weaponTwirl != null && !weaponTwirl.enabled) weaponTwirl.Enable();
+        }
+
+        void DisposeRebind()
+        {
+            if (rebind == null) return;
+            var op = rebind;
+            rebind = null;
+            op.Dispose();
+        }
+
+        void OnDisable() { CancelRebind(); }
 
         // ---- the in-game level editor (F10 toggles; the rest only mean anything while it is open) ----
 

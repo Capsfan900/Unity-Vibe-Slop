@@ -438,5 +438,113 @@ namespace VibeGame1.Tests
                 Assert.AreEqual(m, SettingsData.FromFullScreenMode(d.ToFullScreenMode()), m + " does not round-trip");
             }
         }
+
+        // ------------------------------------------------------------------ the flourish key (rebind)
+
+        [Test]
+        public void FreshProfile_HasNoBindingOverride_AndFallsBackToF11()
+        {
+            var d = SettingsData.Defaults();
+            Assert.AreEqual("", d.weaponTwirlBinding, "a fresh profile must carry NO override");
+            Assert.AreEqual(SettingsData.WeaponTwirlDefaultBinding, d.WeaponTwirlBindingOrDefault());
+            Assert.AreEqual("F11", SettingsMenu.ValueLabel(SettingsMenu.RowKind.WeaponTwirlKey, d),
+                "with no override the row must read the shipped default key");
+        }
+
+        [Test]
+        public void CorruptBindingPaths_AreEmptied_NeverApplied()
+        {
+            // Every one of these would leave the action bound to NOTHING if it reached
+            // ApplyBindingOverride, i.e. a silently dead key with no way back short of wiping prefs.
+            string[] junk = { null, "", "   ", "f11", "<Keyboard>", "<Keyboard>/", "Keyboard/f11",
+                              "<>/f11", "<Keyboard>/escape", "<KEYBOARD>/ESCAPE", new string('x', 200) };
+            foreach (var bad in junk)
+            {
+                var d = SettingsData.Defaults();
+                d.weaponTwirlBinding = bad;
+                d.Clamp();
+                Assert.AreEqual("", d.weaponTwirlBinding, "'" + (bad ?? "null") + "' survived sanitising");
+                Assert.AreEqual(SettingsData.WeaponTwirlDefaultBinding, d.WeaponTwirlBindingOrDefault());
+            }
+        }
+
+        [Test]
+        public void AGoodBindingPath_SurvivesClampAndClone()
+        {
+            var d = SettingsData.Defaults();
+            d.weaponTwirlBinding = "  <Keyboard>/h  ";
+            d.Clamp();
+            Assert.AreEqual("<Keyboard>/h", d.weaponTwirlBinding, "a legal path must survive, trimmed");
+            Assert.AreEqual("<Keyboard>/h", d.Clone().weaponTwirlBinding, "Clone drops the binding");
+            Assert.AreEqual("H", SettingsMenu.ValueLabel(SettingsMenu.RowKind.WeaponTwirlKey, d));
+        }
+
+        [Test]
+        public void KeyLabel_ReadsAsAPlayerWouldSayIt()
+        {
+            Assert.AreEqual("F11", SettingsData.KeyLabel("<Keyboard>/f11"));
+            Assert.AreEqual("MOUSE MIDDLEBUTTON", SettingsData.KeyLabel("<Mouse>/middleButton"));
+            Assert.AreEqual("PAD BUTTONNORTH", SettingsData.KeyLabel("<Gamepad>/buttonNorth"));
+            Assert.AreEqual("UNBOUND", SettingsData.KeyLabel(""));
+        }
+
+        [Test]
+        public void TheRebindRow_ResetsOnTheRightButton_AndCannotBeStepped()
+        {
+            var d = SettingsData.Defaults();
+            d.weaponTwirlBinding = "<Keyboard>/h";
+            d.Clamp();
+
+            // decrease (-1) is REBIND: it starts a listen and must change no data at all.
+            SettingsMenu.Step(d, SettingsMenu.RowKind.WeaponTwirlKey, -1, null, 0);
+            Assert.AreEqual("<Keyboard>/h", d.weaponTwirlBinding, "REBIND must not edit the stored path itself");
+
+            // increase (+1) is RESET.
+            SettingsMenu.Step(d, SettingsMenu.RowKind.WeaponTwirlKey, +1, null, 0);
+            Assert.AreEqual("", d.weaponTwirlBinding, "RESET must clear the override");
+        }
+
+        [Test]
+        public void TheRebindRow_IsInTheControlSection_AndHasNoSlider()
+        {
+            var all = SettingsMenu.AllKinds;
+            int key = System.Array.IndexOf(all, SettingsMenu.RowKind.WeaponTwirlKey);
+            int firstDisplay = System.Array.IndexOf(all, SettingsMenu.RowKind.Resolution);
+            Assert.Greater(key, 0, "FLOURISH KEY must not open the panel");
+            Assert.Less(key, firstDisplay, "FLOURISH KEY belongs to CONTROL, above the DISPLAY section header");
+            Assert.IsTrue(SettingsMenu.IsRebind(SettingsMenu.RowKind.WeaponTwirlKey));
+            Assert.IsFalse(SettingsMenu.IsContinuous(SettingsMenu.RowKind.WeaponTwirlKey),
+                "a key is not a range — a slider here would be a lie");
+            Assert.AreEqual("FLOURISH KEY", SettingsMenu.LabelFor(SettingsMenu.RowKind.WeaponTwirlKey));
+        }
+
+        [Test]
+        public void TheDefaultBinding_IsTheOneTheActionsAssetShips()
+        {
+            Assert.AreEqual(SettingsData.WeaponTwirlDefaultBinding, "<Keyboard>/f11",
+                "the shipped default moved; InputSystem_Actions.inputactions must move with it");
+            Assert.AreEqual("WeaponTwirl", InputReader.WeaponTwirlActionName,
+                "the action name moved; InputSystem_Actions.inputactions must move with it");
+        }
+
+        /// <summary>
+        /// The shape the rebind must persist. `InputControl.path` is a RUNTIME path ("/Keyboard/f11":
+        /// leading slash, no device brackets); a BINDING path is "&lt;Keyboard&gt;/f11". Sanitize rejects the
+        /// former on purpose - ApplyBindingOverride cannot resolve it - so a rebind that hands over a
+        /// control path silently becomes a cancel and the key snaps back to the default. That shipped
+        /// on 2026-09-07 and the only reachable key was F11. See ENGINEERING-LOG.
+        /// </summary>
+        [Test]
+        public void OnlyABindingPathSurvivesSanitising_NotARuntimeControlPath()
+        {
+            Assert.AreEqual("<Keyboard>/f11", SettingsData.SanitizeBindingPath("<Keyboard>/f11"),
+                "a binding path is what ApplyBindingOverride takes");
+            Assert.AreEqual("", SettingsData.SanitizeBindingPath("/Keyboard/f11"),
+                "a runtime control path must be rejected - it cannot be resolved as an override");
+            Assert.AreEqual("", SettingsData.SanitizeBindingPath("/gamepad/leftStick/x"));
+
+            foreach (var good in new[] { "<Keyboard>/h", "<Keyboard>/f11", "<Mouse>/middleButton", "<Gamepad>/buttonNorth" })
+                Assert.AreEqual(good, SettingsData.SanitizeBindingPath(good), good + " is a legal binding path");
+        }
     }
 }

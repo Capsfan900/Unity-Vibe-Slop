@@ -127,10 +127,14 @@ believe any result.
 `DebugHarness` and `FeatureTests` parry on a state transition — frame-perfect information no human has.
 They prove the state machine, **never** that the game feels good or is fair.
 
+## Additional player controls
+
+`F11` weapon flourish (rebindable in Settings) · `E` use item
+
 ## Dev keys — editor / development builds only
 
 `4` dev blade · `F1` test menu · `F5` warp to boss · `F6` full restore · `F7` +1000 souls ·
-`F8` god mode · `F10` level editor · `E` use item
+`F8` god mode · `F10` level editor
 
 ## Driving the Unity editor
 
@@ -177,6 +181,7 @@ Also plain Markdown, also readable by any tool.
 | `unity-editor` | How to drive the user's OPEN Unity editor over the MCP HTTP bridge, and the traps: the modal dialog that deadlocks the bridge, `execute_menu_item` silently doing nothing, reading back what a generator claims to have written. |
 | `session-handoff` | How to end a session so the next one does not lose an hour: write `docs/HANDOFF.md`, commit, verify, and state exactly how to resume. |
 | `dashboard` | Builds `Tools/dashboard/out/index.html` — every doc, the change log, test results, systems map, search. |
+| `astra-engineering-company` | Cost-aware, agent-agnostic orchestration: Astra leads; Sol/Terra/Luna take progressively narrower lanes while the lead owns architecture, Unity and integration. |
 
 ## Working in a tool other than Claude Code
 
@@ -198,4 +203,3 @@ measures a forge FBX in Blender. None of the three needs Unity running.
 **The rule that survives every tool change:** *a code default is not a shipped value.* Whatever model you
 are, verify a number by reading the `.asset` / `.prefab` YAML, never the C# field initialiser. Checking the
 C# instead has produced false "already done" conclusions in this project more than once.
-

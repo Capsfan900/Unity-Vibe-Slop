@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: Brawler_Charge
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyAttackData
   attackName: Brawler_Charge
-  windup: 0.55
+  windup: 0.62
   impactDelay: 0.05
   strikeDuration: 0.2
   recovery: 1.1
   range: 2.6
-  coneDeg: 40
+  coneDeg: 45
   damage: 22
-  lungeDistance: 3.9
+  lungeDistance: 1.55
   comboGap: 0.26
   parryPostureMultiplier: 1
   unblockable: 1
-  clip: ShoulderCharge
+  clip: Slam
   windupPose:
     authored: 0
     armWindup: {x: 0, y: 0, z: 0}

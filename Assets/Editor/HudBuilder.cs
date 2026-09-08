@@ -56,15 +56,14 @@ namespace VibeGame1.EditorTools
         static readonly Vector2 TopLeft = new Vector2(0f, 1f);
         static readonly Vector2 TopCenter = new Vector2(0.5f, 1f);
         static readonly Vector2 TopRight = new Vector2(1f, 1f);
-        // ---- the top-right column (2026-09-06) ----
-        // ONE column in the corner, top to bottom: the radio, then BEST RUNS, then the hint line, then
-        // the level-editor panel. BEST RUNS used to sit one column LEFT of the radio because the full
-        // eight-row table (240 tall) pushed everything under it off a 1080 canvas. It ships COLLAPSED
-        // now — the title strip, the personal best and a "+N MORE" line, 108 tall — and 108 is exactly
-        // the radio's 116 + the 16 gap short of where the old table ended, so BestRunsBottom, the hint
-        // and the 700-tall editor panel keep the y they were tuned to (editor bottom still y -1020).
-        // It grows DOWN to BestRunsExpandedBottom for a few seconds when the board changes, over the
-        // hint band and the (F10-only) editor panel; nothing that is always on screen is covered.
+        // ---- the top-right column (2026-09-06, BEST RUNS removed 2026-09-07) ----
+        // ONE column in the corner, top to bottom: the radio, then the hint line, then the level-editor
+        // panel. There is NO BEST RUNS pane any more (the user's ask, 2026-09-07): a leaderboard is a
+        // menu readout, not something a player reads at the crosshair mid-run, and GhostHud ships its
+        // board hidden so neither draw path puts a table on screen.
+        // The BestRuns* constants below survive ONLY as the column anchor the hint line and the F10
+        // editor panel hang off — BestRunsBottom is still -272, the y those two were tuned to. They no
+        // longer size a pane; do not re-tune them, HudColumnTests pins them.
         /// <summary>The top-left loadout pane: the weapon line and the souls line, nothing else.</summary>
         public const float LoadoutWidth = 360f;
         public const float LoadoutHeight = 96f;
@@ -72,22 +71,34 @@ namespace VibeGame1.EditorTools
         public const float RadioHeight = 116f;
         /// <summary>Gap between the panes of the top-right column.</summary>
         public const float ColumnGap = 16f;
-        /// <summary>One BEST RUNS row: 17 pt TMP plus 4 pt line spacing.</summary>
+        /// <summary>Historic BEST RUNS row height. Kept only so the column anchor below still computes.</summary>
         public const float BestRunsRowHeight = 22f;
-        /// <summary>Everything in the BEST RUNS glass that is not a row: insets, the title band, a 6 px tail.</summary>
+        /// <summary>Historic BEST RUNS chrome: insets, the title band, a 6 px tail.</summary>
         public const float BestRunsChrome = Inset * 2f + 26f + 6f;
-        /// <summary>Collapsed: the personal best and the "+N MORE" line. This is the SHIPPED height.</summary>
+        /// <summary>Historic collapsed height. This is the gap the column reserves under the radio.</summary>
         public const float BestRunsCollapsedHeight = BestRunsChrome + 2f * BestRunsRowHeight;
-        /// <summary>Expanded: one row per leaderboard entry. Reached only while the board is fresh.</summary>
+        /// <summary>Historic expanded height. No pane reaches it any more; kept for the geometry tests.</summary>
         public const float BestRunsHeight = BestRunsChrome + Leaderboard.DisplayCount * BestRunsRowHeight;
-        /// <summary>Canvas x offset of the BEST RUNS pane: the corner column, same right edge as the radio.</summary>
+        /// <summary>Canvas x of the corner column: the radio's right edge.</summary>
         public const float BestRunsX = -32f;
-        /// <summary>Canvas y of the pane's upper edge: under the radio's lower edge, one gap down.</summary>
+        /// <summary>Canvas y under the radio's lower edge, one gap down.</summary>
         public const float BestRunsTop = -32f - RadioHeight - ColumnGap;
-        /// <summary>Canvas y of the collapsed pane's lower edge. Everything below the column hangs off this.</summary>
+        /// <summary>THE COLUMN ANCHOR (-272): the hint line and the F10 editor panel hang off this.</summary>
         public const float BestRunsBottom = BestRunsTop - BestRunsCollapsedHeight;
-        /// <summary>Canvas y the pane reaches while it is expanded.</summary>
+        /// <summary>Historic expanded lower edge. Nothing is drawn here any more.</summary>
         public const float BestRunsExpandedBottom = BestRunsTop - BestRunsHeight;
+
+        // ---- the flow meter (2026-09-07, the user's ask) ----
+        // The band the BEST RUNS pane left free carries the two run numbers instead: the SPEED BOOST
+        // (stacks + the live speed) and the PARRY CHAIN. It fits the band EXACTLY — same x, same width
+        // as the radio, top at BestRunsTop, bottom at BestRunsBottom — so the hint line and the F10
+        // panel below keep the y they were tuned to and the column stays one column.
+        /// <summary>Flow-meter pane width: the radio's, so the corner reads as one stack of glass.</summary>
+        public const float FlowWidth = RadioWidth;
+        /// <summary>Flow-meter pane height: exactly the band, top BestRunsTop to bottom BestRunsBottom.</summary>
+        public const float FlowHeight = BestRunsCollapsedHeight;
+        /// <summary>Stack pips drawn. Five: the shipped turret's parrySurgeMaxStacks (DataFactory).</summary>
+        public const int FlowStackPips = 5;
         static readonly Vector2 Center = new Vector2(0.5f, 0.5f);
 
         [MenuItem("VibeGame1/5. Build HUD")]
@@ -246,37 +257,14 @@ namespace VibeGame1.EditorTools
             hud.timerText.characterSpacing = 5f;
             Stretch(hud.timerText.gameObject);
 
-            // ---------------- Top-right: BEST RUNS, as glass, under the radio ----------------
-            // GhostHud (its own runtime canvas, by design) writes its table INTO this pane when it finds
-            // one, so the block reads in the HUD's language instead of as loose muted text; without the
-            // pane it falls back to its own text as before. Ships hidden AND COLLAPSED (2026-09-06): a
-            // table of eight times is a menu, not a HUD readout, and it owned a quarter of the screen
-            // for a whole run. Collapsed it is the title strip, the personal best and "+N MORE";
-            // HUDController expands it for a few seconds whenever the board changes and then settles
-            // back, so the full table still arrives — at the one moment it means something.
-            // Same width and same right edge as the radio above it: one column, not two.
-            var best = Pane("BestRunsPane", t, TopRight, TopRight, TopRight, new Vector2(BestRunsX, BestRunsTop),
-                            new Vector2(RadioWidth, BestRunsCollapsedHeight), UiSprites.Pane(), 12f);
-            var bestTitle = Txt("BestRunsTitle", best, "BEST RUNS", 12f, new Color(Bone.r, Bone.g, Bone.b, 0.55f), TextAlignmentOptions.Left);
-            bestTitle.characterSpacing = 6f;
-            Rect(bestTitle.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset), new Vector2(200f, 18f));
-            hud.bestRunsText = Txt("BestRunsText", best, "", 17f, Bone, TextAlignmentOptions.TopLeft);
-            hud.bestRunsText.richText = true;
-            hud.bestRunsText.lineSpacing = 4f;
-            // STRETCHED to the glass, not a fixed rect: the pane's height changes as it expands and
-            // collapses, and a fixed rect would keep drawing eight rows past the bottom of a 108 px pane.
-            StretchInto(hud.bestRunsText.gameObject, Inset, Inset, Inset + 26f, 6f);
-            hud.bestRunsText.overflowMode = TextOverflowModes.Truncate;   // never past the glass, whatever the backend sends
-            // Hard rule 9: the metrics the runtime resizes the glass with, and the settle time, are
-            // SHIPPED here — HUDController cannot read an editor-assembly const.
-            hud.bestRunsChrome = BestRunsChrome;
-            hud.bestRunsRowHeight = BestRunsRowHeight;
-            hud.bestRunsMaxRows = Leaderboard.DisplayCount;
-            hud.bestRunsExpandSeconds = 4f;
-            // The pane ROOT (the group named BestRunsPane), not the content transform Pane() hands back:
-            // GhostHud toggles it, and it must ship hidden until there is a board.
-            hud.bestRunsPane = best.parent.gameObject;
-            best.parent.gameObject.SetActive(false);
+            // ---------------- Top-right: NO BEST RUNS pane (removed 2026-09-07) ----------------
+            // The glass leaderboard that used to sit here is gone at the user's ask. A table of times is
+            // a menu readout; it never answered a question a player has while looking at the crosshair,
+            // and a pane nobody can reach is exactly the dead glass this file's own rules forbid. The
+            // leaderboard data is untouched (Leaderboard + GhostHud), and GhostHud ships BoardVisible
+            // false so its fallback text does not draw the old loose block in the pane's place. The
+            // BestRuns* constants above remain ONLY as the column anchor for the hint line and the F10
+            // editor panel, both positioned off BestRunsBottom below.
 
             // ---------------- Top-right corner: THE RADIO ----------------
             // A 2000s racing-game stereo in the HUD's glass: the station (the level's name, as
@@ -333,11 +321,107 @@ namespace VibeGame1.EditorTools
             radio.changeSeconds = 0.45f;
             radio.changeSlide = 26f;
 
+            // The rainbow border, at the user's ask (2026-09-07): a spectrum that swirls around the
+            // radio's rim so the music player is the one piece of glass that is ALIVE. It goes on the
+            // pane ROOT as the LAST child, so it draws over the glass edge rather than under it, and it
+            // rides with paneRoot's SetActive — a border on a hidden radio would be a floating rainbow
+            // rectangle over an empty corner. Stretched to the group with zero offsets on purpose:
+            // RainbowBorderView reads the aspect off this RectTransform, and padding it inward would
+            // sink the band inside the glass instead of tracing its edge.
+            var auraMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_RadioAura.mat");
+            if (auraMat == null)
+                Debug.LogWarning("[HudBuilder] M_RadioAura.mat missing — run VibeGame1/2. Create Materials "
+                                 + "(MaterialFactory.CreateRadioAura). The radio ships without its border.");
+            var aura = Img("RadioAura", radioGlass.parent, Color.white);
+            aura.raycastTarget = false;          // decoration: it must never eat a click meant for the HUD
+            aura.material = auraMat;
+            aura.type = Image.Type.Simple;
+            Stretch(aura.gameObject);
+            aura.gameObject.AddComponent<RainbowBorderView>();
+
             // The pane ROOT (the group), not the glass Pane() returns — wiring the glass would leave the
             // shadow and sheen layers on screen as an empty black card, the bug the level-editor panel hit.
             radio.paneRoot = radioGlass.parent.gameObject;
             hud.radioPane = radioGlass.parent.gameObject;
             radioGlass.parent.gameObject.SetActive(false);   // ships hidden; RadioView shows it once there is a playlist
+
+            // ---------------- Top-right: THE FLOW METER ----------------
+            // The user's ask (2026-09-07): "make the speed boost gained from any source be a meter on the
+            // top right that basically shows stacks and active speed in game and do the same for parries
+            // in a row (just a metric now)". Two readouts, one pane, in the band BEST RUNS freed.
+            //
+            // The reading order is the runner's: the multiplier is the big number on the right (a value a
+            // player checks at a glance), the pips under it say how many stacks are paying for it, the
+            // hairline under the pips says how long the next one has left, and the live speed sits at the
+            // pips' right end so "how fast am I actually going" is answered on the same line as "how many
+            // stacks". The chain is the last row, in ghost teal — the HUD's deflect colour — because it is
+            // a parry number, not a speed one. It is a METRIC: nothing reads it back (FlowMeterView).
+            var flowGroup = Group("FlowMeter", t, TopRight, TopRight, TopRight,
+                                  new Vector2(BestRunsX, BestRunsTop), new Vector2(FlowWidth, FlowHeight));
+            var flowGlass = PaneInto(flowGroup, UiSprites.Pane(), 12f);
+            var flow = flowGroup.gameObject.AddComponent<FlowMeterView>();
+            flow.group = flowGroup.gameObject.AddComponent<CanvasGroup>();
+            flow.group.alpha = 0f;                 // at rest it is not on screen; FlowMeterView fades it in
+            flow.group.interactable = false;
+            flow.group.blocksRaycasts = false;
+            const float FlowInnerW = FlowWidth - Inset * 2f;
+
+            var speedLabel = Txt("FlowSpeedLabel", flowGlass, "SPEED BOOST", 11f,
+                                 new Color(Bone.r, Bone.g, Bone.b, 0.55f), TextAlignmentOptions.Left);
+            speedLabel.characterSpacing = 6f;
+            Rect(speedLabel.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset), new Vector2(180f, 16f));
+
+            flow.speedValue = Txt("FlowSpeedValue", flowGlass, "x1.00", 26f, Yellow, TextAlignmentOptions.Right);
+            flow.speedValue.fontStyle = FontStyles.Bold;
+            Rect(flow.speedValue.gameObject, TopRight, TopRight, TopRight, new Vector2(-Inset, -Inset + 4f), new Vector2(130f, 30f));
+
+            // The pips: 5 segments of the same well the bars sit in, ember when the stack is held.
+            // A segment, not a dot — a stack is a slice of a multiplier, and the row reads as one meter.
+            const float PipGap = 6f;
+            const float PipW = (FlowInnerW - 106f - PipGap * (FlowStackPips - 1)) / FlowStackPips;
+            var pips = new Image[FlowStackPips];
+            for (int i = 0; i < FlowStackPips; i++)
+            {
+                var pip = Img("FlowPip" + (i + 1), flowGlass, new Color(Bone.r, Bone.g, Bone.b, 0.18f));
+                pip.raycastTarget = false;
+                pip.sprite = UiSprites.Track();
+                pip.type = Image.Type.Sliced;
+                Rect(pip.gameObject, TopLeft, TopLeft, TopLeft,
+                     new Vector2(Inset + i * (PipW + PipGap), -Inset - 30f), new Vector2(PipW, 8f));
+                pips[i] = pip;
+            }
+            flow.stackPips = pips;
+
+            // The live speed, on the pips' line and at their right: the answer to "how fast am I", quiet
+            // enough that it never competes with the multiplier above it.
+            flow.speedMs = Txt("FlowSpeedMs", flowGlass, "0 M/S", 13f,
+                               new Color(Bone.r, Bone.g, Bone.b, 0.75f), TextAlignmentOptions.Right);
+            flow.speedMs.characterSpacing = 2f;
+            Rect(flow.speedMs.gameObject, TopRight, TopRight, TopRight, new Vector2(-Inset, -Inset - 26f), new Vector2(96f, 18f));
+
+            // The decay hairline: a BarView (anchors, hard rule 5 — never Image.fillAmount), 3 px, ember,
+            // no ghost and no pulse. It is time, not a resource, so it must not pull the eye like one.
+            flow.decayBar = Bar("FlowDecayBar", flowGlass, Pink, false, false);
+            Rect(flow.decayBar.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset - 44f), new Vector2(FlowInnerW, 3f));
+
+            var streakLabel = Txt("FlowStreakLabel", flowGlass, "PARRY CHAIN", 11f,
+                                  new Color(Bone.r, Bone.g, Bone.b, 0.35f), TextAlignmentOptions.Left);
+            streakLabel.characterSpacing = 6f;
+            Rect(streakLabel.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(Inset, -Inset - 56f), new Vector2(180f, 16f));
+            flow.streakLabel = streakLabel;
+
+            flow.streakValue = Txt("FlowStreakValue", flowGlass, "-", 20f, Cyan, TextAlignmentOptions.Right);
+            flow.streakValue.fontStyle = FontStyles.Bold;
+            Rect(flow.streakValue.gameObject, TopRight, TopRight, TopRight, new Vector2(-Inset, -Inset - 54f), new Vector2(96f, 24f));
+
+            // Hard rule 9: every tuning number is SHIPPED on the prefab, never left to a field initialiser.
+            flow.idleLingerSeconds = 1.5f;
+            flow.fadeInSpeed = 10f;
+            flow.fadeOutSpeed = 2.2f;
+            flow.boostEpsilon = 1.005f;
+            flow.emberColor = Yellow;                 // #E0A030, the HUD's "gained / spend" gold
+            flow.tealColor = Cyan;                    // #7FBFB5, the deflect colour
+            flow.pipOffColor = new Color(Bone.r, Bone.g, Bone.b, 0.18f);
 
             // ---------------- Top-right: hints ----------------
             // ONE line, contextual hints only. The key-bind dump that used to live here (four lines under
@@ -357,6 +441,7 @@ namespace VibeGame1.EditorTools
                 tc.parent.gameObject,        // Clock
                 itemsRoot.gameObject,        // ItemSlots
                 hud.statusStrip.gameObject,  // StatusStrip
+                flowGroup.gameObject,        // FlowMeter — a RUN readout: boost stacks and the parry chain
             };
 
             // ---------------- Center: crosshair / popups / prompt ----------------
@@ -1293,12 +1378,24 @@ namespace VibeGame1.EditorTools
         // in 3 sections to 12 in 4, and at the old stride the last row would have landed on the BACK
         // button. It also buys back ultrawide headroom — at 21:9 the canvas scaler leaves only 935
         // logical units of height (467 above and below centre), and the buttons used to sit at -484.
+        // Tightened again 2026-09-07 for the FLOURISH KEY row: CONTROL went from three rows to four,
+        // and at stride 50 / gap 38 the thirteenth row would have landed on the BACK button
+        // (SettingsAudioTests.TheLastRowClearsTheButtons asserts exactly that).
         public const float RowWidth = 1160f;
         public const float RowHeight = 46f;
-        public const float RowStride = 50f;
+        public const float RowStride = 47f;
         /// <summary>Extra drop before a section header, and from the header down to its first row.</summary>
         public const float SectionLead = 6f;
-        public const float SectionGap = 38f;
+        public const float SectionGap = 34f;
+
+        // The rebind row's two buttons. They sit in the column a continuous row spends on its slider,
+        // which is empty on every cycler, so the VALUE text keeps its own place and the readout column
+        // stays in one line down the whole panel.
+        public static readonly Vector2 RebindButtonSize = new Vector2(130f, 40f);
+        public static readonly Vector2 ResetBindButtonSize = new Vector2(120f, 40f);
+        /// <summary>x of each rebind button, measured from the row's RIGHT edge.</summary>
+        public const float RebindButtonX = -560f;
+        public const float ResetBindButtonX = -420f;
         /// <summary>y of the first thing the row loop places.</summary>
         public const float FirstRowCursor = 352f;
         /// <summary>BACK / RESET DEFAULTS: y, and the size both share.</summary>
@@ -1435,8 +1532,22 @@ namespace VibeGame1.EditorTools
             if (SettingsMenu.IsContinuous(kind))
                 slider = BuildSlider("Slider", s, new Vector2(440f, 0f), new Vector2(280f, 28f));
 
-            var dec = SmallBtn("Decrease", s, "<", new Vector2(-300f, 0f));
-            var inc = SmallBtn("Increase", s, ">", new Vector2(-44f, 0f));
+            Button dec, inc;
+            if (SettingsMenu.IsRebind(kind))
+            {
+                // Not < and >: a key is not a position in a list. Left listens, right restores the
+                // default. SettingsMenu binds decrease -> listen and increase -> reset, so the two
+                // buttons keep the same wiring every other row has.
+                dec = RowBtn("Decrease", s, SettingsMenu.RebindButtonLabel(false),
+                             new Vector2(RebindButtonX, 0f), RebindButtonSize, 16f);
+                inc = RowBtn("Increase", s, SettingsMenu.RebindButtonLabel(true),
+                             new Vector2(ResetBindButtonX, 0f), ResetBindButtonSize, 16f);
+            }
+            else
+            {
+                dec = SmallBtn("Decrease", s, "<", new Vector2(-300f, 0f));
+                inc = SmallBtn("Increase", s, ">", new Vector2(-44f, 0f));
+            }
 
             // The value TEXT is authoritative (a slider can silently fail to draw; a string cannot).
             var value = TxtK("Value", s, "—", 19f, Bone, TextAlignmentOptions.Center);
@@ -1522,10 +1633,17 @@ namespace VibeGame1.EditorTools
 
         static Button SmallBtn(string name, Transform parent, string label, Vector2 posFromRight)
         {
+            return RowBtn(name, parent, label, posFromRight, new Vector2(44f, 40f), 22f);
+        }
+
+        /// <summary>The one row button. Sized by the caller so a worded button (REBIND) and a glyph one
+        /// (&lt;) are the same widget with the same states, rather than two that drift apart.</summary>
+        static Button RowBtn(string name, Transform parent, string label, Vector2 posFromRight, Vector2 size, float fontSize)
+        {
             var img = ImgK(name, parent, new Color(ButtonBg.r, ButtonBg.g, ButtonBg.b, 0.75f));
             img.sprite = UiSprites.Pill();
             img.type = Image.Type.Sliced;
-            RectK(img.gameObject, Right, Right, Mid, posFromRight, new Vector2(44f, 40f));
+            RectK(img.gameObject, Right, Right, Mid, posFromRight, size);
             var btn = img.gameObject.AddComponent<Button>();
             var colors = btn.colors;
             colors.highlightedColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.6f);
@@ -1534,7 +1652,7 @@ namespace VibeGame1.EditorTools
             colors.disabledColor = new Color(0.4f, 0.4f, 0.4f, 0.35f);
             btn.colors = colors;
 
-            var txt = TxtK("Label", img.transform, label, 22f, Bone, TextAlignmentOptions.Center);
+            var txt = TxtK("Label", img.transform, label, fontSize, Bone, TextAlignmentOptions.Center);
             txt.fontStyle = FontStyles.Bold;
             StretchK(txt.gameObject);
             return btn;

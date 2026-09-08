@@ -10,6 +10,11 @@ Shader "VibeGame1/Solar Arena"
         _BandScale ("Band Scale", Range(1, 30)) = 11
         _RimPower ("Rim Power", Range(0.5, 8)) = 2.2
         _Pulse ("Pulse", Range(0, 1)) = 0.16
+        // Master multiplier on the FINAL colour AND alpha, driven per renderer by
+        // SolarArenaVisual so an exterior shell can part before the camera reaches it.
+        // Scaling _Alpha alone is not enough: the rim term below adds 0.22 independently,
+        // so a shell faded that way keeps a glowing outline forever.
+        _Fade ("Crossing Fade", Range(0, 1)) = 1
     }
 
     SubShader
@@ -42,6 +47,7 @@ Shader "VibeGame1/Solar Arena"
                 float _BandScale;
                 float _RimPower;
                 float _Pulse;
+                float _Fade;
             CBUFFER_END
 
             struct Attributes
@@ -94,7 +100,8 @@ Shader "VibeGame1/Solar Arena"
                 // Zero surface opacity reproduces the original additive ceiling/corona exactly.
                 // Exterior shells also attenuate the scenery behind them, rather than just adding glow.
                 half surface = saturate(_SurfaceOpacity);
-                return half4(color * lerp(alpha, 1.0h, surface), surface);
+                half fade = saturate(_Fade);
+                return half4(color * lerp(alpha, 1.0h, surface) * fade, surface * fade);
             }
             ENDHLSL
         }

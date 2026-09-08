@@ -9,8 +9,9 @@ namespace VibeGame1.Tests
 {
     /// <summary>
     /// THE FLURRY BRAWLER — the fourth ai_skelly_tool body and the roster's first FLURRY enemy: unarmed,
-    /// four-beat strings on a 0.73 s beat, eight attacks on eight clips. Hard rule 9 in assert form:
-    /// every test below reads the SHIPPED asset, never a C# field initialiser.
+    /// and since the v15 export (2026-09-07) a LADDER — two punches, four, eight — twelve attacks on
+    /// twelve clips. Hard rule 9 in assert form: every test below reads the SHIPPED asset, never a C#
+    /// field initialiser.
     ///
     /// <para>What is particular to this body, and therefore what these tests exist to hold:</para>
     /// <list type="number">
@@ -19,15 +20,20 @@ namespace VibeGame1.Tests
     /// recomputes the interval the way <c>EnemyController.NextGap</c> does — including the deflect
     /// streak, which SHORTENS the gap — and holds it above the 0.69 s parry contract floor
     /// (ARCHITECTURE → The Pale Marionette).</item>
-    /// <item><b>The economy is arithmetic, not vibes.</b> The posture bar is sized so that the signature
-    /// string deflected clean plus one more beat breaks it, and nothing less does.</item>
-    /// <item><b>The art's travel is data.</b> The sidecar's <c>forward_m</c> is SOURCE travel and on this
-    /// body it is 1.18-1.24× under the rig on the attack clips and 0.90× over it on the locomotion
-    /// clips — no blanket correction is legal. Every <c>lungeDistance</c> is held to the Hips travel
-    /// sampled off the imported clip, so the data and the art cannot drift apart.</item>
+    /// <item><b>The ladder is monotonic, and exactly one phrase breaks the bar.</b> The whole point of
+    /// three rungs is that holding a longer string pays more, so
+    /// <see cref="TheLadderIsMonotonic_AndTheBarrageIsTheBiggestPunish"/> and
+    /// <see cref="TheEconomy_ExactlyOnePhraseBreaksTheBar"/> are the design in arithmetic. If a tuning
+    /// pass flattens the ladder or lets a second phrase break the bar, the fight stops teaching
+    /// anything and these say so.</item>
+    /// <item><b>The art's travel is data.</b> The sidecar's <c>forward_m</c> is SOURCE travel and lies in
+    /// both directions on this body, so every <c>lungeDistance</c> is held to the travel the IMPORTED
+    /// clip carries. v15 is why this matters: it took ALL the travel out of <c>ShoulderCharge</c>
+    /// (3.90 m in v14, none now) and out of <c>Jab1</c>, and the data had to follow.</item>
     /// <item><b>Every attack names a clip the model actually ships</b>, with its own baked length and
-    /// contact frame. A generated clip is unreachable without the name, and a name the model does not
-    /// carry falls back to the canonical swing with a warning nobody reads.</item>
+    /// contact frame — and the clips this fight REFUSES are refused by arithmetic, not by taste
+    /// (<see cref="TheClipsThisFightRefuses_AreRefusedByArithmetic"/>), so no later pass adopts one
+    /// without redoing the sum.</item>
     /// </list>
     /// </summary>
     public class FlurryBrawlerDataTests
@@ -36,13 +42,23 @@ namespace VibeGame1.Tests
         const float CueLead = 0.28f;        // EnemyController.cueLead
         const float BeatFloor = 0.69f;      // the parry contract's floor — the Marionette's whole fight
         const float SwordParryPosture = 25f;// WeaponData Sword.parryPostureDamage, the calibration constant
+        // The longest wind-up the game ships anywhere: Drill_DelayedOverhead. Used as the ceiling when
+        // asking whether a clip's contact frame could EVER be stretched onto a legal tell.
+        const float LongestTellInTheGame = 1.25f;
         const string Fbx = "Assets/Enemies/FlurryBrawler.fbx";
 
         static readonly string[] AttackNames =
         {
-            "Brawler_Jab", "Brawler_Cross", "Brawler_Uppercut", "Brawler_OneTwo",
-            "Brawler_Flurry", "Brawler_Hammerfist", "Brawler_Kick", "Brawler_Charge",
+            "Brawler_Jab", "Brawler_Cross", "Brawler_Uppercut", "Brawler_UppercutLeft",
+            "Brawler_UppercutLoad", "Brawler_OneTwo", "Brawler_Flurry", "Brawler_Barrage",
+            "Brawler_Clap", "Brawler_Hammerfist", "Brawler_Kick", "Brawler_Charge",
         };
+
+        /// <summary>The three rungs of the ladder, in order. The fight's spine.</summary>
+        static readonly string[] Ladder = { "Brawler_OneTwo", "Brawler_Flurry", "Brawler_Barrage" };
+
+        /// <summary>Clips the model ships that this fight deliberately does NOT use. See the refusal test.</summary>
+        static readonly string[] Refused = { "Hook", "Combo1", "Combo2", "ShoulderCharge" };
 
         static EnemyData Data() =>
             AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("Legendary_FlurryBrawler"));
@@ -71,6 +87,24 @@ namespace VibeGame1.Tests
         }
 
         /// <summary>
+        /// Seconds into a clip at which its contact frame lands, computed exactly the way
+        /// <c>MiniBossFactory</c> bakes it: the manifest's <c>OnAttackHit</c> for an authored clip, the
+        /// measurement for a generated one. This is what <c>PuppetVisuals</c> stretches onto an attack's
+        /// impact, so it is the only number the clip-speed clamp cares about.
+        /// </summary>
+        static float ContactSeconds(string clipName)
+        {
+            var clip = ClipNamed(clipName);
+            if (clip == null) return 0f;
+            float manifest = ForgeClipSplitter.ReadHitNormalizedTime(Fbx, clipName, 0.55f);
+            string why;
+            float f = ForgeClipSplitter.ClipIsGenerated(Fbx, clipName)
+                ? MiniBossFactory.MeasureContactFraction(Fbx, clipName, manifest, out why)
+                : manifest;
+            return clip.length * Mathf.Clamp01(f);
+        }
+
+        /// <summary>
         /// The interval between one hit of a combo and the next, exactly as EnemyController produces it:
         /// the follow-up's wind-up, plus the gap (scaled by aggression, shortened by the deflect streak,
         /// floored at 0.10), plus its impact delay and its strike.
@@ -79,6 +113,17 @@ namespace VibeGame1.Tests
         {
             float gap = Mathf.Max(0.1f, from.comboGap * Mathf.Lerp(1f, 0.45f, aggression) - parryStreak * 0.03f);
             return to.windup + gap + to.impactDelay + to.strikeDuration;
+        }
+
+        /// <summary>Posture this phrase pays if the player deflects every deflectable hit in it, with the
+        /// sword. An unblockable cannot be deflected, so it pays nothing.</summary>
+        static float CleanDeflect(MovesetEntry e)
+        {
+            float sum = 0f;
+            if (e == null || e.combo == null || e.combo.hits == null) return 0f;
+            foreach (var h in e.combo.hits)
+                if (h != null && !h.unblockable) sum += h.parryPostureMultiplier;
+            return sum * SwordParryPosture;
         }
 
         [Test]
@@ -110,16 +155,22 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0.3f, d.commitTolerance, 0.001f);
             Assert.AreEqual(0.9f, d.lungeMinDistance, 0.001f);
             Assert.AreEqual(0.35f, d.comboBreathSeconds, 0.001f, "the breath after a four-beat string.");
-            Assert.AreEqual(1f, d.scale, 0.001f, "its read is width, not height.");
+            Assert.AreEqual(1f, d.scale, 0.001f, "its read is closeness, not height.");
             Assert.AreEqual(480, d.soulValue);
             Assert.AreEqual(16f, d.aggroRange, 0.001f);
             Assert.Less(d.moveSpeed, 5.8f,
-                "the Halberdier's 5.8 m/s chase is that fight's superlative; this one closes with the shoulder.");
+                "the Halberdier's 5.8 m/s chase is that fight's superlative; this one closes with the leap-in.");
             Assert.GreaterOrEqual(d.preferredRange, d.attackRange,
                 "preferred=" + d.preferredRange + " attack=" + d.attackRange);
-            Assert.Greater(d.lungeMinDistance, 0.85f,
-                "the 3.90 m charge stops lungeMinDistance short; under 0.85 m it ends inside the player " +
-                "(enemy radius 0.45 + player capsule 0.4) and reads as a collision bug.");
+            Assert.AreEqual(AttackNames.Length, CountDistinctHits(),
+                "the attack roster changed size — twelve attacks on twelve clips is the shipped shape.");
+        }
+
+        static int CountDistinctHits()
+        {
+            int n = 0;
+            foreach (var unused in EveryHit()) n++;
+            return n;
         }
 
         [Test]
@@ -141,7 +192,8 @@ namespace VibeGame1.Tests
             foreach (var h in EveryHit())
                 Assert.GreaterOrEqual(h.range + h.lungeDistance, d.preferredRange + d.commitTolerance - 0.001f,
                     h.name + ": reach " + (h.range + h.lungeDistance) + " cannot cover the commit band " +
-                    (d.preferredRange + d.commitTolerance) + " — it would whiff when committed.");
+                    (d.preferredRange + d.commitTolerance) + " — it would whiff when committed. v15 took the " +
+                    "step out of Jab1, which is why the jab's RANGE carries the band now instead of its lunge.");
         }
 
         [Test]
@@ -190,64 +242,104 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheEconomyIsTheSignatureStringPlusOneBeat()
+        public void TheLadderIsMonotonic_AndTheBarrageIsTheBiggestPunish()
         {
-            // With the sword (parryPostureDamage 25) a deflected jab or cross is 28.75 and the flurry is
-            // 50. Deflect the whole signature and it is not enough; one more clean beat of anything is.
+            // THE NEW DESIGN, in arithmetic. Two punches, four, eight: each rung asks the player to hold
+            // the beat longer and pays them more for it, in ALL FOUR currencies at once. Flatten any one
+            // of them and the escalation stops being legible — the player cannot hear a rung they are
+            // not paid differently for.
             var d = Data();
+            for (int i = 1; i < Ladder.Length; i++)
+            {
+                var lo = Atk(Ladder[i - 1]); var hi = Atk(Ladder[i]);
+                Assert.Greater(hi.windup, lo.windup,
+                    Ladder[i] + " does not tell longer than " + Ladder[i - 1] + "; the TELL is how the " +
+                    "player knows which rung is coming and therefore how long to hold.");
+                Assert.Greater(hi.damage, lo.damage, Ladder[i] + " does not hit harder than " + Ladder[i - 1]);
+                Assert.Greater(hi.parryPostureMultiplier, lo.parryPostureMultiplier,
+                    Ladder[i] + " does not pay more posture than " + Ladder[i - 1] + "; the longer hold " +
+                    "has to buy more of the break or there is no reason to hold it.");
+                Assert.Greater(hi.recovery, lo.recovery,
+                    Ladder[i] + " does not open wider than " + Ladder[i - 1] + ".");
+                // ...and the EFFECTIVE opening, which is the one the player actually gets (AUTHORING §3).
+                float eLo = Mathf.Max(lo.recovery * Mathf.Lerp(1f, 0.35f, d.aggression), d.comboBreathSeconds);
+                float eHi = Mathf.Max(hi.recovery * Mathf.Lerp(1f, 0.35f, d.aggression), d.comboBreathSeconds);
+                Assert.Greater(eHi, eLo,
+                    "at aggression " + d.aggression + " the openings are " + eLo.ToString("F2") + " s and " +
+                    eHi.ToString("F2") + " s — the ladder is flat where the player stands.");
+            }
+
+            // The biggest opening in the fight is the top of the ladder, and it is a real window.
+            float longest = 0f; string who = "";
+            foreach (var h in EveryHit())
+                if (h.recovery > longest) { longest = h.recovery; who = h.name; }
+            Assert.AreEqual("Brawler_Barrage", who,
+                "the biggest opening is " + who + "; the design says it is the end of the eight-punch " +
+                "barrage, so the reward for holding the longest phrase is the chance to answer.");
+            float effective = Mathf.Max(longest * Mathf.Lerp(1f, 0.35f, d.aggression), d.comboBreathSeconds);
+            Assert.Greater(effective, 1.0f,
+                "the barrage's punish window is " + effective.ToString("F2") + " s in play; a sword swing " +
+                "is 0.44 s, so the top rung has to be worth more than one.");
+            Assert.Greater(d.staggerSeconds, longest * 1.5f,
+                "stagger " + d.staggerSeconds + "s is not a big enough step up from the " + longest + "s recovery.");
+
+            // And nothing deflectable pays more posture than the top rung.
+            var barrage = Atk("Brawler_Barrage");
+            foreach (var h in EveryHit())
+                if (!h.unblockable)
+                    Assert.LessOrEqual(h.parryPostureMultiplier, barrage.parryPostureMultiplier,
+                        h.name + " pays more posture than the BARRAGE does.");
+        }
+
+        [Test]
+        public void TheEconomy_ExactlyOnePhraseBreaksTheBar()
+        {
+            // With the sword (parryPostureDamage 25) the bar is 160 and exactly ONE of the authored
+            // phrases reaches it on a clean deflect: jab, cross, LOAD, BARRAGE = 161.25. That is the
+            // design in one line — hold the top rung clean and the bar breaks in your hand — and it only
+            // means anything while it stays unique. Two phrases that break it and the ladder is noise.
+            var d = Data();
+            var breakers = new List<string>();
+            foreach (var e in d.moveset.entries)
+            {
+                float paid = CleanDeflect(e);
+                if (paid >= d.maxPosture) breakers.Add(e.label + " (" + paid.ToString("F2") + ")");
+            }
+            Assert.AreEqual(1, breakers.Count,
+                "phrases that break the " + d.maxPosture + " bar on a clean deflect: " +
+                (breakers.Count == 0 ? "NONE — nothing in the fight rewards holding a whole phrase"
+                                     : string.Join(" | ", breakers.ToArray())));
+            StringAssert.Contains("BARRAGE", breakers[0],
+                "the phrase that breaks the bar is not the top of the ladder.");
+
+            // The older signature is deliberately NOT a break: a whole clean phrase plus one more beat.
             var jab = Atk("Brawler_Jab"); var cross = Atk("Brawler_Cross"); var flurry = Atk("Brawler_Flurry");
             float signature = SwordParryPosture *
                 (jab.parryPostureMultiplier + cross.parryPostureMultiplier +
                  jab.parryPostureMultiplier + flurry.parryPostureMultiplier);
             Assert.Less(signature, d.maxPosture,
-                "the signature string alone (" + signature + ") already breaks the " + d.maxPosture +
-                " bar; then holding the phrase is not the skill the fight is asking for.");
-            float cheapestNextBeat = SwordParryPosture * jab.parryPostureMultiplier;
-            Assert.GreaterOrEqual(signature + cheapestNextBeat, d.maxPosture,
-                "the signature plus one more clean beat (" + (signature + cheapestNextBeat) +
-                ") does not break " + d.maxPosture + "; the break is out of reach of a whole clean phrase.");
-
-            // And the flurry is the biggest single deflect in the fight — the payoff for the hit that is
-            // hardest to hold, at the end of the longest string.
-            foreach (var h in EveryHit())
-                if (!h.unblockable)
-                    Assert.LessOrEqual(h.parryPostureMultiplier, flurry.parryPostureMultiplier,
-                        h.name + " pays more posture than the FLURRY does.");
-        }
-
-        [Test]
-        public void ThePunishIsTheEndOfTheFlurry_AndTheStaggerIsBigger()
-        {
-            var d = Data();
-            float longest = 0f; string who = "";
-            foreach (var h in EveryHit())
-                if (h.recovery > longest) { longest = h.recovery; who = h.name; }
-            Assert.AreEqual("Brawler_Flurry", who,
-                "the biggest opening is " + who + "; the design says it is the end of the flurry, so the " +
-                "reward for holding the whole phrase is the chance to answer.");
-            // Effective, at the shipped aggression — the number the player actually gets (AUTHORING §3:
-            // "write the raw number for the effective opening you want, and assert the effective one").
-            float effective = Mathf.Max(longest * Mathf.Lerp(1f, 0.35f, d.aggression), d.comboBreathSeconds);
-            Assert.Greater(effective, 0.8f,
-                "the flurry's punish window is " + effective.ToString("F2") + " s in play; a sword swing " +
-                "is 0.44 s, so under ~0.8 s there is no window at all.");
-            Assert.Greater(d.staggerSeconds, longest * 1.5f,
-                "stagger " + d.staggerSeconds + "s is not a big enough step up from the " + longest + "s recovery.");
+                "the signature string alone (" + signature + ") already breaks the " + d.maxPosture + " bar.");
+            Assert.GreaterOrEqual(signature + SwordParryPosture * jab.parryPostureMultiplier, d.maxPosture,
+                "the signature plus one more clean beat does not break " + d.maxPosture +
+                "; the break is out of reach of a whole clean phrase.");
         }
 
         [Test]
         public void TheTwoUnblockables_AnswerTurtlingAndKiting()
         {
             Assert.IsTrue(Atk("Brawler_Kick").unblockable, "the kick is the designated anti-turtle.");
-            Assert.IsTrue(Atk("Brawler_Charge").unblockable, "the charge is the designated anti-kiting.");
+            Assert.IsTrue(Atk("Brawler_Charge").unblockable, "the leap-in is the designated anti-kiting.");
             int n = 0;
             foreach (var h in EveryHit()) if (h.unblockable) n++;
             Assert.AreEqual(2, n, "exactly two unblockables: one for each way of refusing the fight.");
 
-            // The charge is only ever thrown from outside the melee band. Point-blank, 3.90 m of travel
-            // is a body check that ends on top of the player and reads as a bug.
+            // The leap-in is only ever thrown from OUTSIDE the commit band (point-blank it is a body
+            // check that ends on top of the player) and never from further than it can actually cover —
+            // range + its own travel + DoImpact's 0.5 m slack. Both bounds are DERIVED, so re-tuning the
+            // travel automatically re-checks the band.
             var charge = Atk("Brawler_Charge");
             var d = Data();
+            float covers = charge.range + charge.lungeDistance + 0.5f;
             bool found = false;
             foreach (var e in d.moveset.entries)
             {
@@ -256,13 +348,15 @@ namespace VibeGame1.Tests
                     if (h == charge)
                     {
                         found = true;
-                        Assert.GreaterOrEqual(e.minRange, 3.6f,
-                            "'" + e.label + "' can pick the charge from " + e.minRange + " m.");
                         Assert.Greater(e.minRange, d.preferredRange + d.commitTolerance,
-                            "'" + e.label + "' can pick the charge from inside the commit band.");
+                            "'" + e.label + "' can pick the leap-in from inside the commit band.");
+                        Assert.LessOrEqual(e.maxRange, covers + 0.001f,
+                            "'" + e.label + "' can pick the leap-in from " + e.maxRange + " m, but it only " +
+                            "covers " + covers.ToString("F2") + " m (range " + charge.range + " + travel " +
+                            charge.lungeDistance + " + 0.5 slack). It would land in front of the player.");
                     }
             }
-            Assert.IsTrue(found, "no moveset entry throws the charge at all.");
+            Assert.IsTrue(found, "no moveset entry throws the leap-in at all.");
         }
 
         [Test]
@@ -293,7 +387,7 @@ namespace VibeGame1.Tests
         [Test]
         public void NoTwoAttacksShareAClip()
         {
-            // Eight attacks, eight animations. Two attacks on one clip is two attacks with one
+            // Twelve attacks, twelve animations. Two attacks on one clip is two attacks with one
             // silhouette, and in a fight made of strings the silhouette is the only thing telling the
             // beats apart.
             var used = new Dictionary<string, string>();
@@ -312,6 +406,9 @@ namespace VibeGame1.Tests
             // PuppetVisuals stretches the clip so its contact frame lands on the data's impact, but only
             // within minClipSpeed..maxClipSpeed; outside that it clamps and LOGS, and the punch lands at
             // a moment the animation is not throwing it. Computed exactly as PlayAttackClip does.
+            //
+            // This is not bookkeeping: it is the test that REFUSED the Hook clip on this body (contact at
+            // 0.09 s of a 0.54 s clip needs a 0.21 s tell, and the floor is 0.45). See the refusal test.
             var pv = Puppet();
             foreach (var h in EveryHit())
             {
@@ -326,6 +423,68 @@ namespace VibeGame1.Tests
                     pv.minClipSpeed + ".." + pv.maxClipSpeed + ". Change the ATTACK's wind-up or pick " +
                     "another clip; the clamp would silently misalign the blow.");
             }
+        }
+
+        [Test]
+        public void TheClipsThisFightRefuses_AreRefusedByArithmetic()
+        {
+            // v15 ships 32 clips and this fight uses 12 of them. FOUR are refused on purpose, and the
+            // reason is a number in each case rather than a preference — so if a re-export changes the
+            // number, this test fails and the decision gets made again instead of being inherited.
+            var pv = Puppet();
+            var named = new HashSet<string>();
+            foreach (var h in EveryHit()) named.Add(h.clip);
+
+            foreach (var n in Refused)
+            {
+                Assert.IsNotNull(ClipNamed(n),
+                    n + " is no longer in " + Fbx + " — the refusal below is about a clip that has gone. " +
+                    "Re-read the manifest and delete the entry from Refused.");
+                Assert.IsFalse(named.Contains(n),
+                    n + " is named by an attack now. That may well be right — but redo the arithmetic in " +
+                    "this test first, because it is what says the clip could not be used.");
+            }
+
+            // HOOK — the clip-speed clamp cannot be satisfied at ANY legal wind-up. Its contact sits at
+            // 0.16 of a 0.54 s clip (0.09 s in), and the slowest playback allowed is x0.4, so the tell
+            // would have to be 0.21 s — under the 0.45 s wind-up floor. Shipped anyway, the visible
+            // punch lands a third of a second before the blow, which is the exact bug the contact-frame
+            // baking exists to prevent. THIS IS THE ONE WORTH REVISITING: its fists move at 22-25 m/s,
+            // faster than anything but the jab, so if a re-export moves OnAttackHit later, or if
+            // MiniBossFactory learns to measure the anchor on the VFX_Hand bones when nothing is skinned
+            // to RightHand (nothing is, on this body: max weight 0.12), the Hook becomes the best
+            // round-house in the roster.
+            float hook = ContactSeconds("Hook");
+            Assert.Less(hook / (WindupFloor + 0.08f), pv.minClipSpeed,
+                "Hook's contact is now " + hook.ToString("F3") + " s in, so at the " + WindupFloor +
+                " s wind-up floor it would play at x" + (hook / (WindupFloor + 0.08f)).ToString("F2") +
+                " — inside the clamp. It is usable again; give it a slot.");
+
+            // COMBO2 — the other end of the same clamp. Contact at 0.83 of a 6.5 s clip is 5.45 s in, so
+            // even at the longest tell the game ships anywhere (Drill_DelayedOverhead, 1.25 s) the clip
+            // would have to run at over x3.5.
+            float c2 = ContactSeconds("Combo2");
+            Assert.Greater(c2 / (LongestTellInTheGame + 0.08f), pv.maxClipSpeed,
+                "Combo2's contact is now " + c2.ToString("F2") + " s in, which fits inside the clamp at a " +
+                LongestTellInTheGame + " s tell. Reconsider it.");
+
+            // COMBO1 — it FITS the clamp, and is still refused, on the project's own rule that a
+            // generated clip is only an attack if it moves like one (AUTHORING §2b.4; ENGINEERING-LOG,
+            // "Generated strike clips do not strike"). Its fists peak at 5-6 m/s against 22-31 for the
+            // jabs and 14 for the uppercuts, and to fit at all it must run at nearly x3 — a five-second
+            // showcase phrase compressed into one second of blur, which is Burst4's job at a third the
+            // length. The measurable half of that is here; the tip speeds are in the report.
+            float c1 = ContactSeconds("Combo1");
+            Assert.Greater(c1 / (1.05f + 0.06f), 2.5f,
+                "Combo1's contact is now " + c1.ToString("F2") + " s in; at the LOAD's 1.05 s tell it would " +
+                "play at x" + (c1 / 1.11f).ToString("F2") + ", no longer a blur. Reconsider it.");
+
+            // SHOULDERCHARGE — refused because v15 deleted the only thing it was for. It carried 3.90 m
+            // of Hips travel in v14 and was this fight's answer to distance; it now carries none, so it
+            // cannot hold a lunge, and Brawler_Charge moved onto Slam.
+            Assert.Less(Mathf.Abs(SampledHipsForwardTravel(ClipNamed("ShoulderCharge"))), 0.1f,
+                "ShoulderCharge walks the Hips again. It is the better clip for a charge if it does — " +
+                "move Brawler_Charge back onto it and give Slam its own entry.");
         }
 
         /// <summary>The Hips' forward travel over one clip, sampled on the FBX's own hierarchy. Positive =
@@ -351,11 +510,15 @@ namespace VibeGame1.Tests
         [Test]
         public void EveryLungeIsTheClipsOwnTravel()
         {
-            // The sidecar is SOURCE travel and lies in both directions on this body (1.18-1.24× under on
-            // the attack clips, 0.90× over on Walk/Run), so the shipped lunge is held to the travel the
-            // IMPORTED clip actually carries. FORWARD only: ApplyLunge has no lateral channel and cannot
-            // retreat, so a clip that shuffles sideways (Burst4: dx -0.21, dz +0.02) or steps back must
-            // ship a lunge of 0 and let CompensateTravel keep the mesh over the collider.
+            // The sidecar is SOURCE travel and lies in both directions on this body, so the shipped lunge
+            // is held to the travel the IMPORTED clip actually carries. FORWARD only: ApplyLunge has no
+            // lateral channel and cannot retreat, so a clip that shuffles sideways or steps back (Jab2:
+            // dz -0.10; Slam carries 0.89 m of lateral on top of its forward travel) ships only its
+            // forward component and lets CompensateTravel keep the mesh over the collider.
+            //
+            // v15 moved two of these and the data followed: Jab1 0.20 -> 0 and ShoulderCharge's 3.90 m
+            // off the clip entirely. If this fails, the message PRINTS Unity's own number — paste it
+            // into DataFactory and re-run 3. That is how the Halberdier's 3.68 became 3.90.
             foreach (var h in EveryHit())
             {
                 var clip = ClipNamed(h.clip);
@@ -371,16 +534,17 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheChargeIsTheLongestCloseThisBodyHas()
+        public void TheLeapInIsTheLongestCloseThisBodyHas()
         {
             var charge = Atk("Brawler_Charge");
             foreach (var h in EveryHit())
                 if (h != charge)
                     Assert.Less(h.lungeDistance, charge.lungeDistance,
-                        h.name + " closes " + h.lungeDistance + " m, as far as the charge (" +
-                        charge.lungeDistance + "); the charge is this fight's answer to distance.");
-            Assert.Greater(charge.lungeDistance, 3f,
-                "the charge no longer covers the gap it was measured at (3.90 m of Hips travel).");
+                        h.name + " closes " + h.lungeDistance + " m, as far as the leap-in (" +
+                        charge.lungeDistance + "); the leap-in is this fight's answer to distance.");
+            Assert.Greater(charge.lungeDistance, 1.4f,
+                "the leap-in no longer covers the gap Slam was measured at (1.48 m of Hips travel in " +
+                "Blender; ~1.55 expected off Unity's import).");
         }
 
         [Test]
@@ -388,8 +552,9 @@ namespace VibeGame1.Tests
         {
             // The clip's Hips travel stays in the pose (Unity's root-node extraction is deliberately not
             // used on these Generic rigs) and PuppetVisuals cancels its XZ every LateUpdate. Sampled here
-            // through the SHIPPED prefab on the two clips that move most — including Burst4, whose drift
-            // is LATERAL and would otherwise walk the body out of the capsule mid-flurry.
+            // through the SHIPPED prefab on the two v15 clips that move most: Slam, which walks 1.48 m
+            // forward and 0.89 m sideways and would otherwise leave the capsule entirely, and Burst8,
+            // whose drift is lateral and would walk the body off you mid-barrage.
             var p = (GameObject)PrefabUtility.InstantiatePrefab(Prefab());
             try
             {
@@ -402,7 +567,7 @@ namespace VibeGame1.Tests
                 var model = pv.animator.gameObject;
                 pv.CompensateTravel();
                 Vector3 rest = p.transform.InverseTransformPoint(pv.hipsBone.position);
-                foreach (var name in new[] { "ShoulderCharge", "Burst4" })
+                foreach (var name in new[] { "Slam", "Burst8" })
                 {
                     var clip = ClipNamed(name);
                     Assert.IsNotNull(clip, name + " missing");
@@ -422,18 +587,19 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheBodyIsLiftedOutOfTheFloor_AndSitsOverItsCapsule()
+        public void TheBodyStandsOnTheFloor_AndSitsOverItsCapsule()
         {
-            // The measurement that would have been silently wrong if it had been assumed: this mesh
-            // spans y -0.23..2.13, so without the lift it stands buried to the ankle. And the mesh
-            // centre is z +0.24 while every bone is between 0.00 and 0.24, so the body is shifted back
-            // under the capsule that gets hit (the Halberdier's -0.22, measured again here).
+            // RE-MEASURED FOR v15, and the number that would have been silently wrong if it had been
+            // inherited: the v14 mesh spanned y -0.23..2.13 and needed a 0.23 m lift to get its boots out
+            // of the floor; v15 spans y -0.00..1.95 and needs NONE, so the old lift would hover it by a
+            // boot's height. And the mesh centre is z +0.12 against bones at -0.01..0.02, so the body is
+            // still shifted back under the capsule that gets hit — by half what it was.
             var pv = Puppet();
             var model = pv.animator.transform;
-            Assert.AreEqual(0.23f, model.localPosition.y, 0.001f,
-                "the model's lift is " + model.localPosition.y + "; 0.23 m is what puts its boots on the " +
-                "collider base rather than through it. Rebuild with 4b.");
-            Assert.AreEqual(-0.20f, model.localPosition.z, 0.001f,
+            Assert.AreEqual(0f, model.localPosition.y, 0.001f,
+                "the model's lift is " + model.localPosition.y + "; the v15 mesh starts at y -0.00 so any " +
+                "lift at all leaves it hovering. Rebuild with 4b.");
+            Assert.AreEqual(-0.12f, model.localPosition.z, 0.001f,
                 "the forward shift under the collider changed.");
         }
 
@@ -490,8 +656,10 @@ namespace VibeGame1.Tests
             Assert.IsTrue(string.IsNullOrEmpty(importer.motionNodeName),
                 "motionNodeName is '" + importer.motionNodeName + "'; the travel must stay in the pose.");
             var clips = importer.clipAnimations;
-            Assert.AreEqual(24, clips.Length,
-                "the manifest ships 24 clips and " + clips.Length + " were split — run VibeGame1/4a.");
+            Assert.AreEqual(32, clips.Length,
+                "the v15 manifest ships 32 clips and " + clips.Length + " were split — run VibeGame1/4a. " +
+                "(v14 shipped 24; the eight added are Hook, Slam, Burst8, UppercutLeft, UppercutAlt, " +
+                "Clap, Combo1, Combo2.)");
             foreach (var c in clips)
                 Assert.AreEqual(0, c.events.Length,
                     c.name + " carries AnimationEvents; the project writes none (timing is data-driven).");

@@ -45,12 +45,17 @@ namespace VibeGame1
             // order. There is no SFX row on purpose — see SettingsData's volume block.
             MasterVolume = 10,
             MusicVolume = 11,
+            /// <summary>The weapon flourish key. The one rebindable action in the game; the row lives in
+            /// CONTROL (see AllKinds) even though its number is last, because the enum is append-only
+            /// and the array below is the SCREEN order.</summary>
+            WeaponTwirlKey = 12,
         }
 
         /// <summary>Every kind the builder must emit, in screen order. The EditMode test asserts on this.</summary>
         public static readonly RowKind[] AllKinds =
         {
             RowKind.MouseSensitivity, RowKind.StickSensitivity, RowKind.FieldOfView,
+            RowKind.WeaponTwirlKey,
             RowKind.Resolution, RowKind.DisplayMode, RowKind.VSync, RowKind.FrameCap,
             RowKind.Quality, RowKind.Bloom, RowKind.FilmGrain,
             RowKind.MasterVolume, RowKind.MusicVolume,
@@ -115,13 +120,28 @@ namespace VibeGame1
         float lastAuditionAt = -99f;
         const float AuditionInterval = 0.09f;
 
+        /// <summary>True between REBIND being pressed and a key arriving (or ESC cancelling). The row's
+        /// value text says so; nothing else on the screen changes, so the panel cannot lie about which
+        /// key is bound while it waits for the next one.</summary>
+        bool listening;
+
+        /// <summary>Test hook and the row's own readout: the panel is waiting for a key.</summary>
+        public bool IsListeningForKey { get { return listening; } }
+
+        /// <summary>The prompt shown in the VALUE column while listening. One string, so the builder,
+        /// the runtime and the test cannot drift.</summary>
+        public const string ListeningLabel = "PRESS A KEY…";
+
         void Awake()
         {
             I = this;
             resolutions = SettingsApplier.DistinctResolutions(Screen.resolutions);
         }
 
-        void OnDestroy() { if (I == this) I = null; }
+        void OnDestroy() { StopListening(); if (I == this) I = null; }
+
+        /// <summary>A panel torn down or disabled mid-listen must not leave InputReader hunting for a key.</summary>
+        void OnDisable() { StopListening(); }
 
         void Start()
         {
@@ -147,6 +167,12 @@ namespace VibeGame1
             }
 
             if (!IsOpen) return;
+
+            // While listening, ESC is the rebind's CANCEL, not the panel's close — InputReader's
+            // rebinding operation consumes it and calls us back. Closing here as well would drop the
+            // player out of settings for pressing the one key that means "never mind".
+            if (listening) return;
+
             if (InputReader.I != null && InputReader.I.PausePressed) Close();
         }
 
@@ -221,6 +247,8 @@ namespace VibeGame1
             if (!IsOpen) return;
             IsOpen = false;
 
+            StopListening();
+
             if (panel != null) panel.SetActive(false);
 
             if (timeHandle >= 0 && TimeScaleController.I != null) TimeScaleController.I.Release(timeHandle);
@@ -276,7 +304,10 @@ namespace VibeGame1
                     var row = rows[i];
                     if (row == null) continue;
 
-                    if (row.value != null) row.value.text = ValueLabel(row.kind, d);
+                    if (row.value != null)
+                        row.value.text = (listening && row.kind == RowKind.WeaponTwirlKey)
+                            ? ListeningLabel
+                            : ValueLabel(row.kind, d);
 
                     if (row.slider != null)
                     {
@@ -288,8 +319,14 @@ namespace VibeGame1
                     }
 
                     bool usable = RowIsUsable(row.kind);
-                    if (row.decrease != null) row.decrease.interactable = usable;
-                    if (row.increase != null) row.increase.interactable = usable;
+                    // The rebind row's two buttons are not symmetrical: RESET is pure data and always
+                    // works, REBIND needs a live InputReader to listen with (the front-end scene has
+                    // none). Everywhere else both buttons share one verdict.
+                    bool canListen = usable && InputReader.I != null && InputReader.I.HasWeaponTwirlAction;
+                    if (row.decrease != null)
+                        row.decrease.interactable = row.kind == RowKind.WeaponTwirlKey ? (canListen && !listening) : usable;
+                    if (row.increase != null)
+                        row.increase.interactable = row.kind == RowKind.WeaponTwirlKey ? !listening : usable;
                     if (row.slider != null) row.slider.interactable = usable;
                     if (row.note != null) row.note.text = NoteFor(row.kind, d);
                 }
@@ -309,6 +346,13 @@ namespace VibeGame1
         {
             if (kind == RowKind.FrameCap && d.vSync > 0) return "vsync is on";
             if (kind == RowKind.Resolution && resolutions.Length == 0) return "no display list";
+            if (kind == RowKind.WeaponTwirlKey)
+            {
+                if (listening) return "esc cancels";
+                if (InputReader.I == null) return "rebind in game";
+                if (!InputReader.I.HasWeaponTwirlAction) return "action missing";
+                return string.IsNullOrEmpty(d.weaponTwirlBinding) ? "default" : "custom";
+            }
             // The two volume rows say what they actually reach, and admit a silent game rather than
             // leaving a player dragging a music slider that master has already muted.
             if (kind == RowKind.MasterVolume) return d.masterVolume <= 0.0001f ? "everything is muted" : "sfx and music";
@@ -350,6 +394,22 @@ namespace VibeGame1
                 case RowKind.MusicVolume: return 0.05f;
                 default: return 0f;
             }
+        }
+
+        /// <summary>
+        /// A rebind row: no slider, and its two buttons are REBIND and RESET rather than &lt; and &gt;.
+        /// The builder asks this to decide what to emit, so a second rebindable action later is one
+        /// enum member and one case, not a new widget.
+        /// </summary>
+        public static bool IsRebind(RowKind kind)
+        {
+            return kind == RowKind.WeaponTwirlKey;
+        }
+
+        /// <summary>The two button captions on a rebind row, left then right.</summary>
+        public static string RebindButtonLabel(bool isReset)
+        {
+            return isReset ? "RESET" : "REBIND";
         }
 
         public static bool IsContinuous(RowKind kind)
@@ -425,6 +485,15 @@ namespace VibeGame1
         {
             if (d == null || delta == 0) return;
 
+            // A rebind row holds a control path, not a position in a list: there is nothing to step.
+            // The RESET half is data, though, and belongs here so a test can prove it without a scene.
+            if (IsRebind(kind))
+            {
+                if (delta > 0) d.weaponTwirlBinding = "";
+                d.Clamp();
+                return;
+            }
+
             if (IsContinuous(kind))
             {
                 SetContinuous(d, kind, Continuous(kind, d) + StepSize(kind) * delta);
@@ -472,10 +541,63 @@ namespace VibeGame1
 
         void Step(RowKind kind, int delta)
         {
+            // REBIND is the only control on this screen that is not a value edit: it starts a listen.
+            // Everything else, including its own RESET, goes through the pure static Step above.
+            if (IsRebind(kind) && delta < 0) { BeginListening(); return; }
+            if (IsRebind(kind)) StopListening();
+
             var names = QualitySettings.names;
             Step(SettingsStore.Current, kind, delta, resolutions, names != null ? names.Length : 0);
             Commit();
             Audition(kind);
+        }
+
+        // ---- rebinding ------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Ask <see cref="InputReader"/> to listen for one key. Nothing here touches the Input System
+        /// (hard rule 2): we hand it two callbacks and get a control-path STRING back, which is stored
+        /// like any other setting and pushed back out by <c>SettingsApplier</c>.
+        ///
+        /// <para>Unscaled by construction — there is no timer on this side. The panel holds
+        /// <c>Time.timeScale</c> at 0 through <c>TimeScaleController</c> while it is open (hard rule 1),
+        /// and the rebinding operation runs on the Input System's own clock regardless.</para>
+        /// </summary>
+        void BeginListening()
+        {
+            var reader = InputReader.I;
+            if (reader == null || !reader.HasWeaponTwirlAction || listening) return;
+
+            listening = true;
+            Refresh();
+            AudioManager.Play(Sfx.Click, 1f, 1.3f);
+
+            reader.BeginWeaponTwirlRebind(
+                path =>
+                {
+                    listening = false;
+                    var d = SettingsStore.Current;
+                    d.weaponTwirlBinding = path;
+                    Commit();                       // clamps, saves, and re-applies through the applier
+                    AudioManager.Play(Sfx.Click, 1f, 1.1f);
+                },
+                () =>
+                {
+                    listening = false;
+                    // Put the action back on whatever is actually SAVED: a cancelled listen must leave
+                    // no trace, and the value text must never show a key the game will not answer to.
+                    if (InputReader.I != null) InputReader.I.ApplyWeaponTwirlOverride(SettingsStore.Current.weaponTwirlBinding);
+                    Refresh();
+                    AudioManager.Play(Sfx.Click, 1f, 0.8f);
+                });
+        }
+
+        /// <summary>Abandon a listen from this side (panel closing, object disabled).</summary>
+        void StopListening()
+        {
+            if (!listening) return;
+            listening = false;
+            if (InputReader.I != null) InputReader.I.CancelRebind();
         }
 
         /// <summary>Persist and push. Saving on every notch is deliberate: a crash never loses a setting.</summary>
@@ -502,7 +624,8 @@ namespace VibeGame1
                 case RowKind.Bloom: return "BLOOM";
                 case RowKind.FilmGrain: return "FILM GRAIN";
                 case RowKind.MasterVolume: return "MASTER VOLUME";
-                default: return "MUSIC VOLUME";
+                case RowKind.MusicVolume: return "MUSIC VOLUME";
+                default: return "FLOURISH KEY";
             }
         }
 
@@ -523,7 +646,14 @@ namespace VibeGame1
                 case RowKind.Bloom: return SettingsData.PercentLabel(d.bloomScale);
                 case RowKind.FilmGrain: return SettingsData.OnOffLabel(d.filmGrain);
                 case RowKind.MasterVolume: return SettingsData.PercentLabel(d.masterVolume);
-                default: return SettingsData.PercentLabel(d.musicVolume);
+                case RowKind.MusicVolume: return SettingsData.PercentLabel(d.musicVolume);
+                default:
+                    // The live reader gives the nicest name ("F11"); with no reader (the EditMode test,
+                    // the front end before a level) the stored path is decoded by the pure helper. Both
+                    // read the SAME binding, so this row can never show a key the game will not answer.
+                    return InputReader.I != null && InputReader.I.HasWeaponTwirlAction
+                        ? InputReader.I.WeaponTwirlLabel
+                        : SettingsData.KeyLabel(d.WeaponTwirlBindingOrDefault());
             }
         }
 

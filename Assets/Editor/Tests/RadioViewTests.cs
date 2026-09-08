@@ -132,7 +132,7 @@ namespace VibeGame1.Tests
             const float W = 1920f;
             var radio = CanvasRect(hud.transform.Find("RadioPane").GetComponent<RectTransform>(), W);
 
-            foreach (var other in new[] { "BestRunsPane", "Clock", "HintText", "LevelEditorPanel" })
+            foreach (var other in new[] { "Clock", "HintText", "LevelEditorPanel" })
             {
                 var tr = hud.transform.Find(other);
                 if (tr == null) continue;
@@ -140,13 +140,9 @@ namespace VibeGame1.Tests
                 Assert.IsFalse(radio.Overlaps(r), "the radio " + radio + " overlaps " + other + " " + r);
             }
 
-            // It is the RIGHTMOST thing in the top-right stack: a car stereo lives in the corner.
-            var best = hud.transform.Find("BestRunsPane");
-            if (best != null)
-            {
-                var b = CanvasRect(best.GetComponent<RectTransform>(), W);
-                Assert.GreaterOrEqual(radio.xMax, b.xMax, "BEST RUNS reaches further right than the radio");
-            }
+            // It owns the corner outright now that BEST RUNS is gone (2026-09-07): nothing else in the
+            // top-right column may reach further right than the stereo.
+            Assert.IsNull(hud.transform.Find("BestRunsPane"), "the BEST RUNS pane is back in the radio's column");
         }
 
         // ---- pure motion ----------------------------------------------------------------------------

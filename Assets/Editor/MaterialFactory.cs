@@ -14,6 +14,7 @@ namespace VibeGame1.EditorTools
         const string ShaderName = "Universal Render Pipeline/Lit";
         const string CloudSeaShaderName = "VibeGame1/Cloud Sea";
         const string SolarArenaShaderName = "VibeGame1/Solar Arena";
+        const string RainbowBorderShaderName = "VibeGame1/UI/RainbowBorder";
 
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
@@ -302,6 +303,7 @@ namespace VibeGame1.EditorTools
             // the shader as an unreferenced Shader.Find-only dependency.
             CreateCloudSea();
             CreateSolarArenaMaterials();
+            CreateRadioAura();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -357,6 +359,77 @@ namespace VibeGame1.EditorTools
             mat.SetFloat("_HazeEnd", 280f);
             mat.SetOverrideTag("RenderType", "Transparent");
             mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 10;
+
+            EditorUtility.SetDirty(mat);
+            AssetDatabase.SaveAssets();
+            return mat;
+        }
+
+        /// <summary>
+        /// Creates or refreshes M_RadioAura: the rainbow that swirls around the radio pane's border.
+        /// Every tuning value is set here, not in the shader block — a shader default is not a shipped
+        /// value, and RadioAuraTests asserts against this material.
+        /// </summary>
+        public static Material CreateRadioAura()
+        {
+            EnsureFolder();
+            var shader = Shader.Find(RainbowBorderShaderName);
+            if (shader == null)
+            {
+                Debug.LogError("[MaterialFactory] Shader '" + RainbowBorderShaderName +
+                               "' not found. Reimport Assets/Shaders/UI/RainbowBorder.shader first.");
+                return null;
+            }
+
+            const string name = "M_RadioAura";
+            string path = PathFor(name);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader) { name = name };
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            else if (mat.shader != shader)
+            {
+                mat.shader = shader;
+            }
+
+            // Geometry, in fractions of the rect's HEIGHT. The radio pane ships at 300 x 116 with a
+            // UiSprites.Pane() corner of about 12 px, so 12/116 = 0.103 traces the glass rather than
+            // cutting across it, and a 6.4 px band (0.055) reads as a frame at HUD distance without
+            // eating the 16 px inner padding the ticker text lives in.
+            mat.SetFloat("_Aspect", 300f / 116f);
+            mat.SetFloat("_Radius", 0.103f);
+            mat.SetFloat("_Thickness", 0.055f);
+            mat.SetFloat("_Feather", 0.012f);
+
+            // The swirl. One spectrum per lap, so the frame is a whole rainbow at every instant rather
+            // than a strobing repeat; the hue creeps round at 0.18 laps/s (a 5.6 s lap) so it is alive
+            // in peripheral vision but never pulls the eye off a parry cue. The comet head runs faster
+            // than the hue so the two do not lock into one rigid pattern.
+            mat.SetFloat("_HueCycles", 1f);
+            mat.SetFloat("_SwirlSpeed", 0.18f);
+            mat.SetFloat("_CometSpeed", 0.42f);
+            mat.SetFloat("_CometLength", 0.34f);
+            mat.SetFloat("_CometGain", 0.26f);
+
+            // The budget. 0.78 saturation keeps the rainbow inside the game's murk instead of laying
+            // pure sRGB primaries on a dark-fantasy HUD.
+            //
+            // Peak is 0.79, NOT the 0.82 this shipped with for an hour on 2026-09-07. 1.05 is the
+            // NAVIGATIONAL cap from ANIMATION-VFX, and this is not navigational trim — it is a graphic
+            // on the HUD canvas, where ARCHITECTURE's rule is absolute and one step stricter: "the UI
+            // never blooms", nothing over 1.0 in any channel, because light on this screen means "you
+            // deflected". 0.79 with the comet's 1.26x gain tops out at 0.995, under 1.0 before the
+            // shader's own clamp, so the music player's decoration can never read as a parry.
+            mat.SetFloat("_Saturation", 0.78f);
+            mat.SetFloat("_Peak", 0.79f);
+            mat.SetFloat("_Alpha", 0.85f);
+            mat.SetColor("_Color", Color.white);
+            mat.SetFloat("_T", 0f);
+
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 
             EditorUtility.SetDirty(mat);
             AssetDatabase.SaveAssets();
@@ -425,6 +498,10 @@ namespace VibeGame1.EditorTools
             mat.SetFloat("_BandScale", scale);
             mat.SetFloat("_RimPower", name == "M_SolarCorona" ? 1.1f : 2.2f);
             mat.SetFloat("_Pulse", name == "M_SolarCorona" ? 0.08f : 0.16f);
+            // The crossing multiplier ships at 1 and is driven per RENDERER by SolarArenaVisual, so
+            // the shared asset is never dirtied by a player flying through a sun. Written here
+            // rather than left to the shader default (rule 9: a code default is not a shipped value).
+            mat.SetFloat("_Fade", 1f);
             mat.SetOverrideTag("RenderType", "Transparent");
             mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 5;
             EditorUtility.SetDirty(mat);

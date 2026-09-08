@@ -171,7 +171,7 @@ namespace VibeGame1.Tests
             // SoulsLabel / SoulsText are covered SCOPED to the loadout pane by HudColumnTests: the
             // level-up card ships a second label called SoulsText and a by-name lookup cannot tell them apart.
             "WeaponText", "PyreReadyLabel", "TimerText",
-            "RadioStation", "RadioKeys", "BestRunsTitle", "ParryPopup", "PromptText", "DeathblowText",
+            "RadioStation", "RadioKeys", "ParryPopup", "PromptText", "DeathblowText",
         };
 
         [Test]

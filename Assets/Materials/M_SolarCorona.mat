@@ -28,6 +28,7 @@ Material:
     m_Floats:
     - _Alpha: 0.03
     - _BandScale: 17
+    - _Fade: 1
     - _FlowSpeed: -0.34
     - _Pulse: 0.08
     - _RimPower: 1.1

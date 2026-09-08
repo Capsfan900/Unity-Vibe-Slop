@@ -52,16 +52,38 @@ namespace VibeGame1.Tests
                 Is.LessThan(entry.center.z - entry.size.z / 2f - 10f));
         }
 
+        /// <summary>
+        /// The hill's job after the last parry. The five-beat ladder ends around progress 97; everything
+        /// below that is the exhale, where a 1.60x surge at ~24 m/s is actually felt before the run-out
+        /// hands the player to the unchanged Ground_Start. Authored as a floor, not an exact number.
+        /// </summary>
+        [Test] public void OpeningLeavesAnUnopposedPayoffStraightBelowTheLastPerch()
+        {
+            var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            var perches = def.spawns.Where(s => s.name.StartsWith("Spawn_T0_Surge_")).ToArray();
+            Assert.That(perches.Length, Is.EqualTo(5));
+            float lowest = perches.Max(s => s.position.z);
+            Assert.That(ramp.TopPosition.z - lowest, Is.GreaterThanOrEqualTo(28f),
+                "no room below the last perch to feel the surge before the level flattens");
+            foreach (var s in perches)
+                Assert.That(s.position.z, Is.GreaterThan(ramp.basePosition.z),
+                    s.name + " sits above the crest lip, off the hill");
+        }
+
         [Test] public void ShippedOpeningHasContinuousFullWidthJoinsIntoTheOriginalStart()
         {
             var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
             var entry = def.platforms.Single(p => p.name == "T0_Entry");
             var runOut = def.platforms.Single(p => p.name == "T0_RunOut");
             var originalStart = def.platforms.Single(p => p.name == "Ground_Start");
-            Assert.That(ramp.run, Is.EqualTo(120f));
-            Assert.That(ramp.rise, Is.EqualTo(-30f));
+            // 2026-09-07: lengthened at the top, 120 -> 144 m of run, 30 -> 36 m of drop. The grade and
+            // the bottom of the hill are both fixed, so the whole extension lands above the lip.
+            Assert.That(ramp.run, Is.EqualTo(144f));
+            Assert.That(ramp.rise, Is.EqualTo(-36f));
             Assert.That(ramp.width, Is.EqualTo(14f));
             Assert.That(ramp.yaw, Is.Zero);
+            Assert.That(ramp.TopPosition.z, Is.EqualTo(-15.8f).Within(0.001f), "the bottom of the hill is pinned");
+            Assert.That(ramp.TopPosition.y, Is.EqualTo(0f).Within(0.001f), "the bottom of the hill is pinned");
             Assert.That(entry.center.y + entry.size.y / 2f, Is.EqualTo(ramp.basePosition.y).Within(0.001f));
             Assert.That(entry.center.z + entry.size.z / 2f - ramp.basePosition.z, Is.EqualTo(0.2f).Within(0.001f));
             Assert.That(ramp.TopPosition.z - (runOut.center.z - runOut.size.z / 2f), Is.EqualTo(0.2f).Within(0.001f));

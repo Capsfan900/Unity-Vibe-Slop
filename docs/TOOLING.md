@@ -217,13 +217,14 @@ real read is closer. **A wind-up pose is judged from these photographs, never fr
 
 ### Settings menu
 
-Reached from the title screen (SETTINGS) and from the pause menu (ESC → SETTINGS). Ten rows: mouse /
-gamepad sensitivity, FOV, resolution, display mode, vsync, frame cap, quality, bloom, film grain. Persists
+Reached from the title screen (SETTINGS) and from the pause menu (ESC → SETTINGS). Thirteen rows: mouse /
+gamepad sensitivity, FOV, flourish key, resolution, display mode, vsync, frame cap, quality, bloom, film
+grain, master volume and music volume. Persists
 to PlayerPrefs under `vg1.settings.*`, applied on load in every scene by `SettingsApplier` (no component
 to place — it bootstraps itself). Resolution / display mode take effect in builds only. Both prefabs are
 emitted by `SettingsPanelKit` (in `HudBuilder.cs`); rebuild with `5. Build HUD` and `9. Build Main Menu`.
-Tests: `Assets/Editor/Tests/SettingsDataTests.cs` (logic, 24) and `SettingsPrefabTests.cs` (every binding
-on both prefabs, 6). Adding a setting: a `SettingsData` field + key, a `SettingsMenu.RowKind` + entry in
+Tests: `Assets/Editor/Tests/SettingsDataTests.cs` (logic, 31) and `SettingsPrefabTests.cs` (every binding
+on both prefabs, 11). Adding a setting: a `SettingsData` field + key, a `SettingsMenu.RowKind` + entry in
 `AllKinds` + cases in `ValueLabel`/`Step`/`LabelFor`, an applier branch, and the kit emits the row
 automatically.
 
@@ -461,6 +462,12 @@ run missed the first parry and cascaded into knockback. Treat an uncapped failur
 see VERIFICATION-REPORT for both runs. Restore any temporary frame-rate/VSync settings after testing.
 
 ## Subagent teams (2026-09-06)
+
+For substantial multi-part work, `.claude/skills/astra-engineering-company/SKILL.md` provides the shared,
+tool-neutral orchestration protocol. It treats model names as capability tiers, requires one owner per file,
+keeps the Unity editor with the lead, and supplies a compact context-packet contract for workers. Its
+`references/vibegame1.md` adapter applies the authorship and regression rules below; `AGENTS.md` remains the
+authority if the adapter ever disagrees.
 
 Five project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to
 add mechanics; each is scoped to its own files and verifies offline (`dotnet build`) — the lead session owns the

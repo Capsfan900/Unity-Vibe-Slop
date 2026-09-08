@@ -99,6 +99,7 @@ namespace VibeGame1
             ApplyCount++;
 
             ApplyLook(d);
+            ApplyBindings(d);
             ApplyCamera(d);
             ApplyQuality(d);
             ApplyDisplay(d);
@@ -129,6 +130,20 @@ namespace VibeGame1
         void ApplyLook(SettingsData d)
         {
             ApplyLookTo(d, FindObjectsByType<PlayerLook>(FindObjectsInactive.Include));
+        }
+
+        // ------------------------------------------------------------------ key bindings
+
+        /// <summary>
+        /// Push the player's rebindable key onto <see cref="InputReader"/> — the only class allowed to
+        /// touch the Input System (hard rule 2). Null-safe on purpose: the front-end scene has no
+        /// InputReader at all, and the level's one applies the same value itself in Awake, so this is
+        /// the "changed it mid-run" path rather than the only path.
+        /// </summary>
+        void ApplyBindings(SettingsData d)
+        {
+            if (InputReader.I == null) return;
+            InputReader.I.ApplyWeaponTwirlOverride(d.weaponTwirlBinding);
         }
 
         // ------------------------------------------------------------------ field of view
