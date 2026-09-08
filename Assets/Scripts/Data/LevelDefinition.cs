@@ -345,6 +345,9 @@ namespace VibeGame1
         [Tooltip("Centre of the visible exterior sun, at the existing arena's X/Z anchor.")]
         public Vector3 exteriorCenter;
         public float exteriorRadius = 12f;
+        [Tooltip("Visible plasma radius. Zero or negative uses exteriorRadius. Kept separate so a sun can " +
+                 "enclose the old court without moving the gameplay portal boundary.")]
+        public float visualRadius = 0f;
 
         [Tooltip("Centre of the disconnected enclosed fight cell.")]
         public Vector3 realmCenter;
@@ -394,6 +397,16 @@ namespace VibeGame1
         [Tooltip("Once a member has entered its normal firing band, maximum time to wait for a clear, " +
                  "frontal shot before moving on. This prevents one blocked member from silencing the row.")]
         public float readinessTimeout = 1.1f;
+
+        [Tooltip("World-space origin for optional per-member progress gates.")]
+        public Vector3 progressOrigin;
+
+        [Tooltip("Direction player progress is measured from progressOrigin. Zero disables progress gates.")]
+        public Vector3 progressDirection;
+
+        [Tooltip("Minimum distance along progressDirection before each member may arm. Leave empty for the " +
+                 "original range-driven sequence behavior.")]
+        public float[] memberProgressGates = new float[0];
     }
 
     /// <summary>

@@ -185,6 +185,19 @@ namespace VibeGame1
             look.SetYaw(combat.transform.eulerAngles.y + 180f);
         }
 
+        void AimAtGrappleDummy(EnemyController target)
+        {
+            // Unlike melee facing, the grapple tests exercise a narrow 3D crosshair cone. A dummy
+            // snapped onto the new descent sits below the player; yaw-only aiming looks over it.
+            FacePoint(target.transform.position);
+            Vector3 eye = look.Cam != null ? look.Cam.position : combat.transform.position + Vector3.up * 1.6f;
+            Vector3 chest = target.transform.position + Vector3.up * (0.9f * Mathf.Max(0.3f, target.transform.localScale.y));
+            Vector3 direction = chest - eye;
+            float horizontal = new Vector2(direction.x, direction.z).magnitude;
+            float pitch = -Mathf.Atan2(direction.y, horizontal) * Mathf.Rad2Deg;
+            look.NudgeAim(0f, pitch - look.Pitch);
+        }
+
         static AttackInfo MakeAttack(EnemyController attacker, float damage, bool unblockable)
         {
             return new AttackInfo
@@ -3706,7 +3719,7 @@ namespace VibeGame1
             else
             {
                 if (lockOn != null) lockOn.Release();   // exercise the crosshair search, not the lock
-                FacePoint(prey.transform.position);
+                AimAtGrappleDummy(prey);
                 yield return null;
                 var hook = MakeItem(ItemEffect.Grapple);
                 items.TryPickup(hook);
@@ -3751,7 +3764,7 @@ namespace VibeGame1
                 // grunt walks the mini-boss path without needing a Legendary prefab in the scene.
                 big.name = "Legendary_~TestDummy";
                 if (lockOn != null) lockOn.Release();
-                FacePoint(big.transform.position);
+                AimAtGrappleDummy(big);
                 yield return null;
                 float postureBefore = big.Posture.Current;
                 var hookBig = MakeItem(ItemEffect.Grapple);
@@ -3777,6 +3790,7 @@ namespace VibeGame1
             }
 
             // ---- Grapple with nothing to hook: refused and KEPT ------------------------------------
+            look.SetYaw(look.Yaw);
             yield return ResetPlayerState();
             if (lockOn != null) lockOn.Release();
             var noHook = MakeItem(ItemEffect.Grapple);

@@ -37,41 +37,67 @@ namespace VibeGame1.Tests
             Assert.That(Mathf.Sign(shots[0].position.x), Is.EqualTo(-1f), "first is left");
             Assert.That(Mathf.Sign(shots[1].position.x), Is.EqualTo(1f), "second is right");
             Assert.That(Mathf.Sign(shots[2].position.x), Is.EqualTo(-1f), "third returns left");
-            Assert.That(shots[3].position.y, Is.EqualTo(8.6f).Within(0.001f));
-            Assert.That(shots[4].position.y, Is.EqualTo(8.6f).Within(0.001f));
-            Assert.That(shots[3].position.z, Is.EqualTo(15f).Within(0.001f));
-            Assert.That(shots[4].position.z, Is.EqualTo(15f).Within(0.001f));
+            Assert.That(shots.Select(s => s.position), Is.EqualTo(new[]
+            {
+                new Vector3(-7.7f, 22.1f, -103.8f),
+                new Vector3( 7.7f, 16.6f,  -81.8f),
+                new Vector3(-7.7f, 11.1f,  -59.8f),
+                new Vector3( 3.2f, 13.6f,  -37.8f),
+                new Vector3(-3.2f,  9.1f,  -21.8f)
+            }));
+
+            Assert.That(volley.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -123.8f)));
+            Assert.That(volley.progressDirection, Is.EqualTo(Vector3.forward));
+            Assert.That(volley.memberProgressGates, Is.EqualTo(new[] { 0f, 14f, 36f, 58f, 78f }));
         }
 
         [Test]
-        public void FloatingDaisIsASteppedCyanCrownWithSixMetresOfRouteClearance()
+        public void OpeningIsA108MetreDescentAtOneInFourGradeWithBreathingRoom()
+        {
+            var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            var entry = def.platforms.Single(p => p.name == "T0_Entry");
+            var runout = def.platforms.Single(p => p.name == "T0_RunOut");
+            Assert.That(ramp.basePosition, Is.EqualTo(new Vector3(0f, 27f, -123.8f)));
+            Assert.That(ramp.run, Is.EqualTo(108f).Within(0.001f));
+            Assert.That(ramp.rise, Is.EqualTo(-27f).Within(0.001f));
+            Assert.That(ramp.width, Is.EqualTo(12f).Within(0.001f));
+            Assert.That(Vector3.Distance(ramp.TopPosition, new Vector3(0f, 0f, -15.8f)), Is.LessThan(0.001f));
+            Assert.That(entry.size.x, Is.EqualTo(12f).Within(0.001f));
+            Assert.That(runout.size.x, Is.EqualTo(12f).Within(0.001f));
+            Assert.That(def.playerStart, Is.EqualTo(new Vector3(0f, 27.3f, -127f)));
+        }
+
+        [Test]
+        public void FloatingDaisIsAnOpenConnectedCyanCrownAboveTheSlope()
         {
             var pieces = def.platforms.Where(p => p.name.StartsWith("T0_OverheadDais_")).ToArray();
-            Assert.That(pieces.Length, Is.EqualTo(5), "front/rear terraces, side link and two underside tiers");
+            Assert.That(pieces.Length, Is.EqualTo(10), "two terraces, stepped open Z connection and tapered undersides");
             Assert.That(pieces.Count(p => p.trim && p.trimMaterialKey == "NeonCyan"), Is.EqualTo(2));
 
-            var fast = def.platforms.Single(p => p.name == "T1_Fast_1");
-            float routeTop = fast.center.y + fast.size.y * 0.5f;
-            float lowestUnderside = pieces.Min(p => p.center.y - p.size.y * 0.5f);
-            Assert.That(lowestUnderside - routeTop, Is.GreaterThanOrEqualTo(6f));
+            var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            foreach (var piece in pieces)
+            {
+                var uphillEdge = new Vector3(piece.center.x, 0f, piece.center.z - piece.size.z * 0.5f);
+                float clearance = piece.center.y - piece.size.y * 0.5f - LevelDescentReport.SurfaceY(ramp, uphillEdge);
+                Assert.That(clearance, Is.GreaterThanOrEqualTo(6f), piece.name + " route clearance");
+            }
 
             var front = pieces.Single(p => p.name == "T0_OverheadDais_Front");
+            var rear = pieces.Single(p => p.name == "T0_OverheadDais_Rear");
             var fourth = def.spawns.Single(s => s.name == "Spawn_T0_Surge_4");
             var fifth = def.spawns.Single(s => s.name == "Spawn_T0_Surge_5");
             Assert.That(fourth.position.y, Is.EqualTo(front.center.y + front.size.y * 0.5f + 0.1f).Within(0.001f));
-            Assert.That(fifth.position.y, Is.EqualTo(front.center.y + front.size.y * 0.5f + 0.1f).Within(0.001f));
+            Assert.That(fifth.position.y, Is.EqualTo(rear.center.y + rear.size.y * 0.5f + 0.1f).Within(0.001f));
             Assert.That(Mathf.Abs(fourth.position.x - front.center.x), Is.LessThan(front.size.x * 0.5f));
-            Assert.That(Mathf.Abs(fifth.position.x - front.center.x), Is.LessThan(front.size.x * 0.5f));
+            Assert.That(Mathf.Abs(fifth.position.x - rear.center.x), Is.LessThan(rear.size.x * 0.5f));
         }
 
         [Test]
         public void EveryAuthoredBeatHasAnUnblockedFrontalApproachLine()
         {
-            var targets = new[]
-            {
-                RampChest(-42f), RampChest(-30f), new Vector3(0f, 1.2f, -15f),
-                new Vector3(0f, 1.2f, 0f), new Vector3(0f, 1.2f, 4f)
-            };
+            var volley = def.projectileSequences.Single(s => s.name == "T0_SurgeVolley");
+            var targets = volley.memberProgressGates
+                .Select(progress => RampChest(volley.progressOrigin.z + progress)).ToArray();
             var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
             Assert.IsNotNull(data, "shipped surge turret data missing");
 
@@ -87,8 +113,12 @@ namespace VibeGame1.Tests
                 float speed = ProjectileMath.LaunchSpeed(distance, data.projectileSpeed,
                     Projectile.CueLead, ProjectileShooter.CueMargin);
                 Assert.IsTrue(ProjectileMath.ArrivesInFront(muzzle, targets[i], Vector3.forward * 27.5f, speed, 75f),
-                    shot.name + " remains a frontal launch at the motor's overspeed ceiling");
+                    shot.name + " remains frontal at the motor's final horizontal-speed clamp");
             }
+
+            Assert.That(volley.memberProgressGates, Is.Ordered.Ascending);
+            Assert.That(volley.memberProgressGates.All(p => p >= 0f && p < 108f), Is.True,
+                "every launch gate lies on the descent");
         }
 
         [Test]
@@ -133,7 +163,9 @@ namespace VibeGame1.Tests
                 }
                 var host = new GameObject("T0_SurgeVolley");
                 host.transform.SetParent(root.transform, false);
-                host.AddComponent<ProjectileVolleySequence>().Configure(members, 0.11f, 1.1f);
+                host.AddComponent<ProjectileVolleySequence>().Configure(
+                    members, 0.11f, 1.1f, new Vector3(0f, 0f, -123.8f), Vector3.forward,
+                    new[] { 0f, 14f, 36f, 58f, 78f });
 
                 LevelDefinitionExporter.ExportInto(root, fresh);
 
@@ -142,6 +174,9 @@ namespace VibeGame1.Tests
                 Assert.That(saved.spawnerNames, Is.EqualTo(members.Select(m => m.name).ToArray()));
                 Assert.That(saved.recoveryGap, Is.EqualTo(0.11f).Within(0.0001f));
                 Assert.That(saved.readinessTimeout, Is.EqualTo(1.1f).Within(0.0001f));
+                Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -123.8f)));
+                Assert.That(saved.progressDirection, Is.EqualTo(Vector3.forward));
+                Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 14f, 36f, 58f, 78f }));
             }
             finally
             {
@@ -180,6 +215,50 @@ namespace VibeGame1.Tests
             finally
             {
                 Object.DestroyImmediate(host);
+                foreach (var marker in markers) if (marker != null) Object.DestroyImmediate(marker);
+            }
+        }
+
+        [Test]
+        public void GatedMemberWaitsPassivelyUntilPlayerCrossesItsAuthoredPosition()
+        {
+            var host = new GameObject("SequenceGateTest");
+            var player = new GameObject("SequenceGatePlayer");
+            var markers = new GameObject[2];
+            try
+            {
+                var members = new EnemySpawner[2];
+                for (int i = 0; i < members.Length; i++)
+                {
+                    markers[i] = new GameObject("GatedMember_" + i);
+                    members[i] = markers[i].AddComponent<EnemySpawner>();
+                }
+                var sequence = host.AddComponent<ProjectileVolleySequence>();
+                sequence.Configure(members, 0.11f, 1.1f, Vector3.zero, Vector3.forward, new[] { 0f, 10f });
+
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(ProjectileVolleySequence);
+                type.GetMethod("Advance", flags).Invoke(sequence, null);
+                type.GetField("player", flags).SetValue(sequence, player.transform);
+                player.transform.position = new Vector3(0f, 0f, 9.9f);
+                type.GetMethod("Update", flags).Invoke(sequence, null);
+                Assert.IsFalse((bool)type.GetField("bandSeen", flags).GetValue(sequence),
+                    "readiness time must not be consumed before the position gate");
+
+                player.transform.position = new Vector3(0f, 0f, 10f);
+                type.GetMethod("Update", flags).Invoke(sequence, null);
+                Assert.IsTrue((bool)type.GetField("bandSeen", flags).GetValue(sequence),
+                    "crossing the gate latches the finite readiness window");
+
+                type.GetMethod("ResetState", flags).Invoke(sequence, null);
+                Assert.That(sequence.CurrentIndex, Is.Zero);
+                Assert.IsFalse((bool)type.GetField("bandSeen", flags).GetValue(sequence),
+                    "respawn/replacement reset clears the latched gate");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(player);
                 foreach (var marker in markers) if (marker != null) Object.DestroyImmediate(marker);
             }
         }

@@ -10,6 +10,43 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Longer opening and enclosing suns — 2026-09-07
+
+Sol 5.6 authored the refinement with Astra consulting. The saved opening is 108 m long, 12 m wide,
+with a 27 m drop and spawn (0,27.3,-127). Turrets occupy slope progress 20/42/64/86/102 m, in
+left/right/left/right-overhead/left-overhead order. Position gates preserve the sequence along the hill.
+The rear overhead perch is lower so the fifth bolt intercepts the descending player.
+
+- **Saved-scene live probe: PASS**, five shots, five distinct parries, full **1.60x**, every contact
+  on the slope, and run-out reached. Contacts 1.082/1.716/2.418/3.184/3.851 s, at slope progress
+  14.95/30.50/49.81/70.88/89.22 m. Gaps 0.634/0.702/0.766/0.667 s. Actual 60 fps motor and
+  projectile integration; only one entry impulse, automatic forecast parries. Evidence:
+  `TestResults/long-opening/opening-final.txt`. This establishes integration, not human timing fairness.
+- **Full FeatureTests: 804/804 passed**, zero failures/skips, 66.5 s, fresh unpaused session;
+  `TestResults/long-opening/features-final.txt`. Seven first-run grapple failures came from the test
+  driver looking horizontally over slope-snapped dummies. The two grapple stages now aim vertically
+  through PlayerLook.NudgeAim as well. Gameplay grapple/movement/parry systems were not altered.
+- Full EditMode ran **864 tests** in 225.8 s: 863 passed, one decorative beam clearance assertion
+  failed (`TestResults/EditMode-20260907-203204.xml`). All **138 slow level-line tests passed**.
+  Raising the last connecting beam 0.3 m resolved clearance; the complete quick suite then passed
+  **726/726**, zero failures/skips, 9.8 s (`TestResults/EditMode-20260907-203320.xml`).
+  A later run hit the existing unseeded 100:1 weighted-choice assertion in SoulsCombatTests once;
+  that check assumes a probabilistic choice is guaranteed. This pass does not change that system.
+  Final quick rerun: **726/726 passed**, zero failures/skips, 10.8 s;
+  `TestResults/EditMode-20260907-204123.xml`.
+- **Health: 0 errors / 1764 existing warnings.** Runtime and editor offline builds succeed with
+  zero errors (editor has 16 existing warnings). No Unity C# compilation errors.
+- Scene readback confirms four visual diameters **44/46/44/62 m**, fixed original centers and
+  physical portal radii 12/13/12/18 m. Court/wall/pillar/gate/torch corners have >=1.5 m containment
+  margin. Seven actual scene renders were reviewed in `RouteShots/long-opening/`.
+- Cloud sea now spans 300x740 m centered at (0,-5,150), covering the longer crest. Kill bounds span
+  z -160..450. The full original route, later descent and realm gameplay remain intact.
+
+Generators: ReworkLevel01 (idempotence verified), BuildCanonicalHeadless including NavMesh and scene
+save. Restore tag: `pre-long-opening-2026-09-07` at `1275950`. Human feel/appearance acceptance and
+standalone/WebGL GPU cost remain unverified.
+
+
 ### Five opening parries and solar boss realms — 2026-09-07
 
 Sol 5.6 implemented the user's five-turret opening and four themed sun portals; Astra consulted on

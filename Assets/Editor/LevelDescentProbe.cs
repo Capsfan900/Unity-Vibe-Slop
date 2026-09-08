@@ -132,32 +132,23 @@ namespace VibeGame1.EditorTools
                     if (currentGrants != recordedGrants)
                     {
                         recordedGrants = currentGrants;
-                        log.AppendLine(string.Format("Opening deflect {0}: t={1:0.000}, position={2}, multiplier={3:0.00}",
-                            currentGrants, t, motor.transform.position, motor.SpeedMultiplier));
+                        log.AppendLine(string.Format("Opening deflect {0}: t={1:0.000}, progress={2:0.00}/{3:0.00}, position={4}, multiplier={5:0.00}",
+                            currentGrants, t, along, ramp.run, motor.transform.position, motor.SpeedMultiplier));
+                        if (along < 0f || along > ramp.run)
+                        {
+                            Finish("FAIL: an opening deflect occurred outside the descent");
+                            return;
+                        }
                     }
-                    if (turrets.Count == 5 && turrets.All(s => !ReferenceEquals(s, null) && s.SurgesGranted >= 1))
+                    if (reached && turrets.Count == 5 && turrets.All(s => !ReferenceEquals(s, null) && s.SurgesGranted >= 1))
                     {
-                        Finish(peakMultiplier >= 1.599f ? "PASS: all five opening turrets parried; full speed boost"
+                        Finish(peakMultiplier >= 1.599f ? "PASS: all five opening turrets parried on the slope; full speed boost; reached run-out"
                             : "FAIL: five parries did not sustain the full speed boost");
                         return;
                     }
-                    // The five-shot opening extends onto the original first span. Simulate continued
-                    // forward intent after the slope with the existing entry points, never write velocity
-                    // or subtract earned overspeed. Hop genuine gaps; no teleports or airborne support.
-                    if (reached && !motor.IsSliding)
+                    if (reached)
                     {
-                        float missingSpeed = motor.groundSpeed - motor.HorizontalSpeed;
-                        if (missingSpeed > 0f) motor.AddImpulse(ramp.Heading * missingSpeed);
-                        if (motor.IsGrounded)
-                        {
-                            Vector3 ahead = motor.transform.position + ramp.Heading * Mathf.Max(1.2f, motor.HorizontalSpeed * 0.08f);
-                            if (!Physics.Raycast(ahead + Vector3.up, Vector3.down, 3f, 1 << 0, QueryTriggerInteraction.Ignore))
-                                motor.TryJump();
-                        }
-                    }
-                    if (motor.transform.position.z > 65f)
-                    {
-                        Finish("FAIL: passed the opening encounter before all five deflects");
+                        Finish("FAIL: reached the run-out before all five deflects");
                         return;
                     }
                 }

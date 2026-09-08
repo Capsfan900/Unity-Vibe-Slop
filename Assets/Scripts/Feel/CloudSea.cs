@@ -13,9 +13,9 @@ namespace VibeGame1
     public sealed class CloudSea : MonoBehaviour
     {
         public const float CampaignBaseY = -5f;
-        public const float CampaignCenterZ = 175f;
+        public const float CampaignCenterZ = 150f;
         public const float CampaignWidth = 300f;
-        public const float CampaignLength = 680f;
+        public const float CampaignLength = 740f;
         public const int CampaignXSegments = 40;
         public const int CampaignZSegments = 96;
 

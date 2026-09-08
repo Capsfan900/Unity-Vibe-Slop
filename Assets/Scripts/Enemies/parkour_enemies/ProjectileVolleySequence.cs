@@ -15,6 +15,9 @@ namespace VibeGame1
         [SerializeField] EnemySpawner[] members = new EnemySpawner[0];
         [SerializeField, Min(0f)] float recoveryGap = 0.11f;
         [SerializeField, Min(0.1f)] float readinessTimeout = 1.1f;
+        [SerializeField] Vector3 progressOrigin;
+        [SerializeField] Vector3 progressDirection;
+        [SerializeField] float[] memberProgressGates = new float[0];
 
         GameObject[] boundInstances = new GameObject[0];
         ProjectileShooter[] shooters = new ProjectileShooter[0];
@@ -28,12 +31,19 @@ namespace VibeGame1
         bool firstMemberArmed;
         bool shotLaunched;
         bool waitingForRespawn;
+        Transform player;
 
         /// <summary>Ordered member currently waiting or firing. Equals Count when the volley is complete.</summary>
         public int CurrentIndex { get { return current; } }
         public int Count { get { return members != null ? members.Length : 0; } }
         public float RecoveryGap { get { return recoveryGap; } }
         public float ReadinessTimeout { get { return readinessTimeout; } }
+        public Vector3 ProgressOrigin { get { return progressOrigin; } }
+        public Vector3 ProgressDirection { get { return progressDirection; } }
+        public float[] MemberProgressGates
+        {
+            get { return memberProgressGates != null ? (float[])memberProgressGates.Clone() : new float[0]; }
+        }
         public string[] SpawnerNames
         {
             get
@@ -47,9 +57,18 @@ namespace VibeGame1
 
         public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout)
         {
+            Configure(orderedMembers, gap, readyTimeout, Vector3.zero, Vector3.zero, null);
+        }
+
+        public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout,
+                              Vector3 gateOrigin, Vector3 gateDirection, float[] progressGates)
+        {
             members = orderedMembers ?? new EnemySpawner[0];
             recoveryGap = Mathf.Max(0f, gap);
             readinessTimeout = Mathf.Max(0.1f, readyTimeout);
+            progressOrigin = gateOrigin;
+            progressDirection = gateDirection.sqrMagnitude > 0.0001f ? gateDirection.normalized : Vector3.zero;
+            memberProgressGates = progressGates != null ? (float[])progressGates.Clone() : new float[0];
             AllocateCaches();
         }
 
@@ -113,6 +132,15 @@ namespace VibeGame1
                 return;
             }
 
+            // A distant member must not consume its readiness timeout before the runner reaches its
+            // authored beat. Once crossed, bandSeen remains latched even if the player doubles back.
+            if (HasProgressGate(current) && !bandSeen)
+            {
+                if (!ProgressGateReached(current)) return;
+                bandSeen = true;
+                enteredBandAt = Mathf.Max(Time.time, nextLaunchAt);
+            }
+
             var shooter = shooters[current];
             if (shooter == null)
             {
@@ -155,11 +183,28 @@ namespace VibeGame1
             shotLaunched = false;
             firstMemberArmed = current > 0;
             nextLaunchAt = Time.time + recoveryGap;
-            // The first member waits passively for the player to enter the encounter. After that point,
-            // each selected member gets a finite readiness window even if the runner has already passed
-            // its range or the enemy stays idle; one unavailable turret must not silence everything after it.
-            bandSeen = current > 0 && current < Count;
+            // An ungated later member starts its finite readiness window immediately. A gated member waits
+            // passively until the player crosses its authored position, then receives that same deadline.
+            bandSeen = current > 0 && current < Count && !HasProgressGate(current);
             enteredBandAt = nextLaunchAt;
+        }
+
+        bool HasProgressGate(int index)
+        {
+            return progressDirection.sqrMagnitude > 0.0001f && memberProgressGates != null &&
+                   index >= 0 && index < memberProgressGates.Length;
+        }
+
+        bool ProgressGateReached(int index)
+        {
+            if (!HasProgressGate(index)) return true;
+            if (player == null)
+            {
+                var combat = FindAnyObjectByType<PlayerCombat>();
+                player = combat != null ? combat.transform : null;
+            }
+            return player != null &&
+                   Vector3.Dot(player.position - progressOrigin, progressDirection) >= memberProgressGates[index];
         }
 
         void OnPlayerDied()
@@ -185,6 +230,7 @@ namespace VibeGame1
             bandSeen = false;
             firstMemberArmed = false;
             nextLaunchAt = Time.time;
+            enteredBandAt = nextLaunchAt;
         }
 
         void ReleaseMembers()

@@ -673,7 +673,7 @@ frame, and an identical-camera 170 -> 140 check at the new ramp crest moved mean
 channel range. Linear fog remains a route-depth instrument; it cannot supply visible moving atmosphere.
 
 `CloudSea` supplies the moving layer the level actually calls for: one fixed world-space ocean below every
-structure, spanning x -150..150 and z -165..515 around the shipped route (-19.5..19.5, -60..409.5). Its
+structure, spanning x -150..150 and z -220..520 around the shipped route (-19.5..19.5, -132..409.5). Its
 surface sits at y -5; three crossing swells plus the irregular cloud-bank lift total at most 1.10 x the
 1.50 m wave height, so the highest possible crest is y -3.35, still 2.35 m below the lowest platform
 underside at y -1. The course therefore
@@ -690,3 +690,10 @@ can show. It has no particles, collisions, lights, shadows, probes, per-frame C#
 All colour channels remain below 1.0, and ordinary alpha blending plus depth testing keeps it behind solid
 course geometry without spending the attack-tell bloom budget. Shader `_Time.y` is scaled in play, so pause
 and hitstop freeze this world atmosphere; death/Pyre mist remain unscaled because they explain an event.
+
+## Enclosing arena suns — 2026-09-07 refinement
+
+The four exterior plasma bodies have visual radii 22/23/22/31 m at their existing centers. Each encloses
+its historical floor, walls, pillars, gates and torches with at least 1.5 m margin. The corona scales
+with the body. The saturated rotating patterns, realm ceiling and themes retain their accepted design.
+The separate physical portal radii remain 12/13/12/18 m, preserving retry and onward-return positions.

@@ -856,8 +856,10 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
          -> the same EnemyData, range, LOS, ArrivesInFront, lead, launch-speed and FireAt path
       -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that bolt is gone
       -> recoveryGap 0.11 s follows resolution, just beyond shipped parrySuccessRecovery 0.08 s
-      -> after the first member, a 1.1 s readiness deadline skips unavailable/out-of-range members;
-         it starts after the recovery gap even when the player never enters that member's firing band
+      -> optional progressOrigin / progressDirection / memberProgressGates hold each member until the
+         runner crosses its authored route distance; the opening gates are 0/14/36/58/78 m down the hill
+      -> after that gate and the recovery gap, a 1.1 s readiness deadline skips unavailable members;
+         ungated sequences retain their previous deadline behavior, and resets clear the gate latch
       -> PlayerRespawned or wholesale EnemySpawner instance replacement restarts and rebinds the row
 
   SHIPPED NUMBERS (DataFactory, rule 9; pinned by SurgeTurretTests)
@@ -1882,17 +1884,21 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   arena doorways widened 6 m → 9 m and **a doorway, its gate and its trigger are one measurement**: a 9 m
   door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
 - **Opening descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` runs `ApplyDescent`, then
-  `ApplyOpeningDescent`. The second pass adds a separate 10 m wide crest at y 9 / z -60..-51.6,
-  `T0_Ramp_Descent` (36 m run, 9 m drop, z -51.8..-15.8), and a level run-out at y 0 / z -16..-7.8.
+  `ApplyOpeningDescent`. The second pass adds a separate 12 m wide crest at y 27 / z -132..-123.6,
+  `T0_Ramp_Descent` (108 m run, 27 m drop, z -123.8..-15.8), and a level run-out at y 0 / z -16..-7.8.
   The run-out overlaps the rear of the unchanged `Ground_Start` by 0.2 m; the entire original course
-  follows. `playerStart` is (0,9.3,-55), on the crest facing downhill (yaw 0), and `WandPedestal_Start`
-  is beside it at (3,9,-55). `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart`
+  follows. `playerStart` is (0,27.3,-127), on the crest facing downhill (yaw 0), and `WandPedestal_Start`
+  is beside it at (3,27,-127). `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart`
   into `StartSpawn`; `LevelDefinitionBuilder` places the saved player there and wires the level manager
-  for pre-checkpoint respawns. Existing checkpoints remain in place. Kill bounds cover z -80..450.
+  for pre-checkpoint respawns. Existing checkpoints remain in place. Kill bounds cover the extended crest through z 450.
   The pass replaces only its two named decks and ramp and is idempotent. `LevelDescentTests` checks
   the shipped start, full-width level joins, two large descents, migration from the erroneous late
   spawn, and preservation of the existing route and encounter. `LevelRampPlacementTests` checks
   every shipped slope for deck contact and obstruction.
+  Five surge turrets sit at slope progress 20/42/64/86/102 m: left, right, left, then right/left overhead.
+  The front overhead terrace is at y 13.5 and the rear at y 9, joined around the right side by descending
+  stone beams. That rear height keeps the last bolt within the unchanged homing envelope as the player
+  descends. All five contacts belong on the slope; the original first span follows the run-out.
 - **Final descent (2026-09-07):** `ApplyDescent` retains a 10 m wide
   entry at y 28 feeding `T4_Ramp_Descent` (48 m run, 12 m drop), then a 24.4 m run-out at y 16.
   Three `Spawn_T4_Surge_*` entries use the existing `pshooter_enemy03` prefab on side pads at
@@ -2024,6 +2030,9 @@ BossArenaTrigger  = ONE mechanism for every gated fight
                                           (latched on "seen alive" so it cannot open at level start)
 
 SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
+  SolarRealmDef.visualRadius sizes the exterior plasma/corona independently of the portal collider;
+    zero falls back to exteriorRadius for older definitions. Shipped visual radii 22/23/22/31 m enclose
+    the old court, wall, gate and torch bounds by at least 1.5 m; physical radii remain 12/13/12/18 m.
   SolarArenaVisual rotates exterior plasma/corona; realm ceiling rotates around Y only
     -> serialized plasmaOpacityOverride reapplies the ceiling renderer property block on enable
     -> SolarArena.shader moves coloured currents; stationary realm floor/walls own collision
@@ -2076,7 +2085,7 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
     per planet, five passes in order: halo -> ring FAR half -> body -> ring NEAR half
       (that ordering is the whole Saturn read; there is no alpha sort to rely on)
   + CloudSea.BuildCampaign(Level, M_CloudSea) on Sky layer
-      fixed at (0,-5,175), spans 300x680 m around route bounds x -19.5..19.5 / z -60..409.5
+      fixed at (0,-5,150), spans 300x740 m around route bounds x -19.5..19.5 / z -132..409.5
       40x96 grid = 3,977 verts / 23,040 indices / one renderer; shader owns every moving pixel
       vertex: three crossing swells + irregular bank lift, max crest y -3.35 below lowest underside y -1
       fragment: nested domain-warped billow bodies + stretched counter-flow erosion + broad edge feather

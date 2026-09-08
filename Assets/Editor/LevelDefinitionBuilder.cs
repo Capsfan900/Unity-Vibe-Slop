@@ -204,7 +204,8 @@ namespace VibeGame1.EditorTools
                     if (!complete) continue;
                     var host = LevelPieceFactory.Empty(sequence.name, Vector3.zero, Quaternion.identity, root);
                     host.AddComponent<ProjectileVolleySequence>().Configure(
-                        ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout);
+                        ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout,
+                        sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates);
                 }
             }
 
@@ -472,9 +473,10 @@ namespace VibeGame1.EditorTools
             portal.definition = CloneSolarRealm(def);
             fight.solarPortal = portal;
 
-            var plasma = VisualSphere("Plasma", def.exteriorCenter, def.exteriorRadius * 2f,
+            float visualRadius = def.visualRadius > 0f ? def.visualRadius : def.exteriorRadius;
+            var plasma = VisualSphere("Plasma", def.exteriorCenter, visualRadius * 2f,
                                       ctx.Material(def.themeMaterialKey), exterior.transform);
-            var corona = VisualSphere("Corona", def.exteriorCenter, def.exteriorRadius * 2.12f,
+            var corona = VisualSphere("Corona", def.exteriorCenter, visualRadius * 2.12f,
                                       ctx.Material("SolarCorona"), exterior.transform);
             var spin = exterior.AddComponent<SolarArenaVisual>();
             spin.plasma = plasma.transform;

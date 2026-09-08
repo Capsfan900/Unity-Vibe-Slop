@@ -3263,3 +3263,50 @@ compare horizontal placement tightly while allowing the normal short vertical se
 
 **Invariant.** A controlled combat assertion must have a controlled attacker set. Keep separate live
 level proofs for the actual encounter; do not retune gameplay to satisfy a contaminated harness.
+
+## 2026-09-07 — Long descents need firing gates and height-aware perch design
+
+**Symptom.** Moving the five opening turrets along a much longer hill exposed premature readiness
+windows. The final overhead bolt fired but flew over the descending player, then looped behind them.
+
+**Root cause.** Range alone does not locate a beat along a route. Starting a later member's deadline
+when the prior bolt resolves consumes that window while the runner is still far away. Projectile
+lead intentionally ignores vertical velocity; equal-height upper perches therefore have very
+different interception angles as the player descends. Static frontal LOS cannot prove contact.
+
+**Fix.** Optional authored progress gates hold each member before its finite readiness window starts.
+The rear overhead terrace descends with the route, linked to the front terrace by stepped beams.
+The probe now requires every real deflect on the slope, full 1.60 boost and reaching the run-out;
+it no longer continues onto the first span with additional movement assistance.
+
+**Invariant.** Record moving contacts, not merely launches. Test the saved scene after rebuilding its
+NavMesh: moving a spawner temporarily can still project its enemy onto the old baked perch height.
+The final motor clamp remains 27.5 m/s, although an impulse can be observed above it before the next
+motor tick. Neither projectile flight, the motor, nor parry rewards needed retuning for this fix.
+
+## 2026-09-07 — A larger arena decoration should not silently enlarge its trigger
+
+**Symptom.** Old court corners protruded beyond the new sun surfaces.
+
+**Fix.** A separate optional visualRadius encloses measured floor, wall, pillar, gate and torch bounds
+with at least 1.5 m margin, while the existing portal radii, retries and returns retain their behavior.
+Zero visualRadius falls back to exteriorRadius, and the definition survives export/rebuild.
+
+**Invariant.** Size enclosing scenery against complete bounds, not floor width alone. Decorative size
+and interaction range are separate authored values when changing one would break a tested return point.
+## 2026-09-07 — Crosshair tests must aim down slopes
+
+**Symptom.** Seven grapple feature assertions failed after lengthening the opening, despite unchanged
+item and grapple systems. The first failure was target acquisition; consumption/pull/execute then
+failed as consequences.
+
+**Root cause.** SpawnDummy snaps onto the NavMesh. Along the new descent this places the target below
+the player, while the harness's FacePoint sets yaw only and resets pitch to zero. The actual grapple
+uses a 12-degree 3D crosshair cone, so looking horizontally legitimately finds no target downhill.
+
+**Fix.** Only the two grapple dummy stages now aim at the chest using PlayerLook.NudgeAim, including
+pitch. The existing range, sightline, consumption, pull and execution checks stay intact; the harness
+returns pitch to neutral afterward. Gameplay aiming and grapple code are unchanged.
+
+**Invariant.** A crosshair test must aim in all three dimensions. Melee-facing helpers that discard
+height cannot stand in for camera aim on slopes.

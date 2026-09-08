@@ -147,7 +147,10 @@ namespace VibeGame1.EditorTools
                     name = volley.name,
                     spawnerNames = volley.SpawnerNames,
                     recoveryGap = volley.RecoveryGap,
-                    readinessTimeout = volley.ReadinessTimeout
+                    readinessTimeout = volley.ReadinessTimeout,
+                    progressOrigin = volley.ProgressOrigin,
+                    progressDirection = volley.ProgressDirection,
+                    memberProgressGates = volley.MemberProgressGates
                 });
                 skipNames.Add(volley.name);
             }

@@ -451,10 +451,10 @@ turrets. Health protection is OFF for the parry variant (invulnerability bypasse
 `StartOpening(false)` runs the same motor check on the new opening ramp; `StartOpening(true)` enables
 its five-turret encounter and requires real surge grants from all five turrets. Individual shot/grant counts remain
 in the report: firing without a deflect does not prove that the bolt offered a frontal parry.
-This longer opening variant continues beyond the slide using existing forward impulse/jump entry
-points to traverse the first span, preserving earned overspeed. It reports each deflect time/position
-and requires the full 1.60x multiplier. That assisted test drive is integration evidence, not a human
-input recording or a guarantee of encounter fairness.
+The opening variant requires all five contacts on the 108 m slope, the full 1.60x multiplier, and
+arrival at the run-out. It reports each deflect time, position and slope progress. After the single
+entry impulse, movement comes from the motor and real parry rewards. Automatic parries prove
+integration, not a human input recording or a guarantee of encounter fairness.
 The automatic-parry driver uses `EditorApplication.update`, which can poll too slowly when unfocused
 to observe its 120 ms trigger. The final saved encounter passed at capped 60 fps, while an uncapped
 run missed the first parry and cascaded into knockback. Treat an uncapped failure as inconclusive;

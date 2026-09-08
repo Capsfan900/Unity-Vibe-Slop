@@ -721,39 +721,37 @@ namespace VibeGame1.EditorTools
         /// <summary>A separate downhill opening before Ground_Start; the complete original route follows it.</summary>
         public static void ApplyOpeningDescent(LevelDefinition def)
         {
-            // A broad crest gives room to orient before committing. The 1:4 slope keeps the same
-            // walkable grade as the final descent, with a shorter 36 m opening and an 8 m run-out.
-            // Both slope ends overlap their decks by 0.2 m; the run-out meets Ground_Start at y 0.
+            // A broad crest gives room to orient before committing. The 1:4 grade now runs for 108 m,
+            // long enough for all five parry beats to live on the descent instead of crowding Ground_Start.
+            // Both slope ends overlap their decks by 0.2 m; the run-out still meets Ground_Start at y 0.
             var platforms = new List<PlatformDef>(def.platforms);
             platforms.RemoveAll(p => p.name == "T0_Entry" || p.name == "T0_RunOut");
-            platforms.Add(new PlatformDef { name = "T0_Entry", center = new Vector3(0f, 8.5f, -55.8f),
-                size = new Vector3(10f, 1f, 8.4f), materialKey = "Platform", trim = true,
+            platforms.Add(new PlatformDef { name = "T0_Entry", center = new Vector3(0f, 26.5f, -127.8f),
+                size = new Vector3(12f, 1f, 8.4f), materialKey = "Platform", trim = true,
                 trimMaterialKey = "NeonCyan" });
             platforms.Add(new PlatformDef { name = "T0_RunOut", center = new Vector3(0f, -0.5f, -11.9f),
-                size = new Vector3(10f, 1f, 8.2f), materialKey = "Platform", trim = true,
+                size = new Vector3(12f, 1f, 8.2f), materialKey = "Platform", trim = true,
                 trimMaterialKey = "NeonCyan" });
             def.platforms = platforms.ToArray();
 
             var ramps = new List<RampDef>(def.ramps);
             ramps.RemoveAll(r => r.name == "T0_Ramp_Descent");
-            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, 9f, -51.8f),
-                width = 10f, run = 36f, rise = -9f, thickness = RampThickness, materialKey = "Stone" });
+            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, 27f, -123.8f),
+                width = 12f, run = 108f, rise = -27f, thickness = RampThickness, materialKey = "Stone" });
             def.ramps = ramps.ToArray();
 
-            // Five existing surge turrets turn the opening into a speed ladder: LEFT, RIGHT, LEFT, then
-            // two overhead. The lower pads stay outside the ramp/run-out/Ground_Start footprints, while
-            // the last pair crowns the transition into the existing fast deck on one stepped floating
-            // dais. Its lowest tier is 6 m above that deck, preserving both the jumping line and the east
-            // wall-run corridor.
+            // Five existing surge turrets punctuate the whole hill: LEFT, RIGHT, LEFT, then two overhead.
+            // The lower pads alternate beyond the 12 m slide lane. The last pair share one connected open
+            // Z-shaped dais whose offset decks leave both downward shot lines clear.
             var spawns = new List<SpawnDef>(def.spawns);
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_"));
             platforms.RemoveAll(p => p.name.StartsWith("T0_TurretPad_") ||
                                      p.name.StartsWith("T0_OverheadDais_"));
             var lowerShots = new[]
             {
-                new Vector3(-6.7f, 2.4f, -25f),
-                new Vector3( 6.7f, 0.1f,  -9f),
-                new Vector3(-9.7f, 0.1f,   7f),
+                new Vector3(-7.7f, 22.1f, -103.8f),
+                new Vector3( 7.7f, 16.6f,  -81.8f),
+                new Vector3(-7.7f, 11.1f,  -59.8f),
             };
             for (int i = 0; i < lowerShots.Length; i++)
             {
@@ -773,40 +771,60 @@ namespace VibeGame1.EditorTools
                 });
             }
 
-            // A three-tier inverted plinth gives the paired front sentries a deliberate silhouette instead
-            // of a bare slab. Only the restrained cyan rim glows; the recessed stone underside stays quiet.
+            // Two offset crowns joined around the east edge read as one floating platform without putting
+            // a solid ceiling through the rear sentry's shot. Cyan marks the two occupied terraces; the
+            // narrow stone spine, return and tapered undersides keep the silhouette light above the slope.
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Front", center = new Vector3(0.75f, 8f, 16f),
-                size = new Vector3(9f, 1f, 4f), materialKey = "Stone", trim = true,
+                name = "T0_OverheadDais_Front", center = new Vector3(3.2f, 13f, -36.8f),
+                size = new Vector3(5f, 1f, 5f), materialKey = "Stone", trim = true,
                 trimMaterialKey = "NeonCyan"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Rear", center = new Vector3(3.25f, 8f, 22.25f),
-                size = new Vector3(4f, 1f, 2f), materialKey = "Stone", trim = true,
+                name = "T0_OverheadDais_Rear", center = new Vector3(-3.2f, 8.5f, -20.8f),
+                size = new Vector3(5f, 1f, 5f), materialKey = "Stone", trim = true,
                 trimMaterialKey = "NeonCyan"
             });
+            // The rear terrace follows the falling player: too high a muzzle makes capped homing
+            // overfly the runner. Three overlapping descending beams connect both floating crowns.
+            for (int step = 0; step < 3; step++)
+                platforms.Add(new PlatformDef
+                {
+                    name = "T0_OverheadDais_Spine_" + step,
+                    center = new Vector3(4.8f, 12f - step * 1.35f, -32.45f + step * 4.7f),
+                    size = new Vector3(1.8f, 1.7f, 4.9f), materialKey = "Stone"
+                });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Link", center = new Vector3(4.5f, 7.9f, 19.5f),
-                size = new Vector3(1.5f, 0.8f, 5f), materialKey = "Stone"
+                name = "T0_OverheadDais_Return", center = new Vector3(1.6f, 8.5f, -19.8f),
+                size = new Vector3(7.8f, 0.8f, 1.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Under", center = new Vector3(0.75f, 7.4f, 16f),
-                size = new Vector3(6.5f, 0.5f, 2.5f), materialKey = "Stone"
+                name = "T0_OverheadDais_FrontUnder", center = new Vector3(3.2f, 12.35f, -36.8f),
+                size = new Vector3(3.8f, 0.3f, 3.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Keel", center = new Vector3(0.75f, 6.85f, 16f),
-                size = new Vector3(3f, 0.7f, 1.4f), materialKey = "Stone"
+                name = "T0_OverheadDais_FrontKeel", center = new Vector3(3.2f, 11.9f, -36.8f),
+                size = new Vector3(2.2f, 0.6f, 2.2f), materialKey = "Stone"
+            });
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_RearUnder", center = new Vector3(-3.2f, 8.05f, -20.8f),
+                size = new Vector3(3.8f, 0.3f, 3.8f), materialKey = "Stone"
+            });
+            platforms.Add(new PlatformDef
+            {
+                name = "T0_OverheadDais_RearKeel", center = new Vector3(-3.2f, 7.8f, -20.8f),
+                size = new Vector3(2.2f, 0.2f, 2.2f), materialKey = "Stone"
             });
 
             var overheadShots = new[]
             {
-                new Vector3(-2.4f, 8.6f, 15f),
-                new Vector3( 3.2f, 8.6f, 15f),
+                new Vector3( 3.2f, 13.6f, -37.8f),
+                new Vector3(-3.2f, 9.1f, -21.8f),
             };
             for (int i = 0; i < overheadShots.Length; i++)
             {
@@ -834,19 +852,22 @@ namespace VibeGame1.EditorTools
                 // the next launch. A closing runner can contact sooner than the nominal 0.44 s flight, so
                 // the live opening probe owns the actual contact-spacing proof.
                 recoveryGap = 0.11f,
-                readinessTimeout = 1.1f
+                readinessTimeout = 1.1f,
+                progressOrigin = new Vector3(0f, 0f, -123.8f),
+                progressDirection = Vector3.forward,
+                memberProgressGates = new[] { 0f, 14f, 36f, 58f, 78f }
             });
             def.projectileSequences = sequences.ToArray();
 
-            def.playerStart = new Vector3(0f, 9.3f, -55f);
+            def.playerStart = new Vector3(0f, 27.3f, -127f);
             def.playerStartYaw = 0f;
             foreach (var pedestal in def.pedestals)
                 if (pedestal.name == "WandPedestal_Start")
-                    pedestal.groundPosition = new Vector3(3f, 9f, -55f);
+                    pedestal.groundPosition = new Vector3(3f, 27f, -127f);
 
             // Catch falls behind the new crest while retaining the final arena's z 450 boundary.
-            def.killZone.center = new Vector3(0f, -30f, 185f);
-            def.killZone.size = new Vector3(200f, 2f, 530f);
+            def.killZone.center = new Vector3(0f, -30f, 145f);
+            def.killZone.size = new Vector3(200f, 2f, 610f);
         }
 
         /// <summary>
@@ -855,21 +876,22 @@ namespace VibeGame1.EditorTools
         /// </summary>
         public static void ApplySolarRealms(LevelDefinition def)
         {
-            SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87f), 12f,
+            SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87f), 12f, 22f,
                 new Vector3(700f, 0f, 0f), "Spawn_Legendary_Ninja",
                 new Vector3(0f, 3.2f, 70f), new Vector3(0f, 4.2f, 102f), true);
-            SetSolar(def, "T2_Gate", "SolarGold", new Vector3(0f, 24.55f, 170f), 13f,
+            SetSolar(def, "T2_Gate", "SolarGold", new Vector3(0f, 24.55f, 170f), 13f, 23f,
                 new Vector3(700f, 0f, 80f), "Spawn_Legendary_Knight",
                 new Vector3(0f, 20.2f, 150f), new Vector3(0f, 20.2f, 186f), true);
-            SetSolar(def, "T3_Gate", "SolarAzure", new Vector3(0f, 32.2f, 270f), 12f,
+            SetSolar(def, "T3_Gate", "SolarAzure", new Vector3(0f, 32.2f, 270f), 12f, 22f,
                 new Vector3(700f, 0f, 160f), "Spawn_Legendary_Spellsword",
                 new Vector3(0f, 28.2f, 253f), new Vector3(0f, 28.2f, 286f), true);
-            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 390f), 18f,
+            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 390f), 18f, 31f,
                 new Vector3(700f, 0f, 240f), "Spawn_Boss",
                 new Vector3(0f, 16.2f, 361f), Vector3.zero, false);
         }
 
         static void SetSolar(LevelDefinition def, string gateName, string theme, Vector3 exterior, float radius,
+                             float visualRadius,
                              Vector3 realmCenter, string enemySpawner, Vector3 retry, Vector3 worldReturn,
                              bool hasReturn)
         {
@@ -880,6 +902,7 @@ namespace VibeGame1.EditorTools
             r.themeMaterialKey = theme;
             r.exteriorCenter = exterior;
             r.exteriorRadius = radius;
+            r.visualRadius = visualRadius;
             r.realmCenter = realmCenter;
             r.realmFloorRadius = 20f;
             r.realmShellRadius = 30f;

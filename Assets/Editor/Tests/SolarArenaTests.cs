@@ -49,6 +49,7 @@ namespace VibeGame1.Tests
                 new Vector3(0f, 32.2f, 270f), new Vector3(0f, 22.3f, 390f)
             };
             float[] radii = { 12f, 13f, 12f, 18f };
+            float[] visualRadii = { 22f, 23f, 22f, 31f };
 
             for (int i = 0; i < gates.Length; i++)
             {
@@ -58,12 +59,68 @@ namespace VibeGame1.Tests
                 Assert.AreEqual(themes[i], realm.themeMaterialKey, gates[i]);
                 Assert.That(Vector3.Distance(centers[i], realm.exteriorCenter), Is.LessThan(Eps), gates[i]);
                 Assert.That(realm.exteriorRadius, Is.EqualTo(radii[i]).Within(Eps), gates[i]);
+                Assert.That(realm.visualRadius, Is.EqualTo(visualRadii[i]).Within(Eps), gates[i]);
+                Assert.Greater(realm.visualRadius, realm.exteriorRadius,
+                    gates[i] + " visual shell must not advance the physical portal boundary");
                 Assert.That(realm.realmFloorRadius, Is.EqualTo(20f).Within(Eps), gates[i]);
                 Assert.That(realm.realmShellRadius, Is.EqualTo(30f).Within(Eps), gates[i]);
                 Assert.IsFalse(string.IsNullOrEmpty(realm.arenaPickupName), gates[i] + " pickup");
                 Assert.Less(Vector3.Distance(realm.arenaPickupPosition, realm.realmCenter), realm.realmFloorRadius,
                     gates[i] + " pickup must sit inside its realm floor");
             }
+        }
+
+        [Test]
+        public void VisualSunsEncloseEveryOldCourtPieceWithMargin()
+        {
+            AssertCourtContained("T1_Gate", "T1_Arena", "Wall_T1_", null, "Torch_T1_Arena_");
+            AssertCourtContained("T2_Gate", "T2_Arena", "Wall_T2_", null, "Torch_T2_Arena_");
+            AssertCourtContained("T3_Gate", "T3_Arena", "Wall_T3_", null, "Torch_T3_Arena_");
+            AssertCourtContained("Boss_Gate", "Boss_Arena", "Wall_Boss_", "Pillar_Boss_", "Torch_Boss_");
+        }
+
+        void AssertCourtContained(string gateName, string floorName, string wallPrefix,
+                                  string pillarPrefix, string torchPrefix)
+        {
+            var arena = def.arenas.Single(a => a.gateName == gateName);
+            var realm = arena.solarRealm;
+            float furthest = 0f;
+
+            foreach (var piece in def.platforms.Where(p => p.name == floorName ||
+                         p.name.StartsWith(wallPrefix) ||
+                         (!string.IsNullOrEmpty(pillarPrefix) && p.name.StartsWith(pillarPrefix))))
+                furthest = Mathf.Max(furthest, FurthestBoxCorner(realm.exteriorCenter, piece.center, piece.size));
+
+            furthest = Mathf.Max(furthest,
+                FurthestBoxCorner(realm.exteriorCenter, arena.gateClosedPosition, arena.gateSize));
+            if (arena.hasExitGate)
+                furthest = Mathf.Max(furthest,
+                    FurthestBoxCorner(realm.exteriorCenter, arena.exitGateClosedPosition, arena.exitGateSize));
+
+            // A generated torch reaches 1.9 m above its base and 0.15 m around it.
+            foreach (var torch in def.torches.Where(t => t.name.StartsWith(torchPrefix)))
+            {
+                for (int x = -1; x <= 1; x += 2)
+                    for (int y = 0; y <= 1; y++)
+                        for (int z = -1; z <= 1; z += 2)
+                            furthest = Mathf.Max(furthest, Vector3.Distance(realm.exteriorCenter,
+                                torch.basePosition + new Vector3(x * 0.15f, y * 1.9f, z * 0.15f)));
+            }
+
+            Assert.GreaterOrEqual(realm.visualRadius - furthest, 1.5f,
+                gateName + " old court protrudes through its visual sun; furthest=" + furthest);
+        }
+
+        static float FurthestBoxCorner(Vector3 sphereCenter, Vector3 boxCenter, Vector3 boxSize)
+        {
+            Vector3 half = boxSize * 0.5f;
+            float furthest = 0f;
+            for (int x = -1; x <= 1; x += 2)
+                for (int y = -1; y <= 1; y += 2)
+                    for (int z = -1; z <= 1; z += 2)
+                        furthest = Mathf.Max(furthest, Vector3.Distance(
+                            sphereCenter, boxCenter + Vector3.Scale(half, new Vector3(x, y, z))));
+            return furthest;
         }
 
         [Test]
