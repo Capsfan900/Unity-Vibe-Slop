@@ -721,27 +721,27 @@ namespace VibeGame1.EditorTools
         /// <summary>A separate downhill opening before Ground_Start; the complete original route follows it.</summary>
         public static void ApplyOpeningDescent(LevelDefinition def)
         {
-            // A broad crest gives room to orient before committing. The 1:4 grade now runs for 108 m,
+            // A broad crest gives room to orient before committing. The 1:4 grade now runs for 120 m,
             // long enough for all five parry beats to live on the descent instead of crowding Ground_Start.
             // Both slope ends overlap their decks by 0.2 m; the run-out still meets Ground_Start at y 0.
             var platforms = new List<PlatformDef>(def.platforms);
             platforms.RemoveAll(p => p.name == "T0_Entry" || p.name == "T0_RunOut");
-            platforms.Add(new PlatformDef { name = "T0_Entry", center = new Vector3(0f, 26.5f, -127.8f),
-                size = new Vector3(12f, 1f, 8.4f), materialKey = "Platform", trim = true,
+            platforms.Add(new PlatformDef { name = "T0_Entry", center = new Vector3(0f, 29.5f, -139.8f),
+                size = new Vector3(14f, 1f, 8.4f), materialKey = "Platform", trim = true,
                 trimMaterialKey = "NeonCyan" });
             platforms.Add(new PlatformDef { name = "T0_RunOut", center = new Vector3(0f, -0.5f, -11.9f),
-                size = new Vector3(12f, 1f, 8.2f), materialKey = "Platform", trim = true,
+                size = new Vector3(14f, 1f, 8.2f), materialKey = "Platform", trim = true,
                 trimMaterialKey = "NeonCyan" });
             def.platforms = platforms.ToArray();
 
             var ramps = new List<RampDef>(def.ramps);
             ramps.RemoveAll(r => r.name == "T0_Ramp_Descent");
-            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, 27f, -123.8f),
-                width = 12f, run = 108f, rise = -27f, thickness = RampThickness, materialKey = "Stone" });
+            ramps.Add(new RampDef { name = "T0_Ramp_Descent", basePosition = new Vector3(0f, 30f, -135.8f),
+                width = 14f, run = 120f, rise = -30f, thickness = RampThickness, materialKey = "Stone" });
             def.ramps = ramps.ToArray();
 
             // Five existing surge turrets punctuate the whole hill: LEFT, RIGHT, LEFT, then two overhead.
-            // The lower pads alternate beyond the 12 m slide lane. The last pair share one connected open
+            // The lower pads alternate beyond the 14 m slide lane. The last pair share one connected open
             // Z-shaped dais whose offset decks leave both downward shot lines clear.
             var spawns = new List<SpawnDef>(def.spawns);
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_"));
@@ -749,9 +749,9 @@ namespace VibeGame1.EditorTools
                                      p.name.StartsWith("T0_OverheadDais_"));
             var lowerShots = new[]
             {
-                new Vector3(-7.7f, 22.1f, -103.8f),
-                new Vector3( 7.7f, 16.6f,  -81.8f),
-                new Vector3(-7.7f, 11.1f,  -59.8f),
+                new Vector3(-8.7f, 24.6f, -113.8f),
+                new Vector3( 8.7f, 18.35f, -88.8f),
+                new Vector3(-8.7f, 12.35f, -64.8f),
             };
             for (int i = 0; i < lowerShots.Length; i++)
             {
@@ -776,14 +776,14 @@ namespace VibeGame1.EditorTools
             // narrow stone spine, return and tapered undersides keep the silhouette light above the slope.
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Front", center = new Vector3(3.2f, 13f, -36.8f),
+                name = "T0_OverheadDais_Front", center = new Vector3(3.2f, 13f, -38.8f),
                 size = new Vector3(5f, 1f, 5f), materialKey = "Stone", trim = true,
                 trimMaterialKey = "NeonCyan"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Rear", center = new Vector3(-3.2f, 8.5f, -20.8f),
-                size = new Vector3(5f, 1f, 5f), materialKey = "Stone", trim = true,
+                name = "T0_OverheadDais_Rear", center = new Vector3(-3.2f, 8.5f, -21.8f),
+                size = new Vector3(5f, 1f, 4f), materialKey = "Stone", trim = true,
                 trimMaterialKey = "NeonCyan"
             });
             // The rear terrace follows the falling player: too high a muzzle makes capped homing
@@ -792,39 +792,39 @@ namespace VibeGame1.EditorTools
                 platforms.Add(new PlatformDef
                 {
                     name = "T0_OverheadDais_Spine_" + step,
-                    center = new Vector3(4.8f, 12f - step * 1.35f, -32.45f + step * 4.7f),
+                    center = new Vector3(4.8f, 12.5f - step * 1.35f, -34.45f + step * 5.2f),
                     size = new Vector3(1.8f, 1.7f, 4.9f), materialKey = "Stone"
                 });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_Return", center = new Vector3(1.6f, 8.5f, -19.8f),
+                name = "T0_OverheadDais_Return", center = new Vector3(1.6f, 8.5f, -20.8f),
                 size = new Vector3(7.8f, 0.8f, 1.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_FrontUnder", center = new Vector3(3.2f, 12.35f, -36.8f),
+                name = "T0_OverheadDais_FrontUnder", center = new Vector3(3.2f, 12.85f, -38.8f),
                 size = new Vector3(3.8f, 0.3f, 3.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_FrontKeel", center = new Vector3(3.2f, 11.9f, -36.8f),
+                name = "T0_OverheadDais_FrontKeel", center = new Vector3(3.2f, 12.4f, -38.8f),
                 size = new Vector3(2.2f, 0.6f, 2.2f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_RearUnder", center = new Vector3(-3.2f, 8.05f, -20.8f),
+                name = "T0_OverheadDais_RearUnder", center = new Vector3(-3.2f, 8.55f, -21.8f),
                 size = new Vector3(3.8f, 0.3f, 3.8f), materialKey = "Stone"
             });
             platforms.Add(new PlatformDef
             {
-                name = "T0_OverheadDais_RearKeel", center = new Vector3(-3.2f, 7.8f, -20.8f),
+                name = "T0_OverheadDais_RearKeel", center = new Vector3(-3.2f, 8.3f, -21.8f),
                 size = new Vector3(2.2f, 0.2f, 2.2f), materialKey = "Stone"
             });
 
             var overheadShots = new[]
             {
-                new Vector3( 3.2f, 13.6f, -37.8f),
-                new Vector3(-3.2f, 9.1f, -21.8f),
+                new Vector3( 3.2f, 13.6f, -39.8f),
+                new Vector3(-3.2f, 9.1f, -22.8f),
             };
             for (int i = 0; i < overheadShots.Length; i++)
             {
@@ -853,17 +853,18 @@ namespace VibeGame1.EditorTools
                 // the live opening probe owns the actual contact-spacing proof.
                 recoveryGap = 0.11f,
                 readinessTimeout = 1.1f,
-                progressOrigin = new Vector3(0f, 0f, -123.8f),
+                shotResolutionTimeout = 1.25f,
+                progressOrigin = new Vector3(0f, 0f, -135.8f),
                 progressDirection = Vector3.forward,
-                memberProgressGates = new[] { 0f, 14f, 36f, 58f, 78f }
+                memberProgressGates = new[] { 0f, 16f, 40f, 64f, 87f }
             });
             def.projectileSequences = sequences.ToArray();
 
-            def.playerStart = new Vector3(0f, 27.3f, -127f);
+            def.playerStart = new Vector3(0f, 30.3f, -139f);
             def.playerStartYaw = 0f;
             foreach (var pedestal in def.pedestals)
                 if (pedestal.name == "WandPedestal_Start")
-                    pedestal.groundPosition = new Vector3(3f, 27f, -127f);
+                    pedestal.groundPosition = new Vector3(3f, 30f, -139f);
 
             // Catch falls behind the new crest while retaining the final arena's z 450 boundary.
             def.killZone.center = new Vector3(0f, -30f, 145f);

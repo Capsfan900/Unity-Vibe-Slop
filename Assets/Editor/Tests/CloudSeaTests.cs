@@ -40,10 +40,12 @@ namespace VibeGame1.Tests
                 float maxX = sea.transform.localPosition.x + sea.surfaceSize.x * 0.5f;
                 float minZ = sea.transform.localPosition.z - sea.surfaceSize.y * 0.5f;
                 float maxZ = sea.transform.localPosition.z + sea.surfaceSize.y * 0.5f;
-                Assert.LessOrEqual(minX, routeMinX - 80f);
-                Assert.GreaterOrEqual(maxX, routeMaxX + 80f);
-                Assert.LessOrEqual(minZ, routeMinZ - 80f);
-                Assert.GreaterOrEqual(maxZ, routeMaxZ + 80f);
+                var player = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player.prefab");
+                float viewDistance = player.GetComponentInChildren<Camera>(true).farClipPlane;
+                Assert.LessOrEqual(minX, routeMinX - viewDistance, "left edge outside route camera range");
+                Assert.GreaterOrEqual(maxX, routeMaxX + viewDistance, "right edge outside route camera range");
+                Assert.LessOrEqual(minZ, routeMinZ - viewDistance, "high crest cannot reveal the rear edge");
+                Assert.GreaterOrEqual(maxZ, routeMaxZ + viewDistance, "far edge outside route camera range");
 
                 Assert.IsNull(sea.GetComponent<ParticleSystem>(), "the shared ocean is not a field of local puffs");
                 Assert.IsNull(sea.GetComponent<Collider>(), "lower atmosphere must never become traversal geometry");
@@ -65,6 +67,7 @@ namespace VibeGame1.Tests
                 var mesh = sea.GeneratedMesh;
                 var renderer = sea.Renderer;
                 Assert.IsNotNull(mesh);
+                Assert.Less(mesh.vertexCount, 15000, "one bounded scenery grid, without per-frame mesh work");
                 Assert.AreEqual((CloudSea.CampaignXSegments + 1) * (CloudSea.CampaignZSegments + 1), mesh.vertexCount);
                 Assert.AreEqual(CloudSea.CampaignXSegments * CloudSea.CampaignZSegments * 6,
                     (int)mesh.GetIndexCount(0));
@@ -99,6 +102,10 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(material.shader);
             Assert.AreEqual("VibeGame1/Cloud Sea", material.shader.name);
             Assert.AreEqual((int)RenderQueue.Transparent - 10, material.renderQueue);
+            float hazeStart = material.GetFloat("_HazeStart");
+            float hazeEnd = material.GetFloat("_HazeEnd");
+            Assert.That(hazeStart, Is.InRange(60f, 100f));
+            Assert.That(hazeEnd, Is.InRange(250f, 290f), "cloud banks remain visible beyond route fog but fade before the 300 m far clip");
 
             Color deep = material.GetColor("_DeepColor");
             Color body = material.GetColor("_CloudColor");

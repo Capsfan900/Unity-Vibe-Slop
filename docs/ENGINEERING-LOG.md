@@ -3310,3 +3310,37 @@ returns pitch to neutral afterward. Gameplay aiming and grapple code are unchang
 
 **Invariant.** A crosshair test must aim in all three dimensions. Melee-facing helpers that discard
 height cannot stand in for camera aim on slopes.
+
+## 2026-09-07 — Cloud coverage from the crest and solar shell opacity
+
+**Symptom.** The cloud ocean looked like a small patch from the raised opening; old court details
+showed through the suns. **Cause.** The fixed cloud bounds were sized for the lower route, global
+36..140 m fog erased distant bank detail, and additive solar blending could not obscure geometry.
+**Fix.** A 900x1400 m sea, 90x144 grid, stays beyond the 300 m camera range around the route.
+Cloud-only 80..280 m haze retains rolling detail. Premultiplied solar blending with surface opacity
+.92 obscures exterior courts. Zero surface opacity exactly preserves additive corona/interior light;
+the inner ceiling explicitly retains its .20 emission multiplier and zero surface opacity.
+**Invariant.** Validate atmosphere from the highest shipped spawn; opacity must control destination
+attenuation, not merely increase additive brightness. Shared interior materials need explicit overrides.
+
+## 2026-09-07 — Fast targets, projectile forecasts and sequence ownership
+
+**Symptom.** Turret contacts and shot timing could feel inconsistent while descending quickly.
+**Cause.** Endpoint-only contact could skip a moving target between frames. Distance/bolt-speed ETA
+ignored the target's closing speed. A missed sequence bolt held the next member until its six-second
+lifetime ended; reconfiguring a completed sequence retained the old completed index.
+**Fix.** Relative swept-sphere contact covers both bodies' motion with teleport/hitstop history guards.
+Relative closing ETA drives cue and registry without changing lead, speed or homing. The opening alone
+has a 1.25 s incoming-shot deadline. Reset/reconfiguration retires only the owned incoming bolt,
+preserves reflected payoff, and resets the member index. The larger 120x14 m opening spreads the
+same five turrets along progress 22/47/71/96/113 m.
+**Invariant.** A reflected bolt has resolved its incoming sequence obligation and must finish returning.
+Collision continuity cannot bridge a teleport. Frame-dependent contact fixes must preserve near misses.
+
+**Verification trap.** The live automatic probe initially reported three/four grants. A frame trace
+showed contacts were real: the fifth Active-to-Blocked interval was exactly .130 s, on the perfect
+window boundary. Current closing ETA approximates curved flight, so the editor-only input forecast
+now uses .08 s instead of .12 s. Gameplay parry windows remain unchanged. Avoid MCP calls while a
+timing run is active: one 978 ms editor stall invalidated the first 30 fps trial; an uninterrupted
+rerun granted all five, full 1.60x, with worst frame 36 ms. Automated parries prove integration,
+not human fairness, and cue-to-contact times remain estimates during turning and hitstop.

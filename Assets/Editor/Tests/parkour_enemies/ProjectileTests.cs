@@ -34,6 +34,83 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void ContactForecastUsesRelativeClosingSpeed_AndSeparatingShotsAreNotImminent()
+        {
+            float closing = ProjectileMath.RelativeTimeToContact(Vector3.zero, Vector3.forward * 20f,
+                Vector3.forward * 36f, Vector3.back * 27.5f, 1f);
+            Assert.AreEqual(19f / 63.5f, closing, Eps,
+                "the cue must account for the player running into the bolt");
+
+            float separating = ProjectileMath.RelativeTimeToContact(Vector3.zero, Vector3.forward * 20f,
+                Vector3.forward * 36f, Vector3.forward * 40f, 1f);
+            Assert.IsTrue(float.IsPositiveInfinity(separating),
+                "a target opening the gap has no honest imminent-contact forecast");
+        }
+
+        [Test]
+        public void RelativeSweepFindsTheSameEarliestContactAt20_60_240FpsAndAHitch()
+        {
+            float expected = 9f / 63.5f;
+            foreach (float dt in new[] { 1f / 20f, 1f / 60f, 1f / 240f, 0.1f })
+            {
+                Vector3 bolt = Vector3.zero;
+                Vector3 target = Vector3.forward * 10f;
+                float elapsed = 0f;
+                bool hit = false;
+                for (int frame = 0; frame < 2000 && elapsed <= 1f; frame++)
+                {
+                    Vector3 nextBolt = bolt + Vector3.forward * 36f * dt;
+                    Vector3 nextTarget = target + Vector3.back * 27.5f * dt;
+                    float fraction;
+                    if (ProjectileMath.SweptSphereFirstHit(bolt, nextBolt, target, nextTarget, 1f, out fraction))
+                    {
+                        Assert.AreEqual(expected, elapsed + fraction * dt, Eps,
+                            "contact time drifted at dt=" + dt);
+                        hit = true;
+                        break;
+                    }
+                    bolt = nextBolt;
+                    target = nextTarget;
+                    elapsed += dt;
+                }
+                Assert.IsTrue(hit, "the moving target was tunneled through at dt=" + dt);
+            }
+        }
+
+        [Test]
+        public void RelativeSweepHitsACrossedTargetButRejectsANearMiss()
+        {
+            float fraction;
+            Assert.IsTrue(ProjectileMath.SweptSphereFirstHit(Vector3.zero, Vector3.right * 4f,
+                Vector3.right * 2f, Vector3.right * 2f, 0.5f, out fraction));
+            Assert.AreEqual(0.375f, fraction, Eps, "the earliest sphere entry is the contact point");
+            Assert.IsFalse(ProjectileMath.SweptSphereFirstHit(Vector3.zero, Vector3.right * 4f,
+                new Vector3(2f, 1f, 0f), new Vector3(2f, 1f, 0f), 0.5f, out fraction),
+                "passing outside the radius is still a miss");
+        }
+
+        [Test]
+        public void TeleportIsReanchoredInsteadOfBecomingACollisionPath()
+        {
+            Vector3 previousTarget = Vector3.zero;
+            Vector3 teleportedTarget = Vector3.right * 100f;
+            Vector3 start = ProjectileMath.ContinuousTargetStart(previousTarget, teleportedTarget,
+                Vector3.zero, 1f / 60f);
+            Assert.AreEqual(teleportedTarget, start, "a teleport starts a new target history");
+
+            float fraction;
+            Assert.IsFalse(ProjectileMath.SweptSphereFirstHit(Vector3.right * 50f, Vector3.right * 50f,
+                start, teleportedTarget, 1f, out fraction),
+                "the teleport path itself may not strike a stationary bolt");
+
+            Vector3 ordinaryStep = Vector3.right * (27.5f / 60f);
+            Assert.AreEqual(previousTarget, ProjectileMath.ContinuousTargetStart(previousTarget, ordinaryStep,
+                Vector3.right * 27.5f, 1f / 60f), "ordinary fast movement remains part of the relative sweep");
+            Assert.AreEqual(ordinaryStep, ProjectileMath.ContinuousTargetStart(previousTarget, ordinaryStep,
+                Vector3.right * 27.5f, 0f), "a stopped world clock refreshes history instead of accumulating motion");
+        }
+
+        [Test]
         public void TheSpeedGainFollowsTheLook_FlatAndNeverNaN()
         {
             var g = ProjectileMath.SpeedGain(new Vector3(0f, 0.7f, 0.7f), 9f);

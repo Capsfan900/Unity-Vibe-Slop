@@ -857,10 +857,21 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
       -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that bolt is gone
       -> recoveryGap 0.11 s follows resolution, just beyond shipped parrySuccessRecovery 0.08 s
       -> optional progressOrigin / progressDirection / memberProgressGates hold each member until the
-         runner crosses its authored route distance; the opening gates are 0/14/36/58/78 m down the hill
+         runner crosses its authored route distance; the opening gates are 0/16/40/64/87 m down the hill
       -> after that gate and the recovery gap, a 1.1 s readiness deadline skips unavailable members;
          ungated sequences retain their previous deadline behavior, and resets clear the gate latch
       -> PlayerRespawned or wholesale EnemySpawner instance replacement restarts and rebinds the row
+      -> optional shotResolutionTimeout (opening: 1.25 s, legacy default: 0) bounds an unresolved launched
+         shot; retire only that sequence's incoming bolt, then resume normal recovery and order
+      -> reset/death/rebind clears owned incoming shots; reflected return shots keep their payoff
+
+  PROJECTILE CONTACT AND CUE RELIABILITY
+    Projectile retains its existing capped homing, lead, speed and tracked direction
+      -> sweep relative bolt/target motion for the first hit-radius contact, incoming and reflected
+      -> discontinuous target jumps reset history; dt=0 refreshes history while the player can still move
+      -> measured target motion / world delta gives closing speed; (distance - hit radius) / closing speed
+         feeds the cue, visible weave fade and BoltRegistry consistently; separating flight has no imminent ETA
+      -> actual contact still resolves through PlayerCombat.ReceiveAttack using the tracked incoming direction
 
   SHIPPED NUMBERS (DataFactory, rule 9; pinned by SurgeTurretTests)
     maxHP 1          one hit from anything kills it. maxPosture 200 -- out of reach on purpose, so it never
@@ -1884,18 +1895,18 @@ MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json →
   arena doorways widened 6 m → 9 m and **a doorway, its gate and its trigger are one measurement**: a 9 m
   door with a 6 m trigger is a door the player walks through at x 4 while the fight never starts.
 - **Opening descent (2026-09-07):** `LevelDefinitionAuthoring.Apply` runs `ApplyDescent`, then
-  `ApplyOpeningDescent`. The second pass adds a separate 12 m wide crest at y 27 / z -132..-123.6,
-  `T0_Ramp_Descent` (108 m run, 27 m drop, z -123.8..-15.8), and a level run-out at y 0 / z -16..-7.8.
+  `ApplyOpeningDescent`. The second pass adds a separate 14 m wide crest at y 30 / z -144..-135.6,
+  `T0_Ramp_Descent` (120 m run, 30 m drop, z -135.8..-15.8), and a level run-out at y 0 / z -16..-7.8.
   The run-out overlaps the rear of the unchanged `Ground_Start` by 0.2 m; the entire original course
-  follows. `playerStart` is (0,27.3,-127), on the crest facing downhill (yaw 0), and `WandPedestal_Start`
-  is beside it at (3,27,-127). `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart`
+  follows. `playerStart` is (0,30.3,-139), on the crest facing downhill (yaw 0), and `WandPedestal_Start`
+  is beside it at (3,30,-139). `playerStart/playerStartYaw` flow through `LevelPieceFactory.PlayerStart`
   into `StartSpawn`; `LevelDefinitionBuilder` places the saved player there and wires the level manager
   for pre-checkpoint respawns. Existing checkpoints remain in place. Kill bounds cover the extended crest through z 450.
   The pass replaces only its two named decks and ramp and is idempotent. `LevelDescentTests` checks
   the shipped start, full-width level joins, two large descents, migration from the erroneous late
   spawn, and preservation of the existing route and encounter. `LevelRampPlacementTests` checks
   every shipped slope for deck contact and obstruction.
-  Five surge turrets sit at slope progress 20/42/64/86/102 m: left, right, left, then right/left overhead.
+  Five surge turrets sit at slope progress 22/47/71/96/113 m: left, right, left, then right/left overhead.
   The front overhead terrace is at y 13.5 and the rear at y 9, joined around the right side by descending
   stone beams. That rear height keeps the last bolt within the unchanged homing envelope as the player
   descends. All five contacts belong on the slope; the original first span follows the run-out.
@@ -2034,6 +2045,8 @@ SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
     zero falls back to exteriorRadius for older definitions. Shipped visual radii 22/23/22/31 m enclose
     the old court, wall, gate and torch bounds by at least 1.5 m; physical radii remain 12/13/12/18 m.
   SolarArenaVisual rotates exterior plasma/corona; realm ceiling rotates around Y only
+    -> SolarArena shader uses premultiplied blending: _SurfaceOpacity 0.92 on exterior theme materials
+       attenuates the background; zero on corona and the serialized ceiling override preserves additive glow
     -> serialized plasmaOpacityOverride reapplies the ceiling renderer property block on enable
     -> SolarArena.shader moves coloured currents; stationary realm floor/walls own collision
   exterior sphere remains at the authored court anchor; crossing it calls BeginFight, then Teleport
@@ -2085,11 +2098,11 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
     per planet, five passes in order: halo -> ring FAR half -> body -> ring NEAR half
       (that ordering is the whole Saturn read; there is no alpha sort to rely on)
   + CloudSea.BuildCampaign(Level, M_CloudSea) on Sky layer
-      fixed at (0,-5,150), spans 300x740 m around route bounds x -19.5..19.5 / z -132..409.5
-      40x96 grid = 3,977 verts / 23,040 indices / one renderer; shader owns every moving pixel
+      fixed at (0,-5,150), spans 900x1400 m around route bounds x -19.5..19.5 / z -144..409.5
+      90x144 grid = 13,195 verts / 77,760 indices / one renderer; shader owns every moving pixel
       vertex: three crossing swells + irregular bank lift, max crest y -3.35 below lowest underside y -1
       fragment: nested domain-warped billow bodies + stretched counter-flow erosion + broad edge feather
-      scaled shader time; fog-mixed; no collider, particles, lights, shadows, probes or C# Update
+      scaled shader time; cloud-only 80..280 m haze into the same fog colour; no collider, particles, lights, shadows, probes or C# Update
 
 7. Build Sandbox -> CloudSea.BuildSandbox(Sandbox, same M_CloudSea)
     fixed at (65,-5,0), spans 320x240 m around the room and movement yard through x=152

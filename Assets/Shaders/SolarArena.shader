@@ -5,6 +5,7 @@ Shader "VibeGame1/Solar Arena"
         _CoreColor ("Hot Core", Color) = (1.8, 1.25, 0.75, 1)
         _BandColor ("Plasma Bands", Color) = (0.2, 0.8, 1.8, 1)
         _Alpha ("Opacity", Range(0, 1)) = 0.48
+        _SurfaceOpacity ("Exterior Surface Opacity", Range(0, 1)) = 0
         _FlowSpeed ("Flow Speed", Range(-4, 4)) = 0.65
         _BandScale ("Band Scale", Range(1, 30)) = 11
         _RimPower ("Rim Power", Range(0.5, 8)) = 2.2
@@ -18,7 +19,7 @@ Shader "VibeGame1/Solar Arena"
         {
             Name "SolarArenaForward"
             Tags { "LightMode"="UniversalForward" }
-            Blend SrcAlpha One
+            Blend One OneMinusSrcAlpha
             ZWrite Off
             ZTest LEqual
             // Sphere and cylinder primitives have outward-facing caps. Back-face culling keeps their
@@ -36,6 +37,7 @@ Shader "VibeGame1/Solar Arena"
                 half4 _CoreColor;
                 half4 _BandColor;
                 float _Alpha;
+                float _SurfaceOpacity;
                 float _FlowSpeed;
                 float _BandScale;
                 float _RimPower;
@@ -89,7 +91,10 @@ Shader "VibeGame1/Solar Arena"
                 color += _BandColor.rgb * rim * 0.9;
                 color = MixFog(color, input.fogFactor);
                 half alpha = saturate(_Alpha * (0.68 + band * 0.32) + rim * 0.22);
-                return half4(color, alpha);
+                // Zero surface opacity reproduces the original additive ceiling/corona exactly.
+                // Exterior shells also attenuate the scenery behind them, rather than just adding glow.
+                half surface = saturate(_SurfaceOpacity);
+                return half4(color * lerp(alpha, 1.0h, surface), surface);
             }
             ENDHLSL
         }

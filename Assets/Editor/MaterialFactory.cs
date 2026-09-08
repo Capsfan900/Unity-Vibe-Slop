@@ -353,6 +353,8 @@ namespace VibeGame1.EditorTools
             mat.SetFloat("_WarpStrength", 14f);
             mat.SetFloat("_DetailStrength", 0.26f);
             mat.SetFloat("_EdgeFeather", 0.12f);
+            mat.SetFloat("_HazeStart", 80f);
+            mat.SetFloat("_HazeEnd", 280f);
             mat.SetOverrideTag("RenderType", "Transparent");
             mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 10;
 
@@ -418,6 +420,7 @@ namespace VibeGame1.EditorTools
             mat.SetColor("_CoreColor", core);
             mat.SetColor("_BandColor", band);
             mat.SetFloat("_Alpha", alpha);
+            mat.SetFloat("_SurfaceOpacity", name == "M_SolarCorona" ? 0f : 0.92f);
             mat.SetFloat("_FlowSpeed", flow);
             mat.SetFloat("_BandScale", scale);
             mat.SetFloat("_RimPower", name == "M_SolarCorona" ? 1.1f : 2.2f);

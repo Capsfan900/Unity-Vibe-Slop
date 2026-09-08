@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  playerStart: {x: 0, y: 27.3, z: -127}
+  playerStart: {x: 0, y: 30.3, z: -139}
   playerStartYaw: 0
   platforms:
   - name: Ground_Start
@@ -728,105 +728,105 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_Entry
-    center: {x: 0, y: 26.5, z: -127.8}
-    size: {x: 12, y: 1, z: 8.4}
+    center: {x: 0, y: 29.5, z: -139.8}
+    size: {x: 14, y: 1, z: 8.4}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_RunOut
     center: {x: 0, y: -0.5, z: -11.9}
-    size: {x: 12, y: 1, z: 8.2}
+    size: {x: 14, y: 1, z: 8.2}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_TurretPad_1
-    center: {x: -7.7, y: 21.5, z: -103.8}
+    center: {x: -8.7, y: 24, z: -113.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_TurretPad_2
-    center: {x: 7.7, y: 16, z: -81.8}
+    center: {x: 8.7, y: 17.75, z: -88.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_TurretPad_3
-    center: {x: -7.7, y: 10.5, z: -59.8}
+    center: {x: -8.7, y: 11.75, z: -64.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_OverheadDais_Front
-    center: {x: 3.2, y: 13, z: -36.8}
+    center: {x: 3.2, y: 13, z: -38.8}
     size: {x: 5, y: 1, z: 5}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_OverheadDais_Rear
-    center: {x: -3.2, y: 8.5, z: -20.8}
-    size: {x: 5, y: 1, z: 5}
+    center: {x: -3.2, y: 8.5, z: -21.8}
+    size: {x: 5, y: 1, z: 4}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T0_OverheadDais_Spine_0
-    center: {x: 4.8, y: 12, z: -32.45}
+    center: {x: 4.8, y: 12.5, z: -34.45}
     size: {x: 1.8, y: 1.7, z: 4.9}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_Spine_1
-    center: {x: 4.8, y: 10.65, z: -27.75}
+    center: {x: 4.8, y: 11.15, z: -29.25}
     size: {x: 1.8, y: 1.7, z: 4.9}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_Spine_2
-    center: {x: 4.8, y: 9.3, z: -23.050001}
+    center: {x: 4.8, y: 9.8, z: -24.050001}
     size: {x: 1.8, y: 1.7, z: 4.9}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_Return
-    center: {x: 1.6, y: 8.5, z: -19.8}
+    center: {x: 1.6, y: 8.5, z: -20.8}
     size: {x: 7.8, y: 0.8, z: 1.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_FrontUnder
-    center: {x: 3.2, y: 12.35, z: -36.8}
+    center: {x: 3.2, y: 12.85, z: -38.8}
     size: {x: 3.8, y: 0.3, z: 3.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_FrontKeel
-    center: {x: 3.2, y: 11.9, z: -36.8}
+    center: {x: 3.2, y: 12.4, z: -38.8}
     size: {x: 2.2, y: 0.6, z: 2.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_RearUnder
-    center: {x: -3.2, y: 8.05, z: -20.8}
+    center: {x: -3.2, y: 8.55, z: -21.8}
     size: {x: 3.8, y: 0.3, z: 3.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T0_OverheadDais_RearKeel
-    center: {x: -3.2, y: 7.8, z: -20.8}
+    center: {x: -3.2, y: 8.3, z: -21.8}
     size: {x: 2.2, y: 0.2, z: 2.2}
     materialKey: Stone
     trim: 0
@@ -888,10 +888,10 @@ MonoBehaviour:
     materialKey: Stone
     isStatic: 1
   - name: T0_Ramp_Descent
-    basePosition: {x: 0, y: 27, z: -123.8}
-    width: 12
-    run: 108
-    rise: -27
+    basePosition: {x: 0, y: 30, z: -135.8}
+    width: 14
+    run: 120
+    rise: -30
     thickness: 0.5
     yaw: 0
     materialKey: Stone
@@ -964,27 +964,27 @@ MonoBehaviour:
     isBoss: 0
   - name: Spawn_T0_Surge_1
     prefabKey: pshooter_enemy03
-    position: {x: -7.7, y: 22.1, z: -103.8}
+    position: {x: -8.7, y: 24.6, z: -113.8}
     yaw: 150
     isBoss: 0
   - name: Spawn_T0_Surge_2
     prefabKey: pshooter_enemy03
-    position: {x: 7.7, y: 16.6, z: -81.8}
+    position: {x: 8.7, y: 18.35, z: -88.8}
     yaw: 210
     isBoss: 0
   - name: Spawn_T0_Surge_3
     prefabKey: pshooter_enemy03
-    position: {x: -7.7, y: 11.1, z: -59.8}
+    position: {x: -8.7, y: 12.35, z: -64.8}
     yaw: 150
     isBoss: 0
   - name: Spawn_T0_Surge_4
     prefabKey: pshooter_enemy03
-    position: {x: 3.2, y: 13.6, z: -37.8}
+    position: {x: 3.2, y: 13.6, z: -39.8}
     yaw: 195
     isBoss: 0
   - name: Spawn_T0_Surge_5
     prefabKey: pshooter_enemy03
-    position: {x: -3.2, y: 9.1, z: -21.8}
+    position: {x: -3.2, y: 9.1, z: -22.8}
     yaw: 165
     isBoss: 0
   pickups:
@@ -1157,7 +1157,7 @@ MonoBehaviour:
     basePosition: {x: 8, y: 23, z: 207.5}
   pedestals:
   - name: WandPedestal_Start
-    groundPosition: {x: 3, y: 27, z: -127}
+    groundPosition: {x: 3, y: 30, z: -139}
     triggerRadius: 3
   balloons:
   - name: T3_Arc_1
@@ -1354,14 +1354,15 @@ MonoBehaviour:
     - Spawn_T0_Surge_5
     recoveryGap: 0.11
     readinessTimeout: 1.1
-    progressOrigin: {x: 0, y: 0, z: -123.8}
+    shotResolutionTimeout: 1.25
+    progressOrigin: {x: 0, y: 0, z: -135.8}
     progressDirection: {x: 0, y: 0, z: 1}
     memberProgressGates:
     - 0
-    - 14
-    - 36
-    - 58
-    - 78
+    - 16
+    - 40
+    - 64
+    - 87
   sky:
     enabled: 1
     starCount: 1200

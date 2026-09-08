@@ -673,19 +673,19 @@ frame, and an identical-camera 170 -> 140 check at the new ramp crest moved mean
 channel range. Linear fog remains a route-depth instrument; it cannot supply visible moving atmosphere.
 
 `CloudSea` supplies the moving layer the level actually calls for: one fixed world-space ocean below every
-structure, spanning x -150..150 and z -220..520 around the shipped route (-19.5..19.5, -132..409.5). Its
+structure, spanning x -450..450 and z -550..850 around the shipped route (-19.5..19.5, -132..409.5). Its
 surface sits at y -5; three crossing swells plus the irregular cloud-bank lift total at most 1.10 x the
 1.50 m wave height, so the highest possible crest is y -3.35, still 2.35 m below the lowest platform
 underside at y -1. The course therefore
 reads as one set of ruins suspended above a common rolling cloud bed, rather than a local puff following
 the player.
 
-The effect is one 3,977-vertex / 23,040-index grid and one transparent URP draw. Long vertex swells make
+The effect is one 13,195-vertex / 77,760-index grid and one transparent URP draw. Long vertex swells make
 the horizon physically rise and fall. In the fragment pass, a slow low-frequency field bends a three-octave
 billow flow while stretched smaller noise erodes their boundaries in the other direction; the two spatial
 scales are about 3.7x apart, so this reads as nested soft bodies with torn wispy edges instead of stretched flat
 noise or bright contour rings. The broad edge
-feather lives 80-100 m beyond either end of Level_01 and disappears into linear fog before the rectangle
+feather stays beyond the nearby route view and settles into cloud-specific haze before the rectangle
 can show. It has no particles, collisions, lights, shadows, probes, per-frame C# work or gameplay state.
 All colour channels remain below 1.0, and ordinary alpha blending plus depth testing keeps it behind solid
 course geometry without spending the attack-tell bloom budget. Shader `_Time.y` is scaled in play, so pause
@@ -697,3 +697,6 @@ The four exterior plasma bodies have visual radii 22/23/22/31 m at their existin
 its historical floor, walls, pillars, gates and torches with at least 1.5 m margin. The corona scales
 with the body. The saturated rotating patterns, realm ceiling and themes retain their accepted design.
 The separate physical portal radii remain 12/13/12/18 m, preserving retry and onward-return positions.
+The higher crest uses a 900x1400 m cloud bed and a separate 80..280 m cloud-haze range. Gameplay
+fog remains 36..140 m. Exterior suns use 0.92 surface opacity to obscure the old courts, while the
+corona and realm ceilings retain their additive appearance via zero surface-opacity overrides.

@@ -182,6 +182,8 @@ namespace VibeGame1.Tests
                 var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/" + name + ".mat");
                 Assert.IsNotNull(mat, name + ": run 2. Create Materials");
                 Assert.AreEqual("VibeGame1/Solar Arena", mat.shader.name, name);
+                Assert.That(mat.GetFloat("_SurfaceOpacity"), Is.InRange(0.85f, 0.98f),
+                    name + " exterior must attenuate scenery rather than merely adding brightness");
                 var core = mat.GetColor("_CoreColor");
                 var band = mat.GetColor("_BandColor");
                 Assert.Less(core.maxColorComponent, 1.05f, name + " body must retain saturated detail");
@@ -193,6 +195,7 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(corona, "run 2. Create Materials");
             Assert.AreEqual("VibeGame1/Solar Arena", corona.shader.name);
             Assert.LessOrEqual(corona.GetFloat("_Alpha"), 0.05f, "corona body must not veil the plasma");
+            Assert.AreEqual(0f, corona.GetFloat("_SurfaceOpacity"), "corona stays additive");
             foreach (var name in new[] { "M_SolarRealmCyan", "M_SolarRealmGold", "M_SolarRealmAzure", "M_SolarRealmGhost" })
             {
                 var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/" + name + ".mat");

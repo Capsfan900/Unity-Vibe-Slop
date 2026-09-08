@@ -30,6 +30,8 @@ Material:
     - _DetailStrength: 0.26
     - _EdgeFeather: 0.12
     - _FlowSpeed: 0.035
+    - _HazeEnd: 280
+    - _HazeStart: 80
     - _LargeScale: 0.03
     - _WarpStrength: 14
     - _WaveHeight: 1.5

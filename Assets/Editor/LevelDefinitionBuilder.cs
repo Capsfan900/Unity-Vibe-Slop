@@ -205,6 +205,7 @@ namespace VibeGame1.EditorTools
                     var host = LevelPieceFactory.Empty(sequence.name, Vector3.zero, Quaternion.identity, root);
                     host.AddComponent<ProjectileVolleySequence>().Configure(
                         ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout,
+                        sequence.shotResolutionTimeout,
                         sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates);
                 }
             }
@@ -517,6 +518,7 @@ namespace VibeGame1.EditorTools
             // The ceiling fills much more of the frame than an exterior sun. Serialize the override on
             // its visual owner so reopening the scene restores the renderer property block at runtime.
             innerSpin.plasmaOpacityOverride = 0.20f;
+            innerSpin.plasmaSurfaceOpacityOverride = 0f;
             innerSpin.ApplyMaterialOverrides();
 
             var lightGo = LevelPieceFactory.Empty("SolarLight", def.realmCenter + Vector3.up * 9f,

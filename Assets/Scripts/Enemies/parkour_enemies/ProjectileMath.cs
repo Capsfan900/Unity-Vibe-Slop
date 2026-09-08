@@ -16,6 +16,65 @@ namespace VibeGame1
         }
 
         /// <summary>
+        /// Forecast contact from the current closing rate of the bolt and target. Returning infinity for
+        /// a separating/crossing pair keeps the cue and registry honest until homing turns the shot back in.
+        /// </summary>
+        public static float RelativeTimeToContact(Vector3 projectilePosition, Vector3 targetPosition,
+                                                  Vector3 projectileVelocity, Vector3 targetVelocity,
+                                                  float contactRadius)
+        {
+            Vector3 toTarget = targetPosition - projectilePosition;
+            float distance = toTarget.magnitude;
+            float remaining = Mathf.Max(0f, distance - Mathf.Max(0f, contactRadius));
+            if (remaining <= 0f) return 0f;
+            if (distance <= 0.0001f) return 0f;
+            float closingSpeed = Vector3.Dot(projectileVelocity - targetVelocity, toTarget / distance);
+            return closingSpeed > 0.001f ? remaining / closingSpeed : float.PositiveInfinity;
+        }
+
+        /// <summary>
+        /// Earliest contact between a moving bolt and moving target during one frame. Work in relative
+        /// space so a fast player crossing the shot is covered as faithfully as a fast projectile.
+        /// </summary>
+        public static bool SweptSphereFirstHit(Vector3 previousProjectile, Vector3 currentProjectile,
+                                               Vector3 previousTarget, Vector3 currentTarget,
+                                               float radius, out float fraction)
+        {
+            Vector3 start = previousProjectile - previousTarget;
+            Vector3 delta = (currentProjectile - currentTarget) - start;
+            float r = Mathf.Max(0f, radius);
+            float c = Vector3.Dot(start, start) - r * r;
+            if (c <= 0f) { fraction = 0f; return true; }
+
+            float a = Vector3.Dot(delta, delta);
+            if (a <= 1e-8f) { fraction = 0f; return false; }
+            float b = 2f * Vector3.Dot(start, delta);
+            float discriminant = b * b - 4f * a * c;
+            if (discriminant < 0f) { fraction = 0f; return false; }
+
+            float root = Mathf.Sqrt(discriminant);
+            float inverse = 0.5f / a;
+            float enter = (-b - root) * inverse;
+            float exit = (-b + root) * inverse;
+            if (enter > 1f || exit < 0f) { fraction = 0f; return false; }
+            fraction = Mathf.Clamp01(enter);
+            return true;
+        }
+
+        /// <summary>
+        /// Selects the target point used at the start of a relative sweep. A teleport/respawn is a
+        /// discontinuity, not a 100-metre collision path. Ordinary motion gets generous velocity-scaled
+        /// slack so low frame rates do not get mistaken for teleports.
+        /// </summary>
+        public static Vector3 ContinuousTargetStart(Vector3 previousTarget, Vector3 currentTarget,
+                                                    Vector3 expectedTargetVelocity, float continuityDeltaTime)
+        {
+            if (continuityDeltaTime <= 0f) return currentTarget;
+            float allowance = 1f + expectedTargetVelocity.magnitude * continuityDeltaTime * 2f;
+            return Vector3.Distance(previousTarget, currentTarget) <= allowance ? previousTarget : currentTarget;
+        }
+
+        /// <summary>
         /// The parry contract for enemies is that the cue fires <c>cueLead</c> (0.28 s) before impact.
         /// A bolt has no wind-up of its own -- its flight IS the wind-up -- so the cue is due the frame
         /// its remaining flight drops under the lead. Fires once.

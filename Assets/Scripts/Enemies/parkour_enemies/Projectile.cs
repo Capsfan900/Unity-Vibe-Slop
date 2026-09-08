@@ -74,8 +74,23 @@ namespace VibeGame1
         float speed;
         float age;
         bool cued, reflected, spent;
+        Vector3 previousTargetChest;
+        bool hasTargetHistory;
+        float cueAt = -1f;
+        float arrivedAt = -1f;
         Vector3 baseScale;
         float visualPhase;
+
+        /// <summary>True only while this bolt can still resolve against the player.</summary>
+        public bool IsIncoming { get { return !reflected && !spent; } }
+        /// <summary>True while a perfect-parried bolt is returning to its shooter.</summary>
+        public bool IsReflected { get { return reflected && !spent; } }
+        /// <summary>True once this bolt has finished resolving.</summary>
+        public bool IsSpent { get { return spent; } }
+        /// <summary>Scaled world time when the incoming parry cue first fired, or -1 before it fires.</summary>
+        public float CueAt { get { return cueAt; } }
+        /// <summary>Scaled world time when the incoming bolt first reached the player, or -1 before arrival.</summary>
+        public float ArrivedAt { get { return arrivedAt; } }
 
         /// <summary>Set once by the shooter. Direction begins toward the led target and the logical root then
         /// turns only through the existing capped homing. The visible child may weave before the cue.</summary>
@@ -91,6 +106,13 @@ namespace VibeGame1
             look = target != null ? target.GetComponent<PlayerLook>() : null;
             dir = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
             speed = speedMetresPerSecond;
+            age = 0f;
+            cued = false;
+            reflected = false;
+            spent = false;
+            cueAt = -1f;
+            arrivedAt = -1f;
+            ResetTargetHistory(playerT);
             BuildTrail();
             visualPhase = ProjectileVisualMath.Phase(boltId);
         }
@@ -160,13 +182,32 @@ namespace VibeGame1
 
         static Vector3 Chest(Transform t) { return t.position + Vector3.up * 1.2f; }
 
+        void ResetTargetHistory(Transform target)
+        {
+            hasTargetHistory = target != null;
+            if (hasTargetHistory) previousTargetChest = Chest(target);
+        }
+
+        void RefreshTargetHistory()
+        {
+            ResetTargetHistory(reflected ? (shooter != null ? shooter.transform : null) : playerT);
+        }
+
         void Update()
         {
             if (spent) return;
             float dt = Time.deltaTime;
-            if (dt <= 0f) return;
+            if (dt <= 0f)
+            {
+                // The player still moves during hitstop. Refreshing here prevents that legitimate movement
+                // from becoming one giant relative sweep when the world clock resumes.
+                RefreshTargetHistory();
+                return;
+            }
             age += dt;
             if (age > maxLife) { Spend(); return; }
+
+            Vector3 previousBolt = transform.position;
 
             if (!reflected && playerT != null && data != null && data.projectileHomingDegPerSec > 0f)
             {
@@ -178,12 +219,27 @@ namespace VibeGame1
                     dir = Vector3.RotateTowards(dir, want.normalized, data.projectileHomingDegPerSec * Mathf.Deg2Rad * dt, 0f).normalized;
             }
             transform.position += dir * speed * dt;
+            Vector3 currentBolt = transform.position;
 
             if (!reflected)
             {
                 if (playerT == null || combat == null) { Spend(); return; }
                 Vector3 target = Chest(playerT);
-                float remaining = ProjectileMath.TimeToImpact(Vector3.Distance(transform.position, target), speed);
+                Vector3 expectedTargetVelocity = motor != null ? motor.Velocity : Vector3.zero;
+                Vector3 targetStart = hasTargetHistory
+                    ? ProjectileMath.ContinuousTargetStart(previousTargetChest, target, expectedTargetVelocity,
+                                                           TimeScaleController.PlayerDelta)
+                    : target;
+                Vector3 targetVelocity = (target - targetStart) / dt;
+                previousTargetChest = target;
+                hasTargetHistory = true;
+                float hitFraction;
+                bool sweptHit = ProjectileMath.SweptSphereFirstHit(previousBolt, currentBolt, targetStart,
+                                                                   target, hitRadius, out hitFraction);
+                float remaining = sweptHit
+                    ? 0f
+                    : ProjectileMath.RelativeTimeToContact(currentBolt, target, dir * speed,
+                                                           targetVelocity, hitRadius);
                 if (ProjectileVisualMath.CanOffset(transform, visual))
                 {
                     Vector3 offset = ProjectileVisualMath.WeaveOffset(dir, age, remaining, CueLead, visualPhase,
@@ -194,6 +250,7 @@ namespace VibeGame1
                 if (ProjectileMath.CueDue(remaining, CueLead, cued))
                 {
                     cued = true;
+                    cueAt = Time.time;
                     AudioManager.Play(Sfx.ParryCue, 0.8f, 1.15f, 0.02f);
                     if (visual != null)
                     {
@@ -207,10 +264,17 @@ namespace VibeGame1
                 // machinery -- a missed parry costs the mistime, not the whiff, and recovery is clamped to
                 // end before the next cue. Cleared the instant it is spent or reflected.
                 BoltRegistry.Report(boltId,
-                                    cued ? float.MaxValue : Time.time + Mathf.Max(0f, remaining - CueLead),
-                                    Time.time + Mathf.Max(0f, remaining));
-                if (Vector3.Distance(transform.position, target) <= hitRadius)
+                                    cued || float.IsPositiveInfinity(remaining)
+                                        ? float.MaxValue
+                                        : Time.time + Mathf.Max(0f, remaining - CueLead),
+                                    float.IsPositiveInfinity(remaining)
+                                        ? float.MaxValue
+                                        : Time.time + Mathf.Max(0f, remaining));
+                if (sweptHit)
+                {
+                    transform.position = Vector3.Lerp(previousBolt, currentBolt, hitFraction);
                     Arrive();
+                }
                 return;
             }
 
@@ -218,8 +282,17 @@ namespace VibeGame1
             if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
             UpdateTrail(dt);
             if (shooter == null || !shooter.IsAlive) { Spend(); return; }
-            if (Vector3.Distance(transform.position, Chest(shooter.transform)) <= hitRadius + 0.3f)
+            Vector3 shooterChest = Chest(shooter.transform);
+            Vector3 shooterStart = hasTargetHistory
+                ? ProjectileMath.ContinuousTargetStart(previousTargetChest, shooterChest, Vector3.zero, dt)
+                : shooterChest;
+            previousTargetChest = shooterChest;
+            hasTargetHistory = true;
+            float returnHitFraction;
+            if (ProjectileMath.SweptSphereFirstHit(previousBolt, currentBolt, shooterStart, shooterChest,
+                                                   hitRadius + 0.3f, out returnHitFraction))
             {
+                transform.position = Vector3.Lerp(previousBolt, currentBolt, returnHitFraction);
                 var info = new DamageInfo
                 {
                     damage = data != null ? data.parriedProjectileDamage : 20f,
@@ -238,6 +311,7 @@ namespace VibeGame1
 
         void Arrive()
         {
+            if (arrivedAt < 0f) arrivedAt = Time.time;
             var info = new AttackInfo
             {
                 attack = data != null ? data.projectileAttack : null,
@@ -255,6 +329,7 @@ namespace VibeGame1
                 BoltRegistry.Clear(boltId);   // flying the other way: no longer incoming
                 dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
                 speed *= reflectSpeedScale;
+                ResetTargetHistory(shooter.transform);
                 if (visual != null)
                 {
                     if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;

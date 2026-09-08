@@ -58,9 +58,9 @@ namespace VibeGame1.Tests
             var entry = def.platforms.Single(p => p.name == "T0_Entry");
             var runOut = def.platforms.Single(p => p.name == "T0_RunOut");
             var originalStart = def.platforms.Single(p => p.name == "Ground_Start");
-            Assert.That(ramp.run, Is.EqualTo(108f));
-            Assert.That(ramp.rise, Is.EqualTo(-27f));
-            Assert.That(ramp.width, Is.EqualTo(12f));
+            Assert.That(ramp.run, Is.EqualTo(120f));
+            Assert.That(ramp.rise, Is.EqualTo(-30f));
+            Assert.That(ramp.width, Is.EqualTo(14f));
             Assert.That(ramp.yaw, Is.Zero);
             Assert.That(entry.center.y + entry.size.y / 2f, Is.EqualTo(ramp.basePosition.y).Within(0.001f));
             Assert.That(entry.center.z + entry.size.z / 2f - ramp.basePosition.z, Is.EqualTo(0.2f).Within(0.001f));

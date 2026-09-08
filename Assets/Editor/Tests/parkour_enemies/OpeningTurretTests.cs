@@ -39,32 +39,33 @@ namespace VibeGame1.Tests
             Assert.That(Mathf.Sign(shots[2].position.x), Is.EqualTo(-1f), "third returns left");
             Assert.That(shots.Select(s => s.position), Is.EqualTo(new[]
             {
-                new Vector3(-7.7f, 22.1f, -103.8f),
-                new Vector3( 7.7f, 16.6f,  -81.8f),
-                new Vector3(-7.7f, 11.1f,  -59.8f),
-                new Vector3( 3.2f, 13.6f,  -37.8f),
-                new Vector3(-3.2f,  9.1f,  -21.8f)
+                new Vector3(-8.7f, 24.6f, -113.8f),
+                new Vector3( 8.7f, 18.35f, -88.8f),
+                new Vector3(-8.7f, 12.35f, -64.8f),
+                new Vector3( 3.2f, 13.6f, -39.8f),
+                new Vector3(-3.2f,  9.1f, -22.8f)
             }));
 
-            Assert.That(volley.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -123.8f)));
+            Assert.That(volley.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -135.8f)));
             Assert.That(volley.progressDirection, Is.EqualTo(Vector3.forward));
-            Assert.That(volley.memberProgressGates, Is.EqualTo(new[] { 0f, 14f, 36f, 58f, 78f }));
+            Assert.That(volley.memberProgressGates, Is.EqualTo(new[] { 0f, 16f, 40f, 64f, 87f }));
+            Assert.That(volley.shotResolutionTimeout, Is.EqualTo(1.25f).Within(0.001f));
         }
 
         [Test]
-        public void OpeningIsA108MetreDescentAtOneInFourGradeWithBreathingRoom()
+        public void OpeningIsA120MetreDescentAtOneInFourGradeWithBreathingRoom()
         {
             var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
             var entry = def.platforms.Single(p => p.name == "T0_Entry");
             var runout = def.platforms.Single(p => p.name == "T0_RunOut");
-            Assert.That(ramp.basePosition, Is.EqualTo(new Vector3(0f, 27f, -123.8f)));
-            Assert.That(ramp.run, Is.EqualTo(108f).Within(0.001f));
-            Assert.That(ramp.rise, Is.EqualTo(-27f).Within(0.001f));
-            Assert.That(ramp.width, Is.EqualTo(12f).Within(0.001f));
+            Assert.That(ramp.basePosition, Is.EqualTo(new Vector3(0f, 30f, -135.8f)));
+            Assert.That(ramp.run, Is.EqualTo(120f).Within(0.001f));
+            Assert.That(ramp.rise, Is.EqualTo(-30f).Within(0.001f));
+            Assert.That(ramp.width, Is.EqualTo(14f).Within(0.001f));
             Assert.That(Vector3.Distance(ramp.TopPosition, new Vector3(0f, 0f, -15.8f)), Is.LessThan(0.001f));
-            Assert.That(entry.size.x, Is.EqualTo(12f).Within(0.001f));
-            Assert.That(runout.size.x, Is.EqualTo(12f).Within(0.001f));
-            Assert.That(def.playerStart, Is.EqualTo(new Vector3(0f, 27.3f, -127f)));
+            Assert.That(entry.size.x, Is.EqualTo(14f).Within(0.001f));
+            Assert.That(runout.size.x, Is.EqualTo(14f).Within(0.001f));
+            Assert.That(def.playerStart, Is.EqualTo(new Vector3(0f, 30.3f, -139f)));
         }
 
         [Test]
@@ -117,7 +118,7 @@ namespace VibeGame1.Tests
             }
 
             Assert.That(volley.memberProgressGates, Is.Ordered.Ascending);
-            Assert.That(volley.memberProgressGates.All(p => p >= 0f && p < 108f), Is.True,
+            Assert.That(volley.memberProgressGates.All(p => p >= 0f && p < 120f), Is.True,
                 "every launch gate lies on the descent");
         }
 
@@ -164,8 +165,8 @@ namespace VibeGame1.Tests
                 var host = new GameObject("T0_SurgeVolley");
                 host.transform.SetParent(root.transform, false);
                 host.AddComponent<ProjectileVolleySequence>().Configure(
-                    members, 0.11f, 1.1f, new Vector3(0f, 0f, -123.8f), Vector3.forward,
-                    new[] { 0f, 14f, 36f, 58f, 78f });
+                    members, 0.11f, 1.1f, 1.25f, new Vector3(0f, 0f, -135.8f), Vector3.forward,
+                    new[] { 0f, 16f, 40f, 64f, 87f });
 
                 LevelDefinitionExporter.ExportInto(root, fresh);
 
@@ -174,9 +175,10 @@ namespace VibeGame1.Tests
                 Assert.That(saved.spawnerNames, Is.EqualTo(members.Select(m => m.name).ToArray()));
                 Assert.That(saved.recoveryGap, Is.EqualTo(0.11f).Within(0.0001f));
                 Assert.That(saved.readinessTimeout, Is.EqualTo(1.1f).Within(0.0001f));
-                Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -123.8f)));
+                Assert.That(saved.shotResolutionTimeout, Is.EqualTo(1.25f).Within(0.0001f));
+                Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -135.8f)));
                 Assert.That(saved.progressDirection, Is.EqualTo(Vector3.forward));
-                Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 14f, 36f, 58f, 78f }));
+                Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 16f, 40f, 64f, 87f }));
             }
             finally
             {
@@ -261,6 +263,93 @@ namespace VibeGame1.Tests
                 Object.DestroyImmediate(player);
                 foreach (var marker in markers) if (marker != null) Object.DestroyImmediate(marker);
             }
+        }
+
+        [Test]
+        public void ResolutionTimeoutRetiresTrackedIncomingBolt_WhileZeroKeepsLegacyWait()
+        {
+            var host = new GameObject("SequenceResolutionTest");
+            var marker = new GameObject("Member");
+            try
+            {
+                var member = marker.AddComponent<EnemySpawner>();
+                var sequence = host.AddComponent<ProjectileVolleySequence>();
+                sequence.Configure(new[] { member }, 0.11f, 1.1f, 1.25f,
+                    Vector3.zero, Vector3.zero, null);
+                var boltGo = new GameObject("TimedOutBolt");
+                var bolt = boltGo.AddComponent<Projectile>();
+                SetLaunchedShot(sequence, bolt, Time.time - 2f);
+                InvokePrivate(sequence, "Update");
+                Assert.IsTrue(bolt == null, "the coordinator retires only its still-incoming tracked bolt");
+                Assert.That(sequence.CurrentIndex, Is.EqualTo(1));
+
+                sequence.Configure(new[] { member }, 0.11f, 1.1f);
+                boltGo = new GameObject("LegacyBolt");
+                bolt = boltGo.AddComponent<Projectile>();
+                SetLaunchedShot(sequence, bolt, Time.time - 10f);
+                InvokePrivate(sequence, "Update");
+                Assert.IsTrue(bolt != null, "zero timeout preserves the legacy projectile-lifetime wait");
+                Assert.That(sequence.CurrentIndex, Is.Zero);
+                sequence.Restart();
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(marker);
+            }
+        }
+
+        [Test]
+        public void ResetCleansIncomingBolt_ButResolvedReflectionSurvives()
+        {
+            var host = new GameObject("SequenceResetTest");
+            var marker = new GameObject("Member");
+            GameObject reflectedGo = null;
+            try
+            {
+                var member = marker.AddComponent<EnemySpawner>();
+                var sequence = host.AddComponent<ProjectileVolleySequence>();
+                sequence.Configure(new[] { member }, 0.11f, 1.1f, 1.25f,
+                    Vector3.zero, Vector3.zero, null);
+
+                var incomingGo = new GameObject("IncomingBolt");
+                var incoming = incomingGo.AddComponent<Projectile>();
+                SetLaunchedShot(sequence, incoming, Time.time);
+                sequence.Restart();
+                Assert.IsTrue(incoming == null, "restart removes the old incoming attack");
+
+                reflectedGo = new GameObject("ReflectedBolt");
+                var reflected = reflectedGo.AddComponent<Projectile>();
+                typeof(Projectile).GetField("reflected",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .SetValue(reflected, true);
+                SetLaunchedShot(sequence, reflected, Time.time - 2f);
+                InvokePrivate(sequence, "Update");
+                Assert.IsTrue(reflected != null, "a perfect-parry return remains alive to hit its shooter");
+                Assert.That(sequence.CurrentIndex, Is.EqualTo(1));
+            }
+            finally
+            {
+                if (reflectedGo != null) Object.DestroyImmediate(reflectedGo);
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(marker);
+            }
+        }
+
+        static void SetLaunchedShot(ProjectileVolleySequence sequence, Projectile bolt, float launchedAt)
+        {
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var type = typeof(ProjectileVolleySequence);
+            type.GetField("activeBolt", flags).SetValue(sequence, bolt);
+            type.GetField("shotLaunched", flags).SetValue(sequence, true);
+            type.GetField("shotLaunchedAt", flags).SetValue(sequence, launchedAt);
+        }
+
+        static void InvokePrivate(ProjectileVolleySequence sequence, string method)
+        {
+            typeof(ProjectileVolleySequence).GetMethod(method,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(sequence, null);
         }
 
         Vector3 RampChest(float z)

@@ -1,46 +1,49 @@
-# Handoff — longer opening and enclosing suns
+# Handoff — crest atmosphere, sun opacity and turret reliability
 
-2026-09-07: Sol 5.6 refined the opening with Astra design/engineering consultation. Spark was requested
-but unavailable. The lead regenerated, inspected and verified the canonical Unity scene.
+## What happened
 
-## Implemented
+2026-09-07. The user asked for four things after the two-ramp / solar-realm work:
 
-- Opening ramp: 108 m run, 27 m drop, 12 m width. Spawn (0,27.3,-127), pedestal beside it.
-  Bottom remains (0,0,-15.8), joining the complete unchanged original route. Later T4 ramp remains.
-- Five existing surge turrets at slope progress 20/42/64/86/102 m: left/right/left, then right/left
-  overhead. A stepped open Z-shaped floating dais connects the last two; rear turret y9.1,
-  front y13.6. The lower rear height prevents its unchanged homing bolt from overflying the runner.
-- Optional progress gates 0/14/36/58/78 m hold members until their route beat. Finite readiness
-  windows start after the gate and recovery gap. Existing ungated sequences retain their behavior.
-- Four fixed-center sun shells enlarged to visual radii 22/23/22/31 m. Old court geometry fits with
-  >=1.5 m margin. Physical portal radii remain 12/13/12/18, preserving retries, exits and realm fights.
-- Cloud sea extends to 300x740 m centered (0,-5,150); kill zone covers z -160..450.
-- Grapple test driver now aims vertically at downhill dummies instead of using melee yaw-only facing.
-  Core movement, grapple, projectile flight, parry rules and boost tuning remain unchanged.
+1. Fog "looks like a patch meant for that smaller section" from the new higher spawn.
+2. The spheres should be **more opaque, not see-through** from outside — the only sphere change.
+3. The first ramp a little longer and wider again.
+4. The turret AI "works but is a bit jank" — the user confirmed **tracking is good**; the
+   complaint is shot timing and projectiles missing.
 
-## Verification
+Delivered as one `[Sol]` commit, with Astra consulting on engineering review.
 
-- Saved-scene opening probe PASS: five shots, five distinct parries, all contacts ON the slope,
-  full 1.60 multiplier and run-out reached. Contacts 1.082/1.716/2.418/3.184/3.851 s at
-  progress 14.95/30.50/49.81/70.88/89.22 m. TestResults/long-opening/opening-final.txt.
-- Full FeatureTests 804/804, zero failures/skips, 66.5 s. TestResults/long-opening/features-final.txt.
-- Full EditMode 864 ran: 863 passed, one beam-clearance failure; all 138 slow reachability tests passed.
-  Raising that decorative beam 0.3 m resolved it. Quick EditMode 726/726 then passed. Final rerun: TestResults/EditMode-20260907-204123.xml.
-  See VERIFICATION-REPORT for exact final rerun paths and the unrelated weighted-choice test flake.
-- Health 0 errors / 1764 existing warnings; both offline assemblies compile with 0 errors.
-- Seven saved renders inspected: RouteShots/long-opening. Physical/visual sphere sizes read back from
-  generated objects; tests measure floor/wall/pillar/gate/torch containment.
-- ReworkLevel01 idempotence verified; BuildCanonicalHeadless rebuilt NavMesh and saved Level_01.
+- **Cloud sea** is now 900 x 1400 m at y -5 on a 90 x 144 grid (13,195 vertices), so its edges sit
+  beyond the 300 m route camera from the raised crest. A cloud-only 80..280 m haze keeps bank detail
+  past the unchanged 36..140 m route fog and settles into fog colour before the far clip.
+- **Solar shells** use premultiplied blending with `_SurfaceOpacity` 0.92 on the exterior theme
+  materials, so they attenuate the courts behind them instead of only adding glow. Zero surface
+  opacity reproduces the previous additive look exactly and is kept for the corona and for the
+  interior realm ceiling (which also keeps its serialized 0.20 emission override).
+- **Opening ramp** is 120 m run / 30 m drop / 14 m wide at the same 1:4 grade, bottom still z -15.8;
+  spawn `(0, 30.3, -139)`. The same five turrets spread to progress 22/47/71/96/113 m.
+- **Turret reliability**: relative swept-sphere contact (both bodies' motion between frames, with
+  teleport/hitstop history guards), a closing-rate ETA that feeds cue/weave/BoltRegistry, and an
+  opening-only 1.25 s deadline for an unresolved launched shot. **Lead, homing, bolt speed and the
+  tracking the user likes are unchanged.**
 
-Automatic forecast parries prove integration, not human fairness. Human appearance/feel acceptance
-and standalone/WebGL GPU cost remain unverified. No required generator remains.
+## Verified
 
-## Rollback and tree
+- Quick EditMode **732/732**; full EditMode **870/870** (227.9 s,
+  `TestResults/EditMode-20260907-212401.xml`); full FeatureTests **808/808**.
+- Live opening probe at **60 fps and 30 fps**: five distinct parries on the slope, full **1.60x**,
+  run-out reached. `TestResults/crest-polish/opening-60fps.txt`, `opening-30fps.txt`.
+- Health Check **0 errors / 1764 existing warnings**. Both offline assemblies compile.
+- Eight real renders in `RouteShots/crest-polish/` — crest, overview, exterior suns, interior.
 
-This refinement is one [Sol] commit. Restore tag pre-long-opening-2026-09-07 points to parent 1275950.
-Revert this refinement commit to recover the accepted previous two-ramp/sun-realm version.
-The user's untracked .claude/settings.local.json is excluded. Test frame settings restored;
-Unity is left stopped on Level_01. Earlier accepted opening/cloud/weave/realm work remains intact.
+A probe-side trap is recorded in ENGINEERING-LOG: the automatic parry forecast was landing exactly
+on the 0.13 s perfect-window boundary, and one 978 ms editor stall invalidated a 30 fps trial.
+Those were tester corrections; no combat window moved.
 
-Next: load Level 1 from the menu and feel the longer descent, alternating parries and enlarged suns.
-No user decision is needed to complete this pass.
+Restore tag `pre-crest-polish-2026-09-07` at `16443c0`. Reverting this one commit undoes the pass.
+
+## Do first next session
+
+1. **Only the user can judge feel.** Play the opening: does the five-shot ladder read fairly at the
+   new length, and do the suns and cloud ocean look right from the crest?
+2. Standalone/WebGL GPU cost of the 13k-vertex cloud sea and the four opaque shells is unmeasured.
+3. In-flight UI work follows this commit — see the next handoff section once it lands.

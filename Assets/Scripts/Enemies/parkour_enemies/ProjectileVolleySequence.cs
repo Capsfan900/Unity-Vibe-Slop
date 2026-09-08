@@ -15,6 +15,7 @@ namespace VibeGame1
         [SerializeField] EnemySpawner[] members = new EnemySpawner[0];
         [SerializeField, Min(0f)] float recoveryGap = 0.11f;
         [SerializeField, Min(0.1f)] float readinessTimeout = 1.1f;
+        [SerializeField, Min(0f)] float shotResolutionTimeout;
         [SerializeField] Vector3 progressOrigin;
         [SerializeField] Vector3 progressDirection;
         [SerializeField] float[] memberProgressGates = new float[0];
@@ -27,6 +28,7 @@ namespace VibeGame1
         int grantsBeforeShot;
         float nextLaunchAt;
         float enteredBandAt;
+        float shotLaunchedAt;
         bool bandSeen;
         bool firstMemberArmed;
         bool shotLaunched;
@@ -38,6 +40,7 @@ namespace VibeGame1
         public int Count { get { return members != null ? members.Length : 0; } }
         public float RecoveryGap { get { return recoveryGap; } }
         public float ReadinessTimeout { get { return readinessTimeout; } }
+        public float ShotResolutionTimeout { get { return shotResolutionTimeout; } }
         public Vector3 ProgressOrigin { get { return progressOrigin; } }
         public Vector3 ProgressDirection { get { return progressDirection; } }
         public float[] MemberProgressGates
@@ -57,19 +60,29 @@ namespace VibeGame1
 
         public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout)
         {
-            Configure(orderedMembers, gap, readyTimeout, Vector3.zero, Vector3.zero, null);
+            Configure(orderedMembers, gap, readyTimeout, 0f, Vector3.zero, Vector3.zero, null);
         }
 
         public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout,
                               Vector3 gateOrigin, Vector3 gateDirection, float[] progressGates)
         {
+            Configure(orderedMembers, gap, readyTimeout, 0f, gateOrigin, gateDirection, progressGates);
+        }
+
+        public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout,
+                              float resolutionTimeout, Vector3 gateOrigin, Vector3 gateDirection,
+                              float[] progressGates)
+        {
+            RetireActiveIncoming();
             members = orderedMembers ?? new EnemySpawner[0];
             recoveryGap = Mathf.Max(0f, gap);
             readinessTimeout = Mathf.Max(0.1f, readyTimeout);
+            shotResolutionTimeout = Mathf.Max(0f, resolutionTimeout);
             progressOrigin = gateOrigin;
             progressDirection = gateDirection.sqrMagnitude > 0.0001f ? gateDirection.normalized : Vector3.zero;
             memberProgressGates = progressGates != null ? (float[])progressGates.Clone() : new float[0];
             AllocateCaches();
+            ResetState();
         }
 
         void Awake() { AllocateCaches(); }
@@ -78,6 +91,7 @@ namespace VibeGame1
         {
             GameEvents.PlayerDied += OnPlayerDied;
             GameEvents.PlayerRespawned += Restart;
+            Restart();
         }
 
         void Start() { Restart(); }
@@ -86,7 +100,9 @@ namespace VibeGame1
         {
             GameEvents.PlayerDied -= OnPlayerDied;
             GameEvents.PlayerRespawned -= Restart;
+            RetireActiveIncoming();
             ReleaseMembers();
+            ClearBindings();
         }
 
         void AllocateCaches()
@@ -128,7 +144,17 @@ namespace VibeGame1
             if (shotLaunched)
             {
                 bool granted = turrets[current] != null && turrets[current].SurgesGranted > grantsBeforeShot;
-                if (granted || activeBolt == null) Advance();
+                if (granted || activeBolt == null || !activeBolt.IsIncoming)
+                {
+                    // A reflected bolt is already resolved for sequencing and must finish its return trip.
+                    Advance();
+                    return;
+                }
+                if (shotResolutionTimeout > 0f && Time.time - shotLaunchedAt >= shotResolutionTimeout)
+                {
+                    RetireActiveIncoming();
+                    Advance();
+                }
                 return;
             }
 
@@ -165,6 +191,7 @@ namespace VibeGame1
             {
                 grantsBeforeShot = turrets[current] != null ? turrets[current].SurgesGranted : 0;
                 shotLaunched = true;
+                shotLaunchedAt = Time.time;
                 return;
             }
 
@@ -210,7 +237,7 @@ namespace VibeGame1
         void OnPlayerDied()
         {
             waitingForRespawn = true;
-            activeBolt = null;
+            RetireActiveIncoming();
             shotLaunched = false;
         }
 
@@ -224,9 +251,10 @@ namespace VibeGame1
 
         void ResetState()
         {
+            RetireActiveIncoming();
             current = 0;
-            activeBolt = null;
             shotLaunched = false;
+            shotLaunchedAt = 0f;
             bandSeen = false;
             firstMemberArmed = false;
             nextLaunchAt = Time.time;
@@ -237,6 +265,24 @@ namespace VibeGame1
         {
             for (int i = 0; i < shooters.Length; i++)
                 if (shooters[i] != null) shooters[i].SetSequenceControlled(false);
+        }
+
+        void RetireActiveIncoming()
+        {
+            if (activeBolt != null && activeBolt.IsIncoming)
+            {
+                if (Application.isPlaying) Destroy(activeBolt.gameObject);
+                else DestroyImmediate(activeBolt.gameObject);
+            }
+            activeBolt = null;
+        }
+
+        void ClearBindings()
+        {
+            boundInstances = new GameObject[0];
+            shooters = new ProjectileShooter[0];
+            turrets = new SurgeTurret[0];
+            player = null;
         }
     }
 }

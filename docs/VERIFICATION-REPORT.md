@@ -10,6 +10,41 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Crest atmosphere and turret reliability — 2026-09-07
+
+Saved opening: 120 m run, 30 m drop, 14 m width, spawn (0,30.3,-139). The five existing turrets
+occupy progress 22/47/71/96/113 m with gates 0/16/40/64/87. Lead, homing, speeds, core movement,
+parry windows and surge tuning remain unchanged. Opening missed-shot timeout is 1.25 s.
+
+- Quick EditMode: **732/732 passed**, zero failures/skips, 11.5 s;
+  `TestResults/EditMode-20260907-211125.xml`. Initial reset test caught Configure retaining a
+  completed index; Configure now resets it.
+- Full EditMode: **870/870 passed**, zero failures/skips, 227.9 s;
+  `TestResults/EditMode-20260907-212401.xml`. Includes the slow LevelLines route simulations against
+  the regenerated 120 m opening.
+- Full FeatureTests: **808/808 passed**, zero failures/skips, 66.1 s;
+  `TestResults/crest-polish/features-final.txt`, fresh unpaused Play session.
+- Real opening probes at 60 and 30 fps: **all five distinct parries on the slope, full 1.60x,
+  run-out reached**. Evidence `TestResults/crest-polish/opening-60fps.txt` and `opening-30fps.txt`.
+  Clean 30 fps contacts at 1.149/1.850/2.649/3.516/4.249 s, progress
+  15.89/33.11/55.09/78.92/99.09 m; worst frame 36 ms. A prior trial with a 978 ms editor stall
+  failed the last automatic parry and is retained as `opening-30fps-editor-stall.txt`.
+  The probe input forecast is now .08 s: tracing proved its former .12 s trigger could land
+  exactly on the .13 s perfect-window boundary. This is a tester correction, not combat tuning.
+  Observed cue-to-contact intervals span .267..400 s; closing ETA is approximate during curved
+  flight, changing player velocity and frame sampling. Automated success proves integration,
+  not human timing fairness or a fixed .28 s cue-to-contact interval.
+- Health: **0 errors / 1764 existing warnings**. Offline runtime build: zero errors/warnings;
+  editor build: zero errors, 18 warnings. No Unity C# compile errors.
+- Cloud bounds 900x1400 m at y -5, grid 90x144 (13,195 vertices), haze 80..280 m. Exterior sun
+  surface opacity .92; corona and interior ceiling surface opacity zero. All serialized values
+  regenerated; canonical authoring idempotence verified. Eight real renders saved in
+  `RouteShots/crest-polish/`; crest, overview, exterior and interior views inspected.
+
+Generators run: CreateCloudSea, CreateSolarArenaMaterials, ReworkLevel01, BuildCanonicalHeadless
+including NavMesh and scene save. Restore tag `pre-crest-polish-2026-09-07` points to `16443c0`.
+Human feel/appearance approval and standalone/WebGL GPU cost remain unverified.
+
 ### Longer opening and enclosing suns — 2026-09-07
 
 Sol 5.6 authored the refinement with Astra consulting. The saved opening is 108 m long, 12 m wide,

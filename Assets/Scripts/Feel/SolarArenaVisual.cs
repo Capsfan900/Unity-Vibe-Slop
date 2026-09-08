@@ -15,6 +15,8 @@ namespace VibeGame1
         public Vector3 coronaDegreesPerSecond = new Vector3(-1f, -4f, 3f);
         [Tooltip("Optional persistent renderer override. Negative keeps the material's authored opacity.")]
         public float plasmaOpacityOverride = -1f;
+        [Tooltip("Optional surface-occlusion override. Zero preserves an additive realm ceiling.")]
+        public float plasmaSurfaceOpacityOverride = -1f;
 
         void OnEnable()
         {
@@ -24,12 +26,15 @@ namespace VibeGame1
         /// <summary>Applies serialized per-instance material values without instancing the shared asset.</summary>
         public void ApplyMaterialOverrides()
         {
-            if (plasma == null || plasmaOpacityOverride < 0f) return;
+            if (plasma == null || (plasmaOpacityOverride < 0f && plasmaSurfaceOpacityOverride < 0f)) return;
             var renderer = plasma.GetComponent<Renderer>();
             if (renderer == null) return;
             var properties = new MaterialPropertyBlock();
             renderer.GetPropertyBlock(properties);
-            properties.SetFloat("_Alpha", Mathf.Clamp01(plasmaOpacityOverride));
+            if (plasmaOpacityOverride >= 0f)
+                properties.SetFloat("_Alpha", Mathf.Clamp01(plasmaOpacityOverride));
+            if (plasmaSurfaceOpacityOverride >= 0f)
+                properties.SetFloat("_SurfaceOpacity", Mathf.Clamp01(plasmaSurfaceOpacityOverride));
             renderer.SetPropertyBlock(properties);
         }
 

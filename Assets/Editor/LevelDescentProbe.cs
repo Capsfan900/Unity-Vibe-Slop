@@ -21,6 +21,7 @@ namespace VibeGame1.EditorTools
         static readonly List<ProjectileShooter> shooters = new List<ProjectileShooter>();
         static readonly List<SurgeTurret> turrets = new List<SurgeTurret>();
         static readonly StringBuilder log = new StringBuilder();
+        static readonly HashSet<Projectile> recordedCueContacts = new HashSet<Projectile>();
         static bool running, withParries, launched, oldInvulnerable, reached, jumpTrial, jumpRequested;
         static float started, launchTime, nextSample, maxSpeed, worstDelta, endSlideZ;
         static int lastFrame, airborneFrames;
@@ -85,6 +86,7 @@ namespace VibeGame1.EditorTools
             launched = reached = jumpRequested = false; jumpTrial = testJumpCancel;
             endSlideZ = float.NaN; lastFrame = -1; airborneFrames = 0;
             withParries = automaticParries; result = "Running"; log.Clear();
+            recordedCueContacts.Clear();
             log.AppendLine("Real motor descent; automaticParries=" + withParries + "; entry impulse applied ONCE.");
             running = true; EditorApplication.update += Tick;
             return result;
@@ -98,6 +100,11 @@ namespace VibeGame1.EditorTools
             lastFrame = Time.frameCount;
             try
             {
+                if (GameManager.I == null || GameManager.I.State == GameState.Paused)
+                {
+                    Finish("INTERRUPTED: stale or paused play session; not a movement failure");
+                    return;
+                }
                 float elapsed = Time.unscaledTime - started;
                 if (health != null && health.IsDead)
                 {
@@ -124,10 +131,15 @@ namespace VibeGame1.EditorTools
                 if (!motor.IsGrounded) airborneFrames++;
                 if (!motor.IsSliding && float.IsNaN(endSlideZ)) endSlideZ = motor.transform.position.z;
                 if (withParries && parry.Current == ParryController.State.Idle && !combat.IsStaggered &&
-                    !combat.IsExecuting && !combat.IsDrinking && BoltRegistry.AnyImpactBefore(Time.time + 0.12f))
+                    // Closing-rate ETA approximates a curved flight. Keep the automated input inside
+                    // the perfect window with margin for that estimate and one editor update.
+                    !combat.IsExecuting && !combat.IsDrinking && BoltRegistry.AnyImpactBefore(Time.time + 0.08f))
                     parry.StartParry();
                 if (opening && withParries)
                 {
+                    foreach (var bolt in UnityEngine.Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None))
+                        if (bolt.CueAt >= 0f && bolt.ArrivedAt >= 0f && recordedCueContacts.Add(bolt))
+                            log.AppendLine(string.Format("Cue to contact: {0:0.000} s (world time)", bolt.ArrivedAt - bolt.CueAt));
                     int currentGrants = turrets.Sum(s => ReferenceEquals(s, null) ? 0 : s.SurgesGranted);
                     if (currentGrants != recordedGrants)
                     {

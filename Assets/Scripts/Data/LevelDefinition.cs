@@ -398,6 +398,10 @@ namespace VibeGame1
                  "frontal shot before moving on. This prevents one blocked member from silencing the row.")]
         public float readinessTimeout = 1.1f;
 
+        [Tooltip("After a launched bolt remains unresolved this long, retire only that incoming bolt and " +
+                 "continue the sequence. Zero preserves the legacy wait-for-projectile-lifetime behavior.")]
+        public float shotResolutionTimeout = 0f;
+
         [Tooltip("World-space origin for optional per-member progress gates.")]
         public Vector3 progressOrigin;
 

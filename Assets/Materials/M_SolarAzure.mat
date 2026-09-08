@@ -31,6 +31,7 @@ Material:
     - _FlowSpeed: 0.7
     - _Pulse: 0.16
     - _RimPower: 2.2
+    - _SurfaceOpacity: 0.92
     m_Colors:
     - _BandColor: {r: 0.28568628, g: 0.6503921, b: 1.55, a: 1.55}
     - _CoreColor: {r: 0.069019616, g: 0.1854902, b: 0.47882354, a: 1.1}

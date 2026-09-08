@@ -4732,6 +4732,9 @@ namespace VibeGame1
                     "wide cylinder must use a thin disc collider, never a stretched capsule");
                 var ceilingSpin = portal.realmBoundsCenter != null
                     ? portal.realmBoundsCenter.GetComponent<SolarArenaVisual>() : null;
+                Check("Structure_" + portal.name + "_CeilingKeepsAdditiveGlow",
+                    ceilingSpin != null && Mathf.Approximately(ceilingSpin.plasmaSurfaceOpacityOverride, 0f)
+                    && Mathf.Approximately(ceilingSpin.plasmaOpacityOverride, 0.20f));
                 Check("Structure_" + portal.name + "_CeilingCannotTiltIntoCombat",
                     ceilingSpin != null && ceilingSpin.plasma != null &&
                     Mathf.Abs(ceilingSpin.plasmaDegreesPerSecond.x) < 0.001f &&

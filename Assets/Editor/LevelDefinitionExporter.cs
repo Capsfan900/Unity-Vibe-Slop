@@ -148,6 +148,7 @@ namespace VibeGame1.EditorTools
                     spawnerNames = volley.SpawnerNames,
                     recoveryGap = volley.RecoveryGap,
                     readinessTimeout = volley.ReadinessTimeout,
+                    shotResolutionTimeout = volley.ShotResolutionTimeout,
                     progressOrigin = volley.ProgressOrigin,
                     progressDirection = volley.ProgressDirection,
                     memberProgressGates = volley.MemberProgressGates

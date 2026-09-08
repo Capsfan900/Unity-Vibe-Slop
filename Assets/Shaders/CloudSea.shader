@@ -12,6 +12,8 @@ Shader "VibeGame1/Cloud Sea"
         _WarpStrength ("Billow Warp", Range(0, 40)) = 14
         _DetailStrength ("Wisp Erosion", Range(0, 1)) = 0.26
         _EdgeFeather ("Edge Feather", Range(0.01, 0.3)) = 0.12
+        _HazeStart ("Cloud Haze Start", Float) = 80
+        _HazeEnd ("Cloud Haze End", Float) = 280
     }
 
     SubShader
@@ -51,6 +53,8 @@ Shader "VibeGame1/Cloud Sea"
                 float _WarpStrength;
                 float _DetailStrength;
                 float _EdgeFeather;
+                float _HazeStart;
+                float _HazeEnd;
             CBUFFER_END
 
             struct Attributes
@@ -159,7 +163,11 @@ Shader "VibeGame1/Cloud Sea"
                 half alpha = lerp(_DeepColor.a * 0.42, _CloudColor.a, body);
                 alpha = saturate(alpha + (outer - body) * 0.16 + crown * 0.04) * edgeFade;
 
-                color = MixFog(color, input.fogFactor);
+                // The high crest sees a broad ocean. Route fog must not erase its banks at 140 m;
+                // this scenery-only range settles into the same fog colour before the far clip.
+                float distanceToCamera = distance(input.positionWS, _WorldSpaceCameraPos);
+                float haze = smoothstep(_HazeStart, max(_HazeStart + 1.0, _HazeEnd), distanceToCamera);
+                color = lerp(color, unity_FogColor.rgb, haze);
                 return half4(color, alpha);
             }
             ENDHLSL
