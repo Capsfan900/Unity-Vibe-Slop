@@ -40,10 +40,7 @@ namespace VibeGame1.EditorTools
             new Route("Base", "T1_Stone_2", "T1_Stone_3"),
             new Route("Base", "T1_Stone_3", "T1_Stone_4"),
             new Route("Base", "T1_Stone_4", "T1_Causeway"),
-            new Route("Base", "T1_Causeway", "T1_Stone_5"),
-            new Route("Base", "T1_Stone_5", "T1_Arena"),
-            new Route("Base", "T1_Arena", "T2_Entry"),
-            new Route("Base", "T2_Entry", "T2_L1"),
+            // T1_Causeway launches into the T1 portal; its realm return is supported on T2_L1.
             new Route("Base", "T2_L1", "T2_L2"),
             new Route("Base", "T2_L2", "T2_L3"),
             new Route("Base", "T2_L3", "T2_L4"),
@@ -54,16 +51,14 @@ namespace VibeGame1.EditorTools
             new Route("Base", "T2_L8", "T2_L9"),
             new Route("Base", "T2_L9", "T2_L10"),
             new Route("Base", "T2_L10", "T2_L11"),
-            new Route("Base", "T2_L11", "T2_Bridge"),
-            new Route("Base", "T3_Entry", "T3_Pillar_1"),
+            // T2_L11 launches into the T2 portal; its realm return is T3_Pillar_1.
             new Route("Base", "T3_Pillar_1", "T3_Pillar_2"),
             new Route("Base", "T3_Pillar_2", "T3_Pillar_3"),
             new Route("Base", "T3_Pillar_3", "T3_Pillar_4"),
             new Route("Base", "T3_Pillar_4", "T3_Span"),
             new Route("Base", "T3_Span", "T3_Step_1"),
             new Route("Base", "T3_Step_1", "T3_Step_2"),
-            new Route("Base", "T3_Step_2", "T3_Step_3"),
-            new Route("Base", "T3_Step_3", "T3_Arena"),
+            // T3_Step_2 launches into the T3 portal; its realm return is supported on T4_Entry.
         };
 
         /// <summary>The optional, tech-gated lines. Each must be reachable WITH the tech.</summary>
@@ -190,7 +185,7 @@ namespace VibeGame1.EditorTools
             sb.AppendLine("BALLOON ARC  (pop = " + p.launchCarryCap + " m/s carry + the orb's launch, float " + p.launchFloatSeconds + " s)");
             if (def.balloons != null && def.balloons.Length > 0)
             {
-                var cv = LevelTraversalAnalyzer.AnalyzeChain(boxes, def.balloons, "T3_Entry", "T3_Span", p, floorY);
+                var cv = LevelTraversalAnalyzer.AnalyzeChain(boxes, def.balloons, "T3_Pillar_1", "T3_Span", p, floorY);
                 if (!cv.complete) fails++;
                 sb.AppendLine("  " + cv.Summary());
             }

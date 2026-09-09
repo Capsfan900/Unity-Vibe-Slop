@@ -50,9 +50,12 @@ namespace VibeGame1.Tests
         public void TheReworkIsIdempotent()
         {
             string once = LevelDefinitionAuthoring.Apply(def);
+            string serializedOnce = EditorJsonUtility.ToJson(def, true);
             int platforms = def.platforms.Length, balloons = def.balloons.Length, waters = def.waters.Length;
             string twice = LevelDefinitionAuthoring.Apply(def);
             Assert.AreEqual(once, twice);
+            Assert.AreEqual(serializedOnce, EditorJsonUtility.ToJson(def, true),
+                "a second authoring run changed serialized level data");
             Assert.AreEqual(platforms, def.platforms.Length, "a second run added perches");
             Assert.AreEqual(balloons, def.balloons.Length);
             Assert.AreEqual(waters, def.waters.Length);
@@ -121,7 +124,7 @@ namespace VibeGame1.Tests
         [Test]
         public void TheArcIsFlownFromTheEntryOntoTheSpan()
         {
-            var v = T.AnalyzeChain(boxes, def.balloons, "T3_Entry", "T3_Span", p, def.killZone.center.y);
+            var v = T.AnalyzeChain(boxes, def.balloons, "T3_Pillar_1", "T3_Span", p, def.killZone.center.y);
             Assert.IsTrue(v.complete, v.Summary());
             // The links between orbs must not need the dash — that is the rhythm; only the final fall
             // onto the span may spend it (docs/MOVEMENT-PRINCIPLES.md rule 5: the dash is the skill).
@@ -135,7 +138,7 @@ namespace VibeGame1.Tests
             // The orbs live west of the pillars; a hop's launch band is on the pillar tops. Every orb is
             // more than a body away from every pillar in plan.
             foreach (var o in def.balloons)
-                foreach (var name in new[] { "T3_Pillar_1", "T3_Pillar_2", "T3_Pillar_3", "T3_Pillar_4", "T3_Entry", "T3_Span" })
+                foreach (var name in new[] { "T3_Pillar_1", "T3_Pillar_2", "T3_Pillar_3", "T3_Pillar_4", "T3_Span" })
                 {
                     var b = Box(name);
                     float dx = Mathf.Max(b.min.x - o.position.x, o.position.x - b.max.x, 0f);

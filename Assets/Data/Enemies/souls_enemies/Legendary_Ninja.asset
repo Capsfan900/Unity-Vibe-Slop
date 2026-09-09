@@ -42,6 +42,8 @@ MonoBehaviour:
   rangedOnly: 0
   projectileAttack: {fileID: 0}
   projectileInterval: 2.4
+  projectileBurstCount: 1
+  projectileBurstInterval: 0.42
   projectileAcquireDelay: 0.7
   projectileSpeed: 18
   projectileMinRange: 6

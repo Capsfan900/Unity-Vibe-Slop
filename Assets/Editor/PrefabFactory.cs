@@ -48,7 +48,9 @@ namespace VibeGame1.EditorTools
             // pshooter_enemy01 is the GHOST (2026-09-06, user-directed): the same rig, the same timings,
             // the same collider — a different body. See BuildGhostBody.
             BuildEnemy("pshooter_enemy01", EnemyPaths.Data("pshooter_enemy01"), false, true);
-            BuildEnemy("pshooter_enemy02", EnemyPaths.Data("pshooter_enemy02"), false);
+            // The Heavy Sentry keeps the exact same ranged brain/collider as the original, but it now
+            // reads as a fixed reliquary rather than a melee pill carrying a blade.
+            BuildEnemy("pshooter_enemy02", EnemyPaths.Data("pshooter_enemy02"), false, EnemyBody.HeavySentry);
             // pshooter_enemy03 is the SURGE TURRET (2026-09-06, user-directed): a small round turret that
             // dies in one hit and pays a speed surge for every bolt you deflect. See BuildTurretBody and
             // SurgeTurret; it is the one enemy whose brain is a subclass other than the boss's.
@@ -1113,7 +1115,7 @@ namespace VibeGame1.EditorTools
         /// collider, same agent, same ArmPivot/WeaponPivot names, so every authored wind-up pose lands
         /// where it always did); only the geometry differs.
         /// </summary>
-        enum EnemyBody { Pill, Ghost, Turret }
+        enum EnemyBody { Pill, Ghost, HeavySentry, Turret }
 
         static void BuildEnemy(string name, string dataPath, bool isBoss) { BuildEnemy(name, dataPath, isBoss, EnemyBody.Pill); }
 
@@ -1181,6 +1183,7 @@ namespace VibeGame1.EditorTools
 
             var lungeRoot = Empty("LungeRoot", visual.transform, Vector3.zero);
             EnemyBodyParts parts = body == EnemyBody.Ghost ? BuildGhostBody(lungeRoot.transform, bodyMat)
+                                 : body == EnemyBody.HeavySentry ? BuildHeavySentryBody(lungeRoot.transform, bodyMat)
                                  : body == EnemyBody.Turret ? BuildTurretBody(lungeRoot.transform, bodyMat)
                                  : BuildPillBody(lungeRoot.transform, bodyMat);
 
@@ -1282,6 +1285,56 @@ namespace VibeGame1.EditorTools
         /// cost per instance. The ghost read is bought with the emission floor, the wavy hem and the mist.</item>
         /// </list>
         /// </summary>
+        // The preceding notes belong to BuildGhostBody below; this separator keeps their XML documentation
+        // from being attached to the Heavy Sentry builder.
+        /// <summary>
+        /// The Heavy Sentry is a broad, fixed reliquary for a perch, not a humanoid duellist. The root's
+        /// capsule, NavMeshAgent, ProjectileShooter and timing data remain the shared enemy contract.
+        /// The presentation is a split plinth, pinched waist and wide faceted upper mass framing three
+        /// recessed ember apertures. The core is the one renderer EnemyVisuals flashes on a deflect.
+        /// No arm geometry, melee blade, light, particle system or material instance is added.
+        /// </summary>
+        static EnemyBodyParts BuildHeavySentryBody(Transform lungeRoot, Material bodyMat)
+        {
+            var eyeMat = Mat("M_EnemyEye");
+            var stoneMat = Mat("M_ArchitecturalStone");
+            if (stoneMat == null) stoneMat = bodyMat;
+            var shell = Empty("HeavySentryBody", lungeRoot, Vector3.zero);
+
+            // Split stone feet establish a mounted silhouette; the central metal shoe pinches into a waist.
+            Prim(PrimitiveType.Cube, "StoneFootL", shell.transform, new Vector3(-0.54f, 0.14f, 0f), new Vector3(0.62f, 0.28f, 0.84f), stoneMat);
+            Prim(PrimitiveType.Cube, "StoneFootR", shell.transform, new Vector3(0.54f, 0.14f, 0f), new Vector3(0.62f, 0.28f, 0.84f), stoneMat);
+            Prim(PrimitiveType.Cylinder, "MetalShoe", shell.transform, new Vector3(0f, 0.32f, 0f), new Vector3(0.58f, 0.12f, 0.58f), bodyMat);
+            Prim(PrimitiveType.Cylinder, "NarrowWaist", shell.transform, new Vector3(0f, 0.66f, 0f), new Vector3(0.57f, 0.20f, 0.50f), bodyMat);
+
+            // The cylinder's planar sides provide the faceted mass; its broad ratio rejects the old pill read.
+            var core = Prim(PrimitiveType.Cylinder, "ReliquaryCore", shell.transform, new Vector3(0f, 1.28f, 0f),
+                            new Vector3(1.04f, 0.56f, 0.78f), bodyMat);
+            Prim(PrimitiveType.Cube, "Crown", shell.transform, new Vector3(0f, 1.88f, -0.02f), new Vector3(1.46f, 0.18f, 0.94f), stoneMat);
+            Prim(PrimitiveType.Cube, "CheekL", shell.transform, new Vector3(-0.96f, 1.26f, 0f), new Vector3(0.16f, 0.72f, 0.70f), stoneMat);
+            Prim(PrimitiveType.Cube, "CheekR", shell.transform, new Vector3(0.96f, 1.26f, 0f), new Vector3(0.16f, 0.72f, 0.70f), stoneMat);
+
+            // The plate is forward of the core, while three thin apertures sit into it rather than floating.
+            Prim(PrimitiveType.Cube, "FacePlate", shell.transform, new Vector3(0f, 1.30f, 0.76f), new Vector3(1.40f, 0.70f, 0.12f), stoneMat);
+            Prim(PrimitiveType.Cube, "FaceRecessL", shell.transform, new Vector3(-0.42f, 1.31f, 0.835f), new Vector3(0.18f, 0.30f, 0.05f), eyeMat);
+            var eye = Prim(PrimitiveType.Cube, "FaceRecessC", shell.transform, new Vector3(0f, 1.31f, 0.835f), new Vector3(0.20f, 0.34f, 0.05f), eyeMat);
+            Prim(PrimitiveType.Cube, "FaceRecessR", shell.transform, new Vector3(0.42f, 1.31f, 0.835f), new Vector3(0.18f, 0.30f, 0.05f), eyeMat);
+
+            // Empty standard pivots preserve the visual/controller contract without suggesting a melee move.
+            var shoulder = Empty("ArmPivot", shell.transform, new Vector3(0.5f, 1.45f, 0f));
+            var hand = Empty("WeaponPivot", shoulder.transform, new Vector3(0f, -0.56f, 0f));
+
+            return new EnemyBodyParts
+            {
+                body = core.GetComponent<Renderer>(),
+                eye = eye.GetComponent<Renderer>(),
+                weapon = null,
+                armPivot = shoulder.transform,
+                weaponPivot = hand.transform,
+            };
+        }
+
+        /// <summary>Builds the pale floating pshooter_enemy01 body.</summary>
         static EnemyBodyParts BuildGhostBody(Transform lungeRoot, Material bodyMat)
         {
             var ghostMat = Mat("M_SentryGhost");

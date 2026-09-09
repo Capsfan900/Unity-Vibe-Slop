@@ -63,22 +63,22 @@ MonoBehaviour:
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Causeway
-    center: {x: -1.5, y: 1.5, z: 54}
-    size: {x: 6, y: 1, z: 22}
+    center: {x: -1.5, y: 1.5, z: 53.65}
+    size: {x: 6, y: 1, z: 21.3}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Rail_L
-    center: {x: -4.6, y: 2.325, z: 54}
-    size: {x: 0.2, y: 0.65, z: 22}
+    center: {x: -4.6, y: 2.325, z: 53.55}
+    size: {x: 0.2, y: 0.65, z: 21.1}
     materialKey: NeonCyan
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Rail_R
-    center: {x: 1.6, y: 2.325, z: 54}
-    size: {x: 0.2, y: 0.65, z: 22}
+    center: {x: 1.6, y: 2.325, z: 53.55}
+    size: {x: 0.2, y: 0.65, z: 21.1}
     materialKey: NeonCyan
     trim: 0
     trimMaterialKey: NeonPink
@@ -90,31 +90,10 @@ MonoBehaviour:
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T1_Obelisk_E
-    center: {x: 8, y: 3.5, z: 66.5}
-    size: {x: 1.2, y: 7, z: 1.2}
-    materialKey: Stone
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
   - name: T1_Fallen_Obelisk
     center: {x: -1.5, y: 3.7, z: 49}
     size: {x: 7, y: 0.8, z: 1.2}
     materialKey: Stone
-    trim: 1
-    trimMaterialKey: NeonCyan
-    isStatic: 1
-  - name: T1_Stone_5
-    center: {x: 0, y: 2.5, z: 70}
-    size: {x: 5, y: 1, z: 5}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonCyan
-    isStatic: 1
-  - name: T1_Arena
-    center: {x: 0, y: 3.5, z: 87}
-    size: {x: 26, y: 1, z: 26}
-    materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
@@ -133,528 +112,269 @@ MonoBehaviour:
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T1_Wall_Landing
-    center: {x: 4.6, y: 2, z: 64.5}
-    size: {x: 4, y: 1, z: 10}
+    center: {x: 4.6, y: 2, z: 61.75}
+    size: {x: 4, y: 1, z: 4.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: Wall_T1_W
-    center: {x: -13.25, y: 6, z: 87}
-    size: {x: 0.5, y: 4, z: 26}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T1_E
-    center: {x: 13.25, y: 6, z: 87}
-    size: {x: 0.5, y: 4, z: 26}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T1_S_L
-    center: {x: -8.75, y: 6, z: 73.75}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T1_S_R
-    center: {x: 8.75, y: 6, z: 73.75}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T1_N_L
-    center: {x: -8.75, y: 6, z: 100.25}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T1_N_R
-    center: {x: 8.75, y: 6, z: 100.25}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: T2_Entry
-    center: {x: 0, y: 3.5, z: 105}
-    size: {x: 8, y: 1, z: 8}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonYellow
-    isStatic: 1
   - name: T2_Tower
-    center: {x: 0, y: 12, z: 124}
+    center: {x: 3, y: 12, z: 162}
     size: {x: 4, y: 20, z: 5}
     materialKey: Ground
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_Buttress
-    center: {x: 4.6, y: 10.2, z: 122.5}
+    center: {x: 7.6, y: 10.2, z: 160.5}
     size: {x: 0.8, y: 7.4, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T2_L1
-    center: {x: 7, y: 4.5, z: 115.5}
-    size: {x: 4.8, y: 1, z: 8}
+    center: {x: 10, y: 4.5, z: 151.375}
+    size: {x: 8, y: 1, z: 10}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L2
-    center: {x: 7.25, y: 6, z: 124}
-    size: {x: 4.5, y: 1, z: 5}
+    center: {x: 11, y: 6, z: 162}
+    size: {x: 6, y: 1, z: 6.25}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_L3
-    center: {x: 0, y: 7.5, z: 131}
-    size: {x: 7, y: 1, z: 5}
+    center: {x: 0.5, y: 7.5, z: 170}
+    size: {x: 13, y: 1, z: 7}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L4
-    center: {x: -7, y: 9, z: 124}
-    size: {x: 4.8, y: 1, z: 5}
+    center: {x: -10, y: 9, z: 162}
+    size: {x: 8, y: 1, z: 7.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L5
-    center: {x: -7, y: 10.5, z: 116}
-    size: {x: 4.8, y: 1, z: 5}
+    center: {x: -10, y: 10.5, z: 152}
+    size: {x: 8, y: 1, z: 7.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L6
-    center: {x: 0, y: 12, z: 111}
-    size: {x: 5, y: 1, z: 7}
+    center: {x: 0, y: 12, z: 149.5}
+    size: {x: 7.8, y: 1, z: 8.75}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L7
-    center: {x: 7, y: 13.5, z: 116}
-    size: {x: 4.8, y: 1, z: 5}
+    center: {x: 10, y: 13.5, z: 152}
+    size: {x: 8, y: 1, z: 7.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L8
-    center: {x: 7.25, y: 15, z: 124}
-    size: {x: 4.5, y: 1, z: 5}
+    center: {x: 11, y: 15, z: 162}
+    size: {x: 6, y: 1, z: 7.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_L9
-    center: {x: 0, y: 16.5, z: 131}
-    size: {x: 7, y: 1, z: 5}
+    center: {x: 0.5, y: 16.5, z: 170}
+    size: {x: 13, y: 1, z: 7}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_L10
-    center: {x: 5, y: 18, z: 136}
-    size: {x: 4, y: 1, z: 4}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonYellow
-    isStatic: 1
-  - name: T2_L11
-    center: {x: 0, y: 19.5, z: 142}
+    center: {x: 8, y: 18, z: 178}
     size: {x: 6, y: 1, z: 6}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_Bridge
-    center: {x: 0, y: 19.5, z: 150}
-    size: {x: 4, y: 1, z: 10}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonYellow
-    isStatic: 1
-  - name: T2_Bridge_Rail_L
-    center: {x: -2.1, y: 20.325, z: 150}
-    size: {x: 0.2, y: 0.65, z: 10}
-    materialKey: NeonYellow
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: T2_Bridge_Rail_R
-    center: {x: 2.1, y: 20.325, z: 150}
-    size: {x: 0.2, y: 0.65, z: 10}
-    materialKey: NeonYellow
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: T2_Arena
-    center: {x: 0, y: 19.5, z: 170}
-    size: {x: 28, y: 1, z: 28}
+  - name: T2_L11
+    center: {x: 0, y: 19.5, z: 188}
+    size: {x: 10, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
   - name: T2_Wall_East
-    center: {x: 11.1, y: 5.5, z: 123.5}
+    center: {x: 15.7, y: 5.5, z: 161.5}
     size: {x: 1.2, y: 9, z: 21}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_Wall_Landing_East
-    center: {x: 6.8, y: 7.5, z: 137.5}
+    center: {x: 11.4, y: 7.5, z: 175.5}
     size: {x: 5.6, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_Wall_West
-    center: {x: -11.2, y: 10.5, z: 115}
+    center: {x: -15.8, y: 10.5, z: 153}
     size: {x: 1.2, y: 9, z: 22}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T2_Wall_Landing_West
-    center: {x: -7.05, y: 12, z: 101.75}
-    size: {x: 5.1, y: 1, z: 9.5}
+    center: {x: -10.8, y: 12, z: 139.75}
+    size: {x: 6.8, y: 1, z: 9.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: Wall_T2_W
-    center: {x: -14.25, y: 22, z: 170}
-    size: {x: 0.5, y: 4, z: 28}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T2_E
-    center: {x: 14.25, y: 22, z: 170}
-    size: {x: 0.5, y: 4, z: 28}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T2_S_L
-    center: {x: -9.25, y: 22, z: 155.75}
-    size: {x: 9.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T2_S_R
-    center: {x: 9.25, y: 22, z: 155.75}
-    size: {x: 9.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T2_N_L
-    center: {x: -9.25, y: 22, z: 184.25}
-    size: {x: 9.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T2_N_R
-    center: {x: 9.25, y: 22, z: 184.25}
-    size: {x: 9.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: T3_Entry
-    center: {x: 0, y: 19.5, z: 189}
-    size: {x: 8, y: 1, z: 8}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonRed
-    isStatic: 1
   - name: T3_Pillar_1
-    center: {x: 0, y: 15.5, z: 198}
-    size: {x: 3.5, y: 12, z: 3.5}
+    center: {x: 2.75, y: 15.5, z: 268}
+    size: {x: 9, y: 12, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Pillar_2
-    center: {x: 3.5, y: 16.5, z: 203}
-    size: {x: 2.5, y: 12, z: 2.5}
+    center: {x: 5, y: 16.5, z: 274.5}
+    size: {x: 10.5, y: 12, z: 4}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Pillar_3
-    center: {x: -3, y: 17.5, z: 208}
-    size: {x: 2.5, y: 12, z: 2.5}
+    center: {x: -5, y: 17.5, z: 281}
+    size: {x: 10.5, y: 12, z: 4}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Pillar_4
-    center: {x: 0, y: 18.5, z: 213}
-    size: {x: 3, y: 12, z: 3}
+    center: {x: 0, y: 18.5, z: 287.5}
+    size: {x: 6, y: 12, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Span
-    center: {x: 0, y: 24, z: 226}
-    size: {x: 4.8, y: 1, z: 22}
+    center: {x: 0, y: 24, z: 304}
+    size: {x: 9.6, y: 1, z: 26}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Fallen_Lintel
-    center: {x: 0, y: 26.15, z: 222}
-    size: {x: 5, y: 0.8, z: 1.2}
+    center: {x: 0, y: 26.15, z: 296}
+    size: {x: 9.8, y: 0.8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Obelisk_W1
-    center: {x: -5, y: 22, z: 222}
+    center: {x: -8, y: 22, z: 296}
     size: {x: 1.2, y: 10, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T3_Obelisk_E1
-    center: {x: 5, y: 22, z: 222}
+    center: {x: 8, y: 22, z: 296}
     size: {x: 1.2, y: 10, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T3_Obelisk_W2
-    center: {x: -5, y: 22, z: 232}
+    center: {x: -8, y: 22, z: 307.5}
     size: {x: 1.2, y: 10, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T3_Obelisk_E2
-    center: {x: 5, y: 22, z: 232}
+    center: {x: 8, y: 22, z: 307.5}
     size: {x: 1.2, y: 10, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T3_Recovery_W1
-    center: {x: -3.4, y: 20, z: 221}
+    center: {x: -5.8, y: 20, z: 295}
     size: {x: 1.2, y: 8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Recovery_E1
-    center: {x: 3.4, y: 20, z: 221}
+    center: {x: 5.8, y: 20, z: 295}
     size: {x: 1.2, y: 8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Recovery_W2
-    center: {x: -3.4, y: 20, z: 231}
+    center: {x: -5.8, y: 20, z: 306.5}
     size: {x: 1.2, y: 8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Recovery_E2
-    center: {x: 3.4, y: 20, z: 231}
+    center: {x: 5.8, y: 20, z: 306.5}
     size: {x: 1.2, y: 8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Step_1
-    center: {x: 3, y: 25, z: 241}
-    size: {x: 4, y: 1, z: 4}
+    center: {x: 3, y: 25, z: 321}
+    size: {x: 12, y: 1, z: 6}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Step_2
-    center: {x: -3, y: 26.5, z: 247}
-    size: {x: 4, y: 1, z: 4}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonRed
-    isStatic: 1
-  - name: T3_Step_3
-    center: {x: 0, y: 27.5, z: 253}
-    size: {x: 5, y: 1, z: 5}
+    center: {x: -3, y: 26.5, z: 329}
+    size: {x: 12, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
   - name: T3_Wall_Pillars
-    center: {x: 7.1, y: 22.5, z: 198.5}
-    size: {x: 1.2, y: 7, z: 16}
+    center: {x: 12.6, y: 22.5, z: 272}
+    size: {x: 1.2, y: 7, z: 23}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T3_Wall_Landing_S
-    center: {x: 5.5, y: 22.5, z: 210.5}
-    size: {x: 6, y: 1, z: 7}
+    center: {x: 10, y: 22.5, z: 287.25}
+    size: {x: 8, y: 1, z: 6.5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
   - name: T3_Wall_Span
-    center: {x: 7.6, y: 26, z: 224.5}
-    size: {x: 1.2, y: 8, z: 20}
+    center: {x: 13.1, y: 26, z: 302.5}
+    size: {x: 1.2, y: 8, z: 23}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T3_Arena
-    center: {x: 0, y: 27.5, z: 270}
-    size: {x: 26, y: 1, z: 26}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonRed
-    isStatic: 1
-  - name: Wall_T3_W
-    center: {x: -13.25, y: 30, z: 270}
-    size: {x: 0.5, y: 4, z: 26}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T3_E
-    center: {x: 13.25, y: 30, z: 270}
-    size: {x: 0.5, y: 4, z: 26}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T3_S_L
-    center: {x: -8.75, y: 30, z: 256.75}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T3_S_R
-    center: {x: 8.75, y: 30, z: 256.75}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T3_N_L
-    center: {x: -8.75, y: 30, z: 283.25}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_T3_N_R
-    center: {x: 8.75, y: 30, z: 283.25}
-    size: {x: 8.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
   - name: Boss_Approach
-    center: {x: 0, y: 15.5, z: 358.8}
-    size: {x: 10, y: 1, z: 24.4}
+    center: {x: 0, y: 15.5, z: 448.3}
+    size: {x: 10, y: 1, z: 11.4}
     materialKey: Platform
     trim: 1
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Boss_Arena
-    center: {x: 0, y: 15.5, z: 390}
-    size: {x: 38, y: 1, z: 38}
-    materialKey: Platform
-    trim: 1
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_Boss_W
-    center: {x: -19.25, y: 18, z: 390}
-    size: {x: 0.5, y: 4, z: 38}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_Boss_E
-    center: {x: 19.25, y: 18, z: 390}
-    size: {x: 0.5, y: 4, z: 38}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_Boss_S_L
-    center: {x: -11.75, y: 18, z: 370.75}
-    size: {x: 14.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_Boss_S_R
-    center: {x: 11.75, y: 18, z: 370.75}
-    size: {x: 14.5, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_Boss_N_L
-    center: {x: -11, y: 18, z: 409.25}
-    size: {x: 16, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Wall_Boss_N_R
-    center: {x: 11, y: 18, z: 409.25}
-    size: {x: 16, y: 4, z: 0.5}
-    materialKey: Ground
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Pillar_Boss_307_-16
-    center: {x: -16, y: 19, z: 377}
-    size: {x: 1.5, y: 8, z: 1.5}
-    materialKey: Stone
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Pillar_Boss_307_16
-    center: {x: 16, y: 19, z: 377}
-    size: {x: 1.5, y: 8, z: 1.5}
-    materialKey: Stone
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Pillar_Boss_333_-16
-    center: {x: -16, y: 19, z: 403}
-    size: {x: 1.5, y: 8, z: 1.5}
-    materialKey: Stone
-    trim: 0
-    trimMaterialKey: NeonPink
-    isStatic: 1
-  - name: Pillar_Boss_333_16
-    center: {x: 16, y: 19, z: 403}
-    size: {x: 1.5, y: 8, z: 1.5}
-    materialKey: Stone
-    trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Perch_W
@@ -665,63 +385,63 @@ MonoBehaviour:
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T1_Perch_E
-    center: {x: 16, y: 3.5, z: 60}
+    center: {x: 20, y: 3.5, z: 54}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T2_Perch_W
-    center: {x: -7.5, y: 4, z: 110.5}
+    center: {x: -10.5, y: 4, z: 146.5}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T2_Perch_E
-    center: {x: 13.8, y: 10.5, z: 129}
+    center: {x: 18.4, y: 10.5, z: 172}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T3_Perch_W
-    center: {x: -7.5, y: 24, z: 217.5}
+    center: {x: -15, y: 24, z: 291.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T3_Perch_E
-    center: {x: 11, y: 31, z: 227.5}
+    center: {x: 17.5, y: 31, z: 310}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T4_Entry
-    center: {x: 0, y: 27.5, z: 291}
-    size: {x: 10, y: 1, z: 16}
+    center: {x: 0, y: 27.5, z: 393.15}
+    size: {x: 10, y: 1, z: 3.7}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T4_TurretPad_1
-    center: {x: 6.7, y: 21.199997, z: 324}
+    center: {x: 6.7, y: 21.199997, z: 420}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T4_TurretPad_2
-    center: {x: 6.7, y: 16.699997, z: 342}
+    center: {x: 6.7, y: 16.699997, z: 438}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
   - name: T4_TurretPad_3
-    center: {x: 6.7, y: 15.5, z: 360}
+    center: {x: 6.7, y: 15.5, z: 450}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
@@ -861,25 +581,25 @@ MonoBehaviour:
     materialKey: Stone
     isStatic: 1
   - name: T2_Ramp_L2_L3
-    basePosition: {x: 6, y: 6.5, z: 125.6}
-    width: 4
-    run: 5.83
+    basePosition: {x: 10, y: 6.5, z: 163.8}
+    width: 3.8
+    run: 8.668331
     rise: 1.5
     thickness: 0.5
-    yaw: 329
+    yaw: -39.382435
     materialKey: Stone
     isStatic: 1
   - name: T2_Ramp_L8_L9
-    basePosition: {x: 6.5, y: 15.5, z: 125.6}
-    width: 3
-    run: 5.45
+    basePosition: {x: 10.5, y: 15.5, z: 163.8}
+    width: 3.2
+    run: 7.5006604
     rise: 1.5
     thickness: 0.5
-    yaw: 313
+    yaw: -47.161133
     materialKey: Stone
     isStatic: 1
   - name: T4_Ramp_Descent
-    basePosition: {x: 0, y: 28, z: 298.8}
+    basePosition: {x: 0, y: 28, z: 394.8}
     width: 10
     run: 48
     rise: -12
@@ -904,7 +624,7 @@ MonoBehaviour:
     isBoss: 0
   - name: Spawn_T1_GruntB
     prefabKey: pshooter_enemy01
-    position: {x: 16, y: 4.1, z: 60}
+    position: {x: 20, y: 4.1, z: 54}
     yaw: 270
     isBoss: 0
   - name: Spawn_Legendary_Ninja
@@ -914,12 +634,12 @@ MonoBehaviour:
     isBoss: 0
   - name: Spawn_T2_GruntA
     prefabKey: pshooter_enemy01
-    position: {x: 13.8, y: 11.1, z: 129}
+    position: {x: 18.4, y: 11.1, z: 172}
     yaw: 250
     isBoss: 0
   - name: Spawn_T2_GruntB
     prefabKey: pshooter_enemy01
-    position: {x: -7.5, y: 4.6, z: 110.5}
+    position: {x: -10.5, y: 4.6, z: 146.5}
     yaw: 90
     isBoss: 0
   - name: Spawn_Legendary_Knight
@@ -929,12 +649,12 @@ MonoBehaviour:
     isBoss: 0
   - name: Spawn_T3_Grunt
     prefabKey: pshooter_enemy01
-    position: {x: -7.5, y: 24.6, z: 217.5}
+    position: {x: -15, y: 24.6, z: 291.8}
     yaw: 60
     isBoss: 0
   - name: Spawn_T3_Heavy
     prefabKey: pshooter_enemy02
-    position: {x: 11, y: 31.6, z: 227.5}
+    position: {x: 17.5, y: 31.6, z: 310}
     yaw: 240
     isBoss: 0
   - name: Spawn_Legendary_Spellsword
@@ -949,17 +669,17 @@ MonoBehaviour:
     isBoss: 1
   - name: Spawn_T4_Surge_1
     prefabKey: pshooter_enemy03
-    position: {x: 6.7, y: 21.799997, z: 324}
+    position: {x: 6.7, y: 21.799997, z: 420}
     yaw: 210
     isBoss: 0
   - name: Spawn_T4_Surge_2
     prefabKey: pshooter_enemy03
-    position: {x: 6.7, y: 17.299997, z: 342}
+    position: {x: 6.7, y: 17.299997, z: 438}
     yaw: 210
     isBoss: 0
   - name: Spawn_T4_Surge_3
     prefabKey: pshooter_enemy03
-    position: {x: 6.7, y: 16.1, z: 360}
+    position: {x: 6.7, y: 16.1, z: 450}
     yaw: 210
     isBoss: 0
   - name: Spawn_T0_Surge_1
@@ -1002,19 +722,19 @@ MonoBehaviour:
     position: {x: -8, y: 5.2, z: 80}
   - name: Pickup_T2_Hook
     itemKey: Grapple
-    position: {x: 0, y: 5.2, z: 105}
+    position: {x: 8, y: 6.2, z: 151.375}
   - name: Pickup_T2_Surge
     itemKey: WallSurge
-    position: {x: 0, y: 13.7, z: 111}
+    position: {x: 0, y: 13.7, z: 149.5}
   - name: Pickup_T2_Hook_2
     itemKey: Grapple
     position: {x: -9, y: 21.2, z: 162}
   - name: Pickup_T3_Surge
     itemKey: WallSurge
-    position: {x: 0, y: 21.2, z: 189}
+    position: {x: 1, y: 22.7, z: 268}
   - name: Pickup_T3_Hook
     itemKey: Grapple
-    position: {x: 0, y: 25.7, z: 226}
+    position: {x: 0, y: 25.7, z: 304}
   - name: Pickup_T3_Surge_2
     itemKey: WallSurge
     position: {x: 8, y: 29.2, z: 261}
@@ -1026,14 +746,14 @@ MonoBehaviour:
     position: {x: 0, y: 0, z: 6}
     spawnOffset: {x: 0, y: 0.2, z: -3}
   - name: Checkpoint_2
-    position: {x: 0, y: 4, z: 105}
-    spawnOffset: {x: 0, y: 0.19999981, z: -2.5}
+    position: {x: 10, y: 5, z: 151.375}
+    spawnOffset: {x: 0, y: 0.2, z: 0}
   - name: Checkpoint_3
-    position: {x: 0, y: 20, z: 189}
-    spawnOffset: {x: 0, y: 0.20000076, z: -2.5}
+    position: {x: 2.75, y: 21.5, z: 268}
+    spawnOffset: {x: 0, y: 0.2, z: 0}
   - name: Checkpoint_4
-    position: {x: 0, y: 16, z: 361}
-    spawnOffset: {x: 0, y: 0.20000076, z: -3}
+    position: {x: 0, y: 16, z: 450}
+    spawnOffset: {x: 0, y: 0.2, z: -3}
   torches:
   - name: Torch_Start_SW
     basePosition: {x: -7, y: 0, z: -7}
@@ -1053,125 +773,70 @@ MonoBehaviour:
     basePosition: {x: 1.2, y: 2, z: 45}
   - name: Torch_T1_Causeway_N
     basePosition: {x: -1.2, y: 2, z: 63}
-  - name: Torch_T1_Arena_77_-11
-    basePosition: {x: -11, y: 4, z: 77}
-  - name: Torch_T1_Arena_77_11
-    basePosition: {x: 11, y: 4, z: 77}
-  - name: Torch_T1_Arena_97_-11
-    basePosition: {x: -11, y: 4, z: 97}
-  - name: Torch_T1_Arena_97_11
-    basePosition: {x: 11, y: 4, z: 97}
-  - name: Torch_T1_Arena_Gate_L
-    basePosition: {x: -5, y: 4, z: 76}
-  - name: Torch_T1_Arena_Gate_R
-    basePosition: {x: 5, y: 4, z: 76}
-  - name: Torch_T2_Entry_L
-    basePosition: {x: -3, y: 4, z: 105}
-  - name: Torch_T2_Entry_R
-    basePosition: {x: 3, y: 4, z: 105}
   - name: Torch_T2_Mid
-    basePosition: {x: 0, y: 12.5, z: 111}
+    basePosition: {x: -3.6, y: 12.5, z: 145.425}
   - name: Torch_T2_Buttress
-    basePosition: {x: 6, y: 6.5, z: 122.5}
+    basePosition: {x: 13.7, y: 6.5, z: 159.175}
   - name: Torch_T2_Top
-    basePosition: {x: 0, y: 20, z: 142}
-  - name: Torch_T2_Arena_159_-12
-    basePosition: {x: -12, y: 20, z: 159}
-  - name: Torch_T2_Arena_159_12
-    basePosition: {x: 12, y: 20, z: 159}
-  - name: Torch_T2_Arena_181_-12
-    basePosition: {x: -12, y: 20, z: 181}
-  - name: Torch_T2_Arena_181_12
-    basePosition: {x: 12, y: 20, z: 181}
-  - name: Torch_T2_Arena_Gate_L
-    basePosition: {x: -5, y: 20, z: 158}
-  - name: Torch_T2_Arena_Gate_R
-    basePosition: {x: 5, y: 20, z: 158}
-  - name: Torch_T3_Entry_L
-    basePosition: {x: -3, y: 20, z: 189}
-  - name: Torch_T3_Entry_R
-    basePosition: {x: 3, y: 20, z: 189}
+    basePosition: {x: -4.7, y: 20, z: 188}
   - name: Torch_T3_Span_S
-    basePosition: {x: 1.5, y: 24.5, z: 217}
+    basePosition: {x: -4.5, y: 24.5, z: 291.3}
   - name: Torch_T3_Span_N
-    basePosition: {x: -1.5, y: 24.5, z: 235}
-  - name: Torch_T3_Arena_260_-11
-    basePosition: {x: -11, y: 28, z: 260}
-  - name: Torch_T3_Arena_260_11
-    basePosition: {x: 11, y: 28, z: 260}
-  - name: Torch_T3_Arena_280_-11
-    basePosition: {x: -11, y: 28, z: 280}
-  - name: Torch_T3_Arena_280_11
-    basePosition: {x: 11, y: 28, z: 280}
-  - name: Torch_T3_Arena_Gate_L
-    basePosition: {x: -5, y: 28, z: 259}
-  - name: Torch_T3_Arena_Gate_R
-    basePosition: {x: 5, y: 28, z: 259}
-  - name: Torch_Boss_304_-16
-    basePosition: {x: -16, y: 16, z: 374}
-  - name: Torch_Boss_304_16
-    basePosition: {x: 16, y: 16, z: 374}
-  - name: Torch_Boss_336_-16
-    basePosition: {x: -16, y: 16, z: 406}
-  - name: Torch_Boss_336_16
-    basePosition: {x: 16, y: 16, z: 406}
-  - name: Torch_Boss_W
-    basePosition: {x: -17.5, y: 16, z: 390}
-  - name: Torch_Boss_E
-    basePosition: {x: 17.5, y: 16, z: 390}
-  - name: Torch_Boss_Gate_L
-    basePosition: {x: -6, y: 16, z: 373}
-  - name: Torch_Boss_Gate_R
-    basePosition: {x: 6, y: 16, z: 373}
+    basePosition: {x: 4.5, y: 24.5, z: 316.7}
   - name: Torch_Beacon_T1_Causeway_1
     basePosition: {x: -4.2, y: 2, z: 51}
   - name: Torch_Beacon_T1_Causeway_2
     basePosition: {x: -4.2, y: 2, z: 57}
   - name: Torch_Beacon_T2_L3
-    basePosition: {x: -3.2, y: 8, z: 132.8}
+    basePosition: {x: -5.7, y: 8, z: 173.2}
   - name: Torch_Beacon_T2_L4
-    basePosition: {x: -8.8, y: 9.5, z: 122.2}
+    basePosition: {x: -13.7, y: 9.5, z: 158.55}
   - name: Torch_Beacon_T2_L5
-    basePosition: {x: -8.8, y: 11, z: 114.2}
+    basePosition: {x: -13.7, y: 11, z: 148.55}
   - name: Torch_Beacon_T2_L7
-    basePosition: {x: 8.8, y: 14, z: 117.6}
+    basePosition: {x: 13.7, y: 14, z: 148.55}
   - name: Torch_Beacon_T2_L8
-    basePosition: {x: 8.9, y: 15.5, z: 125.6}
+    basePosition: {x: 13.7, y: 15.5, z: 165.45}
   - name: Torch_Beacon_T2_L9
-    basePosition: {x: -3.2, y: 17, z: 132.5}
+    basePosition: {x: -5.7, y: 17, z: 173.2}
   - name: Torch_Beacon_T2_L10
-    basePosition: {x: 6.7, y: 18.5, z: 137.5}
+    basePosition: {x: 10.7, y: 18.5, z: 180.7}
   - name: Torch_Beacon_T3_Pillar_1
-    basePosition: {x: -1, y: 21.5, z: 197.2}
+    basePosition: {x: -1.45, y: 21.5, z: 265.8}
   - name: Torch_Beacon_T3_Pillar_3
-    basePosition: {x: -4, y: 23.5, z: 206.9}
+    basePosition: {x: -9.95, y: 23.5, z: 279.3}
   - name: Torch_Beacon_T3_Pillar_4
-    basePosition: {x: -1.2, y: 24.5, z: 214}
+    basePosition: {x: 2.7, y: 24.5, z: 289.7}
   - name: Torch_Beacon_Alt_T1_Landing
     basePosition: {x: 6.1, y: 2.5, z: 60}
   - name: Torch_Beacon_Alt_T2_East
-    basePosition: {x: 8.6, y: 8, z: 134}
+    basePosition: {x: 13.9, y: 8, z: 171.8}
   - name: Torch_Beacon_Alt_T2_West
-    basePosition: {x: -9.1, y: 12.5, z: 104}
+    basePosition: {x: -13.9, y: 12.5, z: 142}
   - name: Torch_Beacon_Alt_T3_S
-    basePosition: {x: 8, y: 23, z: 207.5}
+    basePosition: {x: 13.7, y: 23, z: 277.3}
   pedestals:
   - name: WandPedestal_Start
     groundPosition: {x: 3, y: 36, z: -162.3}
     triggerRadius: 3
   balloons:
   - name: T3_Arc_1
-    position: {x: -4, y: 23, z: 197}
+    position: {x: -6.5, y: 23, z: 267}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
   - name: T3_Arc_2
-    position: {x: -6.5, y: 26, z: 201.3}
+    position: {x: -11, y: 26, z: 270.4}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
   - name: T3_Arc_3
-    position: {x: -6, y: 29, z: 206.2}
+    position: {x: -13, y: 29, z: 275.6}
+    launchSpeed: 11
+    respawnSeconds: 2.5
+    radius: 1.1
+  - name: T3_Arc_4
+    position: {x: -12, y: 32, z: 281}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
@@ -1182,13 +847,13 @@ MonoBehaviour:
     flowDirection: {x: 0, y: 0, z: 1}
     flowSpeed: 6
   - name: T3_Water_Span
-    center: {x: 0, y: 24.52, z: 229.5}
-    size: {x: 3.6, y: 0.04, z: 13}
+    center: {x: 0, y: 24.52, z: 306.75}
+    size: {x: 8.4, y: 0.04, z: 17.5}
     flowDirection: {x: 0, y: 0, z: 1}
     flowSpeed: 6
   - name: T3_Water_Turn
-    center: {x: 0.8, y: 24.52, z: 236.2}
-    size: {x: 2.4, y: 0.04, z: 1.6}
+    center: {x: 0.8, y: 24.52, z: 315.8}
+    size: {x: 3.6, y: 0.04, z: 1.6}
     flowDirection: {x: 0.6, y: 0, z: 0.8}
     flowSpeed: 6
   arenas:
@@ -1196,30 +861,30 @@ MonoBehaviour:
     gateName: T1_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
-    gateOpenPosition: {x: 0, y: -0.5, z: 74.25}
-    gateClosedPosition: {x: 0, y: 6, z: 74.25}
+    gateOpenPosition: {x: 0, y: -0.5, z: 63.25}
+    gateClosedPosition: {x: 0, y: 6, z: 63.25}
     triggerName: T1_ArenaTrigger
-    triggerPosition: {x: 0, y: 6, z: 78}
+    triggerPosition: {x: 0, y: 6, z: 78.3}
     triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: Spawn_Legendary_Ninja
     hasExitGate: 1
     exitGateName: T1_Gate_Exit
     exitGateSize: {x: 9, y: 4, z: 0.5}
     exitGateMaterialKey: Gate
-    exitGateClosedPosition: {x: 0, y: 6, z: 99.75}
-    exitGateOpenPosition: {x: 0, y: -0.5, z: 99.75}
+    exitGateClosedPosition: {x: 0, y: 6, z: 145.625}
+    exitGateOpenPosition: {x: 0, y: -0.5, z: 145.625}
     solarRealm:
       enabled: 1
       themeMaterialKey: SolarCyan
-      exteriorCenter: {x: 0, y: 8.2, z: 87}
-      exteriorRadius: 12
+      exteriorCenter: {x: 0, y: 8.2, z: 87.3}
+      exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 0}
       realmFloorRadius: 20
       realmShellRadius: 30
       playerEntryPosition: {x: 700, y: 1.2, z: -13}
       playerEntryYaw: 0
-      retryPosition: {x: 0, y: 3.2, z: 70}
+      retryPosition: {x: 0, y: 2.2, z: 62}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Ninja
       enemySpawnPosition: {x: 700, y: 0.1, z: 4}
@@ -1228,36 +893,36 @@ MonoBehaviour:
       arenaPickupPosition: {x: 693, y: 1.2, z: -2}
       hasReturn: 1
       realmExitPosition: {x: 700, y: 1.5, z: -17.5}
-      returnPosition: {x: 0, y: 4.2, z: 102}
+      returnPosition: {x: 10, y: 5.2, z: 151.375}
       returnYaw: 0
   - enabled: 1
     gateName: T2_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
-    gateOpenPosition: {x: 0, y: 15.5, z: 156.25}
-    gateClosedPosition: {x: 0, y: 22, z: 156.25}
+    gateOpenPosition: {x: 0, y: 15.5, z: 191.75}
+    gateClosedPosition: {x: 0, y: 22, z: 191.75}
     triggerName: T2_ArenaTrigger
-    triggerPosition: {x: 0, y: 22, z: 160}
+    triggerPosition: {x: 0, y: 22, z: 206.8}
     triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: Spawn_Legendary_Knight
     hasExitGate: 1
     exitGateName: T2_Gate_Exit
     exitGateSize: {x: 9, y: 4, z: 0.5}
     exitGateMaterialKey: Gate
-    exitGateClosedPosition: {x: 0, y: 22, z: 183.75}
-    exitGateOpenPosition: {x: 0, y: 15.5, z: 183.75}
+    exitGateClosedPosition: {x: 0, y: 22, z: 264.75}
+    exitGateOpenPosition: {x: 0, y: 15.5, z: 264.75}
     solarRealm:
       enabled: 1
       themeMaterialKey: SolarGold
-      exteriorCenter: {x: 0, y: 24.55, z: 170}
-      exteriorRadius: 13
+      exteriorCenter: {x: 0, y: 24.55, z: 216.8}
+      exteriorRadius: 17
       visualRadius: 23
       realmCenter: {x: 700, y: 0, z: 80}
       realmFloorRadius: 20
       realmShellRadius: 30
       playerEntryPosition: {x: 700, y: 1.2, z: 67}
       playerEntryYaw: 0
-      retryPosition: {x: 0, y: 20.2, z: 150}
+      retryPosition: {x: 0, y: 20.2, z: 188}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Knight
       enemySpawnPosition: {x: 700, y: 0.1, z: 84}
@@ -1266,36 +931,36 @@ MonoBehaviour:
       arenaPickupPosition: {x: 693, y: 1.2, z: 78}
       hasReturn: 1
       realmExitPosition: {x: 700, y: 1.5, z: 62.5}
-      returnPosition: {x: 0, y: 20.2, z: 186}
+      returnPosition: {x: 2.75, y: 21.7, z: 268}
       returnYaw: 0
   - enabled: 1
     gateName: T3_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
-    gateOpenPosition: {x: 0, y: 23.5, z: 257.25}
-    gateClosedPosition: {x: 0, y: 30, z: 257.25}
+    gateOpenPosition: {x: 0, y: 23.5, z: 332.25}
+    gateClosedPosition: {x: 0, y: 30, z: 332.25}
     triggerName: T3_ArenaTrigger
-    triggerPosition: {x: 0, y: 30, z: 261}
+    triggerPosition: {x: 0, y: 30, z: 345.3}
     triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: Spawn_Legendary_Spellsword
     hasExitGate: 1
     exitGateName: T3_Gate_Exit
     exitGateSize: {x: 9, y: 4, z: 0.5}
     exitGateMaterialKey: Gate
-    exitGateClosedPosition: {x: 0, y: 30, z: 282.75}
-    exitGateOpenPosition: {x: 0, y: 23.5, z: 282.75}
+    exitGateClosedPosition: {x: 0, y: 30, z: 390.75}
+    exitGateOpenPosition: {x: 0, y: 23.5, z: 390.75}
     solarRealm:
       enabled: 1
       themeMaterialKey: SolarAzure
-      exteriorCenter: {x: 0, y: 32.2, z: 270}
-      exteriorRadius: 12
+      exteriorCenter: {x: 0, y: 32.2, z: 356.3}
+      exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 160}
       realmFloorRadius: 20
       realmShellRadius: 30
       playerEntryPosition: {x: 700, y: 1.2, z: 147}
       playerEntryYaw: 0
-      retryPosition: {x: 0, y: 28.2, z: 253}
+      retryPosition: {x: -3, y: 27.2, z: 329}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Spellsword
       enemySpawnPosition: {x: 700, y: 0.1, z: 164}
@@ -1304,16 +969,16 @@ MonoBehaviour:
       arenaPickupPosition: {x: 707, y: 1.2, z: 158}
       hasReturn: 1
       realmExitPosition: {x: 700, y: 1.5, z: 142.5}
-      returnPosition: {x: 0, y: 28.2, z: 286}
+      returnPosition: {x: 0, y: 28.2, z: 393.15}
       returnYaw: 0
   - enabled: 1
     gateName: Boss_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
-    gateOpenPosition: {x: 0, y: 11.5, z: 371.25}
-    gateClosedPosition: {x: 0, y: 18, z: 371.25}
+    gateOpenPosition: {x: 0, y: 11.5, z: 453.3}
+    gateClosedPosition: {x: 0, y: 18, z: 453.3}
     triggerName: Boss_ArenaTrigger
-    triggerPosition: {x: 0, y: 18, z: 375}
+    triggerPosition: {x: 0, y: 18, z: 471.3}
     triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: 
     hasExitGate: 0
@@ -1325,15 +990,15 @@ MonoBehaviour:
     solarRealm:
       enabled: 1
       themeMaterialKey: SolarGhost
-      exteriorCenter: {x: 0, y: 22.3, z: 390}
-      exteriorRadius: 18
+      exteriorCenter: {x: 0, y: 22.3, z: 486.3}
+      exteriorRadius: 25
       visualRadius: 31
       realmCenter: {x: 700, y: 0, z: 240}
       realmFloorRadius: 20
       realmShellRadius: 30
       playerEntryPosition: {x: 700, y: 1.2, z: 227}
       playerEntryYaw: 0
-      retryPosition: {x: 0, y: 16.2, z: 361}
+      retryPosition: {x: 0, y: 16.2, z: 450}
       retryYaw: 0
       enemySpawnerName: Spawn_Boss
       enemySpawnPosition: {x: 700, y: 0.1, z: 244}
@@ -1363,6 +1028,150 @@ MonoBehaviour:
     - 40
     - 64
     - 87
+    engagementWindows:
+    - spawnerName: Spawn_T0_Surge_1
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 3
+      arrivalStart: 3
+      arrivalEnd: 24
+    - spawnerName: Spawn_T0_Surge_2
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 3
+      arrivalStart: 20
+      arrivalEnd: 46
+    - spawnerName: Spawn_T0_Surge_3
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 3
+      arrivalStart: 42
+      arrivalEnd: 70
+    - spawnerName: Spawn_T0_Surge_4
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 9
+      arrivalStart: 66
+      arrivalEnd: 94
+    - spawnerName: Spawn_T0_Surge_5
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 9
+      arrivalStart: 90
+      arrivalEnd: 130
+  - name: T1_ParryRoute
+    spawnerNames:
+    - Spawn_T1_GruntA
+    - Spawn_T1_GruntB
+    recoveryGap: 0.11
+    readinessTimeout: 1.75
+    shotResolutionTimeout: 1.75
+    progressOrigin: {x: 0, y: 0, z: 0}
+    progressDirection: {x: 0, y: 0, z: 0}
+    memberProgressGates: []
+    engagementWindows:
+    - spawnerName: Spawn_T1_GruntA
+      routeStart: {x: -0.5, y: 2.7, z: 36}
+      routeEnd: {x: -1.5, y: 3.2, z: 62.65}
+      halfWidth: 8
+      heightTolerance: 3
+      arrivalStart: 3
+      arrivalEnd: 25.668756
+    - spawnerName: Spawn_T1_GruntB
+      routeStart: {x: -0.5, y: 2.7, z: 36}
+      routeEnd: {x: 4.6, y: 3.7, z: 63.25}
+      halfWidth: 8
+      heightTolerance: 3
+      arrivalStart: 3
+      arrivalEnd: 26.72314
+  - name: T2_ParryRoute
+    spawnerNames:
+    - Spawn_T2_GruntB
+    - Spawn_T2_GruntA
+    recoveryGap: 0.11
+    readinessTimeout: 1.75
+    shotResolutionTimeout: 1.75
+    progressOrigin: {x: 0, y: 0, z: 0}
+    progressDirection: {x: 0, y: 0, z: 0}
+    memberProgressGates: []
+    engagementWindows:
+    - spawnerName: Spawn_T2_GruntB
+      routeStart: {x: 10, y: 6.2, z: 148.375}
+      routeEnd: {x: 0.5, y: 9.2, z: 172}
+      halfWidth: 12
+      heightTolerance: 3.2
+      arrivalStart: 3
+      arrivalEnd: 24.463516
+    - spawnerName: Spawn_T2_GruntA
+      routeStart: {x: 10, y: 15.2, z: 150}
+      routeEnd: {x: 8, y: 19.7, z: 180}
+      halfWidth: 12
+      heightTolerance: 3.2
+      arrivalStart: 3
+      arrivalEnd: 29.066593
+  - name: T3_ParryRoute
+    spawnerNames:
+    - Spawn_T3_Grunt
+    - Spawn_T3_Heavy
+    recoveryGap: 0.11
+    readinessTimeout: 2.2
+    shotResolutionTimeout: 1.75
+    progressOrigin: {x: 0, y: 0, z: 0}
+    progressDirection: {x: 0, y: 0, z: 0}
+    memberProgressGates: []
+    engagementWindows:
+    - spawnerName: Spawn_T3_Grunt
+      routeStart: {x: 2.75, y: 22.7, z: 266}
+      routeEnd: {x: 0, y: 25.7, z: 294}
+      halfWidth: 16
+      heightTolerance: 8
+      arrivalStart: 3
+      arrivalEnd: 27.13472
+    - spawnerName: Spawn_T3_Heavy
+      routeStart: {x: 0, y: 25.7, z: 294}
+      routeEnd: {x: -3, y: 28.2, z: 332}
+      halfWidth: 12
+      heightTolerance: 8
+      arrivalStart: 4
+      arrivalEnd: 36.118237
+  - name: T4_SurgeRoute
+    spawnerNames:
+    - Spawn_T4_Surge_1
+    - Spawn_T4_Surge_2
+    - Spawn_T4_Surge_3
+    recoveryGap: 0.11
+    readinessTimeout: 1.35
+    shotResolutionTimeout: 1.75
+    progressOrigin: {x: 0, y: 0, z: 0}
+    progressDirection: {x: 0, y: 0, z: 0}
+    memberProgressGates: []
+    engagementWindows:
+    - spawnerName: Spawn_T4_Surge_1
+      routeStart: {x: 0, y: 29.2, z: 394.8}
+      routeEnd: {x: 0, y: 17.2, z: 453.3}
+      halfWidth: 6
+      heightTolerance: 4
+      arrivalStart: 5
+      arrivalEnd: 27
+    - spawnerName: Spawn_T4_Surge_2
+      routeStart: {x: 0, y: 29.2, z: 394.8}
+      routeEnd: {x: 0, y: 17.2, z: 453.3}
+      halfWidth: 6
+      heightTolerance: 4
+      arrivalStart: 22
+      arrivalEnd: 45
+    - spawnerName: Spawn_T4_Surge_3
+      routeStart: {x: 0, y: 29.2, z: 394.8}
+      routeEnd: {x: 0, y: 17.2, z: 453.3}
+      halfWidth: 6
+      heightTolerance: 4
+      arrivalStart: 38
+      arrivalEnd: 58
   sky:
     enabled: 1
     starCount: 1200
@@ -1374,5 +1183,5 @@ MonoBehaviour:
     eclipseDiameterDeg: 38
   killZone:
     name: KillZone
-    center: {x: 0, y: -30, z: 130}
-    size: {x: 200, y: 2, z: 640}
+    center: {x: 0, y: -30, z: 180}
+    size: {x: 240, y: 2, z: 760}

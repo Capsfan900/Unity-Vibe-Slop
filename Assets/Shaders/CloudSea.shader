@@ -38,7 +38,6 @@ Shader "VibeGame1/Cloud Sea"
             #pragma target 3.0
             #pragma vertex Vert
             #pragma fragment Frag
-            #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
@@ -68,7 +67,6 @@ Shader "VibeGame1/Cloud Sea"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 float2 uv : TEXCOORD1;
-                half fogFactor : TEXCOORD2;
             };
 
             float Hash21(float2 p)
@@ -120,7 +118,6 @@ Shader "VibeGame1/Cloud Sea"
                 output.positionWS = world;
                 output.positionCS = TransformWorldToHClip(world);
                 output.uv = input.uv;
-                output.fogFactor = ComputeFogFactor(output.positionCS.z);
                 return output;
             }
 
@@ -153,21 +150,27 @@ Shader "VibeGame1/Cloud Sea"
 
                 // Broad nested value bands make the centre of each lobe feel raised. No narrow field
                 // ever reaches the crown colour, so the result stays soft rather than outlined.
-                half3 color = lerp(_DeepColor.rgb, _CloudColor.rgb, body);
-                color = lerp(color, _CrestColor.rgb, crown * 0.58);
+                // A supported low field and compressed crown contrast read as depth in one bank,
+                // rather than isolated luminous brush strokes floating over a black plane.
+                half3 color = lerp(_DeepColor.rgb, _CloudColor.rgb, 0.10 + body * 0.78);
+                color = lerp(color, _CrestColor.rgb, crown * 0.38);
                 color *= lerp(0.88, 1.03, saturate(billowNoise * 0.85 + crown * 0.25));
 
                 float edgeDistance = min(min(input.uv.x, 1.0 - input.uv.x),
                                          min(input.uv.y, 1.0 - input.uv.y));
                 float edgeFade = smoothstep(0.0, max(0.001, _EdgeFeather), edgeDistance);
-                half alpha = lerp(_DeepColor.a * 0.42, _CloudColor.a, body);
-                alpha = saturate(alpha + (outer - body) * 0.16 + crown * 0.04) * edgeFade;
+                half alpha = lerp(_DeepColor.a, _CloudColor.a, outer);
+                alpha = saturate(alpha + (outer - body) * 0.16 + crown * 0.04);
 
                 // The high crest sees a broad ocean. Route fog must not erase its banks at 140 m;
                 // this scenery-only range settles into the same fog colour before the far clip.
                 float distanceToCamera = distance(input.positionWS, _WorldSpaceCameraPos);
                 float haze = smoothstep(_HazeStart, max(_HazeStart + 1.0, _HazeEnd), distanceToCamera);
                 color = lerp(color, unity_FogColor.rgb, haze);
+                // Fogged RGB alone still reveals stars and dark nebula discs through low-density
+                // banks. Full haze must replace the background, matching the sky's lower atmosphere
+                // when the far plane clips this world-space grid below the geometric horizon.
+                alpha = lerp(alpha, 1.0h, haze) * edgeFade;
                 return half4(color, alpha);
             }
             ENDHLSL

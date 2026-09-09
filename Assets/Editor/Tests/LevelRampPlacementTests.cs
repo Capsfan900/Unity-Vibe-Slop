@@ -153,28 +153,50 @@ namespace VibeGame1.Tests
             var boxes = A.BoxesFrom(def);
             foreach (var r in Authored())
             {
-                Quaternion rot = r.Rotation;
-                Vector3 h = r.BoxScale * 0.5f, c = r.BoxCenter;
-                Vector2 mn = new Vector2(float.MaxValue, float.MaxValue);
-                Vector2 mx = new Vector2(float.MinValue, float.MinValue);
-                for (int sx = -1; sx <= 1; sx += 2)
-                    for (int sy = -1; sy <= 1; sy += 2)
-                        for (int sz = -1; sz <= 1; sz += 2)
-                        {
-                            Vector3 p = c + rot * new Vector3(sx * h.x, sy * h.y, sz * h.z);
-                            mn = Vector2.Min(mn, new Vector2(p.x, p.z));
-                            mx = Vector2.Max(mx, new Vector2(p.x, p.z));
-                        }
                 foreach (var b in boxes)
                 {
                     if (b.name == null) continue;
                     if (b.name.IndexOf("_Wall", System.StringComparison.Ordinal) < 0 &&
                         !b.name.StartsWith("Wall_")) continue;
-                    bool overlap = mn.x < b.max.x && mx.x > b.min.x && mn.y < b.max.z && mx.y > b.min.z;
+                    bool overlap = FootprintsOverlap(r, b);
                     Assert.IsFalse(overlap, r.name + " overlaps " + b.name + " in plan; a ramp beside a " +
                         "wall-run wall steals the standoff the run needs");
                 }
             }
+        }
+
+        static bool FootprintsOverlap(RampDef ramp, A.Box box)
+        {
+            Quaternion rotation = ramp.Rotation;
+            Vector3 half = ramp.BoxScale * 0.5f;
+            Vector3[] basis3 = { rotation * Vector3.right, rotation * Vector3.up, rotation * Vector3.forward };
+            Vector2[] basis = {
+                new Vector2(basis3[0].x, basis3[0].z),
+                new Vector2(basis3[1].x, basis3[1].z),
+                new Vector2(basis3[2].x, basis3[2].z)
+            };
+            Vector2 boxCenter = new Vector2((box.min.x + box.max.x) * 0.5f,
+                                            (box.min.z + box.max.z) * 0.5f);
+            Vector2 boxHalf = new Vector2((box.max.x - box.min.x) * 0.5f,
+                                          (box.max.z - box.min.z) * 0.5f);
+            Vector2 delta = new Vector2(ramp.BoxCenter.x, ramp.BoxCenter.z) - boxCenter;
+            Vector2[] axes = {
+                Vector2.right, Vector2.up,
+                new Vector2(-basis[0].y, basis[0].x),
+                new Vector2(-basis[1].y, basis[1].x),
+                new Vector2(-basis[2].y, basis[2].x)
+            };
+            for (int i = 0; i < axes.Length; i++)
+            {
+                if (axes[i].sqrMagnitude < 1e-8f) continue;
+                Vector2 axis = axes[i].normalized;
+                float rampRadius = Mathf.Abs(Vector2.Dot(axis, basis[0])) * half.x +
+                                   Mathf.Abs(Vector2.Dot(axis, basis[1])) * half.y +
+                                   Mathf.Abs(Vector2.Dot(axis, basis[2])) * half.z;
+                float boxRadius = Mathf.Abs(axis.x) * boxHalf.x + Mathf.Abs(axis.y) * boxHalf.y;
+                if (Mathf.Abs(Vector2.Dot(delta, axis)) >= rampRadius + boxRadius) return false;
+            }
+            return true;
         }
     }
 }

@@ -33,21 +33,49 @@ namespace VibeGame1.EditorTools
 
         /// <summary>
         /// The span's wall-run lines. Each mounts its wall from the ledge that hugs it (1.1–1.6 m off the
-        /// run line — a deck any further off cannot reach the face before the arc falls below it, which
-        /// is why there is no line off <c>T2_Entry</c>), runs the length of a leg and lands +3 m up on a pad
+        /// run line — a deck any further off cannot reach the face before the arc falls below it), runs
+        /// the length of a leg and lands +3 m up on a pad
         /// level with the ledge two rungs on, which it then hops onto.
         /// </summary>
-        public static readonly S1.WallRunLine[] WallRunLines =
+        public static S1.WallRunLine[] WallRunLines
         {
-            new S1.WallRunLine("T2_L1", "T2_Wall_East", "T2_Wall_Landing_East", "T2_L3",
+            get { return WallRunLinesFor(AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelArcReport.DefaultLevel)); }
+        }
+
+        /// <summary>Builds launch rectangles from the authored wall faces, so translating the whole T2
+        /// section cannot leave report/test launch points behind in stale world coordinates.</summary>
+        public static S1.WallRunLine[] WallRunLinesFor(LevelDefinition def)
+        {
+            var east = new S1.WallRunLine("T2_L1", "T2_Wall_East", "T2_Wall_Landing_East", "T2_L3",
                 "THE EAST LINE. Off T2_L1 onto the curtain on your right, run north past T2_L2 and land " +
-                "level with T2_L3: the first leg of the spiral in one run")
-                .From(5f, 114f, 9f, 118f),
-            new S1.WallRunLine("T2_L4", "T2_Wall_West", "T2_Wall_Landing_West", "T2_L6",
+                "level with T2_L3: the first leg of the spiral in one run");
+            var west = new S1.WallRunLine("T2_L4", "T2_Wall_West", "T2_Wall_Landing_West", "T2_L6",
                 "THE WEST LINE. Off T2_L4 onto the wall on your right, run south past T2_L5 (and the grunt " +
-                "standing on it) and land level with T2_L6: the second leg, and the fight, skipped")
-                .From(-9f, 122f, -5f, 126f),
-        };
+                "standing on it) and land level with T2_L6: the second leg, and the fight, skipped");
+
+            PlatformDef eastWall = Find(def, "T2_Wall_East");
+            if (eastWall != null)
+            {
+                float face = eastWall.center.x - eastWall.size.x * 0.5f;
+                east = east.From(face - 5.5f, eastWall.center.z - 9.5f,
+                                 face - 1.5f, eastWall.center.z - 5.5f);
+            }
+            PlatformDef westWall = Find(def, "T2_Wall_West");
+            if (westWall != null)
+            {
+                float face = westWall.center.x + westWall.size.x * 0.5f;
+                west = west.From(face + 1.6f, westWall.center.z + 7f,
+                                 face + 5.6f, westWall.center.z + 11f);
+            }
+            return new[] { east, west };
+        }
+
+        static PlatformDef Find(LevelDefinition def, string name)
+        {
+            return def != null && def.platforms != null
+                ? Array.Find(def.platforms, p => p != null && p.name == name)
+                : null;
+        }
 
         [MenuItem("VibeGame1/Span 2 Wall-Run Report", priority = 303)]
         public static void Menu() { Run(); }
@@ -94,16 +122,17 @@ namespace VibeGame1.EditorTools
 
             int fails = 0;
             sb.AppendLine("THE LINES  (author against `longest`, never `best`)");
-            for (int i = 0; i < WallRunLines.Length; i++)
+            var lines = WallRunLinesFor(def);
+            for (int i = 0; i < lines.Length; i++)
             {
-                if (!S1.AppendWallRunLine(sb, boxes, p, floorY, WallRunLines[i])) fails++;
+                if (!S1.AppendWallRunLine(sb, boxes, p, floorY, lines[i])) fails++;
                 sb.AppendLine();
             }
 
             sb.AppendLine("THE SPIRAL BESIDE THE WALL  (base hops, unchanged)");
             string[][] hops =
             {
-                new[] { "T2_Entry", "T2_L1" }, new[] { "T2_L1", "T2_L2" }, new[] { "T2_L2", "T2_L3" },
+                new[] { "T2_L1", "T2_L2" }, new[] { "T2_L2", "T2_L3" },
                 new[] { "T2_L3", "T2_L4" }, new[] { "T2_L4", "T2_L5" }, new[] { "T2_L5", "T2_L6" },
                 new[] { "T2_L6", "T2_L7" }, new[] { "T2_L7", "T2_L8" }, new[] { "T2_L8", "T2_L9" },
                 new[] { "T2_L9", "T2_L10" },

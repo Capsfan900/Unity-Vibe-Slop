@@ -150,6 +150,7 @@ namespace VibeGame1.EditorTools
             var wandMenu = root.AddComponent<WandSelectMenu>();
             var settings = root.AddComponent<SettingsMenu>();
             var levelEditor = root.AddComponent<LevelEditor>();
+            var console = root.AddComponent<DeveloperConsole>();
 
             Transform t = root.transform;
 
@@ -610,6 +611,11 @@ namespace VibeGame1.EditorTools
             settings.pauseMenu = pause;
             settings.hideWhileOpen = pausePanel.gameObject;
 
+            // ---------------- Command console (`) ------------------------------------------------
+            // Built after every other overlay so it is always the front-most panel. It is intentionally
+            // compact: help / clear / editor unlock, not a second debug-menu hierarchy.
+            BuildDeveloperConsole(console, t);
+
             // ---------------- EventSystem (new Input System) ----------------
             var es = new GameObject("EventSystem");
             es.transform.SetParent(t, false);
@@ -618,6 +624,54 @@ namespace VibeGame1.EditorTools
         }
 
         // ---------------- wand selection menu ----------------
+
+        static void BuildDeveloperConsole(DeveloperConsole console, Transform t)
+        {
+            var panel = Img("DeveloperConsolePanel", t, new Color(Dark.r, Dark.g, Dark.b, 0.96f));
+            panel.raycastTarget = true;
+            Rect(panel.gameObject, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                 new Vector2(0f, -20f), new Vector2(-64f, 460f));
+
+            var title = Txt("Title", panel.transform, "COMMAND CONSOLE", 20f, Bone, TextAlignmentOptions.Left);
+            title.fontStyle = FontStyles.Bold;
+            title.characterSpacing = 3f;
+            Rect(title.gameObject, TopLeft, TopLeft, TopLeft, new Vector2(20f, -16f), new Vector2(500f, 28f));
+
+            var hint = Txt("Hint", panel.transform, "` CLOSES    HELP  |  CLEAR  |  EDITOR UNLOCK",
+                           13f, new Color(Cyan.r, Cyan.g, Cyan.b, 0.75f), TextAlignmentOptions.Right);
+            Rect(hint.gameObject, TopRight, TopRight, TopRight, new Vector2(-20f, -18f), new Vector2(700f, 24f));
+
+            console.output = Txt("Output", panel.transform, "", 17f, Bone, TextAlignmentOptions.TopLeft);
+            console.output.textWrappingMode = TextWrappingModes.Normal;
+            console.output.overflowMode = TextOverflowModes.Ellipsis;
+            console.output.lineSpacing = 5f;
+            Rect(console.output.gameObject, new Vector2(0f, 0f), new Vector2(1f, 1f), TopLeft,
+                 new Vector2(20f, -58f), new Vector2(-40f, -122f));
+
+            var field = TMP_DefaultControls.CreateInputField(new TMP_DefaultControls.Resources());
+            field.name = "CommandInput";
+            field.transform.SetParent(panel.transform, false);
+            Rect(field, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
+                 new Vector2(0f, 20f), new Vector2(-40f, 46f));
+            console.input = field.GetComponent<TMP_InputField>();
+            console.input.lineType = TMP_InputField.LineType.SingleLine;
+            console.input.richText = false;
+            var fieldImage = field.GetComponent<Image>();
+            if (fieldImage != null)
+            {
+                fieldImage.color = new Color(1f, 1f, 1f, 0.06f);
+                fieldImage.sprite = UiSprites.Track();
+                fieldImage.type = Image.Type.Sliced;
+            }
+            foreach (var text in field.GetComponentsInChildren<TMP_Text>(true))
+            {
+                text.color = Bone;
+                text.fontSize = 18f;
+            }
+
+            console.panel = panel.gameObject;
+            panel.gameObject.SetActive(false);
+        }
 
         const string WandDir = "Assets/Data/Wands";
 
@@ -1382,8 +1436,10 @@ namespace VibeGame1.EditorTools
         // and at stride 50 / gap 38 the thirteenth row would have landed on the BACK button
         // (SettingsAudioTests.TheLastRowClearsTheButtons asserts exactly that).
         public const float RowWidth = 1160f;
-        public const float RowHeight = 46f;
-        public const float RowStride = 47f;
+        // Fourteen rows now fit without colliding with BACK / RESET: the arm-movement toggle is a
+        // player setting, not a dev-menu-only switch. Three pixels of air remains between rows.
+        public const float RowHeight = 40f;
+        public const float RowStride = 43f;
         /// <summary>Extra drop before a section header, and from the header down to its first row.</summary>
         public const float SectionLead = 6f;
         public const float SectionGap = 34f;

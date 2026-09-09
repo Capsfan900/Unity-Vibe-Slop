@@ -46,6 +46,8 @@ namespace VibeGame1
         const int BeamSegments = 10;
         /// <summary>Fraction of a beam's life spent travelling. The rest is the hold-and-fade.</summary>
         const float BeamTravel = 0.30f;
+        const float FlareWaist = 0.08f;
+        const float FlareVerticalScale = 0.72f;
 
         static Shader unlitShader;
         static Transform camTransform;   // shared across all effects; Camera.main is a tagged lookup
@@ -55,6 +57,16 @@ namespace VibeGame1
         // for the process; entries are null-checked on rent because a scene load destroys the objects
         // while leaving the references behind.
         static readonly Stack<SlashFx> pool = new Stack<SlashFx>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetPoolState()
+        {
+            // Enter Play Mode Options may preserve managed statics while Unity destroys scene objects.
+            // The stack already tolerates destroyed entries, but the separate live counter must reset too.
+            pool.Clear();
+            live = 0;
+            camTransform = null;
+        }
 
         struct Spark
         {
@@ -101,16 +113,17 @@ namespace VibeGame1
         /// </summary>
         public static void Sparks(Vector3 origin, Vector3 direction, Color color, int count, float speed, float spread)
         {
-            var fx = Spawn("Sparks", origin, color, 0.40f);
+            var fx = Spawn("Fx_Sparks", origin, color, 0.40f);
             if (fx == null) return;
             fx.kind = Kind.Sparks;
             fx.BuildSparks(origin, direction, Mathf.Clamp(count, 1, 24), speed, spread);
+            fx.UpdateSparks(0f, 1f);
         }
 
         /// <summary>A thin crescent swipe. Appears instantly, fades with a slight outward push.</summary>
         public static void Arc(Vector3 center, Vector3 normal, Color color, float radius, float degrees, float seconds, Vector3 startDir = default)
         {
-            var fx = Spawn("Arc", center, color, seconds);
+            var fx = Spawn("Fx_Arc", center, color, seconds);
             if (fx == null) return;
             fx.kind = Kind.Arc;
             fx.center = center;
@@ -119,18 +132,20 @@ namespace VibeGame1
             fx.radius = Mathf.Max(0.05f, radius);
             fx.degrees = degrees;
             fx.BuildShape(ArcSegments, false, 0.05f, 0.012f);
+            fx.UpdateArc(0f);
         }
 
         /// <summary>A flat expanding hoop. Grounded impacts and launches.</summary>
         public static void Ring(Vector3 center, Vector3 normal, Color color, float radius, float seconds)
         {
-            var fx = Spawn("Ring", center, color, seconds);
+            var fx = Spawn("Fx_Ring", center, color, seconds);
             if (fx == null) return;
             fx.kind = Kind.Ring;
             fx.center = center;
             fx.normal = normal.sqrMagnitude > 0.0001f ? normal.normalized : Vector3.up;
             fx.radius = Mathf.Max(0.05f, radius);
             fx.BuildShape(RingSegments, true, 0.045f, 0.045f);
+            fx.UpdateRing(0f);
         }
 
         /// <summary>
@@ -139,12 +154,13 @@ namespace VibeGame1
         /// </summary>
         public static void Flare(Vector3 pos, Color color, float size, float seconds)
         {
-            var fx = Spawn("Flare", pos, color, seconds);
+            var fx = Spawn("Fx_Flare", pos, color, seconds);
             if (fx == null) return;
             fx.kind = Kind.Flare;
             fx.center = pos;
             fx.size = Mathf.Max(0.02f, size);
             fx.BuildFlare();
+            fx.UpdateFlare(0f);
         }
 
         /// <summary>
@@ -160,19 +176,20 @@ namespace VibeGame1
         /// </summary>
         public static void Beam(Vector3 from, Vector3 to, Color color, float width, float seconds)
         {
-            var fx = Spawn("Beam", from, color, seconds);
+            var fx = Spawn("Fx_Beam", from, color, seconds);
             if (fx == null) return;
             fx.kind = Kind.Beam;
             fx.beamFrom = from;
             fx.beamTo = to;
             fx.BuildBeam(Mathf.Max(0.01f, width));
+            fx.UpdateBeam(0f);
         }
 
         // ------------------------------------------------------------------ construction
 
         static SlashFx Spawn(string name, Vector3 pos, Color color, float seconds)
         {
-            if (live >= MaxLive) return null;
+            if (live >= MaxLive && !RecoverStaleLiveCount()) return null;
 
             SlashFx fx = null;
             while (pool.Count > 0 && fx == null)
@@ -188,7 +205,8 @@ namespace VibeGame1
                 fx.CreateMaterials();
             }
 
-            fx.gameObject.name = "Fx_" + name;
+            // Callers supply interned names: renting must not allocate a concatenated string.
+            fx.gameObject.name = name;
             fx.transform.position = pos;
             fx.gameObject.SetActive(true);
 
@@ -204,6 +222,24 @@ namespace VibeGame1
             live++;
             fx.counted = true;
             return fx;
+        }
+
+        /// <summary>
+        /// The hot path trusts the O(1) counter. Only at the hard cap do we pay for a scene scan, because
+        /// domain/scene reload combinations can destroy every pooled GameObject while preserving managed
+        /// statics. A stale 28 must not suppress VFX forever; 28 genuinely active effects still shed load.
+        /// </summary>
+        static bool RecoverStaleLiveCount()
+        {
+            int actual = 0;
+            var instances = Resources.FindObjectsOfTypeAll<SlashFx>();
+            for (int i = 0; i < instances.Length; i++)
+            {
+                var fx = instances[i];
+                if (fx != null && fx.counted && fx.gameObject.activeSelf) actual++;
+            }
+            live = actual;
+            return live < MaxLive;
         }
 
         static Shader UnlitShader
@@ -228,7 +264,7 @@ namespace VibeGame1
             // Core is pushed most of the way to white: a hot metal highlight keeps its hue only at the
             // edges. The fringe carries the item/wand identity.
             SetMatColour(coreMat, Color.Lerp(Normalise(c), Color.white, 0.78f), 1f);
-            SetMatColour(fringeMat, Normalise(c), 1f);
+            SetMatColour(fringeMat, Normalise(c), 0.7f);
         }
 
         static void SetMatColour(Material m, Color c, float alpha)
@@ -358,9 +394,11 @@ namespace VibeGame1
 
         void BuildFlare()
         {
-            // Four independent spikes rather than one polyline, so each can taper from the centre out.
-            shapeCore = RentLine("FlareCore", 8, 0.030f, 0.002f, false, coreMat);
-            shapeFringe = RentLine("FlareFringe", 8, 0.060f, 0.004f, false, fringeMat);
+            // A continuous line cannot represent separate strokes: the old crossed polyline drew
+            // diagonal connectors through the flash. Trace one narrow four-point star silhouette.
+            // Same two renderers and eight points; no crossing or doubled-back additive segments.
+            shapeCore = RentLine("FlareCore", 8, 0.014f, 0.014f, true, coreMat);
+            shapeFringe = RentLine("FlareFringe", 8, 0.028f, 0.028f, true, fringeMat);
         }
 
         void BuildBeam(float width)
@@ -465,9 +503,9 @@ namespace VibeGame1
 
         void UpdateFlare(float k)
         {
-            // Snaps to full size in the first ~30% then shrinks away: a glint, not a bloom.
-            float grow = k < 0.3f ? k / 0.3f : 1f - (k - 0.3f) / 0.7f;
-            float s = size * Mathf.Clamp01(grow);
+            // Contact is the peak, including the spawn frame. Growth delayed the visible payoff
+            // by 30% of a short life; at low frame rates a needle's flash could miss its own peak.
+            float s = size * (1f - Mathf.Clamp01(k));
 
             // Camera.main is a tagged lookup; cache it across all live effects rather than paying it
             // per flare per frame.
@@ -478,24 +516,21 @@ namespace VibeGame1
             }
             Vector3 right = camTransform != null ? camTransform.right : Vector3.right;
             Vector3 up = camTransform != null ? camTransform.up : Vector3.up;
-            // The diagonal pair is deliberately shorter — an even cross looks like a plus sign.
-            Vector3 d1 = (right + up).normalized * (s * 0.45f);
-
-            // Written into the cached array rather than a fresh one each frame.
-            flarePoints[0] = center - right * s;
-            flarePoints[1] = center + right * s;
-            flarePoints[2] = center + right * s;
-            flarePoints[3] = center - up * s;      // connector, hidden by the fade
-            flarePoints[4] = center - up * s;
-            flarePoints[5] = center + up * s;
-            flarePoints[6] = center - d1;
-            flarePoints[7] = center + d1;
+            Vector3 r = right * s;
+            Vector3 u = up * (s * FlareVerticalScale);
+            flarePoints[0] = center + r;
+            flarePoints[1] = center + (r + u) * FlareWaist;
+            flarePoints[2] = center + u;
+            flarePoints[3] = center + (-r + u) * FlareWaist;
+            flarePoints[4] = center - r;
+            flarePoints[5] = center - (r + u) * FlareWaist;
+            flarePoints[6] = center - u;
+            flarePoints[7] = center + (r - u) * FlareWaist;
 
             if (shapeCore != null) shapeCore.SetPositions(flarePoints);
             if (shapeFringe != null)
             {
                 shapeFringe.SetPositions(flarePoints);
-                // The second diagonal is folded into the fringe width rather than more geometry.
                 shapeFringe.widthMultiplier = 1f + 0.4f * (1f - k);
             }
         }

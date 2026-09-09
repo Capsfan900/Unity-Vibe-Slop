@@ -264,6 +264,7 @@ namespace VibeGame1.EditorTools
             // 2026-09-06 (user): faster, and it never misses -- full lead plus 180 deg/s homing. 40 m/s from 15 m
             // is 0.37 s; the launch still slows inside 14.4 m so the cue is never owed before the bolt exists.
             grunt.projectileInterval = 1.6f; grunt.projectileSpeed = 40f;
+            grunt.projectileBurstCount = 1; grunt.projectileBurstInterval = 0.42f;
             // BOLT TIMING (2026-09-06 plan, from play: "the projectile just comes in at a bad time ... the
             // placement and timing of the shots needs to work with the game as well so the player can
             // actually make the parrys while moving fast"). Two shipped numbers move.
@@ -318,6 +319,7 @@ namespace VibeGame1.EditorTools
             heavy.projectileAttack = grunt.projectileAttack;
             heavy.rangedOnly = false; heavy.projectileLead = 1.0f; heavy.projectileHomingDegPerSec = 150f;
             heavy.projectileInterval = 2.4f; heavy.projectileSpeed = 36f;
+            heavy.projectileBurstCount = 1; heavy.projectileBurstInterval = 0.42f;
             heavy.projectileAcquireDelay = 0.7f;               // F1, the arm-up (see the Grunt above)
             heavy.projectileMinRange = 6f; heavy.projectileMaxRange = 32f;   // F5, the longer near flight
             heavy.parriedProjectileDamage = 45f; heavy.parriedProjectilePosture = 50f;   // 3 reflects kill: 135 >= 130 HP
@@ -335,6 +337,9 @@ namespace VibeGame1.EditorTools
             sentryGrunt.name = "pshooter_enemy01";
             sentryGrunt.displayName = "Sentry";
             sentryGrunt.shootsProjectiles = true; sentryGrunt.rangedOnly = true; sentryGrunt.flaskPunishChance = 0f;
+            // One bolt remains one learnable beat. Write this after CopySerialized so a future source-enemy
+            // retune cannot silently turn the basic span sentry into a phrase.
+            sentryGrunt.projectileBurstCount = 1; sentryGrunt.projectileBurstInterval = 0.42f;
             // THE GHOST (2026-09-06, user-directed body redesign; see PrefabFactory.BuildGhostBody).
             // bodyColor is written into the SHELL's _BaseColor by EnemyVisuals, so it must be the same
             // value as M_SentryGhost's albedo or the shell and the hem would be two different colours.
@@ -350,10 +355,18 @@ namespace VibeGame1.EditorTools
             sentryHeavy.name = "pshooter_enemy02";
             sentryHeavy.displayName = "Heavy Sentry";
             sentryHeavy.shootsProjectiles = true; sentryHeavy.rangedOnly = true; sentryHeavy.flaskPunishChance = 0f;
-            // The Heavy Sentry keeps the PILL body (it is a different creature, and two ghosts of
-            // different sizes would read as one enemy at range) but loses the violet for the same reason
-            // the ghost did: a body must not wear the flare's hue. Dark cold slate, still the darkest
-            // thing on a perch, so the pale ghost and the dark heavy separate by value at a glance.
+            // The dark reliquary asks for a rapid THREE-PARRY phrase. 0.42 is contact cadence, not launch
+            // cadence: cue 0.28 + perfect recovery 0.08 + 0.06 s of honest slack. projectileInterval 2.4
+            // stays the quiet cooldown and starts only after the third emission.
+            sentryHeavy.projectileBurstCount = 3; sentryHeavy.projectileBurstInterval = 0.42f;
+            // The shipped DevBlade is the upper bound: 60 * 1.2 = 72 immediate posture, plus 50 on
+            // each reflected return. Two complete exchanges are 244; the third parry reaches 316.
+            // At 330 the deathblow prompt therefore cannot replace the third projectile answer, while
+            // the third 45-damage return still kills its 130 HP body. This is sequencing safety.
+            sentryHeavy.maxPosture = 330f;
+            // The Heavy Sentry's dedicated reliquary body is a different creature from the pale ghost;
+            // its dark cold slate also keeps the body out of the flare's tell hue. It remains the darkest
+            // thing on a perch, so the pale ghost and broad heavy separate by shape and value at a glance.
             sentryHeavy.bodyColor = Hex("#25303F"); sentryHeavy.emission = Hex("#8FB6E0") * 1.0f;
             EditorUtility.SetDirty(sentryHeavy);
 
@@ -369,6 +382,9 @@ namespace VibeGame1.EditorTools
             turret.name = "pshooter_enemy03";
             turret.displayName = "Surge Turret";
             turret.shootsProjectiles = true; turret.rangedOnly = true; turret.flaskPunishChance = 0f;
+            // Opening rows are sequenced one TURRET at a time. Each member owns one bolt, never a hidden
+            // sub-phrase, so the level-authored five-member ladder remains five distinct reads.
+            turret.projectileBurstCount = 1; turret.projectileBurstInterval = 0.42f;
 
             // ONE HIT, FROM ANYTHING. 1 HP: a swing, a reflected bolt, a wand, a riposte -- every damage
             // source in the game does at least 1. Not 0 (Health treats a zero-max body as a divide it has
@@ -423,17 +439,13 @@ namespace VibeGame1.EditorTools
             // turret. Not 8 (x1.96): past ~x1.6 the level's jump arcs and the motor's air control stop being
             // something a human can aim, and the run-out at the bottom of a ramp becomes a coin flip.
             turret.parrySurgeMaxStacks = 5;
-            // One stack falls every 1.5 s of not parrying (was 2 s; settled 2026-09-06 against the reworked
-            // level). Grant RESETS the drop timer, so any player inside a turret's 1.1 s bolt metronome never
-            // decays at all -- the timer only ever governs the run-out AFTER the last turret. At 2 s that
-            // run-out was 10 s, long enough to carry a full x1.60 ladder out of the span it was earned on,
-            // which is the definition of a buff rather than a reward. 1.5 s makes it 7.5 s: still a carry,
-            // no longer a free span. Not 1.2 (the level pass's suggestion): 0.1 s of slack over the 1.1 s
-            // metronome means a parry that lands a fraction late bleeds a stack, and the ladder stops
-            // reading as 'keep parrying' and starts reading as random. 1.5 leaves 0.4 s of slack, which also
-            // covers the one-to-two-second gap between two turrets on a ramp on all but the slowest line.
-            // Full ladder from the top with no further parries: 5 x 1.5 = 7.5 s to walk back to x1.00.
-            turret.parrySurgeSeconds = 1.5f;
+            // One stack falls every 1.4 s of not parrying (was 1.5 s; retuned 2026-09-08 for the wider
+            // current route). Grant RESETS the drop timer, so any player inside a turret's 1.1 s bolt
+            // metronome never decays at all -- the timer only governs the run-out after the last turret.
+            // 1.4 leaves 0.3 s of real slack over that beat, enough for an honest late contact, while the
+            // full x1.60 ladder now clears in 7.0 s rather than carrying an extra half-second into the next
+            // route beat. This deliberately stays a simple timer: no distance rule or new mechanic.
+            turret.parrySurgeSeconds = 1.4f;
 
             // Cheap: it dies to a touch and it is meant to be taken in rows of five or more.
             turret.soulValue = 15;

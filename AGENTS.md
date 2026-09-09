@@ -28,7 +28,7 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | [docs/LEVEL-AUTHORING-TUTORIAL.md](docs/LEVEL-AUTHORING-TUTORIAL.md) | **Making a level.** Author it as a data asset in the Unity editor, prove it with the arc report and tests, use the in-game editor (F10) only to feel and tweak. |
 | [docs/AUTHORING.md](docs/AUTHORING.md) | **Adding a level, enemy, moveset or item.** Content is data — ScriptableObjects plus a menu item, not new code. |
 | [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md) | Session start/end checklist and token discipline. |
-| `/dashboard` | **Seeing everything at once.** Builds `Tools/dashboard/out/index.html`: every doc, the change log, test results, systems map, search. **Currently disabled** in `.claude/settings.local.json` — drop its `skillOverrides` entry to use it. |
+| `/dashboard` | **Seeing everything at once.** Builds `Tools/dashboard/out/index.html`: every doc, the tool-neutral `AGENTS.md` contract, specialist briefs/shared workflows, change log, tests, systems map and search. Any tool can run `python Tools/dashboard/build_dashboard.py --open`. |
 | [docs/LEVEL-EDITOR.md](docs/LEVEL-EDITOR.md) | **The in-game level editor** (F10): keys, files, PLAY, EXPORT, and how it shares the campaign's piece factory. |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **Picking up where the last chat stopped.** Rewritten every session: what is in flight, uncommitted, and what to do first. |
 | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | **Cutting a playtest build or sharing a link.** `BuildRunner`, GitHub Pages (WebGL) and Releases (Windows), one-time GitHub settings, tracing a bug report to a build SHA. |
@@ -129,7 +129,8 @@ They prove the state machine, **never** that the game feels good or is fair.
 
 ## Additional player controls
 
-`F11` weapon flourish (rebindable in Settings) · `E` use item
+`F11` weapon flourish (rebindable in Settings) · `E` use item · Backquote command console (all builds;
+`editor unlock` grants release-build F10 for this process only and is never persisted)
 
 ## Dev keys — editor / development builds only
 

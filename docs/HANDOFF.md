@@ -1,69 +1,73 @@
-# Handoff — HUD, flourish, Brawler v15, solar transitions and 144 m opening
+# Handoff — expanded realms, projectile recovery and enemy-AI audit
 
 ## What happened
 
-2026-09-08. The previously uncommitted continuation pass has been recovered, audited, regenerated and
-verified. It contains five related feature lanes:
+2026-09-09. The Astra-led level, projectile, presentation and release-readiness pass is implemented and
+fully integrated. The post-first-miniboss route is no longer a rigidly translated cramped block: T2 is a
+broad local helix, T3 is a wider true wall-run span with a four-balloon alternate arc, and the later realm
+and boss move farther down-route. All four solar arenas have larger visual shells and measured empty space
+around their physical membranes, with obsolete interior court geometry removed.
 
-- A top-right flow meter shows aggregate speed multiplier, horizontal speed, surge state/decay and a
-  display-only clean-deflect chain. The old BEST RUNS pane is removed; the radio has a subdued animated
-  rainbow rim.
-- F11 performs a cosmetic weapon flourish. Its keyboard binding is persisted and rebindable from the
-  in-game settings menu; title-screen RESET works, while live rebinding remains deliberately unavailable
-  there because the title scene has no `InputReader`.
-- The Flurry Brawler v15 is a sandbox-only prototype with 32 generated clips, twelve named attacks and
-  an 18-entry moveset built through the data/prefab/mini-boss pipeline.
-- The opening descent is 144 m long, with the five-turret parry ladder retained and T1 geometry opened
-  up through `LevelDefinitionAuthoring`.
-- Solar portals now fade/part their shells on approach and cover the synchronous teleport with a short
-  screen transition.
+Projectile enemies now share one reusable contact-planning contract. `ProjectileFlightMath` provides
+allocation-free moving-target interception, capped homing and swept contact prediction. Authored
+`ProjectileEngagementWindowDef` corridors audit whether each encounter has legal route contacts; they are
+not runtime trigger volumes. Only the explicitly progress-gated T0 opening builds a volley coordinator.
+Ordinary T1-T4 sentries are autonomous again and repeat their normal range/LOS/facing/cue-safe firing loop.
+`VibeGame1/Projectile Encounter Report` audits any `LevelDefinition` at base, surge and maximum designed
+speed. The former pill-shaped Heavy Sentry is a broad three-aperture stone reliquary and fires a rapid
+three-shot, 0.42-second parry phrase followed by 2.4 seconds of quiet.
 
-The new `.claude/skills/astra-engineering-company/` protocol is also present and indexed from
-`AGENTS.md`; it is plain Markdown so any coding-agent harness can map its capability tiers locally.
+The requested enemy-AI follow-up found one lifecycle hole: `EnemyController` acquired the player only once
+in `Start`, so a missing/replaced player or in-play domain reload could strand a valid enemy in Idle. It now
+reacquires only while its target references are absent or inconsistent. No combat timing, moveset, state,
+movement or perception mechanic was retuned.
+
+The same integrated tree also contains the completed release console/F10 gate, native resolution and arm
+settings, viewmodel and weapon/impact VFX pass, solar crossing time-warp sound, fog/lighting/horizon pass,
+finished architectural materials, and agent-agnostic project dashboard updates requested in this workstream.
 
 ## State of the tree
 
-All intended generators were rerun in the user's open Unity 6000.5.10f1 editor on 2026-09-08:
-
-1. Create Materials and Data
-2. Build Prefabs
-3. Split Forge Animation Clips and Build Mini-Bosses
-4. Build HUD and Sandbox/NavMesh
-5. Rework Level_01 and build the canonical level/NavMesh
-6. Build Main Menu
-
-Generated scenes, prefabs, materials, attack/data assets and animator controllers are current. The four
-other legendary animator-controller diffs are expected collateral from rebuilding all animated mini-bosses.
-`.claude/settings.local.json` is the user's local untracked configuration and must remain uncommitted.
+- Baseline rollback tag: `pre-console-space-arms-2026-09-08` at `e2c2d43`.
+- Recovery note: the original session completed implementation and verification but stopped before its
+  documented commit was created. The resumed Astra integration audited and recovered that intact worktree.
+- All required material/data/prefab/HUD/main-menu/level generators were run in the open Unity editor. The
+  canonical `Level_01` scene and shipped data/prefab values are current. Two consecutive level reworks
+  produced SHA-256 `7EE7FBB72B497D551673AC1C42E86C2DB90C31DE3142080FD19A9DCF925D4B89`.
+- This pass is landed as one revertible commit titled `[Astra] Recover level, projectile and enemy AI pass`.
+  The user's local `.claude/settings.local.json`, `Portraits/`, and `RouteShots/` capture
+  output remain intentionally uncommitted.
+- No subagent work remains in flight.
 
 ## Verification
 
-- Offline editor build compiles both assemblies: 0 errors, 18 existing warnings.
-- Health Check: 0 errors / 1836 existing warnings.
-- Quick EditMode: 785/785 passed; 138 `LevelLines` tests excluded; 11.2 s.
-  `TestResults/EditMode-20260908-192039.xml`.
-- Full EditMode: 923/923 passed, zero skipped; 212.7 s.
-  `TestResults/EditMode-20260908-192436.xml`.
-- Full FeatureTests: 808/808 passed, zero skipped; 61.1 s. The run was fresh and unpaused, with
-  `GameManager.I != null` and `Time.timeScale == 1` checked first.
-- The previously recorded 144 m opening probe passed all five distinct slope deflects and reached the
-  run-out at 1.60x. Absolute peak-speed readings remain suspect when editor polling stalls; no Fable motor
-  code was changed or retuned.
+- Full EditMode: **981/981 passed**, zero failures/skips, **158.0 s**, run 2026-09-09 on the final code and
+  asset tree. Focused combined AI/projectile slice: **63/63**; enemy-family surface: **182/182**.
+- Full FeatureTests: **802/802 passed**, zero failures/skips, **58.8 s**, from a fresh unpaused `Level_01`
+  session after checking `GameManager.I != null` and `Time.timeScale == 1`.
+- Affected EditMode surface: **178/178**; focused geometry/projectile surface: **72/72**; VFX pool:
+  **15/15**. Projectile Encounter Report and Level Arc Report both pass.
+- Whole-fight `DebugHarness` runs passed for `parry`, `boss` and `death`: the live ninja/knight completed
+  attacks and executions, all three boss phases completed, and respawn rebuilt the enemy instance.
+- Health Check reports **0 errors / 1924 warnings**. Offline runtime and editor assemblies compile with zero
+  errors. The editor assembly retains 18 known
+  warnings: eight obsolete `FindObjectsByType` calls in `LevelDescentProbe` and ten JSON-populated Forge DTO
+  fields. These are unrelated to this pass.
+- Heavy portraits and updated T2/T3 player-eye route captures were reviewed. They prove composition, not
+  feel. T2 intentionally remains vertically layered despite its wider terraces.
 
-Automated checks prove wiring, shipped values and state machines. They do not prove that the Brawler
-ladder feels fair, the flourish/rebind interaction feels correct, the flow meter/aura read well during a
-run, or the solar crossing looks clean at normal frame rate.
+Automated checks prove geometry legality, data ownership, projectile contact arithmetic, generated values,
+state machines and effect budgets. They cannot prove player feel or visual comfort in motion.
 
 ## Do first next session
 
-1. Human-play the in-game flourish rebind: bind H, close/reopen/reload, confirm H works and F11 does not,
-   cancel with Esc, RESET to F11, and confirm single/queued twirls return exactly to rest without changing
-   combat pose or hitboxes.
-2. Play the 144 m opening and inspect flow-meter fading, parry-chain reset, radio aura, and the solar
-   entry/return/death/reset transitions at normal frame rate.
-3. Fight the Flurry Brawler in Sandbox and judge body placement, left-hand strikes, uppercut readability
-   and ladder fairness. It is intentionally not in the campaign.
+1. Human-play T2/T3 at normal and surge speed, including the first T3 wall run and alternate balloon arc;
+   judge perceived solar breathing room, not only measured clearance.
+2. Run past ordinary blue sentries and confirm they fire naturally throughout their readable range rather
+   than only in narrow patches. Fight the Heavy Sentry and judge its 0.42-second three-parry rhythm,
+   projectile cue/audio readability and 2.4-second recovery while moving.
+3. Check fog/lighting, sphere-entry audio, weapon VFX and the first-person arm toggle at normal frame rate.
 
 ## Open questions for the user
 
-Human feel and appearance acceptance only; no implementation decision is blocking the verified tree.
+Only human feel/appearance acceptance remains. No implementation or architecture decision is blocked.

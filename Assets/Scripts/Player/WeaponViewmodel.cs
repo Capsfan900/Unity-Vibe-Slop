@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace VibeGame1
@@ -37,6 +38,9 @@ namespace VibeGame1
         FirstPersonMotor motor;
         Coroutine anim;
         WeaponTrail trail;
+        readonly List<Renderer> tipCandidates = new List<Renderer>(16);
+        Transform cachedTipModel;
+        Renderer cachedTipRenderer;
         Pose current;
         bool holding;
         /// <summary>True between <see cref="PlayGuard"/> and <see cref="EndGuard"/>. The guard is a
@@ -80,18 +84,36 @@ namespace VibeGame1
                 Transform m = CurrentModel;
                 if (m != null)
                 {
-                    Renderer highest = null;
-                    float bestY = float.MinValue;
-                    foreach (var r in m.GetComponentsInChildren<Renderer>(true))
-                    {
-                        if (r.name.StartsWith("Tip")) return r.bounds.center;
-                        float y = m.InverseTransformPoint(r.bounds.center).y;
-                        if (y > bestY) { bestY = y; highest = r; }
-                    }
-                    if (highest != null) return highest.bounds.center;
+                    if (cachedTipModel != m) ResolveTipRenderer(m);
+                    if (cachedTipRenderer != null) return cachedTipRenderer.bounds.center;
                     return m.position;
                 }
                 return grip != null ? grip.position : (model != null ? model.position : transform.position);
+            }
+        }
+
+        /// <summary>
+        /// Resolve once per held model, not once per trail sample. The old property allocated a renderer
+        /// array and rescanned the hierarchy every active frame; trails, embers and supers all read it.
+        /// Bounds stay live on the cached renderer, so animation still moves the sampled point.
+        /// </summary>
+        void ResolveTipRenderer(Transform heldModel)
+        {
+            cachedTipModel = heldModel;
+            cachedTipRenderer = null;
+            tipCandidates.Clear();
+            heldModel.GetComponentsInChildren(true, tipCandidates);
+
+            float bestY = float.MinValue;
+            foreach (var candidate in tipCandidates)
+            {
+                if (candidate.name.StartsWith("Tip"))
+                {
+                    cachedTipRenderer = candidate;
+                    return;
+                }
+                float y = heldModel.InverseTransformPoint(candidate.bounds.center).y;
+                if (y > bestY) { bestY = y; cachedTipRenderer = candidate; }
             }
         }
 

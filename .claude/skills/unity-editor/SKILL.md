@@ -34,6 +34,7 @@ the project root - do not `cd` into the skill folder, a shell parked there locks
 
 ```
 python .claude/skills/unity-editor/mcp_call.py --list
+python .claude/skills/unity-editor/mcp_call.py --schema run_tests
 python .claude/skills/unity-editor/mcp_call.py --resource mcpforunity://editor/state
 python .claude/skills/unity-editor/mcp_call.py read_console '{"action":"get","types":["error"],"count":20,"format":"plain"}'
 python .claude/skills/unity-editor/mcp_call.py execute_menu_item '{"menu_path":"VibeGame1/Health Check"}'
@@ -42,7 +43,15 @@ python .claude/skills/unity-editor/mcp_call.py manage_editor '{"action":"play"}'
 python .claude/skills/unity-editor/mcp_call.py execute_code '{"action":"execute","code":"return VibeGame1.EditorTools.FeatureTestRunner.Poll();"}'
 python .claude/skills/unity-editor/mcp_call.py run_tests '{"mode":"EditMode"}'            # returns a job_id
 python .claude/skills/unity-editor/mcp_call.py get_test_job '{"job_id":"<id>","include_failed_tests":true}'
+python .claude/skills/unity-editor/mcp_call.py --run-tests EditMode  # start + poll in ONE MCP session
+python .claude/skills/unity-editor/mcp_call.py --exec "return 1 + 1;"
+python .claude/skills/unity-editor/mcp_call.py --menu VibeGame1/Health Check
+python .claude/skills/unity-editor/mcp_call.py --play  # --stop exits play mode
 ```
+
+Use `--run-tests` from clients whose MCP helper creates one session per process. Test job handles are
+session-scoped; starting in one process and polling from another can return `Invalid request parameters`
+even while the editor is healthy. `--clear-tests` clears an orphan only after the editor has finished.
 
 **`instance_count: 0` from `mcpforunity://instances` (or `no_unity_session` from every call) with the editor
 open** means the editor's bridge lost its startup handshake with the server — it happened on 2026-09-04 when
@@ -71,8 +80,9 @@ blocks its main thread: the job reports `failed to initialize`, every later brid
 window title reads `Untitled`. Only a human click clears it. See ENGINEERING-LOG, "The EditMode runner hangs
 Unity behind a save dialog".
 
-`run_tests` starts a job and returns immediately. Poll `get_test_job` until `status` is `succeeded` /
-`failed`; the full suite (436 tests as of 2026-09-03) takes ~3 min in the editor. Use one
+`run_tests` starts a job and returns immediately. Poll `get_test_job` in the same MCP session until `status`
+is `succeeded` / `failed`; current counts live in `docs/VERIFICATION-REPORT.md`. The full suite takes a few
+minutes in the editor. Use one
 `for … sleep 10 … grep -q` loop in a single Bash call rather than chained sleeps. Do not enter play mode
 while a job is running.
 

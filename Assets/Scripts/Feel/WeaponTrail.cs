@@ -90,6 +90,9 @@ namespace VibeGame1
         /// <summary>Fade multiplier at the heavy end. 0.152 s still dies inside the maul's 0.288 s
         /// post-strike leg, so the ribbon never claims a hitbox that has closed.</summary>
         public const float FadeScaleHeavy = 1.38f;
+        // Sub-pixel camera-space motion must accumulate instead of replacing the finite ribbon with
+        // almost-identical points during hitstop. EndStrike still records the exact final tip.
+        public const float MinimumSampleDistance = 0.0025f;
 
         public static float WidthScale(float mass) =>
             Mathf.Lerp(WidthScaleLight, WidthScaleHeavy, Mathf.Clamp01(mass));
@@ -134,8 +137,13 @@ namespace VibeGame1
         }
 
         void OnEnable() { GameEvents.WeaponChanged += OnWeaponChanged; }
-        void OnDisable() { GameEvents.WeaponChanged -= OnWeaponChanged; }
-        void OnDestroy() { if (mat != null) Destroy(mat); }
+        void OnDisable() { GameEvents.WeaponChanged -= OnWeaponChanged; Clear(); }
+        void OnDestroy()
+        {
+            // The line is a sibling under the camera, so destroying this component does not own it.
+            if (line != null) Destroy(line.gameObject);
+            if (mat != null) Destroy(mat);
+        }
 
         void Build()
         {
@@ -212,7 +220,7 @@ namespace VibeGame1
         /// </summary>
         public void EndStrike()
         {
-            if (emitting) Sample();
+            if (emitting && Sample(true)) fade = 1f;
             emitting = false;
             peak = count;
         }
@@ -234,16 +242,12 @@ namespace VibeGame1
             // pose in the Update phase, so sampling here always reads the pose actually rendered.
             if (line == null || viewmodel == null) return;
 
-            if (emitting) { Sample(); peak = count; }
-            else if (fade > 0f)
+            if (emitting && Sample())
             {
-                fade -= Time.unscaledDeltaTime / CurrentFadeSeconds;
-                // RETRACT FROM THE TAIL, the way a real trail dies: the oldest end catches up to where
-                // the blade left off instead of the whole ribbon dimming in place. A ribbon that only
-                // dims stays the same length for its whole dissolve and sits over the fight for an
-                // extra beat; one that retracts reads as the arc closing.
-                count = Mathf.Min(count, Mathf.CeilToInt(peak * Mathf.Clamp01(fade)));
+                peak = count;
+                fade = 1f;
             }
+            else FadeTail(Time.unscaledDeltaTime);
 
             if (fade <= 0f || count < 2)
             {
@@ -255,16 +259,38 @@ namespace VibeGame1
             Draw();
         }
 
-        void Sample()
+        void FadeTail(float dt)
+        {
+            if (fade <= 0f) return;
+            fade = Mathf.Max(0f, fade - dt / CurrentFadeSeconds);
+            // The tail continues dissolving while the hand holds still in hitstop too. Replacing the
+            // arc with duplicate head points instead erased it in four frames, independent of age.
+            count = Mathf.Min(count, Mathf.CeilToInt(peak * fade));
+        }
+
+        bool Sample(bool force = false)
         {
             Vector3 tip = space.InverseTransformPoint(viewmodel.TipWorldPosition);
-            if (!haveLast) { Push(tip); lastTip = tip; haveLast = true; return; }
+            return RecordTip(tip, force);
+        }
+
+        bool RecordTip(Vector3 tip, bool force)
+        {
+            if (!haveLast || count == 0)
+            {
+                Push(tip); lastTip = tip; haveLast = true;
+                return true;
+            }
+            float distanceSquared = (tip - lastTip).sqrMagnitude;
+            if (distanceSquared < (force ? 1e-10f : MinimumSampleDistance * MinimumSampleDistance))
+                return false;
 
             // Sub-sample toward the new tip. A 3-frame window cannot produce a curve on its own; these
             // fill the ribbon so the taper and the fade have something to run along.
             for (int i = 1; i <= subdivisions; i++)
                 Push(Vector3.Lerp(lastTip, tip, i / (float)subdivisions));
             lastTip = tip;
+            return true;
         }
 
         /// <summary>Newest first: index 0 is the head, so the width taper and alpha run tip-to-tail.</summary>

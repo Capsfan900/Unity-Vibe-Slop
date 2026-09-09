@@ -499,6 +499,24 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ConsoleToggle",
+                    "type": "Button",
+                    "id": "cb818a76-3ddd-4fd9-99e6-edfcaa2266a7",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ConsoleSubmit",
+                    "type": "Button",
+                    "id": "2d93af35-d0c2-4f59-bef9-863565a883ae",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -510,6 +528,28 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "LevelEditor",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "ccfb3cb4-d17f-4a8d-b41d-271e8a833c3b",
+                    "path": "<Keyboard>/backquote",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ConsoleToggle",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "305e811c-1234-4f51-af62-52c98ab9c2ab",
+                    "path": "<Keyboard>/enter",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "ConsoleSubmit",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

@@ -160,6 +160,12 @@ namespace VibeGame1.Tests
         [Test, TestCaseSource(nameof(PrimaryLines))]
         public void TheLandingRejoinsTheCourse(R.WallRunLine l)
         {
+            if (string.IsNullOrEmpty(l.rejoin))
+            {
+                Assert.GreaterOrEqual(A.IndexOf(boxes, l.to), 0,
+                    "a portal-feeding wall line must still end on its authored landing");
+                return;
+            }
             var v = A.AnalyzeHop(boxes, l.to, l.rejoin, profile, profile.groundSpeed, floorY);
             Assert.IsTrue(v.exists, "the exit from a fast line is NOT a second gate: " + v.Summary());
             Assert.GreaterOrEqual(v.cleanLaunchPoints, 3, v.Summary());

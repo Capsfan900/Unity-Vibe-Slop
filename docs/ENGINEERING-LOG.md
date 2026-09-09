@@ -111,6 +111,45 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [SESS
 
 ---
 
+## 2026-09-08 — Solar breathing room must translate route sections as rigid groups
+
+**Symptom.** Enlarged portal suns still intersected T2's optional west wall-run geometry and T3's first
+wall, even after obsolete court geometry was removed. Moving one ledge three metres only exposed the next
+overlap and risked changing the authored movement line.
+
+**Root cause.** The original route was packed around smaller arena footprints. A visual-radius clearance
+audit measures every platform, torch and gate against every sun, so it correctly found whole clusters—not
+one bad mesh—inside the new 1.5 m breathing-room envelope.
+
+**Fix.** `LevelDefinitionAuthoring` normalizes any prior section offset, runs its absolute authoring passes,
+then moves all T2 content +15 m in Z and all T3/T4/boss-route content +19 m. Gates, triggers, checkpoints,
+pickups, ramps, spawns, torches, balloons, water and portal returns move with their owning route. Historical
+legendary/boss SpawnDefs remain fixed because the builder relocates those live instances into remote realms.
+
+**Invariant.** Fix a clustered landmark collision at the composition level. A route section moves as one
+rigid authored group; never buy portal clearance by shrinking the landmark or nudging isolated movement
+pieces. Applying the authoring pass twice must serialize identically, and the exhaustive sun-clearance test
+must examine all route boxes, torches and gates.
+
+## 2026-09-08 — The dashboard must follow the repository contract and nested data layout
+
+**Symptom.** The dashboard presented `CLAUDE.md` as the project contract, showed no current enemies, and
+reported a blank branch with zero changes even in a dirty working tree.
+
+**Root cause.** Its document list predated tool-neutral `AGENTS.md`; its roster scanned only flat
+`Assets/Data/Enemies`, `Movesets` and `Attacks` folders; and Git rejected the repository ownership context
+when the generator ran without the project's safe-directory setting. All three failures silently returned
+plausible empty data.
+
+**Fix.** The dashboard now leads with `AGENTS.md`, discovers every plain-Markdown specialist brief and shared
+workflow, recursively indexes nested content assets while retaining their relative paths, and supplies the
+repo-local safe-directory setting to read-only Git subprocesses. The regenerated page sees 14 enemies and
+the real branch/change history.
+
+**Invariant.** A project dashboard is a projection of current repository truth, not a second hand-maintained
+schema. Recursively discover tool-neutral contracts and content, preserve relative paths through GUID joins,
+and treat an empty Git result as an error condition to investigate rather than valid project state.
+
 ## A modal dialog in Unity deadlocks the MCP bridge and looks exactly like a lost bridge
 
 **2026-09-07.** `SandboxBuilder.Build()` was called over MCP. It returned `success:false, message:null`,
@@ -3414,3 +3453,217 @@ now uses .08 s instead of .12 s. Gameplay parry windows remain unchanged. Avoid 
 timing run is active: one 978 ms editor stall invalidated the first 30 fps trial; an uninterrupted
 rerun granted all five, full 1.60x, with worst frame 36 ms. Automated parries prove integration,
 not human fairness, and cue-to-contact times remain estimates during turning and hitstop.
+
+## 2026-09-08 — A finite cloud sea cannot cover a raised camera's horizon
+
+**Symptom.** Widening the opening exposed a hard pale waterline and a repeating row of black,
+planet-like shapes across the distant horizon. Stars and nebulae remained visible through fully hazed
+cloud banks.
+
+**Root cause.** The 300 m camera plane clips the finite cloud grid below the geometric horizon from the
+36 m crest; increasing its rectangular bounds does not change that angle. The cloud shader converged
+RGB into fog but retained transparency, while `Starfield.BuildHorizonSilhouette` drew 64 unrelated,
+fully opaque spires directly across the gap. Remote combat realms were not the repeating row.
+
+**Fix.** The existing sky mesh draws a continuous, fog-coloured lower atmosphere after its decorative
+layers, opaque below -3 degrees and clear by +2 degrees. Distant cloud haze now converges opacity to one,
+and the ruin ring is subdued to alpha 0.25 at its body and 0.12 at its crest. No renderer, material or
+light was added.
+
+**Invariant.** Inspect a raised route at every yaw and match background haze to `unity_FogColor` in the
+active colour space. Do not try to close an angular far-plane gap by enlarging a finite plane.
+
+**Related solar silhouette.** The first exterior sun is roughly 249 m from the new start. URP fog had
+already converged its RGB at that distance, but `SolarArena.shader` retained 0.92 destination opacity,
+leaving a flat fog-coloured disc against the brighter dome. The shared final fade now remains intact
+through 65% fog transmittance and smoothly reaches zero with full fog, releasing shell and corona
+together. Fogging a transparent object's colour without fogging its occlusion is not disappearance.
+
+## 2026-09-08 — The widened atmosphere exposed two multiplicative black floors
+
+**Symptom.** The new horizon coverage removed the gap, but the fog formed a dark belt that did not blend
+into the scenery, and unlit faces on the larger ruins collapsed nearly to black.
+
+**Root cause.** `Sprites/Default` multiplies vertex RGB by alpha in its fragment path; the first lower-sky
+mesh supplied already-premultiplied RGB, so partial haze was multiplied twice. After correcting that,
+measurements showed a second independent floor: healthy Trilight probe values multiplied by `M_Ground`'s
+old albedo produced only ~.0029 linear luminance before mortar/occlusion, while fog was .0117 and a nearby
+cloud bank ~.1053. Contrast/exposure changes could not recover information that never entered the frame.
+
+**Fix.** Horizon RGB is straight, authored sky/eclipses are converted into the active rendering space, and
+the atmosphere grades from -7 to +18 degrees before the opaque eclipse disc and rim. The shared fog target
+is `#20344D`; Ground/Stone/Platform bases are `#36404F`/`#424D5F`/`#586579`, with platform emission unchanged.
+No light, post-process, tell colour, geometry or renderer budget changed.
+
+**Invariant.** Diagnose the scene in linear light: inspect sky compositing and ambient-times-albedo before
+retuning grading. A healthy probe times a near-zero surface remains near zero.
+
+## 2026-09-08 — Weapon polish faults were stale pooled state and hot-path hierarchy work
+
+**Symptom.** A reused glint could begin at an old contact, hitstop packed the ribbon with duplicate points,
+and active swings performed avoidable managed work even though the visible effect budget was already small.
+
+**Root cause.** Pooled `SlashFx` renderers waited until their first update for positions. `WeaponTrail`
+treated stationary/sub-2.5 mm samples as new geometry, and `WeaponViewmodel.TipWorldPosition` called the
+array-returning `GetComponentsInChildren<Renderer>(true)` on every active-frame read.
+
+**Fix.** Spawn initializes all primitive positions immediately; the flare is one narrow four-point star;
+sub-threshold trail movement accumulates while the old tail dissolves, with exact final contact forced.
+Disabling clears the camera sibling. The viewmodel caches its chosen renderer per held model and reads live
+bounds thereafter. The maul finisher stays below the deflect size. No renderer/material/light/buffer was added.
+
+**Invariant.** A pooled VFX request must be visually valid in the request frame. Finite trail history is
+spent only on visible displacement, and a per-frame presentation property must not enumerate a hierarchy.
+
+## 2026-09-08 — Solar entry audio must follow successful state transition
+
+**Symptom.** The cinematic sphere cut had no authored sound, and a cleared sphere could still execute its
+entry path even though its visual crossing wash had been disarmed.
+
+**Root cause.** The portal used no dedicated audio event, and `Update` checked `arena.Cleared` while
+`Enter` did not, splitting visual and transport authority.
+
+**Fix.** `Enter` rejects a cleared arena, then dispatches append-only `Sfx.SolarWarp` exactly once only
+after `BeginFight` and teleport succeed, beside the same-frame `SolarTransition.Cut`. The clip is generated
+once and pooled.
+
+**Invariant.** Presentation for a state transition fires downstream of the successful transition, and
+every gate that visually disarms the interaction must disarm its public entry path too.
+
+## 2026-09-09 — Section translation cannot repair cramped local topology
+
+**Symptom.** Moving the post-first-miniboss route farther apart improved the skyline, but T2/T3 still felt
+like the same cramped structures with more empty road between them. The first T3 shortcut could be cleared
+as a jump, its landing intruded on the widened span, and the solar membranes still competed with nearby
+geometry.
+
+**Root cause.** A rigid section offset preserves every local gap and footprint, including the bad ones.
+The previous wall-run report also derived one launch rectangle from stale literals, so it could certify a
+route different from the authored wall. Sphere clearance was being treated as a centre-distance problem
+instead of checking the actual floor/wall/pillar/gate/torch bounds around the membrane.
+
+**Fix.** T2 is locally rebuilt as a roughly 28 m helix with larger terraces. T3 now uses broad pillar
+terraces, a 9.6 × 26 m span, a 23 m first wall and an isolated landing that creates a true 13.5 m gap
+(about one second of wall time); its alternate arc has four balloons. Only after those local relationships
+are correct do the sections move as units: T2 +38 m, T3 +70 m, T4/boss +96 m. All gates, checkpoints,
+pickups, perches, water, balloons, encounter windows and kill bounds derive or move with the same data.
+The span report derives launch rectangles from current wall faces.
+
+**Invariant.** Scale a level in two passes: author local movement topology first, then translate the entire
+section. Reports must derive their probes from shipped geometry, and sphere isolation is measured against
+the bounds of every nearby structure, not an authoring anchor.
+
+## 2026-09-09 — Current-position homing silently undid correct projectile lead
+
+**Symptom.** Projectile encounters passed at base run speed but missed or arrived outside the authored
+route at 17.6–27.5 m/s. Launch lead looked correct in isolation, yet high-speed crossing runners received
+late, rearward or no parry contacts. A three-shot burst made that drift compound.
+
+**Root cause.** The initial shot led the player, but every homing frame steered back toward the player's
+stale current chest. Forecasting used range/muzzle approximations rather than first contact from the real
+spawned root, and launch-frame cadence said nothing about when two curved flights would reach the player.
+Encounter ownership also had no data-level route boundary, so a geometrically valid shot could belong to
+the wrong part of a stacked or branching course.
+
+**Fix.** `ProjectileFlightMath` solves the exact constant-velocity intercept and uses that moving target in
+both forecast and runtime capped homing. It integrates at 120 Hz, sweeps projectile and player spheres from
+the real projectile root, and searches for the fastest speed that still preserves the 0.28 s cue plus
+0.16 s margin. `ProjectileEngagementWindowDef` bounds player presence and predicted contact along authored
+route corridors. Every emission repeats life, band, LOS, facing, blocker, flight and window validation.
+Bursts reserve predicted contacts rather than launch times, cancel without catch-up, and the Heavy Sentry
+ships three contacts 0.42 s apart followed by 2.4 s quiet. The generic report proves all campaign windows
+at 11 / 17.6 / 27.5 m/s.
+
+**Invariant.** Aim, runtime homing, cue ETA and verification must consume one contact model. Sequence data
+may decide ownership and geometry, never waive a normal firing gate. Cadence is an arrival contract; a
+cancelled phrase creates silence, not debt.
+
+## 2026-09-09 — A parry-count promise must use the strongest shipped weapon
+
+**Symptom.** The Heavy Sentry was described as breaking after five parries, but its 250 posture actually
+broke sooner with the Dev Blade. EditMode fixture shots also intermittently targeted a scene player instead
+of the test player and left `ProjectileShooter` uninitialized.
+
+**Root cause.** The tuning comment assumed 40 posture, while the shipped Dev Blade applies 60 × 1.2 = 72
+per parry; three parries plus two reflected returns total 316. Separately, `AddComponent` in EditMode does
+not guarantee the runtime lifecycle/order the fixture assumed, and a global player lookup was ambiguous.
+
+**Fix.** The generated Heavy Sentry ships 330 posture, so five strongest-blade parries are required while
+three reflected 45-damage bolts still kill its 130 HP. The fixture invokes `Awake`, binds its own
+`PlayerCombat`, sets layers explicitly and calls `Physics.SyncTransforms`. The body is now a blade-free,
+12-renderer stone reliquary with three recessed apertures and no lights or particles.
+
+**Invariant.** Balance statements are arithmetic over generated assets and the strongest legal loadout.
+Tests that exercise lifecycle-bound components must create an unambiguous world and explicitly establish
+the lifecycle state they depend on.
+
+## 2026-09-09 — A pooled-object cap cannot trust a static counter across editor reloads
+
+**Symptom.** Six late full-suite VFX tests could not spawn any `SlashFx`, although inspection found zero
+live effect objects. Focused runs passed, making the failure look order-dependent.
+
+**Root cause.** Unity destroyed the pooled GameObjects across an editor scene/domain transition while the
+managed `live` counter survived at its hard cap of 28. The pool already skipped destroyed object
+references, but the separate counter had no equivalent recovery path. The behavior suite had a second
+isolation mismatch: `WandReadability` sampled a scaled weapon animation using realtime waits while live
+level enemies were still allowed to trigger hitstop.
+
+**Fix.** `SlashFx` clears pool state at subsystem registration and, only when cap pressure occurs, recounts
+genuinely active/counted instances before deciding to shed an effect. The steady-state path remains O(1)
+and allocation-free; 28 real live effects still enforce the cap. `WandReadability` now suspends unrelated
+world enemies like the other timing-sensitive feature sections. A dedicated stale-counter test pins the
+reload recovery.
+
+**Invariant.** A managed counter of scene objects needs a reload boundary and a cheap exceptional-path
+reconciliation. A test comparing realtime with a scaled system must own every possible time-scale writer
+in its world.
+
+## 2026-09-09 — A weighted random test cannot assert one sample is guaranteed
+
+**Symptom.** A full 980-test run failed only `ASignatureOnCooldownIsNeverChosen_TheFillerIs`, while focused
+runs and the selector implementation were correct. The assertion expected a 100:1 weighted signature to
+win one sample before and after cooldown.
+
+**Root cause.** Weight changes probability, not eligibility. The filler remains a legal 1/101 outcome, so
+an unseeded one-sample assertion had a real intermittent failure mode and also perturbed Unity's global RNG.
+
+**Fix.** The test saves and restores `UnityEngine.Random.state`, uses a fixed seed, samples the eligible
+periods repeatedly, and keeps the cooldown period strict: every choice during cooldown must be the filler.
+It now tests the selector's contract rather than demanding a particular random draw.
+
+**Invariant.** Tests of weighted selection either control the random stream or assert a statistical/
+eligibility property across enough deterministic samples; they never equate a nonzero weight with a
+guaranteed single result.
+
+## 2026-09-09 — Route-audit corridors must not become invisible shooter triggers
+
+**Symptom.** The blue squid sentries and other projectile enemies fired only in odd patches of the route,
+then stayed silent. The older autonomous behavior was more reliable in ordinary encounters.
+
+**Root cause.** The reusable encounter pass built a runtime `ProjectileVolleySequence` for every authored
+route-audit group. That turned narrow, synthetic engagement corridors into mandatory live firing gates and
+gave each ordinary shooter only one owned phrase, even though those windows were authored to prove contact
+geometry rather than define what the player must stand inside.
+
+**Fix.** Every campaign shooter keeps one bounded route-audit record, but a runtime coordinator is now built
+only when the record has explicit member progress gates. The five-beat T0 opening retains its ordered volley;
+T1-T4 sentries are autonomous again and repeat their normal range, LOS, facing, obstruction and cue-safety
+loop. The runtime coordinator does not consume audit windows. A shipped-data test pins that split.
+
+**Invariant.** An authoring corridor is evidence, not an invisible trigger. Runtime sequence ownership must
+be explicit in data; ordinary sentries continue firing whenever their normal readable combat gates pass.
+
+## 2026-09-09 — Enemy targets must survive lifecycle discontinuities
+
+**Symptom.** An enemy whose player reference was unavailable at `Start`, replaced by respawn, or cleared by
+an in-play domain reload could remain permanently inert even after a valid player existed.
+
+**Root cause.** `EnemyController` searched for `PlayerCombat` exactly once in `Start`, while `Update` returned
+immediately whenever the non-serialized target was null. Nothing could ever reopen acquisition.
+
+**Fix.** `Start` and `Update` share `EnsurePlayerTarget`, which retains a valid target and retries the lookup
+only while the references are missing or inconsistent. A focused EditMode regression test clears both target
+references and proves they are restored together.
+
+**Invariant.** A scene-owned AI target is a recoverable reference, not a one-shot startup assumption. Missing
+targets may pause a brain, but they cannot permanently disable it once the player exists again.

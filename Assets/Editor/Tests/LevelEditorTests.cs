@@ -245,6 +245,9 @@ namespace VibeGame1.Tests
             Assert.IsTrue(ed.hideSceneRootsWhileEditing);
             var menu = hud.GetComponent<TestMenu>();
             Assert.IsNotNull(menu != null ? menu.levelEditorButton : null, "the F1 menu's LEVEL EDITOR button");
+            var console = hud.GetComponent<DeveloperConsole>();
+            Assert.IsNotNull(console, "the HUD must carry the release-accessible command console");
+            Assert.IsNotNull(console.panel); Assert.IsNotNull(console.output); Assert.IsNotNull(console.input);
         }
 
         [Test]
@@ -344,7 +347,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TheInputActionsAsset_HasThePickActionAndTheDeleteKeyAlias()
+        public void TheInputActionsAsset_HasEditorAndConsoleBindings()
         {
             // docs/handoffs/level-editor-controls-handoff.md: the eyedropper (`EditorPick`) and a `delete`
             // binding on `EditorDelete` (alongside `X`), so Delete lives on Delete like every other 3D editor.
@@ -355,11 +358,42 @@ namespace VibeGame1.Tests
             try
             {
                 Assert.IsNotNull(asset.FindActionMap("Player", true).FindAction("EditorPick", false), "EditorPick action is missing");
+                Assert.IsNotNull(asset.FindActionMap("Player", true).FindAction(InputReader.ConsoleToggleActionName, false), "ConsoleToggle action is missing");
+                Assert.IsNotNull(asset.FindActionMap("Player", true).FindAction(InputReader.ConsoleSubmitActionName, false), "ConsoleSubmit action is missing");
             }
             finally { Object.DestroyImmediate(asset); }
 
             Assert.IsTrue(json.Contains("\"name\": \"EditorPick\""), "EditorPick action is missing");
             Assert.IsTrue(json.Contains("\"path\": \"<Keyboard>/delete\""), "the Delete key alias for EditorDelete is missing");
+            Assert.IsTrue(json.Contains("\"path\": \"<Keyboard>/backquote\""), "the console must open on Backquote");
+            Assert.IsTrue(json.Contains("\"path\": \"<Keyboard>/enter\""), "the console must submit on Enter");
+        }
+
+        [Test]
+        public void ReleaseF10_RequiresTheSessionOnlyConsoleUnlock()
+        {
+            InputReader.LockLevelEditorForSession();
+            try
+            {
+                Assert.IsFalse(InputReader.LevelEditorShortcutAllowed(false, false),
+                    "an ordinary release build must reject F10");
+                Assert.IsTrue(InputReader.LevelEditorShortcutAllowed(true, false),
+                    "editor and development builds retain normal F10 access");
+
+                var help = DeveloperConsole.ExecuteCommand("  HELP  ");
+                Assert.IsFalse(help.clear);
+                Assert.AreEqual(DeveloperConsole.HelpText, help.message);
+                Assert.IsFalse(InputReader.LevelEditorSessionUnlocked, "help must not grant access");
+
+                var unlock = DeveloperConsole.ExecuteCommand("editor    unlock");
+                Assert.IsTrue(InputReader.LevelEditorSessionUnlocked);
+                Assert.IsTrue(InputReader.LevelEditorShortcutAllowed(false, InputReader.LevelEditorSessionUnlocked));
+                StringAssert.Contains("THIS SESSION", unlock.message);
+
+                Assert.IsTrue(DeveloperConsole.ExecuteCommand("clear").clear);
+                Assert.IsFalse(DeveloperConsole.ExecuteCommand("editor please").clear);
+            }
+            finally { InputReader.LockLevelEditorForSession(); }
         }
     }
 }

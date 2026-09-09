@@ -5,7 +5,7 @@
     python Tools/dashboard/build_dashboard.py --serve    # ...and serves it on http://127.0.0.1:8765
 
 What it gathers (read-only, no Unity, no network):
-  * every doc: CLAUDE.md, README.md, CREDITS.md, docs/*.md, Assets/Scenes/README_Sandbox.md
+  * every project doc: AGENTS.md, README.md, CREDITS.md, docs/*.md, specialist briefs and shared workflows
   * git: branch, last 60 commits, the working tree's changed / new file counts
   * the EditMode results the Unity runner writes (TestResults.xml): pass / fail / skip, slowest tests
   * the feature-suite line in docs/VERIFICATION-REPORT.md
@@ -31,7 +31,8 @@ TEST_XML = Path(os.environ.get("LOCALAPPDATA", "")).parent / "LocalLow" / "vibeg
 
 DOC_ORDER = [
     ("docs/HANDOFF.md", "Handoff"),
-    ("CLAUDE.md", "CLAUDE.md (index)"),
+    ("AGENTS.md", "Agent contract (tool-neutral)"),
+    ("CLAUDE.md", "Claude Code adapter"),
     ("README.md", "README"),
     ("docs/VERIFICATION-REPORT.md", "Verification report"),
     ("docs/BACKLOG.md", "Backlog"),
@@ -46,6 +47,7 @@ DOC_ORDER = [
     ("docs/GHOST-RACING.md", "Ghost racing"),
     ("docs/multiplayer-system-design.md", "Multiplayer design"),
     ("Assets/Scenes/README_Sandbox.md", "Sandbox scene"),
+    ("Assets/Resources/Audio/Radio/README.md", "Radio audio"),
     ("CREDITS.md", "Credits"),
 ]
 
@@ -53,7 +55,10 @@ DOC_ORDER = [
 
 def sh(*args):
     try:
-        return subprocess.run(args, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+        command = list(args)
+        if command and command[0] == "git":
+            command[1:1] = ["-c", "safe.directory=" + ROOT.as_posix()]
+        return subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
                               errors="replace", timeout=30).stdout.strip()
     except Exception:
         return ""
@@ -78,10 +83,25 @@ def collect_docs():
         text = read(rel)
         if text:
             docs.append({"path": rel, "title": title, "text": text}); seen.add(rel)
-    for p in sorted((ROOT / "docs").glob("*.md")):
+    for p in sorted((ROOT / "docs").rglob("*.md")):
         rel = p.relative_to(ROOT).as_posix()
         if rel not in seen:
-            docs.append({"path": rel, "title": p.stem.replace("-", " ").title(), "text": read(rel)})
+            section = p.parent.name.replace("-", " ").title()
+            title = p.stem.replace("-", " ").title()
+            docs.append({"path": rel, "title": (section + " · " + title) if p.parent.name != "docs" else title,
+                         "text": read(rel)}); seen.add(rel)
+    # These are plain Markdown contracts, not harness-owned personalities. Surface them in the same
+    # dashboard so Codex, Claude Code, Cursor, Zed, Aider, Jules or a human can adopt the lane directly.
+    for p in sorted((ROOT / ".claude" / "agents").glob("*.md")):
+        rel = p.relative_to(ROOT).as_posix()
+        if rel not in seen:
+            docs.append({"path": rel, "title": "Specialist brief · " + p.stem.replace("-", " ").title(),
+                         "text": read(rel)}); seen.add(rel)
+    for p in sorted((ROOT / ".claude" / "skills").glob("*/SKILL.md")):
+        rel = p.relative_to(ROOT).as_posix()
+        if rel not in seen:
+            docs.append({"path": rel, "title": "Shared workflow · " + p.parent.name.replace("-", " ").title(),
+                         "text": read(rel)}); seen.add(rel)
     return docs
 
 
@@ -365,14 +385,14 @@ def yaml_list(text, key):
 
 def level_map():
     levels = []
-    for p in sorted((ROOT / "Assets" / "Data" / "Levels").glob("*.asset")):
+    for p in sorted((ROOT / "Assets" / "Data" / "Levels").rglob("*.asset")):
         t = read(p.relative_to(ROOT))
         if "platforms:" not in t:
             continue
         name = re.search(r"displayName: (.*)", t)
         ps = re.search(r"playerStart: " + VEC, t)
         levels.append({
-            "file": p.name, "name": name.group(1).strip() if name else p.stem,
+            "file": p.relative_to(ROOT).as_posix(), "name": name.group(1).strip() if name else p.stem,
             "playerStart": [float(ps.group(1)), float(ps.group(2)), float(ps.group(3))] if ps else None,
             "platforms": [x for x in yaml_list(t, "platforms") if "center" in x and "size" in x],
             "spawns": yaml_list(t, "spawns"), "pickups": yaml_list(t, "pickups"),
@@ -386,39 +406,43 @@ def level_map():
 
 def guid_index(folder):
     idx = {}
-    for meta in (ROOT / "Assets" / "Data" / folder).glob("*.asset.meta"):
+    data_root = ROOT / "Assets" / "Data" / folder
+    for meta in data_root.rglob("*.asset.meta"):
         m = re.search(r"guid: ([0-9a-f]{32})", read(meta.relative_to(ROOT)))
         if m:
-            idx[m.group(1)] = meta.name[:-len(".asset.meta")]
+            # Keep the relative asset path: Movesets and Enemies are grouped into tool-neutral content
+            # folders now, so a stem-only index silently pointed back at the retired flat layout.
+            idx[m.group(1)] = meta.relative_to(ROOT).as_posix()[:-len(".meta")]
     return idx
 
 
 def scalar(text, key, cast=float):
-    m = re.search(r"^  " + key + r": ([-\w.]+)$", text, re.M)
+    m = re.search(r"^  " + key + r": (.+)$", text, re.M)
     if not m:
         return None
     try:
-        return cast(m.group(1))
+        return cast(m.group(1).strip())
     except ValueError:
-        return m.group(1)
+        return m.group(1).strip()
 
 
 def enemies():
-    attacks_by_guid, movesets_by_guid = guid_index("Attacks"), guid_index("Movesets")
+    attack_paths, moveset_paths = guid_index("Attacks"), guid_index("Movesets")
+    attacks_by_guid = {guid: Path(path).stem for guid, path in attack_paths.items()}
     attacks = {}
-    for p in (ROOT / "Assets" / "Data" / "Attacks").glob("*.asset"):
+    for p in (ROOT / "Assets" / "Data" / "Attacks").rglob("*.asset"):
         t = read(p.relative_to(ROOT))
         attacks[p.stem] = {k: scalar(t, k) for k in ("windup", "impactDelay", "strikeDuration", "recovery", "range", "coneDeg", "damage", "lungeDistance")}
         attacks[p.stem]["unblockable"] = scalar(t, "unblockable", int) == 1
         attacks[p.stem]["clip"] = scalar(t, "clip", str) or ""
         attacks[p.stem]["name"] = p.stem
     out = []
-    for p in sorted((ROOT / "Assets" / "Data" / "Enemies").glob("*.asset")):
+    for p in sorted((ROOT / "Assets" / "Data" / "Enemies").rglob("*.asset")):
         t = read(p.relative_to(ROOT))
         ms = re.search(r"moveset: \{fileID: \d+, guid: ([0-9a-f]{32})", t)
         entries = []
-        if ms and ms.group(1) in movesets_by_guid:
-            mt = read("Assets/Data/Movesets/" + movesets_by_guid[ms.group(1)] + ".asset")
+        if ms and ms.group(1) in moveset_paths:
+            mt = read(moveset_paths[ms.group(1)])
             for block in re.split(r"^  - label: ", mt, flags=re.M)[1:]:
                 label = block.splitlines()[0].strip()
                 hits = [attacks_by_guid.get(g, g) for g in re.findall(r"guid: ([0-9a-f]{32}), type: 2", block)]
@@ -450,6 +474,11 @@ def build():
         "runtimeFlow": RUNTIME_FLOW,
         "maps": dataflow_maps(by_path.get("docs/DATAFLOW.md", "")),
         "levels": level_map(), "enemies": enemies(), "docs": docs,
+        "agentContract": {
+            "path": "AGENTS.md",
+            "specialists": len(list((ROOT / ".claude" / "agents").glob("*.md"))),
+            "workflows": len(list((ROOT / ".claude" / "skills").glob("*/SKILL.md"))),
+        },
     }
     data["folders"] = folder_graph(data["graph"])
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -500,7 +529,7 @@ pre.raw{background:rgba(0,0,0,.5);border:1px solid var(--edge);padding:10px;bord
 .tl{display:flex;height:12px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06)}.tl i{display:block;height:100%}
 .ctl{display:flex;gap:10px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--dim)}.ctl select,.ctl input[type=range]{background:rgba(0,0,0,.4);color:var(--bone);border:1px solid var(--edge);border-radius:6px}
 </style></head><body>
-<div class="top"><h1>VIBEGAME1</h1><span class="meta" id="meta"></span><input id="q" placeholder="search every doc…"></div>
+<div class="top"><h1>VIBEGAME1</h1><span class="meta" id="meta"></span><input id="q" placeholder="search every doc, brief and workflow…"></div>
 <div class="wrap"><nav id="nav"></nav><main id="main"></main></div>
 <script>
 const D=__DATA__;
@@ -509,7 +538,7 @@ const FOLDER_COLOURS={Player:'#4fe0d0',Enemies:'#ff7a1e',Combat:'#b41e2e',Feel:'
 const fc=f=>FOLDER_COLOURS[f]||'#aaa';
 $('#meta').textContent=`branch ${D.git.branch||'?'} · generated ${D.generated} · ${D.root}`;
 try{mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose',flowchart:{curve:'basis',nodeSpacing:30,rankSpacing:40}})}catch(e){}
-function nav(){const n=$('#nav');let h='<h3>Overview</h3><button data-v="home" class="active">Dashboard</button><button data-v="changes">Change log</button><button data-v="tests">Tests</button>';
+function nav(){const n=$('#nav');let h='<h3>Overview</h3><button data-v="home" class="active">Dashboard</button><button data-v="agents">Agent contract</button><button data-v="changes">Change log</button><button data-v="tests">Tests</button>';
 h+='<h3>Visuals</h3><button data-v="graph">Code graph</button><button data-v="events">Event bus</button><button data-v="maps">Dataflow maps</button><button data-v="level">Level map</button><button data-v="enemies">Enemy roster</button>';
 h+='<h3>Documentation</h3>';D.docs.forEach((d,i)=>h+=`<button data-v="doc:${i}">${esc(d.title)}</button>`);n.innerHTML=h;
 n.querySelectorAll('button').forEach(b=>b.onclick=()=>{n.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');show(b.dataset.v)});}
@@ -522,14 +551,22 @@ h+=tile('Feature suite',f?`<span class="${f.failed?'bad':'ok'}">${f.passed}</spa
 h+=tile('Working tree',`${g.changed+g.new+g.deleted}`,`${g.changed} changed · ${g.new} new · ${g.deleted} deleted (uncommitted, .meta excluded)`,g.changed+g.new+g.deleted?'warn':'ok');
 h+=tile('Commits',g.commits.length?g.commits[0].hash:'—',g.commits.length?`${g.commits[0].date} · ${esc(g.commits[0].subject)}`:'');
 h+=tile('Scripts',D.graph.nodes.length,`classes under Assets/Scripts · ${D.graph.edges.length} references`);
+h+=tile('Agent contract',D.agentContract.path,`${D.agentContract.specialists} tool-neutral specialist briefs · ${D.agentContract.workflows} shared workflows`,'ok');
 h+=tile('Engineering log',D.logEntries.length,'entries');h+='</div>';
 const hand=D.docs.find(d=>d.path==='docs/HANDOFF.md');
 h+='<div class="two"><div class="pane"><h2>Handoff — state of play</h2><div class="doc" style="padding:0 16px 10px">'+(hand?render(hand.text):'<p class="small">no docs/HANDOFF.md</p>')+'</div></div>';
-h+='<div><div class="pane"><h2>Latest engineering-log entries</h2><ol>'+D.logEntries.slice(-10).reverse().map(x=>`<li>${esc(x)}</li>`).join('')+'</ol></div></div></div>';
+h+='<div><div class="pane"><h2>Latest engineering-log entries</h2><ol>'+D.logEntries.slice(0,10).map(x=>`<li>${esc(x)}</li>`).join('')+'</ol></div></div></div>';
 h+='<div class="pane"><h2>How the game runs — the runtime flow</h2><p class="small">Solid arrows are calls; dotted arrows are <code>GameEvents</code> broadcasts (gameplay raises, the HUD and the feel layer listen, nothing listens back into gameplay). Data assets feed everything and are never written at runtime. From ARCHITECTURE.md and DATAFLOW.md.</p><pre class="mermaid">'+esc(D.runtimeFlow)+'</pre></div>';
 h+='<div class="pane"><h2>The code, by system</h2><p class="small">Every folder under Assets/Scripts as a group with its largest classes; an arrow between groups is how many times the code in one references classes in the other (≥ 6 shown; the Debug harness is left out of the arrows because it touches everything by design). Measured from the sources, not drawn by hand.</p><pre class="mermaid">'+esc(D.folders.mermaid)+'</pre>';
 h+='<table><tr><th>system</th><th>what it is</th><th>classes</th><th>lines</th><th>biggest classes</th></tr>'+D.folders.table.map(f=>`<tr><td><b style="color:${fc(f.folder)}">${esc(f.folder)}</b></td><td>${esc(f.role)}</td><td>${f.classes}</td><td>${f.lines}</td><td class="small">${f.key.map(esc).join(', ')}</td></tr>`).join('')+'</table></div>';
 setTimeout(()=>{try{mermaid.run({nodes:document.querySelectorAll('pre.mermaid')})}catch(e){}},0);return h}
+// ---------------------------------------------------------------- tool-neutral agent contract
+function agentsView(){const contract=D.docs.find(d=>d.path==='AGENTS.md');const briefs=D.docs.filter(d=>d.path.startsWith('.claude/agents/'));const workflows=D.docs.filter(d=>d.path.startsWith('.claude/skills/'));
+const card=d=>{const i=D.docs.indexOf(d);const first=(d.text.match(/^#\s+(.+)$/m)||[])[1]||d.title;return `<div class="card"><b>${esc(d.title)}</b><div class="small mono">${esc(d.path)}</div><p class="small">${esc(first)}</p><button data-doc="${i}">read contract</button></div>`};
+let h='<div class="pane"><h2>Tool-neutral agent contract</h2><p>This project has one source of truth: <code>AGENTS.md</code>. Harness-specific files are adapters; the specialist briefs and workflows below are plain Markdown that any coding agent or human can follow.</p>';
+if(contract){const i=D.docs.indexOf(contract);h+=`<button data-doc="${i}">open AGENTS.md</button>`}h+='</div>';
+h+=`<div class="two"><div class="pane"><h2>Specialist briefs (${briefs.length})</h2>${briefs.map(card).join('')}</div><div class="pane"><h2>Shared workflows (${workflows.length})</h2>${workflows.map(card).join('')}</div></div>`;
+setTimeout(()=>document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>{const i=+b.dataset.doc;document.querySelector(`[data-v='doc:${i}']`).click()}),0);return h}
 // ---------------------------------------------------------------- changes / tests
 function changes(){const g=D.git;let h='<div class="pane"><h2>Commits (last '+g.commits.length+')</h2><table><tr><th>hash</th><th>date</th><th>subject</th></tr>'+g.commits.map(c=>`<tr><td class="mono">${c.hash}</td><td>${c.date}</td><td>${esc(c.subject)}</td></tr>`).join('')+'</table></div>';
 h+='<div class="pane"><h2>Uncommitted files ('+g.files.length+')</h2><table>'+g.files.map(f=>`<tr><td class="mono" style="width:40px">${esc(f.code)}</td><td class="mono">${esc(f.path)}</td></tr>`).join('')+'</table></div>';
@@ -627,7 +664,7 @@ function doc(i){const d=D.docs[i];let html=render(d.text);
 html=html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,(m,src)=>'<pre class="mermaid">'+src+'</pre>');
 setTimeout(()=>{try{mermaid.run({nodes:document.querySelectorAll('.doc pre.mermaid')})}catch(e){}},0);
 return `<p class="small mono">${esc(d.path)}</p><div class="doc">${html}</div>`}
-function show(v){const m=$('#main');const views={home,changes,tests,graph:graphView,events:eventsView,maps:mapsView,level:levelView,enemies:enemiesView};
+function show(v){const m=$('#main');const views={home,agents:agentsView,changes,tests,graph:graphView,events:eventsView,maps:mapsView,level:levelView,enemies:enemiesView};
 if(views[v])m.innerHTML=views[v]();else if(v.startsWith('doc:'))m.innerHTML=doc(+v.slice(4));window.scrollTo(0,0)}
 $('#q').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();if(!q){show('home');return}let h='<div class="pane"><h2>Search: '+esc(q)+'</h2>';let any=false;
 D.docs.forEach((d,i)=>{const lines=d.text.split('\n').map((l,n)=>[l,n]).filter(([l])=>l.toLowerCase().includes(q)).slice(0,12);if(!lines.length)return;any=true;

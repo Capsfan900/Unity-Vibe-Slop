@@ -198,13 +198,24 @@ namespace VibeGame1.Tests
         [Test]
         public void OnlyTheSentryGruntIsAGhost()
         {
-            foreach (var n in new[] { "pshooter_enemy02", "Enemy_Grunt", "Enemy_Heavy", "Boss" })
+            foreach (var n in new[] { "Enemy_Grunt", "Enemy_Heavy", "Boss" })
             {
                 var p = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + n + ".prefab");
                 if (p == null) continue;
                 Assert.IsNull(p.GetComponentInChildren<SentryGhostVisual>(true), n + " keeps the pill body");
                 var vis = p.GetComponentInChildren<EnemyVisuals>(true);
                 if (vis != null) Assert.IsNotNull(vis.weapon, n + " still carries its blade");
+            }
+
+            var heavyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/pshooter_enemy02.prefab");
+            if (heavyPrefab != null)
+            {
+                Assert.IsNull(heavyPrefab.GetComponentInChildren<SentryGhostVisual>(true),
+                    "the Heavy Sentry is a stone reliquary, not the pale ghost");
+                var visuals = heavyPrefab.GetComponentInChildren<EnemyVisuals>(true);
+                Assert.IsNotNull(visuals);
+                Assert.IsNull(visuals.weapon,
+                    "the ranged-only reliquary has three face apertures instead of a misleading melee blade");
             }
 
             // The Heavy Sentry lost the violet with the ghost: no BODY may wear the flare's hue.

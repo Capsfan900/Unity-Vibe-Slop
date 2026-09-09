@@ -437,7 +437,9 @@ WeaponViewmodel.AttackCo
 WeaponTrail.LateUpdate      (same GameObject as WeaponViewmodel — the pose is written in Update,
                              so LateUpdate always reads the pose that was actually rendered)
     emitting → Sample(): space.InverseTransformPoint(viewmodel.TipWorldPosition)
-               plus `subdivisions` interpolated points toward it, pushed newest-first
+               `Tip*` renderer hierarchy resolved once per held model; live bounds read each sample
+               movement below 2.5 mm accumulates without consuming the finite point budget
+               plus `subdivisions` interpolated points toward a real sample, pushed newest-first
     fading   → widthMultiplier *= fade, material alpha = fade², and the tail RETRACTS
                (count → ceil(peak * fade)) so the arc closes instead of hanging there
     LineRenderer (useWorldSpace = false) under the CAMERA, additive URP/Unlit from
@@ -652,7 +654,7 @@ InputReader.AttackPressed → WeaponController.TryAttack()
 - Screen flash and chromatic aberration are capped low on purpose. Both were previously loud enough
   (0.55 alpha, 1.0 chroma) to destroy the wand they were meant to punctuate.
 - Poses, scales and the standoff all live on the Player prefab or on `WandData`, so **`PrefabFactory` and
-  `WandFactory` write them explicitly** — see CLAUDE.md rule 9. `FeatureTests > WandReadability` asserts it.
+  `WandFactory` write them explicitly** — see AGENTS.md rule 9. `FeatureTests > WandReadability` asserts it.
 
 ---
 
@@ -846,15 +848,22 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
       OnDisable (a level reload, a teardown, the component going away) → Clear(), unconditionally.
       It never writes the multiplier at all while it holds no stacks, so it cannot fight a future item.
 
-  DATA-AUTHORED PROJECTILE VOLLEYS (optional; the opening five-turret ladder uses this)
-    LevelDefinition.projectileSequences[] names existing EnemySpawner objects in firing order
-      -> LevelDefinitionBuilder adds one ProjectileVolleySequence with those ordered spawner references
-      -> each spawned ProjectileShooter.SetSequenceControlled(true) opts only that instance out of the
-         ordinary shared span metronome; shooters with no sequence stay on the existing path
+  DATA-AUTHORED PROJECTILE ENCOUNTERS (optional and reusable; all campaign shooters are audited by this)
+    LevelDefinition.projectileSequences[] names existing EnemySpawner objects in route order
+      -> engagementWindows[] binds that spawner to a world-space route line, horizontal/vertical corridor,
+         and an allowed predicted-contact interval for offline/editor auditing; duplicate names support
+         alternate paths. These windows never become invisible runtime firing triggers.
+      -> a record with memberProgressGates creates one ProjectileVolleySequence with those ordered spawners
+      -> each bound ProjectileShooter.SetSequenceControlled(true) gives that progress-gated row ownership
+      -> a record without progress gates remains audit-only; ordinary sentries stay autonomous and repeat
+         their normal range/LOS/facing beat instead of firing once inside a narrow corridor
       -> the first member keeps its existing projectileAcquireDelay after band, LOS and frontal readiness
-      -> ProjectileVolleySequence asks exactly one member to TryFireSequenceShot
-         -> the same EnemyData, range, LOS, ArrivesInFront, lead, launch-speed and FireAt path
-      -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that bolt is gone
+      -> ProjectileVolleySequence asks exactly one member to TryFireSequencePhrase
+          -> ProjectileShooter validates life, band, LOS, facing, swept blocker path and cue-safe flight
+             before EVERY emission
+         -> one-shot data emits one bolt; Heavy data owns a three-shot phrase whose CONTACTS, not launch
+            frames, are reserved 0.42 s apart; cancellation is final and never creates catch-up debt
+      -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that phrase is done
       -> recoveryGap 0.11 s follows resolution, just beyond shipped parrySuccessRecovery 0.08 s
       -> optional progressOrigin / progressDirection / memberProgressGates hold each member until the
          runner crosses its authored route distance; the opening gates are 0/16/40/64/87 m down the hill
@@ -863,11 +872,19 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
       -> PlayerRespawned or wholesale EnemySpawner instance replacement restarts and rebinds the row
       -> optional shotResolutionTimeout (opening: 1.25 s, legacy default: 0) bounds an unresolved launched
          shot; retire only that sequence's incoming bolt, then resume normal recovery and order
-      -> reset/death/rebind clears owned incoming shots; reflected return shots keep their payoff
+      -> reset/death/rebind or timeout clears owned incoming shots; reflected return shots keep their payoff
+
+    SHIPPED RUNTIME SEQUENCE: T0_SurgeVolley (5). T1_ParryRoute, T2_ParryRoute, T3_ParryRoute and
+      T4_SurgeRoute are audit-only route groups whose enemies fire autonomously. `Projectile Encounter
+      Report` accepts any LevelDefinition and proves ownership, valid windows and at least one safe contact
+      per window at 11 / 17.6 / 27.5 m/s.
 
   PROJECTILE CONTACT AND CUE RELIABILITY
-    Projectile retains its existing capped homing, lead, speed and tracked direction
+    ProjectileFlightMath.Plan starts at the REAL projectile root, solves a constant-velocity intercept,
+      and integrates the same capped moving-target homing law used by Projectile.Update at 120 Hz
       -> sweep relative bolt/target motion for the first hit-radius contact, incoming and reflected
+      -> if full speed would contact before CueLead 0.28 + CueMargin 0.16, bounded search finds the fastest
+         safe slower flight; a flight with no safe contact is refused rather than launched
       -> discontinuous target jumps reset history; dt=0 refreshes history while the player can still move
       -> measured target motion / world delta gives closing speed; (distance - hit radius) / closing speed
          feeds the cue, visible weave fade and BoltRegistry consistently; separating flight has no imminent ETA
@@ -882,7 +899,8 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
                      240 deg/s (it must turn DOWN as well as across at a player descending past it),
                      band 2.5 .. 36 m, lead 1.0.
     surge            step 0.12 (+1.32 m/s a parry on groundSpeed 11), maxStacks 5 → ceiling x1.60,
-                     parrySurgeSeconds 1.5 → the full ladder is gone 7.5 s after the last parry.
+                     parrySurgeSeconds 1.4 → 0.3 s slack over the 1.1 s firing beat and a 7.0 s
+                     full-ladder run-out. Still a simple timer; no distance rule or second mechanic.
     body             scale 0.55, #6F7C8A over #A8C4DC x0.9 (under the 1.05 bloom cap). Separates from the
                      two sentries on shape (a sphere in a hoop -- the only round silhouette), size (half)
                      and value (mid steel between the ghost's near-white and the Heavy Sentry's near-black).
@@ -1011,6 +1029,8 @@ EnemyController  = the BRAIN ONLY. Rig-agnostic: it knows states, timings and di
    ├─ IEnemyLocomotion    (NavMeshLocomotion today; root-motion rig later)
    └─ IEnemyPresentation  (EnemyVisuals today; Animator-driven rig later)
 
+  Start / Update → EnsurePlayerTarget(): retain the live PlayerCombat target; reacquire when scene order,
+                   respawn, or an in-play domain reload clears the non-serialized references
   Idle    → aggro range + line of sight (and NOT aggroLocked) → Chase
   Chase   → locomotion.MoveTo(player); approach to preferredRange and HOLD
             in range + off cooldown + MayCommitToAttack() → Windup
@@ -1246,8 +1266,12 @@ mouth, two nub arms on the SAME pivots as the pill (so no authored wind-up pose 
   + floor 0.28 + 4 x 0.10 mist = **1.03**, under the 1.05 bloom threshold. Pinned by `GhostTests`.
 - **Colour.** `M_SentryGhost` albedo `#A9C2DA` (also `EnemyData.bodyColor`, so shell and hem match), cold
   blue-white. Both sentries lost their violet: violet is `SentryFlare`, i.e. "use this", and no body may
-  wear it. `pshooter_enemy02` keeps the pill body in dark slate `#25303F`, so the two sentries separate by
-  VALUE at a glance.
+  wear it.
+- **`pshooter_enemy02` is the HEAVY RELIQUARY, not a pill.** Two split stone feet, a pinched metal waist,
+  a broad faceted upper mass, crown/cheeks and three recessed ember apertures make it read as a fixed
+  three-barrel perch weapon rather than a humanoid duellist. It carries no arms or blade; empty standard
+  pivots preserve the controller contract. Twelve renderers share three generated materials, with no
+  lights, particles or material instances. `HeavySentryVisualTests` pins that budget and silhouette.
 - **Time split.** Float and hem run on SCALED time (body motion, freezes in hitstop); the mist runs
   UNSCALED like every other effect. `Level_01_Level.asset` places only these; the melee
 `Enemy_Grunt` / `Enemy_Heavy` are `souls_enemies` on the sandbox pads. `ProjectileShooter` is added by
@@ -1259,10 +1283,8 @@ EnemyController.Update()  Idle → Chase when dist ≤ WakeRange (= max(aggroRan
                           behind a rail is still seen). A SENTRY (EnemyData.rangedOnly: Grunt, Heavy) in Chase
                           only locomotion.Stop() + FaceTarget: it holds its perch, never commits a combo, and
                           never goes back to sleep. A test may still call BeginCombo on it directly.
-ProjectileShooter.Awake()    F4, ONE BEAT PER SPAN (bolt-timing plan 2026-09-06): the first beat is
-                          ProjectileMath.FirstBeat(shared span epoch, now, interval, offset, FirstBeatDelay 1 s) --
-                          alternate sentries sit a HALF interval off ONE grid, so two perches covering a crest
-                          are a tempo, not two clocks arguing. Both statics re-seed on load.
+ProjectileShooter.Awake()  autonomous sentries retain the shared span epoch; only a progress-gated runtime
+                          volley (the shipped T0 opening) waits for its sequence owner.
 ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData.shootsProjectiles)
    gate: awake (Current != Idle), alive, not staggered, not committed (no bolt during a melee wind-up),
          not aggroLocked, player inside [projectileMinRange 6 (turret 2.5), projectileMaxRange 32 (turret 36)], HasLineOfSight
@@ -1271,26 +1293,26 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
      nextFireAt = ProjectileMath.AcquireBeat(nextFireAt, now, interval, projectileAcquireDelay 0.7) -- the beat is
      HELD, so a stale one used to fire on the FIRST FRAME the line cleared: the frame you crest a ledge or land.
      Only ever moves a beat forward, and never by more than one interval.
-   → on the METRONOME (ProjectileMath.NextBeat: Grunt 1.6 s, Heavy 2.4 s, no jitter; a held beat stays on the
-     grid, a silence longer than one beat re-anchors instead of bursting; turret 1.1 s):
-     speed = ProjectileMath.LaunchSpeed(dist, projectileSpeed 40 / 36, CueLead 0.28, CueMargin 0.16) -- inside 17.6 m the
-             launch slows so every flight is ≥ 0.44 s (F5) and the cue is never owed before the bolt exists
+   → at a launch request (autonomous beat or ProjectileVolleySequence phrase):
      F3, NO BOLT AT A FLEEING BACK: ProjectileMath.ArrivesInFront(muzzle, chest, motor.Velocity, speed,
              statsData.facingConeDeg 75) -- predicts the arrival point, takes the bearing it comes FROM there
              (ParryMath.SourceDirection, the rule the parry itself is judged by) and refuses to LAUNCH when that
-             is outside the cone AND the run is receding (cos >= 0.5 of straight away). The beat still advances,
-             so a refused shot is never repaid as a burst. Crossing the arc, closing, standing and jumping all
-             still get shot at.
-     target = ProjectileMath.LeadTarget(muzzle, chest, motor.Velocity (flat), speed, projectileLead 1.0), and in flight
-              the bolt HOMES toward the chest at projectileHomingDegPerSec (180 / 150 / turret 240) -- 2026-09-06: a bolt never
-              sails past unparriable; core 0.55 m, hitRadius 1.0
+             is outside the cone AND the run is receding. Refusal advances/cancels rather than building debt.
+     ProjectileFlightMath.Plan(real root, chest, motor.Velocity, desired speed, lead, homing, hit radius,
+             CueLead + CueMargin) solves the exact constant-velocity intercept, then sweeps forecast projectile
+             and player spheres with the same moving-intercept capped-homing step the runtime uses.
+      → no contact / unsafe cue / blocked sweep:
+             refuse this emission; a burst phrase cancels deterministically
+     → READY: fire at the plan's launchPosition, direction and fastest cue-safe speed
+     → burstCount 3: reserve the next predicted CONTACT at +0.42 s, re-plan and revalidate before each follow-up;
+             after emission three the Heavy rests for projectileInterval 2.4 s
      a 0.55 m Bolt core at the chest --
      SlashFx additive ember with Projectile.HotCore (peak 1.6) written OVER the normalised colour: THE ONE
      GLOW IN TRAVERSAL, because the bolt is the tell -- plus a 7-point additive trail 0.16 s long,
-     Projectile.Fire(shooter, data, dir = toward the LED target AT FIRE TIME, launch speed above: Grunt 40,
-     Heavy / turret 36 m/s beyond the near slowdown; a 15 m shot flies 0.44 s -- answered at a run, never waited for)
+     Projectile.Fire(shooter, data, dir/speed from the shared flight plan)
 Projectile.Update()  (scaled time: hitstop freezes it)
-   LOGICAL root follows the existing capped-homing line; remaining = ProjectileMath.TimeToImpact(dist, speed)
+   LOGICAL root follows ProjectileFlightMath.HomingDirection toward the moving intercept; the cue ETA is
+   measured from relative swept motion and reconciled with the launch plan
    → the amber Core CHILD alone weaves up to 0.34 m on a deterministic per-shot phase before the cue;
      it eases in over 0.09 s, fades back over 0.12 s, and is exactly on the logical line for the whole
      remaining ≤ 0.28 s cue window. A 7-point fixed buffer records the visible head, so the trail curves too.
@@ -1313,14 +1335,17 @@ Projectile.Update()  (scaled time: hitstop freezes it)
 
 **Invariants**
 - **A bolt is an attack** and resolves only through `PlayerCombat.ReceiveAttack` (rule 3). Nothing here writes health or posture on the player.
-- **The flight is the tell, and it is cued at 0.28 s like every attack.** `projectileMinRange / projectileSpeed` must exceed the lead (`ProjectileTests`); at 32 m/s the cue is 9 m out, which is why the band starts at 10 m.
+- **The flight is the tell, and it is cued at 0.28 s like every attack.** A launch must forecast first
+  contact at or beyond 0.44 s; the planner slows only as much as required, and refuses impossible shots.
 - **A bolt in flight is an INCOMING ATTACK** (`BoltRegistry`, F2). The two cue helpers on `EnemyController` read it with NO range test — a bolt is already aimed at you, so its arrival time is the question, not its perch's distance. Melee's 6 m `InThreatRange` is untouched.
-- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed** (`ArrivesInFront`, F3). Both are gates on the LAUNCH; neither holds a shot, so the metronome stays a metronome and the enemy never reads the player's state machine (the plan's rejected "comfort blanket").
+- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed** (`ArrivesInFront`, F3). Route windows describe geometry, not the player's parry state; every follow-up still earns a legal shot.
 - **The cue lead is FLAT at 0.28 s and stays flat.** F5 lengthens the near FLIGHT (`CueMargin` 0.16, near edge 6 m) instead of scaling the lead with speed: the lead is a contract shared with every melee attack, and an elastic one would give the loudest signal in the game a variable meaning.
 - **The bolt is the one glow in traversal.** Every other effect stays under the 1.05 bloom cap; the bolt's core ships at 1.6 (`Projectile.HotCore`, pinned by `TheBoltIsTheOneGlowInTraversal`) because it is the ATTACK'S tell, and the shooter itself still never glows until it is deflected.
 - **A deflect buys speed through the motor** (`AddImpulse`), flattened along the LOOK — aim at the next ledge and deflect (rule 10; MOVEMENT-PRINCIPLES 5 and 6).
 - **One attack at a time**: the shooter never fires inside a melee wind-up or strike, so a tell is never two things.
-- **The data decides** (rule 9): every number is on `EnemyData`; the component carries none. The Warden and the legendaries do not shoot.
+- **The data decides** (rule 9): projectile stats and burst cadence are on `EnemyData`; ownership and route
+  windows are on `LevelDefinition`. The component carries no encounter-specific coordinates. The Warden
+  and the legendaries do not shoot.
 
 ### Burning enemies — `EmberAura`
 
@@ -1444,8 +1469,11 @@ SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on ever
         │                                                     captures baseFov)
         ├→ QualitySettings.SetQualityLevel, THEN vSyncCount, THEN targetFrameRate
         ├→ Screen.SetResolution                             (builds only; no-op in the editor)
+        │    saved 0/0 = NATIVE, resolved from Display.main.systemWidth/systemHeight rather than
+        │    the already-resized game window; the menu keeps NATIVE as a real index-zero choice
         ├→ Volume.profile (runtime CLONE, never sharedProfile): Bloom.intensity =
         │                                                     authored x scale; FilmGrain on/off
+        ├→ MovementPose.Enabled                              persisted ARM MOVEMENT toggle; visual only
         └→ AudioManager.masterVolume / .musicVolume         (2026-09-06) = AUTHORED x scale, the same
                                                               shape bloom uses. The authored pair is
                                                               measured ONCE per AudioManager instance
@@ -1497,6 +1525,11 @@ behind `GameManager.IsPlaying`. Hard rule 2 is intact - `SettingsMenu` contains 
 > local rotation, which the viewmodel never writes (it only sets that transform's local POSITION, when
 > aligning a newly equipped model) and which nothing downstream reads. It cannot reach a swing, a parry
 > window or a hitbox. Delete the component and the viewmodel behaves exactly as it did.
+
+**Arm movement (2026-09-08).** The CONTROL section's `ARM MOVEMENT` row persists
+`SettingsData.armMovement` under `vg1.settings.armMovement`, default ON. `SettingsApplier` pushes it to
+`MovementPose.Enabled`; OFF returns a zero additive pose so both viewmodels ease back to their authored
+rest/combat animation instead of freezing mid-offset. It never changes a hitbox, attack timing or motor state.
 
 **Invariants**
 - Sensitivity is applied OUTWARD onto `PlayerLook`'s public fields. Settings code never edits
@@ -1843,11 +1876,14 @@ LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocumen
                               Platform (+Trim) · Ramp · PlayerStart "StartSpawn" · Spawner · Checkpoint
                               Torch (under "Torches") · Pickup (under "Pickups") · Balloon · Water
                               every object gets a LevelPiece tag (kind, index)
+                              Ground/Stone/Platform share Architectural Stone: metre-scale joints/grain/
+                              edge wear in shading only; geometry, colliders and renderer counts unchanged
    arenas / pedestals / sky / kill zone / NavMesh / Player / Managers / HUD   stay in the builder (campaign only)
 
-LevelEditor.Update  (GameState.Editing; InputReader is the only input reader — 15 optional Editor* actions)
-   F10 is EDITOR / DEVELOPMENT BUILDS ONLY — InputReader.LevelEditorPressed compiles to `false` in a
-   shipped player (2026-09-07), so a playtester cannot fly out of a run. The editor's CODE still runs:
+LevelEditor.Update  (GameState.Editing; InputReader is the only input reader — optional Editor* actions)
+   F10 works immediately in EDITOR / DEVELOPMENT BUILDS. In a shipped player it is rejected until the
+   session-only console command `editor unlock` sets InputReader.LevelEditorSessionUnlocked. The grant
+   resets on subsystem registration and is not saved. The editor's CODE still runs:
    a CUSTOM level loads and plays in every build because PendingLoadPath calls Enter()/Play() DIRECTLY,
    never through input. Only the fly-cam entry is gated.
    F10 ─► Enter(): returnPosition, fly camera on PlayerLook, cursor locked, panel shown
@@ -1863,6 +1899,11 @@ LevelEditor.Update  (GameState.Editing; InputReader is the only input reader —
            → Teleport to playerStart → spawners spawn → GameState.Playing; F10 / EDIT → BackToEditing()
    EXIT ─► Exit(): destroy customRoot, restore returnPosition, GameState.Playing
 MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json → LevelEditor.PendingLoadPath → load Sandbox → Play
+
+DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
+   `help` | `clear` | `editor unlock`; no generic reflection/cheat execution
+   Open → TimeScaleController.Request(0), GameState.Paused, free cursor, focus TMP_InputField
+   Close → release its own time handle and restore prior state/cursor
 ```
 
 **Invariants**
@@ -2106,14 +2147,14 @@ Tile 1  THE SHATTERED CAUSEWAY   low, fast, horizontal - stepping stones + a rai
 Tile 2  THE ASCENT               vertical - 11 ledges spiralling a 20 m tower
   (yellow)                       arena top y 20   Legendary_Knight
                                  wall-run walls (outside of the spiral; a run DESCENDS, the exit jump buys the height back):
-                                   T2_Wall_East (11.1, 5.5, 123.5)  1.2 x 9 x 21 → T2_Wall_Landing_East (6.8, 7.5, 137.5) 5.6 x 1 x 8
-                                   T2_Wall_West (-11.2, 10.5, 115)  1.2 x 9 x 22 → T2_Wall_Landing_West (-7.05, 12, 101.75) 5.1 x 1 x 9.5
+                                   T2_Wall_East (15.7, 5.5, 161.5) 1.2 x 9 x 21 → T2_Wall_Landing_East (11.4, 7.5, 175.5) 5.6 x 1 x 8
+                                   T2_Wall_West (-15.8, 10.5, 153) 1.2 x 9 x 22 → T2_Wall_Landing_West (-10.8, 12, 139.75) 6.8 x 1 x 9.5
   Checkpoint_3
-Tile 3  THE LONG SPAN            high and exposed - pillar hops, then a 22 m span with a Heavy on it
+Tile 3  THE LONG SPAN            high and exposed - broad pillar terraces, then a 26 m span with a Heavy on it
   (red)                          arena top y 28   Legendary_Spellsword
                                  wall-run walls (right, both run north, both optional; they chain):
-                                   T3_Wall_Pillars (7.1, 22.5, 198.5) 1.2 x 7 x 16 → T3_Wall_Landing_S (5.5, 22.5, 210.5) 6 x 1 x 7
-                                   T3_Wall_Span    (7.6, 26, 224.5)   1.2 x 8 x 20
+                                   T3_Wall_Pillars (12.6, 22.5, 272) 1.2 x 7 x 23 → T3_Wall_Landing_S (10, 22.5, 287.25) 8 x 1 x 6.5
+                                   T3_Wall_Span    (13.1, 26, 302.5) 1.2 x 8 x 23
                                  All authored in Level_01_Level.asset (Stone, NeonCyan trim), NOT in LevelGreyboxBuilder;
                                  proven by LevelSpan1-3Report / LevelSpan1-3Tests against `longest`, never `best`.
   Checkpoint_4
@@ -2137,15 +2178,28 @@ BossArenaTrigger  = ONE mechanism for every gated fight
 
 SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
   SolarRealmDef.visualRadius sizes the exterior plasma/corona independently of the portal collider;
-    zero falls back to exteriorRadius for older definitions. Shipped visual radii 22/23/22/31 m enclose
-    the old court, wall, gate and torch bounds by at least 1.5 m; physical radii remain 12/13/12/18 m.
+    zero falls back to exteriorRadius for older definitions. Shipped visual radii remain 22/23/22/31 m;
+    physical radii are 16/17/16/25 m, retaining a 6 m membrane band.
   SolarArenaVisual rotates exterior plasma/corona; realm ceiling rotates around Y only
     -> SolarArena shader uses premultiplied blending: _SurfaceOpacity 0.92 on exterior theme materials
        attenuates the background; zero on corona and the serialized ceiling override preserves additive glow
     -> serialized plasmaOpacityOverride reapplies the ceiling renderer property block on enable
-    -> SolarArena.shader moves coloured currents; stationary realm floor/walls own collision
-  exterior sphere remains at the authored court anchor; crossing it calls BeginFight, then Teleport
-  builder moves the LIVE named spawner and court pickup into a disconnected enclosed realm
+    -> SolarArena.shader moves seamless domain-warped currents with distance-filtered filaments;
+       stationary realm floor/walls own collision and `_Fade` remains the final crossing multiplier
+    -> the shared final premultiplied fade stays unchanged through 65% fog transmittance, then releases
+       solar colour and surface occlusion together to zero at full fog; no distant black sun discs
+  ApplySolarSpacing removes the obsolete exterior rectangular courts/walls/torches and stops each route
+    deck 1.5–2.4 m before its visible shell; the four open trigger gaps are 7.6–8.4 m.
+  post-first-miniboss scale is LOCAL first, then translated as one authored section: T2 is a ~28 m helix
+    with larger terraces and moves +38 m in Z; T3 has broad 9–12 m pillar terraces, a 9.6 × 26 m span,
+    a 13.5 m first wall-run gap and moves +70 m; T4/boss moves +96 m. Every gate, trigger, checkpoint,
+    pickup, water line, balloon, perch and engagement window follows its section. The exterior sun centres
+    are Z 87.3 / 216.8 / 356.3 / 486.3, with enough empty approach/departure air that route geometry does
+    not overlap the membrane.
+  crossing the isolated exterior sphere rejects cleared arenas and debounce/missing-motor failures;
+    success calls BeginFight, then Teleport, then same-frame SolarTransition.Cut + Sfx.SolarWarp exactly once
+  builder moves the LIVE named spawner and court pickup into a disconnected enclosed realm with its own
+    generated 20 m collision/NavMesh floor, boundary, ceiling and light
     → SolarRealmPlacement preserves their authored exterior coordinates for scene export round trips
   mini-boss clear → inner return portal appears → player chooses when to return beyond the exit gate
   final boss has no return portal → existing BossDefeated / LEVEL CLEAR flow remains the only exit
@@ -2165,7 +2219,7 @@ SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, 
 ```
 VibeGame1/1. Project Setup -> ProjectSetup.SetupSceneEnvironment()
     mainCam.backgroundColor        = VoidColor        #060D18   lin lum .0039  (never seen: the dome covers it)
-    RenderSettings.fogColor        = FogColor         #0E1C34   lin lum .0117  = the dome's horizon band x0.7
+    RenderSettings.fogColor        = FogColor         #20344D   lin lum .0330  = composited lower atmosphere
     RenderSettings.fogStart / End  = 36 / 140  -> 25 m 0% · 50 m 13% · 64 m 27% · 87 m 49% · 100 m 62%
     RenderSettings.ambientSkyColor = AmbientSky       #344C78 x1.35   .1348  platform TOPS
     RenderSettings.ambientEquator  = AmbientEquator   #3F5E88 x1.35   .2045  every wall + every BACKLIT enemy
@@ -2174,7 +2228,10 @@ VibeGame1/1. Project Setup -> ProjectSetup.SetupSceneEnvironment()
   + VolumeProfile: Bloom 1.05/0.60, ACES, Vignette 0.27, WhiteBalance -6 / 0
 
 VibeGame1/2. Create Materials -> MaterialFactory.Table (Assets/Materials/M_*.mat)
-    structural  M_Ground #1B222E · M_Stone #2A3443 · M_Platform #475262 · M_Enemy #1A1E29
+    structural  M_Ground #36404F · M_Stone #424D5F · M_Platform #586579 · M_Enemy #1A1E29
+      -> the first three use VibeGame1/Architectural Stone: URP lighting/shadows/fog plus procedural
+         metre-scale masonry and normal-only relief; no extra geometry or decorative emission;
+         M_Platform keeps its prior #475262 x0.10 emission exactly
     trims       T1 ice cyan #35DCEC · T2 brass #D8C22A x0.75 · T3 azure #2F6BFF · T4 ghost green #3FE07A
     WARM ON PURPOSE  M_Torch, M_Checkpoint (fire = safety), M_EnemyEye, M_AlertTell (the tell, 3.00)
 
@@ -2188,7 +2245,10 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
 
 6. Build Level -> LevelDefinitionBuilder -> Starfield.Build(def.sky.*)   ONE mesh, TWO materials
     index order (no depth is written, so index order IS draw order):
-      dome -> horizon silhouette -> nebulae -> stars -> PLANETS -> eclipse halo/mid/falloff/disc
+      dome -> subdued horizon silhouette -> nebulae -> stars -> PLANETS -> eclipse halo/mid/falloff
+      -> lower atmosphere: 1,189 verts / 6,720 indices, fog-colour opaque below -7 degrees and a smooth
+         fade to zero by +18 degrees -> opaque eclipse disc -> HDR rim; no extra renderer or material
+      -> Sprites/Default performs the one premultiply; vertex RGB stays straight to avoid a dark seam
       -> [submesh 1, HDR tint CoronaHdrBoost 1.35] the white-hot rim
     per planet, five passes in order: halo -> ring FAR half -> body -> ring NEAR half
       (that ordering is the whole Saturn read; there is no alpha sort to rely on)
@@ -2197,26 +2257,28 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
       90x144 grid = 13,195 verts / 77,760 indices / one renderer; shader owns every moving pixel
       vertex: three crossing swells + irregular bank lift, max crest y -3.35 below lowest underside y -1
       fragment: nested domain-warped billow bodies + stretched counter-flow erosion + broad edge feather
-      scaled shader time; cloud-only 80..280 m haze into the same fog colour; no collider, particles, lights, shadows, probes or C# Update
+      scaled shader time; cloud-only 80..280 m haze converges RGB AND opacity into the same fog colour;
+      the lower-sky atmosphere supplies continuous coverage beyond the clipped grid; no collider,
+      particles, lights, shadows, probes or C# Update
 
 7. Build Sandbox -> CloudSea.BuildSandbox(Sandbox, same M_CloudSea)
     fixed at (65,-5,0), spans 320x240 m around the room and movement yard through x=152
 ```
 
 **Palette invariants**
-- **Fog is the SKY bleeding in, never a hole punched in it (A5, 2026-09-06).** `fogColor` must sit
-  between the dome's zenith (`#060A17`, .0032) and its horizon band (`#13233F`, .0170) and **above a
-  shadowed stone face** (~.009 linear), so distance *lightens* dark surfaces and only slightly darkens
-  lit decks — aerial perspective, not extinction. The pre-A5 fog was the zenith value applied in every
-  direction, i.e. 4.3x darker than the sky behind the geometry. `SkyEclipseTests.FogIsTheSkyBleedingIn_NotAHolePunchedInIt`.
+- **Fog is the COMPOSITED lower atmosphere bleeding in, never a hole punched in it.** The bare dome
+  horizon is not the final background after the atmosphere layer. `FogColor #20344D` (.0330 linear)
+  lies above shadowed structural radiance and below representative nearby cloud luminance (.1053), so
+  distance closes the former black valley instead of multiplying it. `SkyEclipseTests` and
+  `ArchitecturalFinishTests` pin the shipped target and the measured ambient-by-albedo floor.
 - **`fogStartDistance`'s floor is ~31 m, not the dome radius of 25.** The eclipse **halo** is a flat soft
   disc of lateral radius `discR * 2.3` = 19.8 m parked 24.1 m down the eclipse axis, so its corners are
   `sqrt(24.1² + 19.8²)` = **31.2 m** out — the widest thing in the sky mesh. A start between 25 and 31
   fogs a *wedge* across the halo. `SkyEclipseTests.TheSkyIsFogImmuneByGeometryNotByAssumption` measures
   the built mesh rather than trusting the number.
-- **Fog can never touch a landing target.** Every jump in Level_01 lands within 12 m (longest:
-  `T3_Entry` → `T3_Pillar_1`, 9 m; the T3 pillar hops are 5-6 m) and combat resolves at 3-8 m, so both
-  sit at fog factor exactly zero. The ramp is for the route *ahead* — pillar line 24 m, span far end
+- **Fog can never touch a landing target.** Every ordinary jump in Level_01 lands within 12 m (the T3
+  pillar hops are 5-6 m; solar approaches transition instead of exposing a distant landing target),
+  and combat resolves at 3-8 m, so both sit at fog factor exactly zero. The ramp is for the route *ahead* — pillar line 24 m, span far end
   48 m, next arena 64-90 m. `SkyEclipseTests.FogNeverTouchesCombatOrALandingTarget`.
 - **The visible lower atmosphere belongs to the world, not the player.** `CloudSea` is one scene-owned
   grid far below landing and combat surfaces. It never follows the player, raycasts, collides or writes
@@ -2225,6 +2287,13 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
   finite mesh in linear fog. It uses scaled shader time because atmosphere freezes with the world;
   death and Pyre mist remain unscaled authored payoffs. `CloudSeaTests` pins coverage, crest clearance,
   mesh/draw cost and material hierarchy. `AmbientMist` remains dormant as a reversible legacy helper.
+- **A larger cloud rectangle cannot close the geometric horizon.** From the 36 m opening crest, the
+  300 m camera plane clips the finite sea below eye level. Fully hazed cloud pixels therefore become
+  opaque while the camera-centred sky mesh contributes a matching lower atmosphere at every yaw.
+  Its grade runs -7..+18 degrees and is inserted before the opaque eclipse disc/HDR rim, while high
+  secondary planets begin above 30 degrees. The old 64-spire silhouette is retained only as a quiet
+  alpha 0.25/0.12 ruin layer instead of a row of black teeth. `SkyHorizonTests` pins the full ring,
+  straight-alpha rendering-space fog colour, ordering and eclipse clearance.
 - **`SandboxBuilder.EnsureEnvironment` no longer mirrors fog by hand** — it reads `ProjectSetup.FogColor
   / FogStartDistance / FogEndDistance` directly, because the hand-mirrored copies had already drifted
   (the sandbox was still violet `#0C0912` after the cold pass took the level blue). Its **ambient is

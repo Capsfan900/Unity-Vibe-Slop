@@ -131,5 +131,27 @@ namespace VibeGame1.Tests
             Assert.LessOrEqual(Mathf.Abs(p.euler.y), 20.01f);
             Assert.LessOrEqual(Mathf.Abs(p.euler.z), 20.01f);
         }
+
+        [Test]
+        public void DisabledSetting_ReturnsNeutralWithoutChangingTheMovementState()
+        {
+            bool before = MovementPose.Enabled;
+            try
+            {
+                MovementPose.Enabled = false;
+                var state = new MovementPose.State
+                {
+                    grounded = false,
+                    wallRunning = true,
+                    dashing = true,
+                    wallNormalLocal = Vector3.left,
+                    verticalVelocity = -20f,
+                };
+                Pose p = MovementPose.Compute(state);
+                Assert.AreEqual(Vector3.zero, p.pos);
+                Assert.AreEqual(Vector3.zero, p.euler);
+            }
+            finally { MovementPose.Enabled = before; }
+        }
     }
 }

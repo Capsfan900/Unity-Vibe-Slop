@@ -287,7 +287,22 @@ point light, and both exist to stop it eating the frame. Closed as far as **shap
 68 mm. Borrowing the blade's material was the wrong call for a spark; it now owns an additive one, and
 additive can only ever *add* light, so a dim spark is faint rather than a hole in the frame.
 
-### 3.7 The sentry detonation and flare grapple ✅ first pass, 2026-09-06
+### 3.7 Heavy Sentry — finished reliquary silhouette ✅ 2026-09-09
+
+The remaining parkour pill was a presentation bug as well as an encounter bug: its copied humanoid body
+and blade implied a melee attack it can never perform. `BuildHeavySentryBody` replaces only that generated
+body with a fixed stone reliquary: split feet, narrow waist, broad faceted core, crown/cheeks and three
+recessed ember apertures. The three apertures foreshadow its three-shot parry phrase without three dynamic
+lights or three particle systems. Empty `ArmPivot` / `WeaponPivot` transforms preserve controller and
+flash contracts; `EnemyVisuals.weapon` is intentionally null.
+
+The asset uses 12 renderers and three shared generated materials (`M_ArchitecturalStone`, body, eye), with
+no per-instance material, light or particle allocation. Its capsule, NavMeshAgent, ProjectileShooter and
+timing remain the shared sentry contract. `HeavySentryVisualTests` holds the no-blade silhouette, named
+recesses and renderer/material budget. Human playtest still owns the final question: whether the three
+apertures and 0.42 s phrase are readable together at full route speed.
+
+### 3.8 The sentry detonation and flare grapple ✅ first pass, 2026-09-06
 
 **Finding, this audit.** Two brand-new effects, untested by a human: the sentry detonation
 (`SentryBurst.Detonate`) and the flare-grapple toss (`FlareGrapple.HandlePullEnded`). Both are the
@@ -337,7 +352,7 @@ real monitor is a claim this pass could only reason about, not measure — there
 screenshot the span from spawn distance without driving the editor, which is out of this agent's scope.
 Tests below pin the *numbers*, not the *look*.
 
-### 3.8 The world went COLD, and the tells did not ✅ 2026-09-06
+### 3.9 The world went COLD, and the tells did not ✅ 2026-09-06
 
 **The ask, verbatim.** *"make the vfx team change the main color scheme to blue. and a bunch of planets in
 the background that glow and have rings like saturn. not too many just enough to spice up the scene."*
@@ -407,7 +422,7 @@ still reads as a wall, that the ice-cyan and azure trims separate at 30 m, and t
 "enough to spice up the scene" rather than too many are **reasoned, not seen**. They need one human
 playtest.
 
-### 3.9 The Sentry is a cartoon ghost, and the flare is bigger by giving up brightness ✅ 2026-09-06
+### 3.10 The Sentry is a cartoon ghost, and the flare is bigger by giving up brightness ✅ 2026-09-06
 
 **The ask, verbatim.** *"redesign the looks of the parkour enemy1 make it like a blush ghost that looks
 like a cartoon ghost and is floating and glowing with wispy mist around it. Also take a pass on the flare
@@ -473,7 +488,7 @@ as a ghost rather than as a white pill, that four wisps at 0.10 are visible at a
 that the hem waves rather than wobbles, and that a 3.6 m aura at 1.45 still reads at 30 m — all
 **reasoned from arithmetic, not seen**. The budget is the honest part; the look needs one human playtest.
 
-### 3.10 The melee hit confirm was the loudest thing in the game, and the weapon had no body ✅ 2026-09-06
+### 3.11 The melee hit confirm was the loudest thing in the game, and the weapon had no body ✅ 2026-09-06
 
 **Finding, this audit (the weapon-look lane of the weapon rework).** Three faults, all of them in the one
 effect the player sees more than any other.
@@ -524,6 +539,18 @@ separates from a 0.016-albedo wall are **reasoned from arithmetic, not seen**. P
 `Assets/Editor/Tests/WeaponImpactVfxTests.cs` (11 assertions across peak, ladder, shockwave gating,
 ribbon weight and the albedo hierarchy).
 
+**Astra finish pass, 2026-09-08.** The remaining faults were lifecycle and shape faults rather than a need
+for more brightness. Pooled `SlashFx` primitives now receive their first positions in the spawn call, so a
+reused contact cannot flash at its previous owner's coordinates for one frame. The flare's two renderers
+trace one narrow four-point star instead of a continuous crossing polyline, giving the hit one immediate
+directional glint without adding a renderer, point or material. The maul finisher flare is capped at 0.48 m,
+below the deflect's 0.50 m contact flare. `WeaponTrail` accumulates movements below 2.5 mm rather than
+spending its finite ribbon on duplicate hitstop samples, still forces the exact final contact, dissolves its
+tail on unscaled time, and clears its camera-space sibling when disabled. Finally,
+`WeaponViewmodel.TipWorldPosition` caches the selected `Tip*` renderer per held model; reading live bounds
+still follows animation, but the active trail no longer allocates a renderer array and scans the hierarchy
+every frame. This pass adds no lights, renderers, materials, buffers or per-strike allocations.
+
 **RESOLVED 2026-09-07 — the maul no longer wears the bolt's colour.** This lane's first open item was
 that `Hammer.neon` (then `#E0661A`) sat ~5° of hue from `Projectile.HotCore`, so a maul swing painted the
 screen the colour the player is trained to read as "deflect this". It is now `#A8D12E` (hue ~75°, 47°
@@ -540,7 +567,7 @@ There is no warm hue that clears the bolt — do not move this back without movi
 
 ---
 
-### 3.11 A perfect parry announced itself in TEXT ✅ 2026-09-07
+### 3.12 A perfect parry announced itself in TEXT ✅ 2026-09-07
 
 **The ask, verbatim.** *"the perfect parry needs to have a minimal shockwave visual to know it was
 performed, over the words."*
@@ -676,9 +703,11 @@ additive hoop for 0.18 s, so confusion is not expected — but that is reasoned,
 
 ## Fog is the sky bleeding in, never a hole punched in it (A5, 2026-09-06)
 
-`RenderSettings.fogColor` must sit between the dome's zenith (`#060A17`, lin lum .0032) and its horizon
-band (`#13233F`, .0170), and **above a shadowed stone face** (~.009 linear), so distance *lightens* dark
-surfaces instead of eating them. Shipped: `#0E1C34`, 36 -> 140 m. Two traps. `fogStartDistance`'s floor is
+`RenderSettings.fogColor` is the colour of the composited lower atmosphere, not the bare dome pixel behind
+it, and must stay **above a shadowed stone face** so distance *lightens* dark surfaces instead of eating
+them. Shipped: `#20344D` (linear luminance .0330), 36 -> 140 m. The previous `#0E1C34` target was only
+.0117 while a representative nearby cloud bank was .1053, creating a black middle-distance belt even
+though the ambient probe itself was healthy. Two traps. `fogStartDistance`'s floor is
 the **eclipse halo's corners at 31.2 m**, not the quoted 25 m dome radius — the halo is a flat disc of
 lateral radius 19.8 m parked 24.1 m down the eclipse axis. And fog must never reach a landing target:
 every hop in Level_01 lands inside 12 m, so 36 keeps foot placement at fog factor zero. Pinned by four
@@ -707,15 +736,57 @@ All colour channels remain below 1.0, and ordinary alpha blending plus depth tes
 course geometry without spending the attack-tell bloom budget. Shader `_Time.y` is scaled in play, so pause
 and hitstop freeze this world atmosphere; death/Pyre mist remain unscaled because they explain an event.
 
+### Horizon closure after the widened opening — 2026-09-08
+
+The 300 m far plane cuts a finite cloud plane below the geometric horizon from the 36 m opening crest;
+making the rectangle wider cannot fix that angular gap. `Starfield` closes it with a lower-sky atmosphere
+in the existing LDR mesh and material. It is opaque below -7 degrees and eases continuously to clear by
++18 degrees, so the wider level receives a broad grade instead of a narrow horizontal stripe. It draws
+after the diffuse eclipse glow but before the opaque disc and HDR rim, preserving the focal silhouette;
+secondary planets remain above 30 degrees. Its vertex RGB is the active rendering-space fog colour and is
+left straight because `Sprites/Default` premultiplies it once in the fragment shader. Premultiplying the
+mesh colour too was the charcoal seam. Authored dome and eclipse colours are likewise converted from sRGB
+to the active rendering space before entering the vertex-colour channel.
+
+At the same time, distant cloud haze converges opacity as well as RGB. Fully hazed waterline pixels can
+no longer reveal stars or dark nebula discs behind them. The old procedural ruin ring remains, but its
+body/crest alpha is 0.25/0.12 rather than an opaque repeating row of black planet-like teeth. This costs
+no new renderer, material, light or draw call. Inspect the crest at every yaw after changing the camera
+far plane, fog colour, cloud bounds or sky ordering.
+
 ## Enclosing arena suns — 2026-09-07 refinement
 
 The four exterior plasma bodies have visual radii 22/23/22/31 m at their existing centers. Each encloses
 its historical floor, walls, pillars, gates and torches with at least 1.5 m margin. The corona scales
 with the body. The saturated rotating patterns, realm ceiling and themes retain their accepted design.
-The separate physical portal radii remain 12/13/12/18 m, preserving retry and onward-return positions.
+The physical portal radii are now 16/17/16/25 m, leaving a consistent 6 m transition band inside the
+22/23/22/31 m visual shells while the isolated approach gaps remain reachable.
 The higher crest uses a 900x1400 m cloud bed and a separate 80..280 m cloud-haze range. Gameplay
-fog remains 36..140 m. Exterior suns use 0.92 surface opacity to obscure the old courts, while the
+fog remains 36..140 m. Exterior suns use 0.92 surface opacity to read as dense plasma, while the
 corona and realm ceilings retain their additive appearance via zero surface-opacity overrides.
+
+## Solar and architectural finish — 2026-09-08
+
+The four solar themes and transition contract are unchanged, but `VibeGame1/Solar Arena` no longer
+builds its surface from longitude waves that pinch at the poles. Object-space domain-warped currents
+produce seamless large eddies, filtered high-frequency cells create restrained depth, and narrow hot
+filaments plus a softer limb term keep the sphere readable as a volume instead of a glowing flat ball.
+`fwidth` removes the fine layer as it becomes sub-pixel. `_Fade` remains the final multiplier over colour
+and alpha, and `_SurfaceOpacity` still separates dense exterior membranes from additive coronas/ceilings.
+That final premultiplied fade now follows URP fog transmittance only over its last 35%: near and
+mid-range suns are unchanged, while a fully fogged shell and corona release both colour and occlusion.
+This prevents the widened opening from turning T1's otherwise invisible sun into a flat dark planet disc.
+
+`M_Ground`, `M_Stone` and `M_Platform` now use `VibeGame1/Architectural Stone`: a shared procedural URP
+surface with metre-scaled staggered masonry, recessed joints, quiet grain, edge wear and at most 8 mm of
+normal-only relief. It displaces no vertex and adds no object, renderer, collider, texture, light or runtime
+component, so every authored bound and NavMesh contract stays exact. Structural emission remains whatever
+the material already authored (black or the platform's existing readability floor); the finish itself adds
+no glow, and the four navigation-trim materials remain untouched. The final lighting pass raises only their
+non-emissive bases to `#36404F`, `#424D5F` and `#586579`; platform emission remains exactly
+`#475262 * 0.10`. With the measured forward ambient probe, Ground now contributes more than .008 linear
+luminance before mortar/occlusion instead of roughly .0029. Key, ambient, exposure, contrast, bloom, trim
+and tell colours are unchanged, and the correction adds no runtime work.
 
 ## The solar portal crossing — 2026-09-07
 

@@ -49,13 +49,15 @@ namespace VibeGame1
             /// CONTROL (see AllKinds) even though its number is last, because the enum is append-only
             /// and the array below is the SCREEN order.</summary>
             WeaponTwirlKey = 12,
+            /// <summary>Purely visual parkour reactions on the two first-person arms.</summary>
+            ArmMovement = 13,
         }
 
         /// <summary>Every kind the builder must emit, in screen order. The EditMode test asserts on this.</summary>
         public static readonly RowKind[] AllKinds =
         {
             RowKind.MouseSensitivity, RowKind.StickSensitivity, RowKind.FieldOfView,
-            RowKind.WeaponTwirlKey,
+            RowKind.WeaponTwirlKey, RowKind.ArmMovement,
             RowKind.Resolution, RowKind.DisplayMode, RowKind.VSync, RowKind.FrameCap,
             RowKind.Quality, RowKind.Bloom, RowKind.FilmGrain,
             RowKind.MasterVolume, RowKind.MusicVolume,
@@ -353,6 +355,7 @@ namespace VibeGame1
                 if (!InputReader.I.HasWeaponTwirlAction) return "action missing";
                 return string.IsNullOrEmpty(d.weaponTwirlBinding) ? "default" : "custom";
             }
+            if (kind == RowKind.ArmMovement) return "visual only";
             // The two volume rows say what they actually reach, and admit a silent game rather than
             // leaving a player dragging a music slider that master has already muted.
             if (kind == RowKind.MasterVolume) return d.masterVolume <= 0.0001f ? "everything is muted" : "sfx and music";
@@ -505,10 +508,27 @@ namespace VibeGame1
                 case RowKind.Resolution:
                     {
                         if (resolutionOptions == null || resolutionOptions.Length == 0) return;
-                        int i = SettingsApplier.NearestResolutionIndex(d.screenWidth, d.screenHeight, resolutionOptions);
-                        i = SettingsData.Cycle(i < 0 ? 0 : i, resolutionOptions.Length, delta);
-                        d.screenWidth = resolutionOptions[i].x;
-                        d.screenHeight = resolutionOptions[i].y;
+                        // Index zero is a REAL, reachable NATIVE choice. Concrete display modes begin
+                        // at one. The old version treated 0/0 as concrete option zero and immediately
+                        // overwrote the sentinel, so one click could pin every future launch to a stale
+                        // window size with no path back to native.
+                        int i = 0;
+                        if (d.screenWidth > 0 && d.screenHeight > 0)
+                        {
+                            int nearest = SettingsApplier.NearestResolutionIndex(d.screenWidth, d.screenHeight, resolutionOptions);
+                            i = nearest < 0 ? 0 : nearest + 1;
+                        }
+                        i = SettingsData.Cycle(i, resolutionOptions.Length + 1, delta);
+                        if (i == 0)
+                        {
+                            d.screenWidth = 0;
+                            d.screenHeight = 0;
+                        }
+                        else
+                        {
+                            d.screenWidth = resolutionOptions[i - 1].x;
+                            d.screenHeight = resolutionOptions[i - 1].y;
+                        }
                         break;
                     }
                 case RowKind.DisplayMode:
@@ -533,6 +553,9 @@ namespace VibeGame1
                     }
                 case RowKind.FilmGrain:
                     d.filmGrain = !d.filmGrain;
+                    break;
+                case RowKind.ArmMovement:
+                    d.armMovement = !d.armMovement;
                     break;
             }
 
@@ -625,7 +648,8 @@ namespace VibeGame1
                 case RowKind.FilmGrain: return "FILM GRAIN";
                 case RowKind.MasterVolume: return "MASTER VOLUME";
                 case RowKind.MusicVolume: return "MUSIC VOLUME";
-                default: return "FLOURISH KEY";
+                case RowKind.WeaponTwirlKey: return "FLOURISH KEY";
+                default: return "ARM MOVEMENT";
             }
         }
 
@@ -647,6 +671,7 @@ namespace VibeGame1
                 case RowKind.FilmGrain: return SettingsData.OnOffLabel(d.filmGrain);
                 case RowKind.MasterVolume: return SettingsData.PercentLabel(d.masterVolume);
                 case RowKind.MusicVolume: return SettingsData.PercentLabel(d.musicVolume);
+                case RowKind.ArmMovement: return SettingsData.OnOffLabel(d.armMovement);
                 default:
                     // The live reader gives the nicest name ("F11"); with no reader (the EditMode test,
                     // the front end before a level) the stored path is decoded by the pure helper. Both

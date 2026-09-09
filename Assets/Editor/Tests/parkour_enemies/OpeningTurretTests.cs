@@ -62,6 +62,76 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void EveryCampaignProjectileSpawnerHasOneReusableRouteOwner()
+        {
+            var projectileSpawns = def.spawns
+                .Where(s => s.prefabKey != null && s.prefabKey.StartsWith("pshooter_enemy"))
+                .Select(s => s.name).OrderBy(n => n).ToArray();
+            var owners = def.projectileSequences.SelectMany(s => s.spawnerNames)
+                .GroupBy(n => n).ToDictionary(g => g.Key, g => g.Count());
+
+            CollectionAssert.AreEquivalent(projectileSpawns, owners.Keys,
+                "a future level may place a shooter only by giving it one data-authored encounter sequence");
+            foreach (var owner in owners)
+                Assert.AreEqual(1, owner.Value, owner.Key + " is controlled by more than one sequence");
+
+            Assert.That(def.projectileSequences.Select(s => s.name), Is.EquivalentTo(new[]
+            {
+                "T0_SurgeVolley", "T1_ParryRoute", "T2_ParryRoute", "T3_ParryRoute", "T4_SurgeRoute"
+            }));
+            Assert.IsTrue(def.projectileSequences.Single(s => s.name == "T0_SurgeVolley").CoordinatesRuntime,
+                "the authored opening ladder is the one progress-gated runtime volley");
+            Assert.IsTrue(def.projectileSequences.Where(s => s.name != "T0_SurgeVolley")
+                .All(s => !s.CoordinatesRuntime),
+                "route-audit records must not turn ordinary sentries into one-shot corridor triggers");
+            foreach (var sequence in def.projectileSequences)
+            {
+                Assert.IsNotNull(sequence.engagementWindows, sequence.name);
+                Assert.IsNotEmpty(sequence.engagementWindows, sequence.name + " has no bounded route contract");
+                foreach (var window in sequence.engagementWindows)
+                {
+                    Assert.Contains(window.spawnerName, sequence.spawnerNames, sequence.name);
+                    Assert.IsTrue(ProjectileEngagementMath.IsValid(window),
+                        sequence.name + " has invalid window for " + window.spawnerName);
+                }
+            }
+
+            var heavy = def.projectileSequences.Single(s => s.name == "T3_ParryRoute")
+                .engagementWindows.Single(w => w.spawnerName == "Spawn_T3_Heavy");
+            float supportedTravel = heavy.arrivalEnd - heavy.arrivalStart;
+            Assert.GreaterOrEqual(supportedTravel / 11f, 1.3f,
+                "the Heavy Sentry needs enough authored floor for all three separately parryable contacts");
+        }
+
+        [Test]
+        public void EngagementWindowsRejectWrongFloorAndAuthorizePredictedArrival()
+        {
+            var window = new ProjectileEngagementWindowDef
+            {
+                spawnerName = "Shooter", routeStart = new Vector3(0f, 2f, 0f),
+                routeEnd = new Vector3(0f, 2f, 20f), halfWidth = 3f, heightTolerance = 1f,
+                arrivalStart = 4f, arrivalEnd = 16f,
+            };
+            float progress;
+            Assert.IsTrue(ProjectileEngagementMath.ContainsPlayer(window, new Vector3(2f, 2.5f, 2f), out progress));
+            Assert.IsFalse(ProjectileEngagementMath.ContainsPlayer(window, new Vector3(0f, 6f, 2f), out progress),
+                "the upper lap must not arm a lower-lap sentry at the same XZ");
+            Assert.IsTrue(ProjectileEngagementMath.AllowsPredictedContact(window,
+                new Vector3(0f, 2f, 2f), Vector3.forward * 10f, 0.5f));
+            Assert.IsFalse(ProjectileEngagementMath.AllowsPredictedContact(window,
+                new Vector3(0f, 2f, 2f), Vector3.back * 10f, 0.5f));
+            Assert.IsTrue(ProjectileEngagementMath.HasPassed(window, new Vector3(0f, 2f, 21f)),
+                "bypassing an optional route must expire it instead of owning the shooter forever");
+        }
+
+        [Test]
+        public void GenericEncounterReportAcceptsTheShippedLevelAtRouteSpeedSamples()
+        {
+            string report = ProjectileEncounterReport.Build(LevelDefinitionAuthoring.Level01);
+            StringAssert.Contains("VERDICT: PASS", report, report);
+        }
+
+        [Test]
         public void OpeningIsA144MetreDescentAtOneInFourGradeWithBreathingRoom()
         {
             var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
@@ -230,9 +300,18 @@ namespace VibeGame1.Tests
                 }
                 var host = new GameObject("T0_SurgeVolley");
                 host.transform.SetParent(root.transform, false);
+                var windows = new[]
+                {
+                    new ProjectileEngagementWindowDef
+                    {
+                        spawnerName = members[0].name, routeStart = Vector3.zero,
+                        routeEnd = Vector3.forward * 100f, halfWidth = 7f, heightTolerance = 3f,
+                        arrivalStart = 3f, arrivalEnd = 24f,
+                    }
+                };
                 host.AddComponent<ProjectileVolleySequence>().Configure(
                     members, 0.11f, 1.1f, 1.25f, new Vector3(0f, 0f, -159.8f), Vector3.forward,
-                    new[] { 0f, 18f, 40f, 64f, 87f });
+                    new[] { 0f, 18f, 40f, 64f, 87f }, windows);
 
                 LevelDefinitionExporter.ExportInto(root, fresh);
 
@@ -245,6 +324,9 @@ namespace VibeGame1.Tests
                 Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -159.8f)));
                 Assert.That(saved.progressDirection, Is.EqualTo(Vector3.forward));
                 Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 18f, 40f, 64f, 87f }));
+                Assert.AreEqual(1, saved.engagementWindows.Length);
+                Assert.AreEqual(members[0].name, saved.engagementWindows[0].spawnerName);
+                Assert.AreEqual(24f, saved.engagementWindows[0].arrivalEnd, 0.0001f);
             }
             finally
             {
@@ -362,6 +444,34 @@ namespace VibeGame1.Tests
             {
                 Object.DestroyImmediate(host);
                 Object.DestroyImmediate(marker);
+            }
+        }
+
+        [Test]
+        public void ReconfigureReleasesOldControlledShooterBeforeResizingCaches()
+        {
+            var host = new GameObject("SequenceReconfigureTest");
+            var oldEnemy = new GameObject("OldControlledEnemy");
+            try
+            {
+                oldEnemy.AddComponent<EnemyController>();
+                var oldShooter = oldEnemy.AddComponent<ProjectileShooter>();
+                oldShooter.SetSequenceControlled(true);
+
+                var sequence = host.AddComponent<ProjectileVolleySequence>();
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                typeof(ProjectileVolleySequence).GetField("shooters", flags)
+                    .SetValue(sequence, new[] { oldShooter });
+
+                sequence.Configure(new EnemySpawner[0], 0.11f, 1.1f);
+
+                Assert.IsFalse(oldShooter.IsSequenceControlled,
+                    "Configure must release the old owned member before replacing members/caches");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(oldEnemy);
             }
         }
 

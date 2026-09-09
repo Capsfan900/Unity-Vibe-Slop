@@ -151,7 +151,8 @@ namespace VibeGame1.EditorTools
                     shotResolutionTimeout = volley.ShotResolutionTimeout,
                     progressOrigin = volley.ProgressOrigin,
                     progressDirection = volley.ProgressDirection,
-                    memberProgressGates = volley.MemberProgressGates
+                    memberProgressGates = volley.MemberProgressGates,
+                    engagementWindows = volley.EngagementWindows
                 });
                 skipNames.Add(volley.name);
             }

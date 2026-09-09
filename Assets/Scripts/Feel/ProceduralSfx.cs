@@ -16,7 +16,9 @@ namespace VibeGame1
         // regardless of weight -- a dagger and a hammer sounded identical connecting. These four give the
         // light and heavy ends of the roster their own transient/mechanical/sub/body/tail layering; Sword
         // keeps the original Swing/Hit as the mid-weight default. See WeaponAudio.cs for the selection.
-        SwingLight, SwingHeavy, HitLight, HitHeavy
+        SwingLight, SwingHeavy, HitLight, HitHeavy,
+        // Successful solar-realm crossing. Teleport remains the sentry pull's rising shimmer.
+        SolarWarp
     }
 
     /// <summary>
@@ -66,6 +68,7 @@ namespace VibeGame1
                 case Sfx.SwingHeavy: return SwingHeavy();
                 case Sfx.HitLight: return HitLight();
                 case Sfx.HitHeavy: return HitHeavy();
+                case Sfx.SolarWarp: return SolarWarp();
             }
             return Click();
         }
@@ -590,6 +593,43 @@ namespace VibeGame1
                 d[i] = SoftClip((tone + air) * env * 1.4f);
             }
             return Make(name, d, 0.75f);
+        }
+
+        /// <summary>
+        /// Time folds inward at the solar cut: a falling, detuned body and filtered air settle into a
+        /// slowing low pulse. The first collapse shares the visual hold; the tail clears shortly after
+        /// the nominal reveal. A two-pole lowpass AFTER shaping leaves ParryCue's bright band headroom.
+        /// Generated once by AudioManager.Awake, never at the crossing itself.
+        /// </summary>
+        static AudioClip SolarWarp()
+        {
+            const string name = "SolarWarp";
+            const float dur = SolarTransition.HoldSeconds + SolarTransition.RevealSeconds + 0.11f;
+            var d = Buffer(dur);
+            var noise = new LowpassNoise(71083);
+            float phase = 0f, detuned = 0f, pulse = 0f, low1 = 0f, low2 = 0f;
+            float filter = 1f - Mathf.Exp(-TwoPi * 950f / Rate);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float collapse = Mathf.Clamp01(t / SolarTransition.HoldSeconds);
+                float settle = Mathf.Clamp01((t - SolarTransition.HoldSeconds) /
+                                            (dur - SolarTransition.HoldSeconds));
+                float f = 72f + 530f * Mathf.Exp(-collapse * 4f) - 24f * settle;
+                phase += TwoPi * f / Rate;
+                detuned += TwoPi * f * 1.027f / Rate;
+                pulse += TwoPi * Mathf.Lerp(22f, 3f, settle) / Rate;
+                float body = (Mathf.Sin(phase) + 0.42f * Mathf.Sin(detuned)) * 0.7f;
+                float air = noise.Next(Mathf.Lerp(850f, 180f, settle)) * 1.15f;
+                float ripple = 0.82f + 0.18f * Mathf.Cos(pulse);
+                float envelope = Env(t, 0.006f, 0.16f) * ripple;
+                low1 += filter * (SoftClip((body + air) * envelope) - low1);
+                low2 += filter * (low1 - low2);
+                // Explicit zero endpoints prevent a clipped-buffer click, including at the tail.
+                float release = Mathf.Clamp01((d.Length - 1 - i) / (Rate * 0.055f));
+                d[i] = low2 * release * release;
+            }
+            return Make(name, d, 0.65f);
         }
 
         /// <summary>

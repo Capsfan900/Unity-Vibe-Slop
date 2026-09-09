@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -141,6 +142,124 @@ namespace VibeGame1.Tests
             Assert.Less(WeaponImpactFx.FlareSize(s, true), WeaponImpactFx.FlareSize(W(Hammer), false),
                 "a sword finisher must not out-read a plain maul hit — weapon identity outranks combo step");
             Assert.Less(WeaponImpactFx.FinisherScale, 1.5f);
+            Assert.Less(WeaponImpactFx.FlareSize(W(Hammer), true), 0.5f,
+                "the maul finisher must also stay below the deflect's contact flare");
+        }
+
+        const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+
+        static SlashFx EffectAt(Vector3 point)
+        {
+            foreach (var fx in Resources.FindObjectsOfTypeAll<SlashFx>())
+                if (fx.gameObject.activeSelf && fx.transform.position == point) return fx;
+            Assert.Fail("effect was not spawned");
+            return null;
+        }
+
+        static void DisposeEffect(SlashFx fx)
+        {
+            if (fx == null) return;
+            // EditMode cleanup owns the transient materials; the runtime owner uses deferred Destroy.
+            foreach (string field in new[] { "coreMat", "fringeMat" })
+            {
+                var info = typeof(SlashFx).GetField(field, Hidden);
+                var material = (Material)info.GetValue(fx);
+                info.SetValue(fx, null);
+                Object.DestroyImmediate(material);
+            }
+            Object.DestroyImmediate(fx.gameObject);
+        }
+
+        [Test]
+        public void AStaleLiveCounterCannotPermanentlySilenceThePool()
+        {
+            var liveField = typeof(SlashFx).GetField("live", BindingFlags.Static | BindingFlags.NonPublic);
+            liveField.SetValue(null, 28);
+            Vector3 point = new Vector3(777f, 888f, 999f);
+            SlashFx.Flare(point, Color.cyan, 0.2f, 0.1f);
+            var fx = EffectAt(point);
+            try
+            {
+                Assert.AreEqual(1, liveField.GetValue(null),
+                    "cap recovery must recount the one genuinely active effect, not retain stale debt");
+            }
+            finally { DisposeEffect(fx); }
+        }
+
+        [TestCase("Sparks")]
+        [TestCase("Arc")]
+        [TestCase("Ring")]
+        [TestCase("Flare")]
+        [TestCase("Beam")]
+        public void PooledPrimitives_ReplaceOldGeometryOnTheSpawnFrame(string kind)
+        {
+            Vector3 oldPoint = new Vector3(321f, 654f, 987f);
+            Vector3 point = new Vector3(-321f, -654f, -987f);
+            SlashFx.Sparks(oldPoint, Vector3.up, Color.cyan, 24, 3f, 25f);
+            var fx = EffectAt(oldPoint);
+            try
+            {
+                var lines = fx.GetComponentsInChildren<LineRenderer>(true);
+                Assert.AreEqual(48, lines.Length, "the bounded 24-spark reserve has two lines per spark");
+                var coreMaterial = (Material)typeof(SlashFx).GetField("coreMat", Hidden).GetValue(fx);
+                typeof(SlashFx).GetMethod("Retire", Hidden).Invoke(fx, null);
+                switch (kind)
+                {
+                    case "Sparks": SlashFx.Sparks(point, Vector3.up, Color.green, 7, 3f, 25f); break;
+                    case "Arc": SlashFx.Arc(point, Vector3.forward, Color.green, 0.4f, 90f, 0.1f); break;
+                    case "Ring": SlashFx.Ring(point, Vector3.forward, Color.green, 0.4f, 0.1f); break;
+                    case "Flare": SlashFx.Flare(point, Color.green, 0.4f, 0.1f); break;
+                    case "Beam": SlashFx.Beam(point, point + Vector3.right, Color.green, 0.02f, 0.1f); break;
+                }
+                Assert.AreSame(fx, EffectAt(point));
+                Assert.AreEqual(48, fx.GetComponentsInChildren<LineRenderer>(true).Length,
+                    "a warmed reserve must reuse its renderers");
+                Assert.AreSame(coreMaterial, (Material)typeof(SlashFx).GetField("coreMat", Hidden).GetValue(fx),
+                    "renting a different primitive must reuse its material");
+                int active = 0;
+                foreach (var line in lines)
+                {
+                    if (!line.gameObject.activeSelf) continue;
+                    active++;
+                    for (int i = 0; i < line.positionCount; i++)
+                        Assert.Less(Vector3.Distance(point, line.GetPosition(i)), 1.1f,
+                            kind + " rendered a previous effect's position before its first Update");
+                }
+                Assert.AreEqual(kind == "Sparks" ? 14 : 2, active,
+                    "inactive reserve slots must stay hidden; shape fixes must not add draw calls");
+            }
+            finally { DisposeEffect(fx); }
+        }
+
+        [Test]
+        public void ContactGlint_IsAnImmediateFourPointStar_WithNoCrossingConnectors()
+        {
+            Vector3 point = new Vector3(111f, 222f, 333f);
+            SlashFx.Flare(point, Color.cyan, 0.4f, 0.1f);
+            var fx = EffectAt(point);
+            try
+            {
+                var lines = fx.GetComponentsInChildren<LineRenderer>();
+                Assert.AreEqual(2, lines.Length);
+                var line = lines[0];
+                Assert.IsTrue(line.loop, "a glint traces one continuous star perimeter");
+                Assert.AreEqual(8, line.positionCount);
+                Assert.AreEqual(0.4f, Vector3.Distance(point, line.GetPosition(0)), 1e-4f,
+                    "the contact frame is full size, without waiting for Update");
+                Vector3 planeNormal = Vector3.Cross(line.GetPosition(0) - point, line.GetPosition(2) - point).normalized;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 a = line.GetPosition(i) - point;
+                    Vector3 b = line.GetPosition((i + 1) % 8) - point;
+                    Assert.Greater(Vector3.Dot(Vector3.Cross(a, b), planeNormal), 0f,
+                        "the perimeter must advance around the centre instead of crossing the glint");
+                    if (i % 2 == 1) Assert.Less(a.magnitude, 0.05f, "spikes taper to a narrow waist");
+                }
+                typeof(SlashFx).GetMethod("UpdateFlare", Hidden).Invoke(fx, new object[] { 0.5f });
+                Assert.AreEqual(0.2f, Vector3.Distance(point, line.GetPosition(0)), 1e-4f,
+                    "a contact flash dissipates after its immediate peak");
+            }
+            finally { DisposeEffect(fx); }
         }
 
         // ---------------------------------------------------------------- the ribbon carries it too

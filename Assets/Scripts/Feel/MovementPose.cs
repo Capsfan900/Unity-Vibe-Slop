@@ -99,9 +99,9 @@ namespace VibeGame1
         /// with a hand-built <see cref="State"/>.
         /// </summary>
         /// <summary>
-        /// Dev toggle (F1 -> PLAYER -> ARM MOVEMENT). The user asked for this on 2026-09-07 when the
-        /// channel was built: it is a FEEL change and may not suit the game, so it must be switchable
-        /// off at runtime without a rebuild. False makes <see cref="Compute"/> return
+        /// Player setting (Settings -> ARM MOVEMENT), with the existing F1 row kept as a developer
+        /// shortcut. It is a FEEL change and may not suit every player, so it can be switched off
+        /// without a rebuild. False makes <see cref="Compute"/> return
         /// a zero <see cref="Pose"/>, so the viewmodels smooth back to their unmodified pose rather
         /// than freezing at whatever offset they were holding.
         /// </summary>

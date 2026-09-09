@@ -304,11 +304,10 @@ namespace VibeGame1.EditorTools
         // 4.3x brighter, and that band is what geometry is read against in a first-person platformer
         // where you look forward and slightly down. So the old fog converged distant geometry to a value
         // DARKER than the sky behind it: a hole punched in the backdrop, extinction rather than haze.
-        // FogColor is now the horizon band's own hue at ~0.7 of its value (lin lum .0117), which lands
-        // between the zenith and the horizon - the two elevations geometry is actually silhouetted
-        // against. This inverts the risk the plan flagged: a distant SHADOWED face (~.009 linear) now
-        // gets LIGHTER as it recedes and a distant lit deck top gets slightly darker, which compresses
-        // far contrast toward a mid value. That is what aerial perspective is. Nothing goes to black.
+        // The widened 36 m opening exposed a second failure: #0E1C34 converged at only .0117 linear,
+        // while a representative near cloud bank was about .105. The technically correct fade therefore
+        // crossed a dark valley between cloud and sky. #20344D raises the shared atmosphere target to
+        // .033 without moving its range, adding opacity, or changing the combat light/tell budget.
         //
         // WHY THE LANDING TARGET IS SAFE. Every jump in Level_01 lands within 12 m - the longest is
         // T3_Entry -> T3_Pillar_1 at 9 m, and the T3 pillar hops are 5-6 m. At a 36 m start the surface
@@ -332,12 +331,11 @@ namespace VibeGame1.EditorTools
         // 64 m -> 27%, 87 m -> 49%, 100 m -> 62%. The longest read reaches half fog, while a distant
         // torch ember still keeps 51% of its punch and the 104 m ramp stays well clear of a fog wall.
 
-        /// <summary>The colour distant geometry converges to: the dome's horizon band #13233F at ~0.7 of
-        /// its value. Linear luminance 0.0117 - 3.0x the old fog, 0.69x the horizon band it sits in front
-        /// of, and above a shadowed stone face (~0.009), so distance LIGHTENS the dark instead of eating
-        /// it. Not the same constant as <see cref="VoidColor"/> on purpose: the clear is the void, the fog
-        /// is the sky.</summary>
-        public static readonly Color FogColor = Hex("#0E1C34");
+        /// <summary>The colour distant geometry, cloud haze and the lower-atmosphere sky converge to.
+        /// Linear luminance is about 0.033: bright enough to bridge the cloud/sky tonal valley exposed by
+        /// the raised opening, still deep enough that the eclipse and combat tells own the frame. Not the
+        /// same constant as <see cref="VoidColor"/> on purpose: the clear is the void, the fog is the sky.</summary>
+        public static readonly Color FogColor = Hex("#20344D");
 
         /// <summary>First metre of fog. Must stay clear of the SKY MESH's true outer radius (~31.2 m at
         /// the eclipse halo's corners), not the quoted dome radius of 25. Also far past every landing

@@ -346,7 +346,7 @@ namespace VibeGame1
         static bool NeedsQuietWorld(string testName)
         {
             return testName == "Guard" || testName == "LockOn" || testName == "Deathblow" ||
-                   testName == "Items" || testName == "Flask";
+                   testName == "Items" || testName == "Flask" || testName == "WandReadability";
         }
 
         // ---------------------------------------------------------------- suite driver
@@ -4828,9 +4828,8 @@ namespace VibeGame1
             CheckHop("Base", "T1_Stone_2", "T1_Stone_3", 6f, 1f);
             CheckHop("Base", "T1_Stone_3", "T1_Stone_4", 6f, 1f);
             CheckHop("Base", "T1_Stone_4", "T1_Causeway", 6f, 1f);
-            CheckHop("Base", "T1_Causeway", "T1_Stone_5", 6f, 1f);
-            CheckHop("Base", "T1_Stone_5", "T1_Arena", 6f, 1.5f);
-            CheckHop("Base", "T2_Entry", "T2_L1", 6f, 1.5f);
+            // T1_Causeway now launches into the first portal sun. The solar fixture measures that
+            // curved trigger gap directly; after the realm, the return lands on supported T2_L1.
             CheckHop("Base", "T2_L1", "T2_L2", 6f, 1.5f);
             CheckHop("Base", "T2_L2", "T2_L3", 6f, 1.5f);
             CheckHop("Base", "T2_L3", "T2_L4", 6f, 1.5f);
@@ -4841,15 +4840,14 @@ namespace VibeGame1
             CheckHop("Base", "T2_L8", "T2_L9", 6f, 1.5f);
             CheckHop("Base", "T2_L9", "T2_L10", 6f, 1.5f);
             CheckHop("Base", "T2_L10", "T2_L11", 6f, 1.5f);
-            CheckHop("Base", "T3_Entry", "T3_Pillar_1", 6f, 1.5f);
+            // The T2 realm returns directly onto T3_Pillar_1; there is no exterior court/entry deck.
             CheckHop("Base", "T3_Pillar_1", "T3_Pillar_2", 6f, 1.5f);
             CheckHop("Base", "T3_Pillar_2", "T3_Pillar_3", 6f, 1.5f);
             CheckHop("Base", "T3_Pillar_3", "T3_Pillar_4", 6f, 1.5f);
             CheckHop("Base", "T3_Pillar_4", "T3_Span", 6f, 1.5f);
             CheckHop("Base", "T3_Span", "T3_Step_1", 6f, 1.5f);
             CheckHop("Base", "T3_Step_1", "T3_Step_2", 6f, 1.5f);
-            CheckHop("Base", "T3_Step_2", "T3_Step_3", 6f, 1.5f);
-            CheckHop("Base", "T3_Step_3", "T3_Arena", 6f, 1.5f);
+            // T3_Step_2 launches into the third portal; its return lands on supported T4_Entry.
 
             // The optional fast lines. Each is checked to be INSIDE the tech envelope AND, where it is
             // meant to be tech-gated, OUTSIDE the base one - a "shortcut" a base moveset can also take

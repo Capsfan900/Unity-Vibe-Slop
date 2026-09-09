@@ -58,6 +58,54 @@ namespace VibeGame1.Tests
             Assert.Greater(clip.samples, 0);
         }
 
+        [Test]
+        public void SolarWarpHasBoundedDurationCleanEndpointsAndCueHeadroom()
+        {
+            var clip = ProceduralSfx.Build(Sfx.SolarWarp);
+            try
+            {
+                Assert.AreEqual("SolarWarp", clip.name, "must resolve its own fallback, not Click");
+                Assert.AreEqual(1, clip.channels, "one pooled mono voice is sufficient");
+                Assert.That(clip.length, Is.InRange(0.5f, 0.7f), "a crossing must not leave a long combat bed");
+                Assert.Less(clip.samples * sizeof(float), 128 * 1024, "bounded preloaded PCM footprint");
+                var samples = new float[clip.samples];
+                Assert.IsTrue(clip.GetData(samples, 0));
+                float peak = 0f;
+                double earlyEnergy = 0d, lateEnergy = 0d;
+                for (int i = 0; i < samples.Length; i++)
+                {
+                    Assert.IsFalse(float.IsNaN(samples[i]) || float.IsInfinity(samples[i]));
+                    peak = Mathf.Max(peak, Mathf.Abs(samples[i]));
+                    if (i < clip.frequency / 10) earlyEnergy += samples[i] * samples[i];
+                    if (i >= samples.Length - clip.frequency / 10) lateEnergy += samples[i] * samples[i];
+                }
+                Assert.That(peak, Is.InRange(0.60f, 0.66f));
+                Assert.AreEqual(0f, samples[0], 0.00001f, "no initial discontinuity");
+                Assert.AreEqual(0f, samples[samples.Length - 1], 0.00001f, "no cut-off click");
+                Assert.Greater(earlyEnergy, 1d, "the sound must announce the cut immediately");
+                Assert.Less(lateEnergy, earlyEnergy * 0.04d, "tail must make room for the fight");
+                Assert.Less(AudioManager.Trim(Sfx.SolarWarp), AudioManager.Trim(Sfx.ParryCue));
+                Assert.Less(peak * AudioManager.Trim(Sfx.SolarWarp), 0.4f,
+                    "warp peak at unity master must leave cue headroom");
+
+                // A 1.4 kHz highpass estimates bright-band energy across the WHOLE buffer, not just
+                // one favourable FFT bin. This is a spectral guard, not a claim about human masking.
+                float coefficient = Mathf.Exp(-2f * Mathf.PI * 1400f / clip.frequency);
+                float previous = 0f, highpass = 0f;
+                double totalEnergy = 0d, brightEnergy = 0d;
+                foreach (float sample in samples)
+                {
+                    highpass = coefficient * (highpass + sample - previous);
+                    previous = sample;
+                    totalEnergy += sample * sample;
+                    brightEnergy += highpass * highpass;
+                }
+                Assert.Less(brightEnergy / totalEnergy, 0.08d,
+                    "the time warp must stay out of the parry cue's bright register");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(clip); }
+        }
+
         // ---------------------------------------------------------------- folder names are the enum (rule 7)
 
         [Test]

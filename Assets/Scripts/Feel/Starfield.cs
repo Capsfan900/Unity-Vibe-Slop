@@ -216,6 +216,8 @@ namespace VibeGame1
             var trisHot = new List<int>(1024);
             if (includeEclipse)
                 BuildEclipse(verts, colors, tris, trisHot, radius, eclipseDir, eclipseDiameterDeg);
+            else
+                BuildHorizonAtmosphere(verts, colors, tris, radius);
 
             var mesh = new Mesh { name = "SkyMesh" };
             // 5-6k verts fits UInt16 comfortably; being explicit documents the budget.
@@ -276,6 +278,52 @@ namespace VibeGame1
 
         // ---- sky elements --------------------------------------------------------------------------
 
+        static void BuildHorizonAtmosphere(List<Vector3> vertices, List<Color> colors,
+                                          List<int> triangles, float radius)
+        {
+            const int longitude = DomeLongitude;
+            // Fine latitude rings keep the smooth angular grade from becoming two straight bands.
+            // -7 is above the sea's clipped edge from the 36 m crest. The upper grade reaches +18,
+            // so the sky emerges gradually rather than switching on in a stripe below the eclipse.
+            // The disc and hot rim draw AFTER this layer; high secondary planets stay above it.
+            var pitches = new List<float> { -90f, -30f, -10f };
+            for (int pitch = -7; pitch <= 18; pitch++) pitches.Add(pitch);
+            // Sprites/Default consumes mesh vertex colours directly, whereas unity_FogColor is in
+            // the active rendering colour space. Match it rather than baking a second blue palette.
+            Color fog = RenderingColor(RenderSettings.fogColor);
+            int first = vertices.Count;
+            for (int ring = 0; ring < pitches.Count; ring++)
+            {
+                for (int lon = 0; lon <= longitude; lon++)
+                {
+                    vertices.Add(Direction(lon * 360f / longitude, pitches[ring]) * (radius * 0.94f));
+                    // SpriteFrag premultiplies RGB itself. Premultiplying the vertices as well
+                    // darkens a fog-on-fog blend by alpha twice, leaving a charcoal seam.
+                    Color color = fog;
+                    color.a = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-7f, 18f, pitches[ring]));
+                    colors.Add(color);
+                }
+            }
+            int stride = longitude + 1;
+            for (int ring = 0; ring < pitches.Count - 1; ring++)
+            {
+                for (int lon = 0; lon < longitude; lon++)
+                {
+                    int a = first + ring * stride + lon;
+                    int b = a + 1;
+                    int c = a + stride;
+                    int d = c + 1;
+                    triangles.Add(a); triangles.Add(c); triangles.Add(b);
+                    triangles.Add(b); triangles.Add(c); triangles.Add(d);
+                }
+            }
+        }
+
+        static Color RenderingColor(Color color)
+        {
+            return QualitySettings.activeColorSpace == ColorSpace.Linear ? color.linear : color;
+        }
+
         /// <summary>Unit direction from a yaw (0 = +Z) and a pitch above the horizon.</summary>
         static Vector3 Direction(float yawDeg, float pitchDeg)
         {
@@ -335,7 +383,9 @@ namespace VibeGame1
                     float toward = Mathf.Max(0f, Vector3.Dot(dir, eclipseDir));
                     col += glow * Mathf.Pow(toward, 4f);
 
-                    c.Add(PM(col, 1f));
+                    // Mesh COLOR has no automatic sRGB decode. Match the fog and lit world instead
+                    // of treating the authored midnight palette as linear emission (a bright blue wall).
+                    c.Add(PM(RenderingColor(col), 1f));
                 }
             }
 
@@ -363,7 +413,7 @@ namespace VibeGame1
         const int SilhouetteSegments = 64;
 
         /// <summary>
-        /// A jagged ring of near-black ruin spires sitting just below the horizon, all the way around.
+        /// A haze-obscured ring of ruin spires sitting just below the horizon, all the way around.
         /// Drawn nearer than the dome (radius 0.975 against the dome's 1.0) so it silhouettes correctly,
         /// and biased low so it never competes with the eclipse or a mid-air read.
         /// </summary>
@@ -384,9 +434,9 @@ namespace VibeGame1
                 int wi = i % n;
                 float yaw = i / (float)n * 360f;
                 v.Add(Direction(yaw, basePitch) * r);
-                c.Add(PM(body, 1f));
+                c.Add(PM(body, 0.25f));
                 v.Add(Direction(yaw, basePitch + heights[wi]) * r);
-                c.Add(PM(Color.Lerp(body, rimCatch, 0.6f), 1f));
+                c.Add(PM(Color.Lerp(body, rimCatch, 0.6f), 0.12f));
             }
             for (int i = 0; i < n; i++)
             {
@@ -499,15 +549,19 @@ namespace VibeGame1
 
             // Vast outer halo: the sky around the dead sun is alight, ~2.3x the disc.
             AddSoftDisc(v, c, t, center + dir * (radius * 0.004f), right * discR * 2.3f, up * discR * 2.3f,
-                        Hex("#17408F"), 0.42f, 32);
+                        RenderingColor(Hex("#17408F")), 0.42f, 32);
 
             // Mid glow, brighter and tighter.
             AddSoftDisc(v, c, t, center + dir * (radius * 0.008f), right * discR * 1.55f, up * discR * 1.55f,
-                        Hex("#2163B5"), 0.32f, 32);
+                        RenderingColor(Hex("#2163B5")), 0.32f, 32);
 
             // Corona falloff: saturated cold light fading outward. LDR — never blooms.
             AddRing(v, c, t, center + dir * (radius * 0.012f), right, up,
                     discR * 1.05f, discR * 1.42f, Hex("#3F92D1"), 0.9f, 64);
+
+            // Haze grades the background and diffuse corona over a broad angular range. Keep the
+            // focal disc and thin burning limb in front, so the wider grade cannot wash them out.
+            BuildHorizonAtmosphere(v, c, t, radius);
 
             // The disc: a dead sun. Not float-zero black — #03050A keeps ~2/255 under it, so an
             // 8-10/255 enemy body overlapping the disc is dim-on-dark rather than a hole in the world.

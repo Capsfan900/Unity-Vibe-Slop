@@ -53,7 +53,7 @@ namespace VibeGame1.Tests
 
         static IEnumerable<TestCaseData> Walls()
         {
-            yield return new TestCaseData("T3_Wall_Pillars", "T3_Entry").SetName("Wall_T3_Wall_Pillars");
+            yield return new TestCaseData("T3_Wall_Pillars", "T3_Pillar_1").SetName("Wall_T3_Wall_Pillars");
             yield return new TestCaseData("T3_Wall_Span", "T3_Wall_Landing_S").SetName("Wall_T3_Wall_Span");
         }
 
@@ -293,14 +293,12 @@ namespace VibeGame1.Tests
         /// </summary>
         static IEnumerable<TestCaseData> NeighbouringHops()
         {
-            yield return new TestCaseData("T3_Entry", "T3_Pillar_1", 10).SetName("Hop_T3_Entry_to_T3_Pillar_1");
             yield return new TestCaseData("T3_Pillar_1", "T3_Pillar_2", 20).SetName("Hop_T3_Pillar_1_to_T3_Pillar_2");
-            yield return new TestCaseData("T3_Pillar_2", "T3_Pillar_3", 20).SetName("Hop_T3_Pillar_2_to_T3_Pillar_3");
+            yield return new TestCaseData("T3_Pillar_2", "T3_Pillar_3", 25).SetName("Hop_T3_Pillar_2_to_T3_Pillar_3");
             yield return new TestCaseData("T3_Pillar_3", "T3_Pillar_4", 20).SetName("Hop_T3_Pillar_3_to_T3_Pillar_4");
             yield return new TestCaseData("T3_Pillar_4", "T3_Span", 20).SetName("Hop_T3_Pillar_4_to_T3_Span");
             yield return new TestCaseData("T3_Span", "T3_Step_1", 15).SetName("Hop_T3_Span_to_T3_Step_1");
-            yield return new TestCaseData("T3_Step_1", "T3_Step_2", 20).SetName("Hop_T3_Step_1_to_T3_Step_2");
-            yield return new TestCaseData("T3_Step_2", "T3_Step_3", 20).SetName("Hop_T3_Step_2_to_T3_Step_3");
+            yield return new TestCaseData("T3_Step_1", "T3_Step_2", 24).SetName("Hop_T3_Step_1_to_T3_Step_2");
         }
 
         [Test, TestCaseSource(nameof(NeighbouringHops))]

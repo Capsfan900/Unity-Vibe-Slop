@@ -171,51 +171,31 @@ namespace VibeGame1.EditorTools
                         "grown WEST with the causeway it feeds; this is where the first bolt now arrives, so it is the " +
                         "one deck in the chain that has to be stood on rather than crossed"),
 
-            // ---- T2: the spiral's eleven identical 4 m squares.
-            // Every pad grows to ~4.8 x 5. The point is not the area, it is what it does to the GAPS,
-            // which were sitting at or past the reach contract's 4.5 m ceiling for a 1.5 m rise:
-            //     Entry->L1 5.1 -> 4.5   L1->L2 4.0 -> 3.0   L2->L3 4.2 -> 3.2   L3->L4 4.2 -> 2.9
-            //     L4->L5   4.0 -> 3.0    L5->L6 3.1 -> 2.1   L6->L7 3.1 -> 2.1   L7->L8 4.0 -> 3.0
-            //     L8->L9   4.2 -> 3.2    L9->L10 1.4 -> 0.7
-            // A climb of eleven contract-edge leaps onto 4 m squares becomes a climb you can carry speed
-            // through. L2 and L8 widen EAST ONLY because x 5.0 is pinned: T2_Buttress's east face is the
-            // L2 deck's west edge and the buttress chimney is measured from it.
-            //
-            // A SHORTER GAP IS NOT AUTOMATICALLY A BETTER HOP, and this table is where that was learned:
-            // growing a take-off deck moves the sampled take-off points with it, and if the extra room is
-            // on the WRONG side of an obstacle the hop loses launch points while the gap number improves.
-            // Every entry below is measured hop by hop against the shipped asset (Tools/level_arc_offline.py),
-            // not argued from the gap alone.
-            new Reshape("T2_L1", new Vector3(7f, 4.5f, 115.5f), new Vector3(4.8f, 1f, 8f),
-                        "the spiral's first pad, and the landing for the level's WORST hop: T2_Entry -> T2_L1 was a 4.54 m " +
-                        "diagonal off an 8 m deck with 6 clean launch points out of 25. Grown 5 -> 8 m deep, in BOTH " +
-                        "directions on purpose - south (z 113.5 -> 111.5) shortens the entry gap to 2.57 m and takes the hop " +
-                        "to 13/25; north (118.5 -> 119.5) pays back the take-off room that growing south costs the NEXT hop, " +
-                        "so T2_L1 -> T2_L2 holds at 20/25 instead of falling to 15. x is untouched: max.x 9.4 keeps the " +
-                        "1.1 m standoff LevelSpan2Tests pins against T2_Wall_East's run line."),
-            new Reshape("T2_L2", new Vector3(7.25f, 6f, 124f), new Vector3(4.5f, 1f, 5f), "east only: min.x 5.0 is the buttress's face"),
-            new Reshape("T2_L3", new Vector3(0f, 7.5f, 131f), new Vector3(7f, 1f, 5f),
-                        "TURN BALCONY: 7 x 5, the north turn of the first lap. T2_L2 -> T2_L3 11 -> 16 clean points, " +
-                        "T2_L3 -> T2_L4 13 -> 14."),
-            new Reshape("T2_L4", new Vector3(-7f, 9f, 124f), new Vector3(4.8f, 1f, 5f), "the west wall's mount ledge; 1.1 m of standoff left"),
-            new Reshape("T2_L5", new Vector3(-7f, 10.5f, 116f), new Vector3(4.8f, 1f, 5f), "clear of T2_Perch_W in plan (z 109-112)"),
-            new Reshape("T2_L6", new Vector3(0f, 12f, 111f), new Vector3(5f, 1f, 7f),
-                        "TURN BALCONY, the south turn, over the west perch - grown in Z ONLY. Measured: at 7 m WIDE it " +
-                        "collapses both its gaps to 1.10 m, which is a step and not a hop; at 7 m DEEP it holds both gaps " +
-                        "at 2.10 m and still takes T2_L5 -> T2_L6 21 -> 23 and T2_L6 -> T2_L7 21 -> 23. A deck grows toward " +
-                        "the arc that LANDS on it, not toward the one that leaves it."),
-            new Reshape("T2_L7", new Vector3(7f, 13.5f, 116f), new Vector3(4.8f, 1f, 5f), "the second lap"),
-            new Reshape("T2_L8", new Vector3(7.25f, 15f, 124f), new Vector3(4.5f, 1f, 5f), "east only, and the buttress chimney's exit ledge — a bigger target for the climb"),
+            // ---- T2: a full-scale spiral rather than eleven cramped stepping stones.
+            // These are canonical, pre-translation coordinates. ApplySolarRealms moves the complete span
+            // +38 m in Z after every dependent object has been placed. The broad turn balconies preserve
+            // the alternating climb, while the L2/L3 and L8/L9 grades are derived from their supported
+            // endpoints below. The tower/buttress pair moves +3 m in X as one assembly: the chimney stays
+            // 2.2 m wide and the buttress east face remains flush with L2.min.x at x = 8.
+            new Reshape("T2_L1", new Vector3(10f, 4.5f, 113.375f), new Vector3(8f, 1f, 10f),
+                        "the first broad landing after the cyan realm return; it carries the hook pickup and checkpoint on authored ground"),
+            new Reshape("T2_L2", new Vector3(11f, 6f, 124f), new Vector3(6f, 1f, 6.25f), "the widened chimney mouth; min.x 8.0 stays flush with the buttress face"),
+            new Reshape("T2_L3", new Vector3(0.5f, 7.5f, 132f), new Vector3(13f, 1f, 7f),
+                        "the thirteen-metre north turn of the first lap, with room to redirect after the derived grade"),
+            new Reshape("T2_L4", new Vector3(-10f, 9f, 124f), new Vector3(8f, 1f, 7.5f), "the widened west wall mount, kept off the run line"),
+            new Reshape("T2_L5", new Vector3(-10f, 10.5f, 114f), new Vector3(8f, 1f, 7.5f), "a full outer balcony around the west perch"),
+            new Reshape("T2_L6", new Vector3(0f, 12f, 111.5f), new Vector3(7.8f, 1f, 8.75f),
+                        "the isolated south turn of the spiral and the authored ground for Pickup_T2_Surge"),
+            new Reshape("T2_L7", new Vector3(10f, 13.5f, 114f), new Vector3(8f, 1f, 7.5f), "the widened start of the second lap"),
+            new Reshape("T2_L8", new Vector3(11f, 15f, 124f), new Vector3(6f, 1f, 7.5f), "the widened buttress chimney exit; min.x remains 8.0"),
             // L9 is the north turn of the SECOND lap and stands directly over L3, the north turn of the
             // first. It was the one pad in the spiral left at 4 x 4 while the deck it answers grew to
             // 5 x 5, and the cost was measured: L8 -> L9 is the spiral's hardest hop (it must clear the
             // tower's north-east corner) and growing L8 alone made it WORSE — 10 clean take-off points
             // out of 25 in the shipped asset, 8 with L8 grown, 13 with L9 matched to L3. Matching it also
             // makes the two laps read as the same turn seen twice, which is what a spiral is for.
-            new Reshape("T2_L9", new Vector3(0f, 16.5f, 131f), new Vector3(7f, 1f, 5f),
-                        "TURN BALCONY, matched to T2_L3 directly below it - the two laps must read as the same turn seen " +
-                        "twice, which is what a spiral is for. T2_L8 -> T2_L9 (the spiral's hardest hop) 13 -> 17 clean " +
-                        "points, T2_L9 -> T2_L10 24 -> 25."),
+            new Reshape("T2_L9", new Vector3(0.5f, 16.5f, 132f), new Vector3(13f, 1f, 7f),
+                        "the second north turn, footprint-matched to T2_L3 below it"),
 
             // ---- T2: the spire. THE MEASURED SIGHTLINE FIX FOR THE SPIRAL.
             // A "moves visible ahead" probe (eye at deck centre + 1.7, target at the next decks' centre + 0.5, over
@@ -236,25 +216,45 @@ namespace VibeGame1.EditorTools
             // to 4.5f: that puts the chimney at 1.95 m, a quarter of a metre from the shipped 1.70 m, and
             // the sightline still measures 2.84 against the shipped 2.45. Nothing else in this table depends
             // on the tower.
-            new Reshape("T2_Tower", new Vector3(0f, 12f, 124f), new Vector3(4f, 20f, 5f),
+            new Reshape("T2_L10", new Vector3(8f, 18f, 140f), new Vector3(6f, 1f, 6f), "a broad penultimate landing with a clean read on the launch terrace"),
+            new Reshape("T2_L11", new Vector3(0f, 19.5f, 150f), new Vector3(10f, 1f, 8f), "the final launch terrace into the gold sun"),
+            new Reshape("T2_Tower", new Vector3(3f, 12f, 124f), new Vector3(4f, 20f, 5f),
                         "the spiral's core was the spiral's blindfold; a 5 m wall in a 19 m helix -> 4 m"),
+            new Reshape("T2_Buttress", new Vector3(7.6f, 10.2f, 122.5f), new Vector3(0.8f, 7.4f, 3f),
+                        "moves with the tower while preserving a 2.2 m chimney and a face flush with T2_L2"),
+            new Reshape("T2_Wall_East", new Vector3(15.7f, 5.5f, 123.5f), new Vector3(1.2f, 9f, 21f), "the east alternate line follows the expanded spiral"),
+            new Reshape("T2_Wall_Landing_East", new Vector3(11.4f, 7.5f, 137.5f), new Vector3(5.6f, 1f, 8f), "the east line lands level with the widened north balcony"),
+            new Reshape("T2_Wall_West", new Vector3(-15.8f, 10.5f, 115f), new Vector3(1.2f, 9f, 22f), "the west alternate line follows the expanded spiral"),
+            new Reshape("T2_Wall_Landing_West", new Vector3(-10.8f, 12f, 101.75f), new Vector3(6.8f, 1f, 9.5f), "the west line retains an isolated landing"),
 
-            // ---- T3: the first pillar is the landing, not the test.
-            // T3_Entry -> T3_Pillar_1 was 10 clean launch points out of 25 onto a 2.5 m square 20 m up. Pillars 2
-            // and 3 stay at 2.5 m ON PURPOSE - the pillar run is the level's precision beat and the only place it
-            // asks for a placed foot - but a beat has to be ENTERED, and entering it should not be the hardest jump
-            // in it. 3.5 m takes the entry to 15/25 and leaves P2 -> P3, the 4.72 m signature leap, untouched.
-            new Reshape("T3_Pillar_1", new Vector3(0f, 15.5f, 198f), new Vector3(3.5f, 12f, 3.5f),
-                        "the entry landing of the pillar run; 2 and 3 keep their 2.5 m because that is their job"),
+            // ---- T3: four elevated terraces open into a wide water span.
+            // These are canonical, pre-translation coordinates; the complete section moves +70 m in Z.
+            // The first terrace receives the gold-realm return and the next two make the cross-course
+            // precision beat readable at the larger scale without changing the movement thresholds.
+            new Reshape("T3_Pillar_1", new Vector3(2.75f, 15.5f, 198f), new Vector3(9f, 12f, 5f),
+                        "the entry terrace of the pillar run and authored ground for the surge pickup and checkpoint"),
+            new Reshape("T3_Pillar_2", new Vector3(5f, 16.5f, 204.5f), new Vector3(10.5f, 12f, 4f), "the exposed hop line grows into a readable elevated terrace"),
+            new Reshape("T3_Pillar_3", new Vector3(-5f, 17.5f, 211f), new Vector3(10.5f, 12f, 4f), "a wide cross-course landing keeps the long-span scale"),
+            new Reshape("T3_Pillar_4", new Vector3(0f, 18.5f, 217.5f), new Vector3(6f, 12f, 5f), "the last pillar remains a distinct launch into the span"),
 
-            // ---- T3: the span was the causeway's problem, unfixed, one span later.
-            // 4 m wide over 22 m (5.5:1) carrying two water sheets you SKATE, a slide gate and the turn onto the
-            // steps. Widened to 4.8 m, which is every millimetre available: T3_Wall_Landing_S.min.x is 2.5 and
-            // LevelSpan3Tests forbids the two touching, and T3_Fallen_Lintel spans x +/-2.5 and must CONTAIN the
-            // deck, so +/-2.4 leaves 0.1 m of margin at both pins. Neutral on every hop and every sightline: this
-            // one is bought purely in room to steer.
-            new Reshape("T3_Span", new Vector3(0f, 24f, 226f), new Vector3(4.8f, 1f, 22f),
-                        "the last long deck still at 4 m; +20% room to skate, out of the only 0.8 m going spare"),
+            // The long span is now a 9.6 x 26 m run with its posts, lintel, water and alternate wall line
+            // moved as one assembly. The lintel remains 0.1 m wider than the deck on each side.
+            new Reshape("T3_Span", new Vector3(0f, 24f, 234f), new Vector3(9.6f, 1f, 26f),
+                        "a wide, long water line with room to steer and a supported route pickup"),
+            new Reshape("T3_Fallen_Lintel", new Vector3(0f, 26.15f, 226f), new Vector3(9.8f, 0.8f, 1.2f), "the slide gate widens with the full span"),
+            new Reshape("T3_Obelisk_W1", new Vector3(-8f, 22f, 226f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
+            new Reshape("T3_Obelisk_E1", new Vector3(8f, 22f, 226f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
+            new Reshape("T3_Obelisk_W2", new Vector3(-8f, 22f, 237.5f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
+            new Reshape("T3_Obelisk_E2", new Vector3(8f, 22f, 237.5f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
+            new Reshape("T3_Recovery_W1", new Vector3(-5.8f, 20f, 225f), new Vector3(1.2f, 8f, 1.2f), "recovery post stays between the deck and outer obelisk"),
+            new Reshape("T3_Recovery_E1", new Vector3(5.8f, 20f, 225f), new Vector3(1.2f, 8f, 1.2f), "recovery post stays between the deck and outer obelisk"),
+            new Reshape("T3_Recovery_W2", new Vector3(-5.8f, 20f, 236.5f), new Vector3(1.2f, 8f, 1.2f), "recovery post stays between the deck and outer obelisk"),
+            new Reshape("T3_Recovery_E2", new Vector3(5.8f, 20f, 236.5f), new Vector3(1.2f, 8f, 1.2f), "recovery post stays between the deck and outer obelisk"),
+            new Reshape("T3_Step_1", new Vector3(3f, 25f, 251f), new Vector3(12f, 1f, 6f), "the first exit terrace is large enough to steer after the wall line"),
+            new Reshape("T3_Step_2", new Vector3(-3f, 26.5f, 259f), new Vector3(12f, 1f, 8f), "the final launch terrace broadens before the azure sun"),
+            new Reshape("T3_Wall_Pillars", new Vector3(12.6f, 22.5f, 202f), new Vector3(1.2f, 7f, 23f), "the long pillar shortcut gates the direct jump and earns a full wall run"),
+            new Reshape("T3_Wall_Landing_S", new Vector3(10f, 22.5f, 217.25f), new Vector3(8f, 1f, 6.5f), "the isolated landing catches the full west exit throw and chains into the span wall"),
+            new Reshape("T3_Wall_Span", new Vector3(13.1f, 26f, 232.5f), new Vector3(1.2f, 8f, 23f), "the long wall-run line moves outside the widened span"),
 
             // ---- THE ARENA DOORWAYS: 6 m -> 9 m.
             // Every arena is entered and left through a 6 m slot in a 4 m wall, and the probe named
@@ -364,18 +364,18 @@ namespace VibeGame1.EditorTools
             // The spiral, second half of each lap: L1 and L2 are already read from the entry pair and the
             // buttress torch, and beaconing them tips the L5/L6/L7 stack over the limit.
             // L3 and L9 grew from 5 m to 7 m wide, so their beacons follow the new west edge (-3.5).
-            new TorchDef { name = "Torch_Beacon_T2_L3", basePosition = new Vector3(-3.2f, 8f, 132.8f) },
-            new TorchDef { name = "Torch_Beacon_T2_L4", basePosition = new Vector3(-8.8f, 9.5f, 122.2f) },
-            new TorchDef { name = "Torch_Beacon_T2_L5", basePosition = new Vector3(-8.8f, 11f, 114.2f) },
-            new TorchDef { name = "Torch_Beacon_T2_L7", basePosition = new Vector3(8.8f, 14f, 117.6f) },
-            new TorchDef { name = "Torch_Beacon_T2_L8", basePosition = new Vector3(8.9f, 15.5f, 125.6f) },
-            new TorchDef { name = "Torch_Beacon_T2_L9", basePosition = new Vector3(-3.2f, 17f, 132.5f) },
-            new TorchDef { name = "Torch_Beacon_T2_L10", basePosition = new Vector3(6.7f, 18.5f, 137.5f) },
+            new TorchDef { name = "Torch_Beacon_T2_L3", basePosition = new Vector3(-5.7f, 8f, 135.2f) },
+            new TorchDef { name = "Torch_Beacon_T2_L4", basePosition = new Vector3(-13.7f, 9.5f, 120.55f) },
+            new TorchDef { name = "Torch_Beacon_T2_L5", basePosition = new Vector3(-13.7f, 11f, 110.55f) },
+            new TorchDef { name = "Torch_Beacon_T2_L7", basePosition = new Vector3(13.7f, 14f, 110.55f) },
+            new TorchDef { name = "Torch_Beacon_T2_L8", basePosition = new Vector3(13.7f, 15.5f, 127.45f) },
+            new TorchDef { name = "Torch_Beacon_T2_L9", basePosition = new Vector3(-5.7f, 17f, 135.2f) },
+            new TorchDef { name = "Torch_Beacon_T2_L10", basePosition = new Vector3(10.7f, 18.5f, 142.7f) },
             // T3: on the pillars, at the OUTER corner of the top face — a 2.5 m square you land on at
             // speed gets nothing in the middle of it — every 8 m rather than every pillar.
-            new TorchDef { name = "Torch_Beacon_T3_Pillar_1", basePosition = new Vector3(-1f, 21.5f, 197.2f) },
-            new TorchDef { name = "Torch_Beacon_T3_Pillar_3", basePosition = new Vector3(-4f, 23.5f, 206.9f) },
-            new TorchDef { name = "Torch_Beacon_T3_Pillar_4", basePosition = new Vector3(-1.2f, 24.5f, 214f) },
+            new TorchDef { name = "Torch_Beacon_T3_Pillar_1", basePosition = new Vector3(-1.45f, 21.5f, 195.8f) },
+            new TorchDef { name = "Torch_Beacon_T3_Pillar_3", basePosition = new Vector3(-9.95f, 23.5f, 209.3f) },
+            new TorchDef { name = "Torch_Beacon_T3_Pillar_4", basePosition = new Vector3(2.7f, 24.5f, 219.7f) },
 
             // ---- THE ALTERNATE LINES, which were invisible.
             // Every span in this level already HAS a second way through - the wall runs, proven by
@@ -391,9 +391,9 @@ namespace VibeGame1.EditorTools
             // from a route beacon by GRAMMAR: route beacons come in a rhythm of pairs on the line you are
             // already on, and these stand ALONE, off the line, at a different height.
             new TorchDef { name = "Torch_Beacon_Alt_T1_Landing", basePosition = new Vector3(6.1f, 2.5f, 60f) },
-            new TorchDef { name = "Torch_Beacon_Alt_T2_East", basePosition = new Vector3(8.6f, 8f, 134f) },
-            new TorchDef { name = "Torch_Beacon_Alt_T2_West", basePosition = new Vector3(-9.1f, 12.5f, 104f) },
-            new TorchDef { name = "Torch_Beacon_Alt_T3_S", basePosition = new Vector3(8f, 23f, 207.5f) },
+            new TorchDef { name = "Torch_Beacon_Alt_T2_East", basePosition = new Vector3(13.9f, 8f, 133.8f) },
+            new TorchDef { name = "Torch_Beacon_Alt_T2_West", basePosition = new Vector3(-13.9f, 12.5f, 104f) },
+            new TorchDef { name = "Torch_Beacon_Alt_T3_S", basePosition = new Vector3(13.7f, 23f, 207.3f) },
         };
 
         // ---------------------------------------------------------------- the perches
@@ -433,8 +433,8 @@ namespace VibeGame1.EditorTools
             new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-11.5f, 3.5f, 53f), 90f, "T1_Causeway,T1_Stone_4"),
             // (16, 60): the projectile band's near edge moved 6 -> 10 m on 2026-09-05 (a bolt must be cued 0.28 s out
             // at 32 m/s), and the old (11, 63) perch was 6.8 m from T1_Wall_Landing. From here the landing is
-            // 12.4 m and Stone_5 19 m, both lines clear of the east obelisk (z 66.5) and the causeway wall (z <= 58).
-            new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(16f, 3.5f, 60f), 270f, "T1_Wall_Landing,T1_Stone_5"),
+            // 12.4 m and the causeway 18 m, both lines clear of the east obelisk and the causeway wall.
+            new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(20f, 3.5f, 54f), 270f, "T1_Stone_4,T1_Wall_Landing"),
             // T2: the spiral. LevelSpan2Tests pins Spawn_T2_GruntB BESIDE the west wall, inside it (x > the
             // wall's east face -10.6), between the landing pad (z 106.5) and the mount L4 (z 122), so a run
             // along the wall passes it: a low perch at z 109-112, under the L6/L5 hops (10-12 m up). GruntA
@@ -442,29 +442,30 @@ namespace VibeGame1.EditorTools
             // Covers L1 (15.5 m) and L2 (19.8 m): after the band's near edge moved to 10 m (2026-09-05), Entry at
             // 9.3 m and L5 at 5.5 m are inside the muzzle's dead zone, so they are no longer claimed. The
             // perch itself stays where LevelSpan2Tests pins the grunt.
-            new Perch("T2_Perch_W", "Spawn_T2_GruntB", new Vector3(-7.5f, 4f, 110.5f), 90f, "T2_L1,T2_L6,T2_L2"),   // L6 (10.4 m, straight up the spiral) is the second clear line; L2 is blocked from here
-            new Perch("T2_Perch_E", "Spawn_T2_GruntA", new Vector3(13.8f, 10.5f, 129f), 250f, "T2_L3,T2_L9"),   // L2 sits inside the 10 m near edge of the band since 2026-09-05; a claimed deck must be IN band
+            new Perch("T2_Perch_W", "Spawn_T2_GruntB", new Vector3(-10.5f, 4f, 108.5f), 90f, "T2_L1,T2_L6,T2_L2"),
+            new Perch("T2_Perch_E", "Spawn_T2_GruntA", new Vector3(18.4f, 10.5f, 134f), 250f, "T2_L3,T2_L9"),
             // T3: LevelSpan3Tests pins BOTH spawns beside T3_Wall_Span (z 214.5-234.5). West perch beside the
             // span's start (z 216-219, x -9..-6: clear of T3_Obelisk_W1 at x -5.6 / z 221.4 in plan), off the
             // arc's landing (x -1.3) and the pillar hops, covering the last three pillars
             // from behind; east perch OUTSIDE and ABOVE the span wall (top 30), covering the three steps.
-            new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(-7.5f, 24f, 217.5f), 60f, "T3_Pillar_2,T3_Pillar_3"),   // Pillar_4 is inside the 10 m near edge; a claimed deck must be in band
-            new Perch("T3_Perch_E", "Spawn_T3_Heavy", new Vector3(11f, 31f, 227.5f), 240f, "T3_Step_1,T3_Step_2,T3_Step_3"),
+            new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(-15f, 24f, 221.8f), 60f, "T3_Pillar_2,T3_Pillar_3"),
+            new Perch("T3_Perch_E", "Spawn_T3_Heavy", new Vector3(17.5f, 31f, 240f), 240f, "T3_Step_1,T3_Step_2"),
         };
 
         // ---------------------------------------------------------------- the balloon arc
-        // T3: an ARC of three orbs west of the pillar hops, from T3_Entry's edge to a fall onto T3_Span.
+        // T3: an ARC of four orbs west of the pillar hops, from P1's edge to a fall onto T3_Span.
         // MEASURED, not copied from the yard: a pop is 11 m/s up with the carry trimmed to 9 m/s AND a
         // 0.45 s float at 0.55 gravity, so it apexes ~3.5 m above the orb about 5 m out. The next orb
         // therefore sits ~5 m across and ~3 m UP (the yard's 1.2 m rise was laid before the float and a
         // pop sails 2 m over it). Flown in LevelTraversalTests: entry-jump into orb 1 (4 m out, 3 m up),
-        // two pops, and the fall from orb 3 lands on the span at z ~216, short of the fallen lintel.
+        // three pops, and the fall from orb 4 lands on the span, short of the fallen lintel.
         public const float BalloonLaunch = 11f, BalloonRadius = 1.1f, BalloonRespawn = 2.5f;
         public static readonly Vector3[] T3Arc =
         {
-            new Vector3(-4f, 23.0f, 197f),
-            new Vector3(-6.5f, 26.0f, 201.3f),
-            new Vector3(-6f, 29.0f, 206.2f),
+            new Vector3(-6.5f, 23f, 197f),
+            new Vector3(-11f, 26f, 200.4f),
+            new Vector3(-13f, 29f, 205.6f),
+            new Vector3(-12f, 32f, 211f),
         };
 
         // ---------------------------------------------------------------- the ramps (2026-09-07)
@@ -504,6 +505,14 @@ namespace VibeGame1.EditorTools
         }
 
         public const float RampThickness = 0.5f;
+
+        static Ramp RampBetween(string name, Vector3 bottom, Vector3 top, float width, string why)
+        {
+            Vector3 horizontal = top - bottom;
+            horizontal.y = 0f;
+            return new Ramp(name, bottom, width, horizontal.magnitude, top.y - bottom.y,
+                            Mathf.Atan2(horizontal.x, horizontal.z) * Mathf.Rad2Deg, why);
+        }
 
         public static readonly Ramp[] Ramps =
         {
@@ -545,36 +554,14 @@ namespace VibeGame1.EditorTools
                      "the causeway's slide gate stops being something you land in front of and becomes " +
                      "something you run into"),
 
-            // ---- T2: one grade per lap of the spiral, both at the north turn.
-            // Eleven pads, every rise exactly +1.5 m, was the other half of "eleven identical squares" -
-            // the first half (the pads' footprints) was fixed by the openness pass. These two are the
-            // spiral's two WEAKEST hops, 16/25 and 17/25 clean launch points, and they are the same corner
-            // of the helix one lap apart: L3 and L9 are the two 7 m turn balconies, L9 directly over L3.
-            // A turn is where a runner loses the most speed anyway; doing it on a grade with both feet on
-            // the ground beats doing it as a diagonal hop onto a pad.
-            //
-            // L2 (top 6.5, x 5-9.5) -> L3 (top 8.0, x -3.5..3.5). Yaw 329 leans north-west with the turn.
-            // Base at z 125.6 rather than further south because T2_Buttress (x 4.2-5.0, z 121-124, rising
-            // from y 6.5) is the chimney's face and the ramp's south-west corner would clip it at z < 124.6.
-            // Lands at x 3.0 - the EAST end of the balcony - deliberately: the exit is L3 -> L4 to the
-            // south-west, and landing east leaves the whole 7 m of balcony to arc through.
-            new Ramp("T2_Ramp_L2_L3", new Vector3(6.0f, 6.5f, 125.6f), 4.0f, 5.83f, 1.5f, 329f,
-                     "lap one's north turn is run, not jumped; 14.4 deg, and the only thing in the spiral " +
-                     "that is not a square"),
-            // L8 -> L9, the same turn one lap up, and the hardest piece of geometry in this pass.
-            // MEASURED REJECTIONS, both of them: the same 4 m / 5.83 m / yaw 329 shape as the ramp above,
-            // translated +9 m in y, BLOCKS T2_Perch_E's bolt onto T2_L9 - the muzzle at (13.8, 12.5, 129)
-            // and L9's chest at (0, 18.2, 131) put the bolt inside the slab, and a perch that loses half
-            // its coverage is a perch that is no longer a route piece (rule: a ramp is solid geometry and
-            // occludes exactly like a slab). Swinging the ramp WEST to duck under the bolt instead drives
-            // it into T2_Tower (x -2..2, 20 m tall) and costs three sightlines.
-            // The gap the bolt leaves is a NARROW ramp that lands EARLY: the bolt is still out at x > 10
-            // for z < 129.9, so a 3 m wide ramp landing on L9 at z 129.3 passes under it entirely. Yaw 313
-            // and run 5.45 fit that window; the price is 1 m of width and a slightly steeper 15.4 deg,
-            // which is why the two laps' grades are near-twins rather than twins.
-            new Ramp("T2_Ramp_L8_L9", new Vector3(6.5f, 15.5f, 125.6f), 3.0f, 5.45f, 1.5f, 313f,
-                     "lap two's north turn, threaded between the tower and the east perch's bolt line: " +
-                     "3 m wide and landing early is the only shape that clears both"),
+            // ---- T2: one endpoint-derived grade per lap, both at the north turn.
+            // Run and yaw are calculated from deck-supported endpoints, so neither connector can drift
+            // away from its landing when this section is translated.
+            RampBetween("T2_Ramp_L2_L3", new Vector3(10f, 6.5f, 125.8f), new Vector3(4.5f, 8f, 132.5f), 3.8f,
+                        "lap one's north turn is derived from its two deck-supported endpoints"),
+            // L8 -> L9 repeats the same idea one lap higher with the audited narrower width.
+            RampBetween("T2_Ramp_L8_L9", new Vector3(10.5f, 15.5f, 125.8f), new Vector3(5f, 17f, 130.9f), 3.2f,
+                        "lap two's north turn is derived from its supported endpoints and kept clear of the bolt line"),
         };
 
         // ---------------------------------------------------------------- the water lines
@@ -592,8 +579,8 @@ namespace VibeGame1.EditorTools
             new Water("T1_Water_Fast", new Vector3(0.75f, 0.52f, 28.5f), new Vector3(3.4f, 0.04f, 6.4f), Vector3.forward, 6f),
             // The T3 span after the fallen lintel (top 24.5): skate the run, then the last sheet turns the
             // flow toward T3_Step_1 at (3, 25.5, 241) — a line that TURNS the run (rule 7).
-            new Water("T3_Water_Span", new Vector3(0f, 24.52f, 229.5f), new Vector3(3.6f, 0.04f, 13f), Vector3.forward, 6f),
-            new Water("T3_Water_Turn", new Vector3(0.8f, 24.52f, 236.2f), new Vector3(2.4f, 0.04f, 1.6f), new Vector3(0.6f, 0f, 0.8f), 6f),
+            new Water("T3_Water_Span", new Vector3(0f, 24.52f, 236.75f), new Vector3(8.4f, 0.04f, 17.5f), Vector3.forward, 6f),
+            new Water("T3_Water_Turn", new Vector3(0.8f, 24.52f, 245.8f), new Vector3(3.6f, 0.04f, 1.6f), new Vector3(0.6f, 0f, 0.8f), 6f),
         };
 
         [MenuItem("VibeGame1/8a. Rework Level_01 (parkour first)")]
@@ -619,6 +606,11 @@ namespace VibeGame1.EditorTools
         /// </summary>
         public static string Apply(LevelDefinition def)
         {
+            // Solar spacing translates whole course sections. Put an already-authored asset back on the
+            // canonical pre-spacing coordinates before the absolute rework tables below run, otherwise a
+            // second Apply would mix freshly reset pieces with pieces that still carry the section shift.
+            NormalizeSolarCourseSpacing(def);
+
             // The openness pass runs FIRST and edits boxes it does not own the existence of, only their
             // shape: it looks each one up BY NAME and writes an absolute centre and size, so a second run
             // writes the same numbers and nothing is ever created or destroyed here.
@@ -715,6 +707,7 @@ namespace VibeGame1.EditorTools
             ApplyDescent(def);
             ApplyOpeningDescent(def);
             ApplySolarRealms(def);
+            ApplyProjectileEncounterSequences(def);
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
@@ -723,14 +716,148 @@ namespace VibeGame1.EditorTools
                                  RouteBeacons.Length, gated, def.platforms.Length, def.torches.Length);
         }
 
+        /// <summary>
+        /// Gives every campaign projectile enemy one data-authored route-audit window. Geometry proves where
+        /// a shot is useful; it does not become an invisible runtime trigger. Only the explicitly
+        /// progress-gated opening row is sequence-controlled; ordinary sentries retain autonomous
+        /// range/LOS/facing fire. Another level can author the same evidence without level-specific AI code.
+        /// </summary>
+        public static void ApplyProjectileEncounterSequences(LevelDefinition def)
+        {
+            var sequences = new List<ProjectileSequenceDef>(def.projectileSequences ?? new ProjectileSequenceDef[0]);
+            string[] owned = { "T1_ParryRoute", "T2_ParryRoute", "T3_ParryRoute", "T4_SurgeRoute" };
+            sequences.RemoveAll(s => s != null && System.Array.IndexOf(owned, s.name) >= 0);
+
+            var opening = sequences.Find(s => s != null && s.name == "T0_SurgeVolley");
+            var openingRamp = FindRamp(def, "T0_Ramp_Descent");
+            if (opening != null && openingRamp != null)
+            {
+                Vector3 start = openingRamp.basePosition + Vector3.up * 1.2f;
+                Vector3 end = openingRamp.TopPosition + Vector3.up * 1.2f;
+                opening.engagementWindows = new[]
+                {
+                    Window("Spawn_T0_Surge_1", start, end, 7f, 3f, 3f, 24f),
+                    Window("Spawn_T0_Surge_2", start, end, 7f, 3f, 20f, 46f),
+                    Window("Spawn_T0_Surge_3", start, end, 7f, 3f, 42f, 70f),
+                    Window("Spawn_T0_Surge_4", start, end, 7f, 9f, 66f, 94f),
+                    Window("Spawn_T0_Surge_5", start, end, 7f, 9f, 90f, 130f),
+                };
+            }
+
+            // T1 owns one main-line beat and one optional east-line beat. Broad corridors accommodate
+            // the authored zigzag while their finite end prevents either sentry from shooting into T2.
+            Vector3 t1Start = DeckChest(def, "T1_Stone_4", 0f, -2f);
+            sequences.Add(Sequence("T1_ParryRoute",
+                new[] { "Spawn_T1_GruntA", "Spawn_T1_GruntB" }, 1.75f,
+                new[]
+                {
+                    WindowToEnd("Spawn_T1_GruntA", t1Start, DeckChest(def, "T1_Causeway", 0f, 9f), 8f, 3f, 3f, 1f),
+                    WindowToEnd("Spawn_T1_GruntB", t1Start, DeckChest(def, "T1_Wall_Landing", 0f, 1.5f), 8f, 3f, 3f, 1f),
+                }));
+
+            // The two stacked T2 laps deliberately use different Y ranges. The west sentry owns the
+            // lower turn; the east sentry cannot arm until the upper lap, even though XZ overlaps it.
+            sequences.Add(Sequence("T2_ParryRoute",
+                new[] { "Spawn_T2_GruntB", "Spawn_T2_GruntA" }, 1.75f,
+                new[]
+                {
+                    WindowToEnd("Spawn_T2_GruntB", DeckChest(def, "T2_L1", 0f, -3f),
+                                DeckChest(def, "T2_L3", 0f, 2f), 12f, 3.2f, 3f, 1f),
+                    WindowToEnd("Spawn_T2_GruntA", DeckChest(def, "T2_L7", 0f, -2f),
+                                DeckChest(def, "T2_L10", 0f, 2f), 12f, 3.2f, 3f, 1f),
+                }));
+
+            // The ordinary sentry reads across the pillar approach. The Heavy's three-contact phrase gets
+            // the entire widened water span and both exit terraces: over three seconds at base run speed.
+            sequences.Add(Sequence("T3_ParryRoute",
+                new[] { "Spawn_T3_Grunt", "Spawn_T3_Heavy" }, 2.2f,
+                new[]
+                {
+                    WindowToEnd("Spawn_T3_Grunt", DeckChest(def, "T3_Pillar_1", 0f, -2f),
+                                DeckChest(def, "T3_Span", 0f, -10f), 16f, 8f, 3f, 1f),
+                    WindowToEnd("Spawn_T3_Heavy", DeckChest(def, "T3_Span", 0f, -10f),
+                                DeckChest(def, "T3_Step_2", 0f, 3f), 12f, 8f, 4f, 2f),
+                }));
+
+            var t4Ramp = FindRamp(def, "T4_Ramp_Descent");
+            Vector3 t4Start = t4Ramp.basePosition + Vector3.up * 1.2f;
+            Vector3 t4End = DeckChest(def, "Boss_Approach", 0f, 5f);
+            sequences.Add(Sequence("T4_SurgeRoute",
+                new[] { "Spawn_T4_Surge_1", "Spawn_T4_Surge_2", "Spawn_T4_Surge_3" }, 1.35f,
+                new[]
+                {
+                    Window("Spawn_T4_Surge_1", t4Start, t4End, 6f, 4f, 5f, 27f),
+                    Window("Spawn_T4_Surge_2", t4Start, t4End, 6f, 4f, 22f, 45f),
+                    Window("Spawn_T4_Surge_3", t4Start, t4End, 6f, 4f, 38f, 58f),
+                }));
+
+            def.projectileSequences = sequences.ToArray();
+        }
+
+        static ProjectileSequenceDef Sequence(string name, string[] members, float timeout,
+                                               ProjectileEngagementWindowDef[] windows)
+        {
+            return new ProjectileSequenceDef
+            {
+                name = name,
+                spawnerNames = members,
+                recoveryGap = 0.11f,
+                readinessTimeout = timeout,
+                shotResolutionTimeout = 1.75f,
+                engagementWindows = windows,
+            };
+        }
+
+        static ProjectileEngagementWindowDef WindowToEnd(string spawner, Vector3 start, Vector3 end,
+                                                          float width, float height, float arrivalStart,
+                                                          float endMargin)
+        {
+            float length = Vector2.Distance(new Vector2(start.x, start.z), new Vector2(end.x, end.z));
+            return Window(spawner, start, end, width, height, arrivalStart,
+                          Mathf.Max(arrivalStart + 0.5f, length - endMargin));
+        }
+
+        static ProjectileEngagementWindowDef Window(string spawner, Vector3 start, Vector3 end,
+                                                     float width, float height, float arrivalStart,
+                                                     float arrivalEnd)
+        {
+            return new ProjectileEngagementWindowDef
+            {
+                spawnerName = spawner,
+                routeStart = start,
+                routeEnd = end,
+                halfWidth = width,
+                heightTolerance = height,
+                arrivalStart = arrivalStart,
+                arrivalEnd = arrivalEnd,
+            };
+        }
+
+        static Vector3 DeckChest(LevelDefinition def, string name, float xOffset, float zOffset)
+        {
+            var deck = System.Array.Find(def.platforms, p => p != null && p.name == name);
+            if (deck == null) throw new System.InvalidOperationException("Projectile route requires " + name + ".");
+            return new Vector3(deck.center.x + xOffset, deck.center.y + deck.size.y * 0.5f + 1.2f,
+                               deck.center.z + zOffset);
+        }
+
+        static RampDef FindRamp(LevelDefinition def, string name)
+        {
+            return def.ramps != null ? System.Array.Find(def.ramps, r => r != null && r.name == name) : null;
+        }
+
         /// <summary>The final descent and its existing surge-turret encounter. Absolute, re-runnable data.</summary>
         public static void ApplyDescent(LevelDefinition def)
         {
             var platforms = new List<PlatformDef>(def.platforms);
             var boss = platforms.Find(p => p.name == "Boss_Arena");
-            if (boss == null) throw new System.InvalidOperationException("Descent requires Boss_Arena.");
+            // ApplySolarSpacing removes the obsolete exterior court after this pass has used its old
+            // anchor once. On the second application the already-authored T4 descent is the proof that
+            // a missing Boss_Arena means "solar migration complete", not corrupt source data.
+            if (boss == null && !platforms.Exists(p => p != null && p.name == "T4_Entry"))
+                throw new System.InvalidOperationException("Descent requires Boss_Arena on an unmigrated level.");
             // Derive the translation from the current anchor: a second application moves nothing.
-            Vector3 shift = new Vector3(0f, 15.5f, 390f) - boss.center;
+            Vector3 shift = boss != null ? new Vector3(0f, 15.5f, 390f) - boss.center : Vector3.zero;
             foreach (var p in platforms)
                 if (p.name.Contains("Boss")) p.center += shift;
             // Apply's earlier Reshapes restores these two walls to the original arena coordinates.
@@ -1016,23 +1143,233 @@ namespace VibeGame1.EditorTools
         }
 
         /// <summary>
-        /// Turns the four existing gated courts into portal suns without moving their route anchors or
-        /// their authored SpawnDefs. The builder moves each live spawner into its disconnected realm.
+        /// Turns the four existing gated courts into portal suns, spreads later course sections as rigid
+        /// groups, and preserves the historical legendary/boss SpawnDefs. The builder moves each live
+        /// arena spawner into its disconnected realm.
         /// </summary>
         public static void ApplySolarRealms(LevelDefinition def)
         {
-            SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87f), 12f, 22f,
+            NormalizeSolarCourseSpacing(def);
+
+            SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87.3f), 16f, 22f,
                 new Vector3(700f, 0f, 0f), "Spawn_Legendary_Ninja",
-                new Vector3(0f, 3.2f, 70f), new Vector3(0f, 4.2f, 102f), true);
-            SetSolar(def, "T2_Gate", "SolarGold", new Vector3(0f, 24.55f, 170f), 13f, 23f,
+                new Vector3(0f, 2.2f, 62f), new Vector3(10f, 5.2f, 151.375f), true);
+            SetSolar(def, "T2_Gate", "SolarGold", new Vector3(0f, 24.55f, 216.8f), 17f, 23f,
                 new Vector3(700f, 0f, 80f), "Spawn_Legendary_Knight",
-                new Vector3(0f, 20.2f, 150f), new Vector3(0f, 20.2f, 186f), true);
-            SetSolar(def, "T3_Gate", "SolarAzure", new Vector3(0f, 32.2f, 270f), 12f, 22f,
+                new Vector3(0f, 20.2f, 188f), new Vector3(2.75f, 21.7f, 268f), true);
+            SetSolar(def, "T3_Gate", "SolarAzure", new Vector3(0f, 32.2f, 356.3f), 16f, 22f,
                 new Vector3(700f, 0f, 160f), "Spawn_Legendary_Spellsword",
-                new Vector3(0f, 28.2f, 253f), new Vector3(0f, 28.2f, 286f), true);
-            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 390f), 18f, 31f,
+                new Vector3(-3f, 27.2f, 329f), new Vector3(0f, 28.2f, 393.15f), true);
+            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 486.3f), 25f, 31f,
                 new Vector3(700f, 0f, 240f), "Spawn_Boss",
-                new Vector3(0f, 16.2f, 361f), Vector3.zero, false);
+                new Vector3(0f, 16.2f, 450f), Vector3.zero, false);
+
+            ApplySolarSpacing(def);
+            TranslateCourseSections(def, 38f, 70f, 96f, false);
+        }
+
+        /// <summary>
+        /// Replaces the four obsolete exterior courts with open transition gaps. The fights already stand
+        /// on the generated twenty-metre realm floors; leaving the old rectangular floors and walls under
+        /// the portal suns only made the previous level visible through their plasma. Route decks now stop
+        /// outside each visible shell, and the next section begins beyond it after the realm return.
+        /// </summary>
+        static void ApplySolarSpacing(LevelDefinition def)
+        {
+            var platforms = new List<PlatformDef>(def.platforms ?? new PlatformDef[0]);
+            platforms.RemoveAll(p => p != null && IsLegacySolarGeometry(p.name));
+
+            SetPlatform(platforms, "T1_Causeway", new Vector3(-1.5f, 1.5f, 53.65f), new Vector3(6f, 1f, 21.3f));
+            SetPlatform(platforms, "T1_Rail_L", new Vector3(-4.6f, 2.325f, 53.55f), new Vector3(0.2f, 0.65f, 21.1f));
+            SetPlatform(platforms, "T1_Rail_R", new Vector3(1.6f, 2.325f, 53.55f), new Vector3(0.2f, 0.65f, 21.1f));
+            SetPlatform(platforms, "T1_Wall_Landing", new Vector3(4.6f, 2f, 61.75f), new Vector3(4f, 1f, 4.5f));
+            SetPlatform(platforms, "T4_Entry", new Vector3(0f, 27.5f, 297.15f), new Vector3(10f, 1f, 3.7f));
+            SetPlatform(platforms, "T4_TurretPad_3", new Vector3(6.7f, 15.5f, 354f), new Vector3(3f, 1f, 3f));
+            SetPlatform(platforms, "Boss_Approach", new Vector3(0f, 15.5f, 352.3f), new Vector3(10f, 1f, 11.4f));
+            def.platforms = platforms.ToArray();
+
+            var torches = new List<TorchDef>(def.torches ?? new TorchDef[0]);
+            torches.RemoveAll(t => t != null && t.name != null &&
+                (t.name.StartsWith("Torch_T1_Arena_") || t.name.StartsWith("Torch_T2_Arena_") ||
+                 t.name.StartsWith("Torch_T3_Arena_") || t.name.StartsWith("Torch_Boss_") ||
+                 t.name.StartsWith("Torch_T2_Entry_") || t.name.StartsWith("Torch_T3_Entry_")));
+            foreach (var torch in torches)
+            {
+                if (torch == null) continue;
+                if (torch.name == "Torch_T2_Mid") torch.basePosition = new Vector3(-3.6f, 12.5f, 107.425f);
+                else if (torch.name == "Torch_T2_Buttress") torch.basePosition = new Vector3(13.7f, 6.5f, 121.175f);
+                else if (torch.name == "Torch_T2_Top") torch.basePosition = new Vector3(-4.7f, 20f, 150f);
+                else if (torch.name == "Torch_T3_Span_S") torch.basePosition = new Vector3(-4.5f, 24.5f, 221.3f);
+                else if (torch.name == "Torch_T3_Span_N") torch.basePosition = new Vector3(4.5f, 24.5f, 246.7f);
+            }
+            def.torches = torches.ToArray();
+
+            // Route pickups remain authored at their historical height, but their XZ now sits on a real
+            // walkable top. Realm pickups are deliberately untouched: the builder migrates those by name.
+            foreach (var pickup in def.pickups ?? new PickupDef[0])
+            {
+                if (pickup == null) continue;
+                if (pickup.name == "Pickup_T2_Hook") pickup.position = new Vector3(8f, 6.2f, 113.375f);
+                else if (pickup.name == "Pickup_T2_Surge") pickup.position = new Vector3(0f, 13.7f, 111.5f);
+                else if (pickup.name == "Pickup_T3_Surge") pickup.position = new Vector3(1f, 22.7f, 198f);
+                else if (pickup.name == "Pickup_T3_Hook") pickup.position = new Vector3(0f, 25.7f, 234f);
+                else if (pickup.name == "Pickup_T1_Surge") pickup.position = new Vector3(-8f, 5.2f, 80f);
+                else if (pickup.name == "Pickup_T2_Hook_2") pickup.position = new Vector3(-9f, 21.2f, 162f);
+                else if (pickup.name == "Pickup_T3_Surge_2") pickup.position = new Vector3(8f, 29.2f, 261f);
+                else if (pickup.name == "Pickup_Boss_Hook") pickup.position = new Vector3(-8f, 17.2f, 376f);
+            }
+
+            foreach (var spawn in def.spawns ?? new SpawnDef[0])
+                if (spawn != null && spawn.name == "Spawn_T4_Surge_3")
+                    spawn.position = new Vector3(6.7f, 16.1f, 354f);
+
+            foreach (var arena in def.arenas ?? new ArenaDef[0])
+            {
+                if (arena == null) continue;
+                if (arena.gateName == "T1_Gate") SetGateZ(arena, 63.25f, 145.625f, 78.3f);
+                else if (arena.gateName == "T2_Gate") SetGateZ(arena, 191.75f, 264.75f, 206.8f);
+                else if (arena.gateName == "T3_Gate") SetGateZ(arena, 332.25f, 390.75f, 345.3f);
+                else if (arena.gateName == "Boss_Gate") SetGateZ(arena, 453.3f, 0f, 471.3f);
+            }
+
+            foreach (var checkpoint in def.checkpoints ?? new CheckpointDef[0])
+            {
+                if (checkpoint == null) continue;
+                if (checkpoint.name == "Checkpoint_2")
+                {
+                    checkpoint.position = new Vector3(10f, 5f, 113.375f);
+                    checkpoint.spawnOffset = new Vector3(0f, 0.2f, 0f);
+                }
+                else if (checkpoint.name == "Checkpoint_3")
+                {
+                    checkpoint.position = new Vector3(2.75f, 21.5f, 198f);
+                    checkpoint.spawnOffset = new Vector3(0f, 0.2f, 0f);
+                }
+                else if (checkpoint.name == "Checkpoint_4")
+                {
+                    checkpoint.position = new Vector3(0f, 16f, 354f);
+                    checkpoint.spawnOffset = new Vector3(0f, 0.2f, -3f);
+                }
+            }
+
+            def.killZone.center = new Vector3(0f, -30f, 180f);
+            def.killZone.size = new Vector3(240f, 2f, 760f);
+        }
+
+        static bool IsLegacySolarGeometry(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return name == "T1_Arena" || name == "T1_Stone_5" || name == "T1_Obelisk_E" || name == "T2_Arena" ||
+                   name == "T2_Bridge" || name == "T2_Bridge_Rail_L" || name == "T2_Bridge_Rail_R" ||
+                   name == "T2_Entry" || name == "T3_Arena" || name == "T3_Entry" ||
+                   name == "T3_Step_3" || name == "Boss_Arena" ||
+                   name.StartsWith("Wall_T1_") || name.StartsWith("Wall_T2_") ||
+                   name.StartsWith("Wall_T3_") || name.StartsWith("Wall_Boss_") ||
+                   name.StartsWith("Pillar_Boss_");
+        }
+
+        static void SetPlatform(List<PlatformDef> platforms, string name, Vector3 center, Vector3 size)
+        {
+            var platform = platforms.Find(p => p != null && p.name == name);
+            if (platform == null) throw new System.InvalidOperationException("Solar spacing requires " + name + ".");
+            platform.center = center;
+            platform.size = size;
+        }
+
+        static void SetGateZ(ArenaDef arena, float entryZ, float exitZ, float triggerZ)
+        {
+            arena.gateOpenPosition = new Vector3(arena.gateOpenPosition.x, arena.gateOpenPosition.y, entryZ);
+            arena.gateClosedPosition = new Vector3(arena.gateClosedPosition.x, arena.gateClosedPosition.y, entryZ);
+            arena.triggerPosition = new Vector3(arena.triggerPosition.x, arena.triggerPosition.y, triggerZ);
+            if (!arena.hasExitGate) return;
+            arena.exitGateOpenPosition = new Vector3(arena.exitGateOpenPosition.x, arena.exitGateOpenPosition.y, exitZ);
+            arena.exitGateClosedPosition = new Vector3(arena.exitGateClosedPosition.x, arena.exitGateClosedPosition.y, exitZ);
+        }
+
+        /// <summary>
+        /// Moves complete route sections rather than nudging whichever mesh happens to intersect a sun.
+        /// T2, T3 and the T4/boss run use independent translations, preserving every within-section jump,
+        /// ramp, wall-run, bolt line and pickup while opening real transition distance between spans.
+        /// Historical legendary/boss SpawnDefs stay fixed because the builder
+        /// relocates those live enemies into their remote realms and tests deliberately preserve the
+        /// authored migration anchors.
+        /// </summary>
+        static void TranslateCourseSections(LevelDefinition def, float t2Delta, float t3Delta,
+                                            float t4Delta, bool includeRealmMigrationAnchors)
+        {
+            Vector3 t2 = Vector3.forward * t2Delta;
+            Vector3 t3 = Vector3.forward * t3Delta;
+            Vector3 t4 = Vector3.forward * t4Delta;
+
+            foreach (var p in def.platforms ?? new PlatformDef[0])
+            {
+                if (p == null || string.IsNullOrEmpty(p.name)) continue;
+                if (p.name.StartsWith("T2_")) p.center += t2;
+                else if (p.name.StartsWith("T3_")) p.center += t3;
+                else if (p.name.StartsWith("T4_") || p.name.StartsWith("Boss_")) p.center += t4;
+            }
+            foreach (var r in def.ramps ?? new RampDef[0])
+            {
+                if (r == null || string.IsNullOrEmpty(r.name)) continue;
+                if (r.name.StartsWith("T2_")) r.basePosition += t2;
+                else if (r.name.StartsWith("T3_")) r.basePosition += t3;
+                else if (r.name.StartsWith("T4_") || r.name.StartsWith("Boss_")) r.basePosition += t4;
+            }
+            foreach (var s in def.spawns ?? new SpawnDef[0])
+            {
+                if (s == null || string.IsNullOrEmpty(s.name)) continue;
+                if (s.name.StartsWith("Spawn_T2_")) s.position += t2;
+                else if (s.name.StartsWith("Spawn_T3_")) s.position += t3;
+                else if (s.name.StartsWith("Spawn_T4_")) s.position += t4;
+            }
+            foreach (var p in def.pickups ?? new PickupDef[0])
+            {
+                if (p == null || string.IsNullOrEmpty(p.name)) continue;
+                bool realmAnchor = p.name == "Pickup_T2_Hook_2" || p.name == "Pickup_T3_Surge_2" || p.name == "Pickup_Boss_Hook";
+                if (realmAnchor && !includeRealmMigrationAnchors) continue;
+                if (p.name.StartsWith("Pickup_T2_")) p.position += t2;
+                else if (p.name.StartsWith("Pickup_T3_")) p.position += t3;
+                else if (p.name.StartsWith("Pickup_Boss_")) p.position += t4;
+            }
+            foreach (var c in def.checkpoints ?? new CheckpointDef[0])
+            {
+                if (c == null) continue;
+                if (c.name == "Checkpoint_2") c.position += t2;
+                else if (c.name == "Checkpoint_3") c.position += t3;
+                else if (c.name == "Checkpoint_4") c.position += t4;
+            }
+            foreach (var torch in def.torches ?? new TorchDef[0])
+            {
+                if (torch == null || string.IsNullOrEmpty(torch.name)) continue;
+                if (torch.name.Contains("_T2_")) torch.basePosition += t2;
+                else if (torch.name.Contains("_T3_")) torch.basePosition += t3;
+                else if (torch.name.Contains("_T4_") || torch.name.Contains("_Boss_")) torch.basePosition += t4;
+            }
+            foreach (var balloon in def.balloons ?? new BalloonDef[0])
+                if (balloon != null && balloon.name != null && balloon.name.StartsWith("T3_")) balloon.position += t3;
+            foreach (var water in def.waters ?? new WaterDef[0])
+                if (water != null && water.name != null && water.name.StartsWith("T3_")) water.center += t3;
+        }
+
+        static void NormalizeSolarCourseSpacing(LevelDefinition def)
+        {
+            float t2 = PlatformOffset(def, "T2_Tower", 124f);
+            float t3 = PlatformOffset(def, "T3_Pillar_1", 198f);
+            float t4 = RampOffset(def, "T4_Ramp_Descent", 298.8f);
+            if (Mathf.Abs(t2) > 0.001f || Mathf.Abs(t3) > 0.001f || Mathf.Abs(t4) > 0.001f)
+                TranslateCourseSections(def, -t2, -t3, -t4, true);
+        }
+
+        static float PlatformOffset(LevelDefinition def, string name, float canonicalZ)
+        {
+            var platform = def.platforms != null ? System.Array.Find(def.platforms, p => p != null && p.name == name) : null;
+            return platform != null ? platform.center.z - canonicalZ : 0f;
+        }
+
+        static float RampOffset(LevelDefinition def, string name, float canonicalZ)
+        {
+            var ramp = def.ramps != null ? System.Array.Find(def.ramps, r => r != null && r.name == name) : null;
+            return ramp != null ? ramp.basePosition.z - canonicalZ : 0f;
         }
 
         static void SetSolar(LevelDefinition def, string gateName, string theme, Vector3 exterior, float radius,

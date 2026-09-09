@@ -27,7 +27,8 @@ namespace VibeGame1.EditorTools
         public struct WallRunLine
         {
             public string from, wall, to;
-            /// <summary>The base hop the landing continues with, so the line is never a second gate.</summary>
+            /// <summary>The base hop the landing continues with. Empty means the landing itself feeds a
+            /// portal transition, whose reachability is owned by the solar-arena checks.</summary>
             public string rejoin;
             public string purpose;
             /// <summary>Where on <c>from</c> the player actually takes off (x/z, world). Zero = let the
@@ -57,10 +58,10 @@ namespace VibeGame1.EditorTools
             new WallRunLine("Ground_Start", "T1_Wall_Start", "T1_Stone_4", "T1_Causeway",
                 "THE OPENING LINE. 20 m of wall on the right of the stepping stones, visible from spawn; " +
                 "mount it off the start pad and skip all four stones"),
-            new WallRunLine("T1_Stone_4", "T1_Wall_Causeway", "T1_Wall_Landing", "T1_Stone_5",
+            new WallRunLine("T1_Stone_4", "T1_Wall_Causeway", "T1_Wall_Landing", "",
                 "THE CAUSEWAY WALL. 16 m beside the causeway: past both grunts and the fallen obelisk " +
                 "without touching the deck, landing on the ledge at its end"),
-            new WallRunLine("T1_Causeway", "T1_Wall_Causeway", "T1_Wall_Landing", "T1_Stone_5",
+            new WallRunLine("T1_Causeway", "T1_Wall_Causeway", "T1_Wall_Landing", "",
                 "the causeway wall mounted late, over the east rail, once the deck gets crowded")
                 .From(-1.5f, 43f, 1.5f, 50f).Secondary(),
         };
@@ -129,9 +130,9 @@ namespace VibeGame1.EditorTools
         }
 
         /// <summary>
-        /// One line, three ways in, plus the two facts that make it a LINE rather than a decoration: the
-        /// landing is out of reach without the wall, and the landing rejoins the course. Returns false when
-        /// a line that must be long has no clean, long route from a sprint entry.
+        /// One line, three ways in, plus the facts that make it a LINE rather than decoration: the landing
+        /// is out of reach without the wall and either rejoins a deck or feeds a separately-proven portal.
+        /// Returns false when a line that must be long has no clean, long route from a sprint entry.
         /// </summary>
         public static bool AppendWallRunLine(StringBuilder sb, IList<A.Box> boxes, A.MoveProfile p, float floorY, WallRunLine line)
         {
@@ -156,9 +157,14 @@ namespace VibeGame1.EditorTools
             sb.AppendLine("    without the wall: base " + (noWallBase.exists ? "REACHES IT (not gated)" : "cannot") +
                           ", slide-jump " + (noWallSlide.exists ? "REACHES IT (not gated)" : "cannot") +
                           "  (gap " + noWallBase.gap.ToString("0.0") + " m)");
-            var rejoin = A.AnalyzeHop(boxes, line.to, line.rejoin, p, p.groundSpeed, floorY);
-            sb.AppendLine("    rejoin " + line.to + " -> " + line.rejoin + ": " + (rejoin.exists ? "ok" : "FAIL") +
-                          " (" + rejoin.cleanLaunchPoints + "/" + rejoin.launchPoints + " take-off points)");
+            if (string.IsNullOrEmpty(line.rejoin))
+                sb.AppendLine("    rejoin: landing feeds the solar portal; SolarArenaTests owns its reachability");
+            else
+            {
+                var rejoin = A.AnalyzeHop(boxes, line.to, line.rejoin, p, p.groundSpeed, floorY);
+                sb.AppendLine("    rejoin " + line.to + " -> " + line.rejoin + ": " + (rejoin.exists ? "ok" : "FAIL") +
+                              " (" + rejoin.cleanLaunchPoints + "/" + rejoin.launchPoints + " take-off points)");
+            }
 
             bool ok = sprint.exists && sprint.cleanRoutes >= 3 && (!line.mustBeLong || sprint.longest.runDuration >= 1.0f);
             sb.AppendLine("    " + (ok ? (line.mustBeLong ? "OK" : "OK (secondary mount; short by construction)")

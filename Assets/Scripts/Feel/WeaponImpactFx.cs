@@ -108,6 +108,9 @@ namespace VibeGame1
         /// <summary>How much bigger the last step of a combo lands. Modest: it is a real state worth
         /// marking, not a second alarm.</summary>
         public const float FinisherScale = 1.25f;
+        /// <summary>The finisher still sits below the deflect's 0.50 m contact flare. A multiplier
+        /// alone let the maul reach 0.525 m and silently invert the spatial payoff hierarchy.</summary>
+        public const float FlareSizeCeiling = 0.48f;
         /// <summary>Extra debris on the combo finisher.</summary>
         public const int FinisherSparkBonus = 3;
 
@@ -120,7 +123,7 @@ namespace VibeGame1
         public static float FlareSize(WeaponData w, bool finisher)
         {
             float s = Mathf.Lerp(FlareSizeLight, FlareSizeHeavy, Mass(w));
-            return finisher ? s * FinisherScale : s;
+            return Mathf.Min(finisher ? s * FinisherScale : s, FlareSizeCeiling);
         }
 
         public static float FlareSeconds(WeaponData w) =>

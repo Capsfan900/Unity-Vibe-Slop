@@ -33,7 +33,7 @@ namespace VibeGame1.EditorTools
         /// </summary>
         public static readonly WallRunLine[] WallRunLines =
         {
-            new WallRunLine("T3_Entry", "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Span",
+            new WallRunLine("T3_Pillar_1", "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Span",
                 "THE PILLAR LINE. 16 m of wall on the right of the four pillars; mount it off the entry pad, " +
                 "skip every pillar and land beside the south end of the span"),
             // Mounted from the PILLAR LINE'S LANDING, not from the deck: the obelisks put the face 5.5 m
@@ -67,10 +67,10 @@ namespace VibeGame1.EditorTools
         /// floors in <c>LevelSpan3Tests</c> are set from measurement, not hope.</summary>
         public static readonly string[][] NeighbouringHops =
         {
-            new[] { "T3_Entry", "T3_Pillar_1" }, new[] { "T3_Pillar_1", "T3_Pillar_2" },
+            new[] { "T3_Pillar_1", "T3_Pillar_2" },
             new[] { "T3_Pillar_2", "T3_Pillar_3" }, new[] { "T3_Pillar_3", "T3_Pillar_4" },
             new[] { "T3_Pillar_4", "T3_Span" }, new[] { "T3_Span", "T3_Step_1" },
-            new[] { "T3_Step_1", "T3_Step_2" }, new[] { "T3_Step_2", "T3_Step_3" },
+            new[] { "T3_Step_1", "T3_Step_2" },
         };
 
         public static string Build(string levelPath)

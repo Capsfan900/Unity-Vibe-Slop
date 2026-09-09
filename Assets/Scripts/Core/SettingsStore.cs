@@ -54,6 +54,7 @@ namespace VibeGame1
             d.frameRateCap = GetInt("fpsCap", d.frameRateCap);
             d.bloomScale = GetFloat("bloom", d.bloomScale);
             d.filmGrain = GetInt("grain", d.filmGrain ? 1 : 0) != 0;
+            d.armMovement = GetInt("armMovement", d.armMovement ? 1 : 0) != 0;
             d.masterVolume = GetFloat("volMaster", d.masterVolume);
             d.musicVolume = GetFloat("volMusic", d.musicVolume);
             d.weaponTwirlBinding = GetString("bindTwirl", d.weaponTwirlBinding);
@@ -80,6 +81,7 @@ namespace VibeGame1
             SetInt("fpsCap", d.frameRateCap);
             SetFloat("bloom", d.bloomScale);
             SetInt("grain", d.filmGrain ? 1 : 0);
+            SetInt("armMovement", d.armMovement ? 1 : 0);
             SetFloat("volMaster", d.masterVolume);
             SetFloat("volMusic", d.musicVolume);
             SetString("bindTwirl", d.weaponTwirlBinding);
@@ -103,7 +105,7 @@ namespace VibeGame1
         {
             foreach (var k in new[] { "mouseSens", "stickSens", "fov", "quality", "screenW", "screenH",
                                       "displayMode", "vsync", "fpsCap", "bloom", "grain",
-                                      "volMaster", "volMusic", "bindTwirl" })
+                                      "armMovement", "volMaster", "volMusic", "bindTwirl" })
                 PlayerPrefs.DeleteKey(KeyPrefix + k);
             PlayerPrefs.Save();
             current = null;

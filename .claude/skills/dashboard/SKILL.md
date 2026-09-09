@@ -26,7 +26,11 @@ What is on it: status tiles (EditMode from the runner's `TestResults.xml`, the f
 `docs/VERIFICATION-REPORT.md`, uncommitted files, last commit, log-entry and backlog counts), the handoff
 page, the last engineering-log entries, code counts; a Change log view (commits, uncommitted files, every
 log entry); a Tests view (per suite, failures, skips, slowest); a Systems view (DATAFLOW's maps, the backlog
-sections); every doc rendered; and a search box over all of them.
+sections); every doc rendered; and a search box over all of them. `AGENTS.md` is the primary contract shown;
+`CLAUDE.md` is labelled only as an adapter. Plain-Markdown specialist briefs and shared workflows are
+discovered too, so the dashboard remains useful from any coding-agent harness.
+The dedicated **Agent contract** view links that one source of truth, all specialist briefs, and all shared
+workflows without treating any harness adapter as authoritative.
 
 If `TestResults.xml` is missing the tiles say so — run the EditMode suite in the editor first (see the
 `unity-editor` skill). Do not edit the generator to add a doc: drop a `.md` under `docs/` and it is picked up.

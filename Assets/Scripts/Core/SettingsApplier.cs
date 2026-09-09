@@ -105,6 +105,7 @@ namespace VibeGame1
             ApplyDisplay(d);
             ApplyPost(d);
             ApplyAudio(d);
+            ApplyArmMovementSetting(d);
         }
 
         // ------------------------------------------------------------------ sensitivity
@@ -190,8 +191,21 @@ namespace VibeGame1
         void ApplyDisplay(SettingsData d)
         {
             var mode = d.ToFullScreenMode();
-            int w = d.screenWidth > 0 ? d.screenWidth : Screen.width;
-            int h = d.screenHeight > 0 ? d.screenHeight : Screen.height;
+            int nativeW = 0, nativeH = 0;
+            if (Display.main != null)
+            {
+                nativeW = Display.main.systemWidth;
+                nativeH = Display.main.systemHeight;
+            }
+            if (nativeW <= 0 || nativeH <= 0)
+            {
+                nativeW = Screen.currentResolution.width;
+                nativeH = Screen.currentResolution.height;
+            }
+            Vector2Int target = TargetResolution(d.screenWidth, d.screenHeight,
+                nativeW, nativeH, Screen.width, Screen.height);
+            int w = target.x;
+            int h = target.y;
             if (w <= 0 || h <= 0) return;
 
             // Re-issuing the same resolution every scene load costs a window flicker on some drivers.
@@ -214,6 +228,19 @@ namespace VibeGame1
 #else
             Screen.SetResolution(w, h, mode);
 #endif
+        }
+
+        /// <summary>
+        /// Resolve the saved 0/0 sentinel against the DISPLAY, not the current game window. Reading
+        /// <c>Screen.width</c> for native made a previously forced 1366x768 window redefine "native"
+        /// as 1366x768 forever. Current window dimensions are only the last-resort headless fallback.
+        /// </summary>
+        public static Vector2Int TargetResolution(int savedWidth, int savedHeight,
+            int nativeWidth, int nativeHeight, int currentWidth, int currentHeight)
+        {
+            if (savedWidth > 0 && savedHeight > 0) return new Vector2Int(savedWidth, savedHeight);
+            if (nativeWidth > 0 && nativeHeight > 0) return new Vector2Int(nativeWidth, nativeHeight);
+            return new Vector2Int(Mathf.Max(0, currentWidth), Mathf.Max(0, currentHeight));
         }
 
         /// <summary>
@@ -253,6 +280,16 @@ namespace VibeGame1
                 if (err < bestErr) { bestErr = err; best = i; }
             }
             return best;
+        }
+
+        // ------------------------------------------------------------------ visual movement
+
+        /// <summary>Push the persisted cosmetic-arm toggle onto the pure movement-pose channel.</summary>
+        public static bool ApplyArmMovementSetting(SettingsData d)
+        {
+            bool enabled = d == null || d.armMovement;
+            MovementPose.Enabled = enabled;
+            return enabled;
         }
 
         // ------------------------------------------------------------------ audio

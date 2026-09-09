@@ -85,7 +85,15 @@ namespace VibeGame1
         public bool rangedOnly;
         [Tooltip("The attack the bolt carries: its damage and parryPostureMultiplier. Written by DataFactory.")]
         public EnemyAttackData projectileAttack;
+        [Tooltip("For a one-shot sentry, seconds between shots. For a burst sentry, the quiet cooldown " +
+                 "begins after the phrase's final emission; follow-up cadence is projectileBurstInterval.")]
         public float projectileInterval = 1.6f;
+        [Tooltip("Shots in one parry phrase. 1 preserves the ordinary sentry metronome; the Heavy Sentry " +
+                 "ships 3. Runtime clamps to its fixed three-shot ownership buffer.")]
+        [Min(1)] public int projectileBurstCount = 1;
+        [Tooltip("Minimum predicted CONTACT spacing between shots in one phrase, not a blind launch delay. " +
+                 "0.42 s clears the 0.28 s cue and 0.08 s perfect-parry recovery with 0.06 s slack.")]
+        [Min(0.01f)] public float projectileBurstInterval = 0.42f;
         [Tooltip("THE ARM-UP (bolt-timing plan 2026-09-06, F1). Seconds this enemy must wait after it ACQUIRES " +
                  "the player -- the frame it comes into band with a clear line -- before its first bolt may " +
                  "leave. The metronome is held while the line is blocked, so without this a stale beat fires on " +

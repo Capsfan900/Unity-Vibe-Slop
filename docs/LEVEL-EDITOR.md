@@ -26,7 +26,7 @@ Related: [AUTHORING.md](AUTHORING.md) §1 (LevelDefinition) · [DATAFLOW.md](DAT
 
 | Do | How |
 |---|---|
-| Open | **F10** in any level or the sandbox, or **F1 → LEVEL EDITOR [F10]** |
+| Open | Editor/development build: **F10** or **F1 → LEVEL EDITOR [F10]**. Release build: press **`**, enter **`editor unlock`**, then press **F10** |
 | Close (back to ordinary play, where you were) | **F10** again, or **EXIT** on the panel |
 | Play the level you are editing | **PLAY** on the panel: rebuilds it fresh, bakes a NavMesh, drops you at the player start, spawns the enemies |
 | Return from playing to editing | **F10** (the prompt says so) or **EDIT** |
@@ -119,11 +119,10 @@ puts you straight into PLAY. Long lists run off the bottom of the panel in v1.
   scene without a prefab of its own; every number on it is written there (rule 9).
 - Input goes through `InputReader` only (rule 2): fourteen optional actions on the Player map
   (`LevelEditor`, `EditorPlace` … `EditorDown`) in `Assets/InputSystem_Actions.inputactions`.
-- **F10 is editor / development builds only (2026-09-07).** `InputReader.LevelEditorPressed` is behind
-  `#if UNITY_EDITOR || DEVELOPMENT_BUILD` and compiles to `false` in a shipped player — the editor is a
-  development tool, and without the gate a playtester could drop into a fly camera mid-run, which both
-  leaves the level and invalidates a speedrun time. It is gated at `InputReader` rather than at
-  `LevelEditor`'s three `Update` branches because rule 2 makes that the one place the key exists.
+- **F10 is gated in release builds (2026-09-08).** Editor/development builds accept it immediately. A
+  shipped player must first open the command console with Backquote and enter `editor unlock`; the grant
+  lasts for that process only and is reset on the next run. This is a deliberate playtester switch, not
+  authentication. The gate lives at `InputReader.LevelEditorPressed`, the one place the F10 action exists.
   **This does not disable the editor.** A custom level still loads and plays in every build: the main
   menu's CUSTOM rows set `PendingLoadPath`, and `LoadPendingAndPlay` calls `Enter()`/`Play()` directly.
   `TestMenu`'s LEVEL EDITOR row is behind the same symbols and EXPORT behind `#if UNITY_EDITOR`.

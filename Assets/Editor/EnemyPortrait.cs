@@ -35,6 +35,13 @@ namespace VibeGame1.EditorTools
                             Path.Combine(Directory.GetCurrentDirectory(), "Portraits")));
         }
 
+        [MenuItem("VibeGame1/Photograph Heavy Sentry")]
+        public static void HeavySentryMenu()
+        {
+            Debug.Log(Shoot("pshooter_enemy02",
+                            Path.Combine(Directory.GetCurrentDirectory(), "Portraits", "pshooter_enemy02")));
+        }
+
         /// <summary>Batch entry: <c>-executeMethod VibeGame1.EditorTools.EnemyPortrait.Batch</c>.</summary>
         public static void Batch()
         {
@@ -77,6 +84,11 @@ namespace VibeGame1.EditorTools
                 var vis = inst.GetComponentInChildren<EnemyVisuals>(true);
                 if (vis != null && data != null)
                 {
+                    // Edit-mode prefab instances do not receive Unity lifecycle messages. Setup expects
+                    // Awake's flash/property-block bindings, so establish that exact runtime state first.
+                    var awake = typeof(EnemyVisuals).GetMethod("Awake",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    if (awake != null) awake.Invoke(vis, null);
                     // Setup applies the enemy's own body colour, which Awake would normally do.
                     vis.Setup(data);
                     // Prefer the component, but fall back to the enemy's own emission colour. The

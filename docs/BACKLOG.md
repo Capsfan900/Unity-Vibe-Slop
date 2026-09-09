@@ -1,7 +1,16 @@
-# Backlog
+# Historical backlog
 
-Requested but not yet built, plus known gaps. When one is completed, move it into
-`ENGINEERING-LOG.md` (if it involved a non-obvious problem) and update `DATAFLOW.md` + `ARCHITECTURE.md`.
+This file preserves prior requests and known gaps as historical evidence. Its contents are not current
+authorization; the supersession notice below controls what may be resumed.
+
+> **Superseded 2026-09-08.** The user explicitly said to disregard the rest of this backlog. The sections
+> below remain as historical context and evidence, not as authorized work. The explicitly authorized
+> 2026-09-08/09 pass is complete in source and generated assets: release-build F10 gating through an
+> in-game console command, native-resolution/settings repair, toggleable first-person arm movement, Wall
+> Surge retuning, larger post-first-miniboss sections and isolated solar realms, sphere/platform/weapon
+> VFX, atmosphere/lighting, solar-entry audio, the agent-agnostic dashboard, and reusable route-authored
+> projectile encounters including the Heavy Sentry's three-shot parry phrase. Human feel review remains;
+> do not resume any other historical row without a new user request.
 
 Related: [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) — what is proven and what is not.
 
@@ -20,15 +29,15 @@ spans.** The intended shape each was built to:
 |---|---|
 | **Balloons** — **BUILT 2026-09-04** (`Balloon.cs`, `BalloonDef`, `motor.Launch` / `RearmDash`; three orbs in Level_01, unplayed) | The user's words: *"a floating orb that gives you a boost and allow you to dash through it."* Neon White: bounce up off a buoyant balloon demon, or discard-dash INTO one and bounce off it; balloon pops are "capped" jumps. Here: a `BalloonDef` on `LevelDefinition` + a `Balloon` prefab from `PrefabFactory` — a floating orb on `Interactable` that (a) BOUNCES the player straight up with an authored launch speed when touched from any direction or hit by melee, and (b) if the player is dashing when they reach it, lets the dash carry THROUGH it and re-arms the dash on the far side (the orb is the dash's refuel). Pops on use, respawns after a delay. Launch goes through a motor entry point (`Launch(Vector3 velocity)` on the motor clock, rule 1), never a velocity write from the orb. Placed by `LevelDefinitionBuilder`; the analyser learns it as a reach primitive. |
 | **Grapple exit burst** — **BUILT 2026-09-04** (`pullBurstPending` armed by `OnPullEnded`, consumed by `TryDash`; `perfectBurstWindow` 0.12 s pays `perfectBurstBonus` 30, unplayed) | Keep the grapple finish (`PlayerItems` → `BeginPull` → deathblow). On arrival, a window (~0.25 s) in which a dash press "explodes out" along the move axis at dash speed without spending the dash's stamina or cooldown — one flag on the motor consumed by `TryDash`, raised by `OnPullEnded(arrived)`. Feel: the dash package plus a bigger FOV punch. |
-| **Parriable projectiles** — BUILT 2026-09-05 (code + data, unplayed) | The parkour-section enemies (Grunt, Heavy) fire bolts down the span; a perfect deflect reflects the bolt onto the shooter for damage and posture and buys the player 6 m/s along their look. `Projectile.cs`, `ProjectileShooter.cs`, `ProjectileMath.cs`, `ProjectileTests`. Needs `3. Create Data`, `4. Build Prefabs`, then a human on a span. |
+| **Parriable projectiles** — **BUILT + RE-AUTHORED 2026-09-09, automated verification complete; human feel review remains** | Every shipped shooter belongs to exactly one data-authored route-audit group with a bounded engagement window. `ProjectileFlightMath` plans swept-sphere contact with the same moving-target homing law used at runtime. Only the explicitly progress-gated T0 opening uses a volley coordinator; ordinary T1-T4 sentries remain autonomous and repeat their normal range, LOS, facing, blocker and cue-safety loop instead of waiting for invisible route corridors. The Heavy Sentry is a finished stone reliquary silhouette and fires three contacts 0.42 s apart, then rests 2.4 s; three returns kill it and five strongest-blade parries break its 330 posture. `Projectile Encounter Report` proves the authored route geometry at 11 / 17.6 / 27.5 m/s. |
 | **Water** — **BUILT 2026-09-04/05, matches this spec in full, unplayed** (`WaterDef` + `WaterVolume` trigger with `boostHeight` 0.35; motor `waterSpeedScale` 1.35 / `waterAccel` 30 / `waterGrace`, derived `InWater` / `WaterFlow` / `WaterFloorSpeed` so no tuning field moves; the slide on water is a skate with no friction, no decay end and no duration cap; `WaterFx` spray + hiss off `PlayerFeedback`; in Level_01 and the sandbox yard; `PivotMovementTests` / `LevelTraversalTests` / `MovementYardTests`) | The user's words: *"flowing water on the ground where you can just speed boost and slide around like skating."* Neon White: walking on water is the fastest movement — no ground friction, a boost zone that extends a little above the surface, jumping up steep water slopes beats running. Here: a `WaterDef` (a flat box volume with a flow direction) built as a trigger + a visible surface; while the player is inside (or within ~0.3 m above), the motor uses a water ground mode: ground friction off, a speed floor/boost along the flow, slide-like steering (skating), the slide never ends on water, and the camera/feel layer gets a spray + a low hiss. The boost is a `WaterSettings` derived while `IsInWater`, like `WallRunSettings` under the surge — the motor's tuning fields never move. |
-| **Level rework** | **AUTHORED 2026-09-05 as code (`8a. Rework Level_01`), unbuilt and unplayed.** The six Grunt/Heavy spawns become shooters on `T*_Perch_*` shelves beside the route (T1 causeway from both sides, T2 spiral from above both wall-run walls, T3 pillars from the west and the steps from the east); a three-orb balloon arc west of the T3 pillars onto the span; water on the T1 fast slide deck and the T3 span, turning into Step_1. `LevelTraversalAnalyzer` flies the arc and the bolt lines; `Level Arc Report` gained SHOOTER PERCHES / BALLOON ARC / WATER LINES sections; `LevelTraversalTests` (9) holds it. Still to do: run 8a → 8 → the report → both suites in the editor, then a human on the spans. |
+| **Level rework** | **BUILT + VERIFIED 2026-09-09; human route-feel review remains.** The post-first-miniboss T2/T3 spaces were rebuilt locally, not merely translated: a ~28 m T2 helix with wider terraces, a 9.6 × 26 m T3 span and broad pillars, a true 13.5 m first wall-run gap, a four-balloon arc, and isolated solar spheres with 6 m visual membrane bands. Final section offsets are T2 +38 m, T3 +70 m and T4/boss +96 m; all route content, gates, pickups and kill bounds move with their section. The three level-span suites, arc/clearance tests and projectile report pin the shipped data. |
 | **In-game level editor** | **BUILT 2026-09-05 (v1)** — `docs/LEVEL-EDITOR.md`. F10 / F1 row / main-menu CUSTOM list; first-person placement of platforms, wall faces, balloons, water, spawns, pickups, checkpoints, torches and the player start on a grid; grab, rotate, resize, delete; SAVE/LOAD as `LevelDocument` JSON under `persistentDataPath/levels/`; PLAY rebuilds with a runtime NavMesh; EXPORT ASSET writes a real `LevelDefinition`. One piece factory shared with `8. Build Level From Definition`. Left out of v1: terrain, lighting, undo, multi-select, arena gates/pedestals, a scrolling custom list. |
 
 Design guidance for all of it: [MOVEMENT-PRINCIPLES.md](MOVEMENT-PRINCIPLES.md) (added 2026-09-04) — in particular corner correction and near-miss forgiveness before any gap gets tighter, and shapes (arcs, lines, curves) as the unit of level composition.
 
-Open questions for the user: how deep the editor goes (the v1 above is the proposal); whether the Level_01 filler
-spawns are removed outright or kept as tools. Recorded in memory as `direction-parkour-first`.
+Historical questions at the time were how deep the editor should go and whether Level_01 filler spawns
+should be removed or kept as tools. Both are superseded context, not current work.
 
 ---
 
@@ -124,7 +133,7 @@ interior gradient instead of reading as a uniform cutout. Not emission — "enem
 
 Asked for on 2026-09-03: *"make the hands and feet look better and the player model, since now with the
 movement the player is gonna see it."* Surveyed and scoped, then stopped unbuilt when the user set the
-**model-boundary rule** (see `CLAUDE.md` hard rules: an Opus session adds features and does not rewrite a
+**model-boundary rule** (see `AGENTS.md` hard rules: an Opus session adds features and does not rewrite a
 system Fable wrote without being told to). The three slices, and which side of that line each sits on:
 
 | Slice | Rule | What it is |
@@ -361,7 +370,7 @@ who parries one bolt at the bottom of The Ascent still holds stacks four hops la
 becomes trivially maintainable rather than something to fight for. Intended shape: either **1.2 s** per
 stack (a stack costs about three hops of the reworked spacing), or decay tied to distance travelled rather
 than time, which survives any future respacing. Change it in `DataFactory`, re-run generator `3`, and
-assert the shipped value in `SurgeTurretTests` — a code default is not a shipped value (CLAUDE.md rule 9).
+assert the shipped value in `SurgeTurretTests` — a code default is not a shipped value (AGENTS.md rule 9).
 
 ## F10 opens the level editor in a shipped playtest build (opened 2026-09-07)
 

@@ -9,7 +9,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [ENGI
 
 ## Starting a session
 
-1. **Read `CLAUDE.md`.** It loads automatically and is deliberately small. It is an index, not a manual.
+1. **Read `AGENTS.md`.** It is the tool-neutral source of truth and deliberately stays an index, not a manual.
+   A harness-specific adapter may import it automatically; the contract does not depend on that adapter.
 2. **Read exactly one `docs/` file** — the one matching the task:
    | Task | Read |
    |---|---|
@@ -43,16 +44,16 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [TOOLING.md](TOOLING.md) · [ENGI
 - **Verify with the tools, not by eye:** `Health Check` → EditMode `run_tests` → `FeatureTests`.
   Remember `DebugHarness` proves the state machine, never the *feel*.
 
-## Working with agents: code lanes first, one editor pass per batch
+## Working with agents: code lanes first, one integration pass per batch
 
 The Unity editor is a single shared resource and the slowest step in any change (generators ~2 min, the
 full EditMode suite ~4 min, a fresh feature session ~1.5 min, and it waits whenever the user is in play
 mode). Learned on 2026-09-04/05, when five agents each wanted their own pass:
 
-- **Code agents never touch the editor.** They write scripts, data-in-code and tests, prove them with the
+- **Delegated code lanes never touch the editor.** They write scripts, data-in-code and tests, prove them with the
   offline `dotnet build` of both assemblies (temp csproj copies for new files), and hand back the list of
   generator steps their change needs.
-- **One editor agent runs one pass for the whole batch**: refresh → the generators the batch needs → Health
+- **One integration owner runs one editor pass for the whole batch**: refresh → the generators the batch needs → Health
   Check → save → `Run Quick EditMode Tests` (the full suite only when a level asset or a motor tuning field
   changed) → one fresh feature session → screenshots, looked at. The pass costs the same for one change or five.
 - **Never enter play mode while `is_playing` is true** — the user is at the controls; wait.
@@ -65,12 +66,12 @@ mode). Learned on 2026-09-04/05, when five agents each wanted their own pass:
    Symptom → Root cause → Fix → Invariant. This is the highest-value thing you can leave behind: it is
    what stops the next session re-deriving or re-breaking it.
 2. **Update the docs you invalidated.** New tool → [TOOLING.md](TOOLING.md). New system or changed
-   contract → [ARCHITECTURE.md](ARCHITECTURE.md). New hard rule → the rules table in `CLAUDE.md`.
-3. **Keep `CLAUDE.md` lean.** If an addition does not belong in the first context window of *every*
+   contract → [ARCHITECTURE.md](ARCHITECTURE.md). New hard rule → the rules table in `AGENTS.md`.
+3. **Keep `AGENTS.md` lean.** If an addition does not belong in the first context window of *every*
    future session, it belongs in `docs/`.
 4. **State what is unverified.** Say plainly what was not compiled, not play-tested, or not feel-tested.
    A confident "done" on unverified work costs the next session more than an honest caveat. If the test
-   results moved, update [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) and the counts in `CLAUDE.md`.
+   results moved, update [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md); volatile counts never belong in `AGENTS.md`.
 5. **Leave the project compiling.** Never end on a Safe Mode state.
 6. **Rewrite [HANDOFF.md](HANDOFF.md).** One page, overwritten every session: what is in flight, what is
    uncommitted, which editor steps still need running, and what the next session should do first. It is
@@ -80,17 +81,17 @@ mode). Learned on 2026-09-04/05, when five agents each wanted their own pass:
 
 ## Token discipline
 
-The reason this structure exists. `CLAUDE.md` is paid for at the start of *every* session; `docs/` files
+The reason this structure exists. `AGENTS.md` is paid for at the start of *every* session; `docs/` files
 are paid for only when read.
 
-- **Index, don't inline.** Depth goes in `docs/`. `CLAUDE.md` stays an index with pointers.
+- **Index, don't inline.** Depth goes in `docs/`. `AGENTS.md` stays an index with pointers.
 - **Read narrowly.** One `docs/` file for the task at hand. Never read the whole codebase to answer a
   narrow question — `grep` for the symbol.
 - **Let tools answer questions.** `Health Check` and `FeatureTests` report project state far more cheaply
   than reading files and reasoning about them. A failing assertion names the file for you.
 - **Trust the log.** If behaviour is strange, check [ENGINEERING-LOG.md](ENGINEERING-LOG.md) before
   investigating from scratch — most strange behaviour here has a known cause.
-- **Delegate wide reads.** Searches spanning many files belong in a subagent that returns the conclusion,
-  not the file contents.
+- **Delegate wide reads when the harness supports it.** Otherwise read the matching plain-Markdown brief
+  under `.claude/agents/` and execute that lane directly; the ownership contract is tool-neutral.
 - **Don't re-explore what a doc already states.** If a doc is wrong, fix the doc — do not work around it
   silently.

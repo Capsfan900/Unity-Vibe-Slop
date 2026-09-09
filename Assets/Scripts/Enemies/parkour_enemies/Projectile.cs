@@ -21,6 +21,9 @@ namespace VibeGame1
     public class Projectile : MonoBehaviour
     {
         public const float CueLead = 0.28f;
+        public const float DefaultHitRadius = 1.0f;
+        public const float DefaultMaxLife = 6f;
+        public const float RuntimeForecastHorizon = 2f;
 
         /// <summary>
         /// THE ONE GLOW IN TRAVERSAL. Every effect in this project ships under the 1.05 bloom threshold
@@ -54,11 +57,11 @@ namespace VibeGame1
         public const float CueFlareScale = 2.3f;
 
         [Tooltip("How close to the player's chest the bolt has to get to resolve as a hit, metres.")]
-        public float hitRadius = 1.0f;   // 2026-09-06: up from 0.7 -- a bolt that grazes still resolves, so it can still be parried
+        public float hitRadius = DefaultHitRadius;   // 2026-09-06: up from 0.7 -- a bolt that grazes still resolves, so it can still be parried
         [Tooltip("Speed multiplier once deflected back at the shooter.")]
         public float reflectSpeedScale = 1.4f;
         [Tooltip("Seconds a bolt may live, either way, before it is cleaned up.")]
-        public float maxLife = 6f;
+        public float maxLife = DefaultMaxLife;
         [Tooltip("Lens punch on a deflect that bought speed, degrees.")]
         public float deflectFovKick = 4f;
 
@@ -91,11 +94,22 @@ namespace VibeGame1
         public float CueAt { get { return cueAt; } }
         /// <summary>Scaled world time when the incoming bolt first reached the player, or -1 before arrival.</summary>
         public float ArrivedAt { get { return arrivedAt; } }
+        /// <summary>
+        /// Latest allocation-free flight forecast in scaled world time. MaxValue means the current path
+        /// has no bounded contact; burst owners use this without inspecting the player's parry state.
+        /// </summary>
+        public float PredictedContactAt { get; private set; }
 
         /// <summary>Set once by the shooter. Direction begins toward the led target and the logical root then
         /// turns only through the existing capped homing. The visible child may weave before the cue.</summary>
         public void Fire(EnemyController from, EnemyData d, Vector3 direction, float speedMetresPerSecond,
                          PlayerCombat target)
+        {
+            Fire(from, d, direction, speedMetresPerSecond, target, float.PositiveInfinity);
+        }
+
+        public void Fire(EnemyController from, EnemyData d, Vector3 direction, float speedMetresPerSecond,
+                         PlayerCombat target, float initialContactSeconds)
         {
             boltId = BoltRegistry.NextId();
             shooter = from;
@@ -112,6 +126,9 @@ namespace VibeGame1
             spent = false;
             cueAt = -1f;
             arrivedAt = -1f;
+            PredictedContactAt = float.IsPositiveInfinity(initialContactSeconds)
+                ? float.MaxValue
+                : Time.time + Mathf.Max(0f, initialContactSeconds);
             ResetTargetHistory(playerT);
             BuildTrail();
             visualPhase = ProjectileVisualMath.Phase(boltId);
@@ -211,12 +228,12 @@ namespace VibeGame1
 
             if (!reflected && playerT != null && data != null && data.projectileHomingDegPerSec > 0f)
             {
-                // HOMING (2026-09-06): the bolt turns toward the chest at a capped rate, so a runner is met
-                // and the parry is always on offer. It is still a line you can read; it is no longer one
-                // that sails past because the lead guessed wrong.
-                Vector3 want = (Chest(playerT) - transform.position);
-                if (want.sqrMagnitude > 1e-4f)
-                    dir = Vector3.RotateTowards(dir, want.normalized, data.projectileHomingDegPerSec * Mathf.Deg2Rad * dt, 0f).normalized;
+                // Steering and the launch forecast use the same moving-target intercept. Chasing the
+                // current chest bends a correct lead behind a fast crossing runner and moves the parry
+                // beat outside the authored route window.
+                Vector3 expectedVelocity = motor != null ? motor.Velocity : Vector3.zero;
+                dir = ProjectileFlightMath.HomingDirection(dir, transform.position, Chest(playerT),
+                    expectedVelocity, speed, data.projectileHomingDegPerSec, dt);
             }
             transform.position += dir * speed * dt;
             Vector3 currentBolt = transform.position;
@@ -236,10 +253,19 @@ namespace VibeGame1
                 float hitFraction;
                 bool sweptHit = ProjectileMath.SweptSphereFirstHit(previousBolt, currentBolt, targetStart,
                                                                    target, hitRadius, out hitFraction);
-                float remaining = sweptHit
-                    ? 0f
-                    : ProjectileMath.RelativeTimeToContact(currentBolt, target, dir * speed,
-                                                           targetVelocity, hitRadius);
+                float remaining;
+                if (sweptHit) remaining = 0f;
+                else
+                {
+                    float homing = data != null ? data.projectileHomingDegPerSec : 0f;
+                    bool forecast = ProjectileFlightMath.TryForecastContact(currentBolt, dir, speed,
+                        target, targetVelocity, homing, hitRadius,
+                        Mathf.Min(RuntimeForecastHorizon, Mathf.Max(0f, maxLife - age)), out remaining);
+                    if (!forecast) remaining = float.PositiveInfinity;
+                }
+                PredictedContactAt = float.IsPositiveInfinity(remaining)
+                    ? float.MaxValue
+                    : Time.time + Mathf.Max(0f, remaining);
                 if (ProjectileVisualMath.CanOffset(transform, visual))
                 {
                     Vector3 offset = ProjectileVisualMath.WeaveOffset(dir, age, remaining, CueLead, visualPhase,
@@ -327,6 +353,7 @@ namespace VibeGame1
                 // Deflected: back it goes, and the deflect buys speed toward the look.
                 reflected = true;
                 BoltRegistry.Clear(boltId);   // flying the other way: no longer incoming
+                PredictedContactAt = float.MaxValue;
                 dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
                 speed *= reflectSpeedScale;
                 ResetTargetHistory(shooter.transform);
@@ -352,6 +379,7 @@ namespace VibeGame1
         {
             if (spent) return;
             spent = true;
+            PredictedContactAt = float.MaxValue;
             BoltRegistry.Clear(boltId);
             Destroy(gameObject);
         }

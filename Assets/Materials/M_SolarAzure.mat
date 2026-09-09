@@ -28,10 +28,13 @@ Material:
     m_Floats:
     - _Alpha: 0.43
     - _BandScale: 13
+    - _DetailStrength: 0.65
     - _Fade: 1
+    - _FilamentStrength: 0.28
     - _FlowSpeed: 0.7
     - _Pulse: 0.16
     - _RimPower: 2.2
+    - _RimStrength: 0.35
     - _SurfaceOpacity: 0.92
     m_Colors:
     - _BandColor: {r: 0.28568628, g: 0.6503921, b: 1.55, a: 1.55}

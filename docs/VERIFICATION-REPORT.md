@@ -2,13 +2,59 @@
 
 What is actually proven about `vibegame1`, how it was proven, and — just as important — what is **not**.
 
-Run date: 2026-09-03. Before that day's fixes the same suite was 659–661 / 6–7 failing: the guard-entry sweep and the deathblow framing (see ENGINEERING-LOG, "The feature suite's dummy"). Reproduce with the commands in [TOOLING.md](TOOLING.md).
+Latest run date: 2026-09-09. The dated sections below retain earlier results for history; reproduce the
+current checks with the commands in [TOOLING.md](TOOLING.md).
 
 Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
 ## Results
+
+### Expanded route, projectile regression recovery and enemy-AI audit — 2026-09-09
+
+- **Final full EditMode: 981/981 passed**, zero failures/skips, 158.0 s. An earlier 973/979 run exposed one
+  stale `SlashFx.live` counter across an editor reload; the final run includes its explicit recovery test.
+  A later 979/980 run exposed an unseeded probabilistic cooldown assertion; the final test seeds and
+  restores Unity's RNG and checks repeated eligibility, cooldown exclusion and eligibility restoration.
+  Test 981 proves `EnemyController` can reacquire both target references after a lifecycle discontinuity.
+- **Full FeatureTests: 802/802 passed**, zero failures/skips, 58.8 s, from a fresh `Level_01` play session
+  after verifying `GameManager.I != null` and `Time.timeScale == 1`. A first 801/802 run caught
+  `WandReadability` allowing unrelated level enemies to inject hitstop into a scaled-animation/realtime-wait
+  check; the isolated section passed 21/21 before the full rerun.
+- **Final enemy-family EditMode surface: 182/182 passed**; combined AI/projectile regression slice
+  **63/63**; the earlier complete affected surface remains **178/178** and focused geometry/projectile
+  surface **72/72**.
+  T3's first wall route reports a 13.5 m gap, 0.98 s safest / 1.03 s longest run; the second reports
+  27.5 m / 1.45 s. The VFX pool fixture is **15/15** after reload recovery.
+- **Projectile regression corrected.** Only the explicitly progress-gated T0 opening builds a runtime
+  `ProjectileVolleySequence`; T1-T4 shooters are autonomous again and can repeat their normal readable
+  firing loop. The saved scene reads back one coordinator for 18 spawners. **Projectile Encounter Report:
+  PASS.** Every campaign shooter has one valid route-audit owner/window, and the shared contact planner finds
+  cue-safe contacts at 11, 17.6 and 27.5 m/s for T0 through T4.
+- **Level Arc Report: PASS.** All ordinary jumps, wall lines, the four-balloon T3 arc and both water lines
+  remain clean. `LevelSpan1/2/3Tests`, `LevelArcClearanceTests`, `SolarArenaTests` and
+  `LevelTraversalTests` are included in the full run.
+- **Generator determinism:** two consecutive `ReworkLevel01()` calls produced the identical SHA-256
+  `7EE7FBB72B497D551673AC1C42E86C2DB90C31DE3142080FD19A9DCF925D4B89`; the canonical scene was rebuilt
+  and saved afterward.
+- **Whole-fight harnesses: PASS.** `parry` completed live ninja and knight fights (5 and 8 perfect deflects,
+  successful stagger/execute, no player damage); `boss` completed all three phases and stopped the timer;
+  `death` returned to Playing with full health/flasks and a reset enemy instance.
+- **Health Check: 0 errors / 1924 warnings. Offline compile:** runtime assembly 0 warnings / 0 errors;
+  editor assembly 0 errors with 18 existing
+  warnings (the eight obsolete `FindObjectsByType` calls in `LevelDescentProbe`, plus Forge manifest DTO
+  fields populated by JSON).
+- **Visual readback:** updated player-eye route frames show the broadened T2 helix and T3 span with their
+  isolated solar approaches; four-angle Heavy Sentry portraits show a broad stone reliquary with three
+  readable front apertures and no pill/blade silhouette. These are composition checks, not a feel test.
+
+**Still human-only:** play the complete T2/T3 route at normal and surge speed; confirm autonomous sentries
+now shoot naturally throughout their range instead of only in odd corridor patches; judge the 0.42 s
+three-shot parry rhythm, projectile audio/readability under input, sphere-entry time-warp sound, fog/lighting in
+motion, first-person arm toggle/comfort, and whether each solar membrane has enough perceived—not merely
+measured—empty space. Automated tests prove legality, ownership, timing arithmetic and performance budgets;
+they cannot prove that the route or rhythm feels good.
 
 ### Longer opening, HUD pass, flourish, brawler v15 — 2026-09-07
 

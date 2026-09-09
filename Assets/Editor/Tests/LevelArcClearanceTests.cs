@@ -204,7 +204,7 @@ namespace VibeGame1.Tests
 
         /// <summary>
         /// And it has to rejoin the course BEFORE the arena, or the gate is bypassed and the run soft-locks.
-        /// T2_L8 is mid-spiral; the remaining ledges and the bridge still lead into the trigger.
+        /// T2_L8 is mid-spiral; the remaining ledges still lead into the portal approach at T2_L11.
         /// </summary>
         [Test]
         public void Buttress_RejoinsTheCourseAheadOfTheArena()
@@ -212,11 +212,11 @@ namespace VibeGame1.Tests
             var onward = A.AnalyzeHop(boxes, "T2_L8", "T2_L9", profile, profile.groundSpeed, floorY);
             Assert.IsTrue(onward.exists, "the exit ledge must continue the course: " + onward.Summary());
 
-            int i8 = A.IndexOf(boxes, "T2_L8"), ib = A.IndexOf(boxes, "T2_Bridge");
+            int i8 = A.IndexOf(boxes, "T2_L8"), ib = A.IndexOf(boxes, "T2_L11");
             Assert.GreaterOrEqual(i8, 0);
             Assert.GreaterOrEqual(ib, 0);
             Assert.Less(boxes[i8].max.z + 0.01f, boxes[ib].max.z,
-                "T2_L8 must still be short of the bridge that leads into the arena trigger");
+                "T2_L8 must still be short of the final ledge that launches into the portal trigger");
         }
 
         [Test]

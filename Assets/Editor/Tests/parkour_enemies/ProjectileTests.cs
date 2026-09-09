@@ -48,6 +48,106 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void FlightPlanMeasuresTheRealLaunchRootAndSphereContact_NotMuzzleToChest()
+        {
+            Vector3 muzzle = Vector3.zero;
+            Vector3 chest = Vector3.forward * 15f;
+            ProjectileFlightPlan plan = ProjectileFlightMath.Plan(muzzle, chest, Vector3.zero,
+                40f, 1f, 180f, ProjectileShooter.SpawnForwardOffset,
+                Projectile.DefaultHitRadius, Projectile.CueLead + ProjectileShooter.CueMargin,
+                Projectile.DefaultMaxLife);
+
+            Assert.AreEqual(ProjectileFlightReadiness.Ready, plan.readiness);
+            Assert.AreEqual(ProjectileShooter.SpawnForwardOffset,
+                Vector3.Distance(muzzle, plan.launchPosition), 1e-3f,
+                "the forecast begins where FireAt creates the logical root, not back at the muzzle");
+            Assert.That(plan.contactSeconds,
+                Is.InRange(Projectile.CueLead + ProjectileShooter.CueMargin - 1e-3f,
+                           Projectile.CueLead + ProjectileShooter.CueMargin + 0.01f),
+                "15 m / 40 m/s looked safe only while the old estimate ignored 0.6 m of spawn offset and the 1 m hit radius");
+            Assert.Less(plan.speed, 40f, "the planner should select the fastest contact-safe launch, not violate the cue budget");
+        }
+
+        [Test]
+        public void ShippedMotionCasesStayContactSafe_AndAnUnsafeNearClosingShotIsRefused()
+        {
+            float minimum = Projectile.CueLead + ProjectileShooter.CueMargin;
+            foreach (var targetVelocity in new[]
+            {
+                Vector3.zero,
+                Vector3.back * 27.5f,
+                Vector3.right * 27.5f
+            })
+            {
+                float distance = targetVelocity.z < 0f ? 32f : 15f;
+                ProjectileFlightPlan plan = ProjectileFlightMath.Plan(Vector3.zero,
+                    Vector3.forward * distance, targetVelocity, 40f, 1f, 180f,
+                    ProjectileShooter.SpawnForwardOffset, Projectile.DefaultHitRadius,
+                    minimum, Projectile.DefaultMaxLife);
+                Assert.AreEqual(ProjectileFlightReadiness.Ready, plan.readiness,
+                    "stationary, maximum-speed closing and crossing runners all need an honest launch plan");
+                Assert.GreaterOrEqual(plan.contactSeconds + 1e-3f, minimum);
+                Assert.Less(plan.contactSeconds, Projectile.DefaultMaxLife);
+            }
+
+            ProjectileFlightPlan unsafeNear = ProjectileFlightMath.Plan(Vector3.zero,
+                Vector3.forward * 2.5f, Vector3.back * 27.5f, 36f, 1f, 240f,
+                ProjectileShooter.SpawnForwardOffset, Projectile.DefaultHitRadius,
+                minimum, Projectile.DefaultMaxLife);
+            Assert.AreEqual(ProjectileFlightReadiness.UnsafeFlight, unsafeNear.readiness,
+                "if the runner reaches the hit sphere before the cue budget even at minimum bolt speed, refuse the shot");
+
+            ProjectileFlightPlan noContact = ProjectileFlightMath.Plan(Vector3.zero,
+                Vector3.forward * 15f, Vector3.forward * 50f, 40f, 1f, 0f,
+                ProjectileShooter.SpawnForwardOffset, Projectile.DefaultHitRadius,
+                minimum, Projectile.DefaultMaxLife);
+            Assert.AreEqual(ProjectileFlightReadiness.NoContact, noContact.readiness,
+                "a straight bolt slower than a fleeing target has no honest bounded arrival to cue");
+        }
+
+        [Test]
+        public void FlightPlanInterceptsAClosingSpeedrunLineInsideTheEncounter()
+        {
+            Vector3 muzzle = new Vector3(-11.5f, 5.4f, 53f);
+            Vector3 chest = new Vector3(-0.67f, 2.78f, 40.44f);
+            Vector3 velocity = new Vector3(-1.03f, 0.52f, 27.48f);
+            ProjectileFlightPlan plan = ProjectileFlightMath.Plan(muzzle, chest, velocity,
+                40f, 1f, 180f, ProjectileShooter.SpawnForwardOffset,
+                Projectile.DefaultHitRadius, Projectile.CueLead + ProjectileShooter.CueMargin,
+                Projectile.DefaultMaxLife);
+
+            Assert.AreEqual(ProjectileFlightReadiness.Ready, plan.readiness);
+            Assert.GreaterOrEqual(plan.contactSeconds,
+                Projectile.CueLead + ProjectileShooter.CueMargin - 1e-3f);
+            Assert.Less(plan.contactSeconds, 0.8f,
+                "an oblique closing runner should be intercepted locally, not chased beyond the route");
+        }
+
+        [Test]
+        public void ForecastAndRuntimeShareOneCappedHomingStep()
+        {
+            Vector3 current = Vector3.forward;
+            Vector3 next = ProjectileFlightMath.HomingDirection(current, Vector3.zero,
+                Vector3.right * 10f, 180f, 0.1f);
+            Assert.That(Vector3.Angle(current, next), Is.EqualTo(18f).Within(0.01f));
+            Assert.AreEqual(1f, next.magnitude, Eps);
+            Assert.AreEqual(current, ProjectileFlightMath.HomingDirection(current, Vector3.zero,
+                Vector3.right, 0f, 0.1f), "zero-homing data preserves a straight bolt");
+        }
+
+        [Test]
+        public void BurstCadenceIsAContactFloorAndLateContactsNeverCatchUp()
+        {
+            float second = ProjectileFlightMath.NextContactTime(100.44f, 0.42f);
+            Assert.AreEqual(100.86f, second, Eps);
+            Assert.IsFalse(ProjectileFlightMath.ContactSlotOpen(100.84f, second),
+                "a blindly timed launch whose contact catches the first phrase beat must defer");
+            Assert.IsTrue(ProjectileFlightMath.ContactSlotOpen(second, second));
+            Assert.AreEqual(101.52f, ProjectileFlightMath.NextContactTime(101.10f, 0.42f), Eps,
+                "a late actual forecast starts the next spacing from itself, never from stale phrase debt");
+        }
+
+        [Test]
         public void RelativeSweepFindsTheSameEarliestContactAt20_60_240FpsAndAHitch()
         {
             float expected = 9f / 63.5f;
@@ -260,6 +360,141 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TheHeavySentryShipsAThreeParryPhrase_WithNoPrematurePostureBreak()
+        {
+            var basic = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy01"));
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            var turret = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
+            if (basic == null || heavy == null || turret == null) Assert.Ignore("run 3. Create Data");
+            string yaml = System.IO.File.ReadAllText(EnemyPaths.Data("pshooter_enemy02"));
+            if (!yaml.Contains("projectileBurstCount"))
+                Assert.Ignore("run 3. Create Data after the projectile-phrase fields were added");
+
+            Assert.AreEqual(1, basic.projectileBurstCount, "the ordinary ghost remains one read per beat");
+            Assert.AreEqual(1, turret.projectileBurstCount, "the authored opening row remains five one-shot members");
+            Assert.AreEqual(3, heavy.projectileBurstCount, "the Heavy Sentry's identity is three rapid parries");
+            Assert.AreEqual(0.42f, heavy.projectileBurstInterval, Eps,
+                "0.28 cue + 0.08 perfect recovery + 0.06 honest slack");
+            Assert.AreEqual(2.4f, heavy.projectileInterval, Eps,
+                "the old interval is now the quiet cooldown after the third emission");
+            Assert.AreEqual(330f, heavy.maxPosture, Eps,
+                "330 is the round ceiling above all three DevBlade parries plus two completed returns");
+            Assert.LessOrEqual(heavy.projectileBurstCount, ProjectileShooter.MaxBurstShots,
+                "the runtime owns a fixed allocation-free phrase buffer");
+
+            var dev = AssetDatabase.LoadAssetAtPath<WeaponData>("Assets/Data/Weapons/DevBlade.asset");
+            if (dev == null) Assert.Ignore("run 3. Create Data");
+            float immediateParry = dev.parryPostureDamage * heavy.projectileAttack.parryPostureMultiplier;
+            float afterTwoReturns = 2f * (immediateParry + heavy.parriedProjectilePosture);
+            float beforeThirdReturn = 3f * immediateParry + 2f * heavy.parriedProjectilePosture;
+            Assert.Less(afterTwoReturns, heavy.maxPosture, "two complete answers cannot end a three-read phrase");
+            Assert.Less(beforeThirdReturn, heavy.maxPosture,
+                "the third cue must remain a projectile parry, not be replaced by a deathblow prompt");
+            Assert.GreaterOrEqual(heavy.parriedProjectileDamage * 3f, heavy.maxHP,
+                "the third reflected return still finishes the enemy");
+        }
+
+        [Test]
+        public void HeavySentryRuntimeOwnsExactlyThreeEmissions_ThenTheFullQuietCooldown()
+        {
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            if (heavy == null) Assert.Ignore("run 3. Create Data");
+            if (!System.IO.File.ReadAllText(EnemyPaths.Data("pshooter_enemy02")).Contains("projectileBurstCount"))
+                Assert.Ignore("run 3. Create Data after the projectile-phrase fields were added");
+
+            GameObject enemy = null;
+            GameObject player = null;
+            ProjectileShooter shooter = null;
+            try
+            {
+                BuildRuntimeShooter(heavy, out enemy, out player, out shooter);
+                shooter.SetSequenceControlled(true);
+
+                bool enteredBand;
+                bool ready;
+                Projectile first = shooter.TryFireSequenceShot(true, out enteredBand, out ready);
+                Assert.IsTrue(enteredBand);
+                Assert.IsTrue(ready);
+                Assert.IsNotNull(first);
+                Assert.AreEqual(1, shooter.Fired);
+                Assert.IsTrue(shooter.PhraseActive);
+
+                // Resolve each preceding incoming obligation like a clean deflect, then open the next
+                // deterministic contact slot. UpdatePhrase remains the production emission path.
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                InvokeShooter(shooter, "UpdatePhrase");
+                Assert.AreEqual(2, shooter.Fired);
+                Assert.IsTrue(shooter.PhraseActive);
+
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                InvokeShooter(shooter, "UpdatePhrase");
+                Assert.AreEqual(3, shooter.Fired);
+                Assert.IsFalse(shooter.PhraseActive);
+                Assert.IsTrue(shooter.PhraseEmissionsComplete);
+                Assert.AreEqual(ProjectilePhraseCancellation.None, shooter.LastPhraseCancellation);
+
+                float nextFire = (float)ShooterField("nextFireAt").GetValue(shooter);
+                Assert.That(nextFire - Time.time, Is.EqualTo(heavy.projectileInterval).Within(0.05f),
+                    "the 2.4 s quiet starts after the third emission, not at phrase start");
+                shooter.SetSequenceControlled(false);
+                InvokeShooter(shooter, "Update");
+                Assert.AreEqual(3, shooter.Fired, "there is no fourth shot before the post-phrase cooldown");
+            }
+            finally
+            {
+                DestroyOwnedBolts(shooter);
+                if (enemy != null) Object.DestroyImmediate(enemy);
+                if (player != null) Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
+        public void CancelledHeavyPhraseReportsWhy_AndNeverRepaysMissingShotsAsACatchupBurst()
+        {
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            if (heavy == null) Assert.Ignore("run 3. Create Data");
+            if (!System.IO.File.ReadAllText(EnemyPaths.Data("pshooter_enemy02")).Contains("projectileBurstCount"))
+                Assert.Ignore("run 3. Create Data after the projectile-phrase fields were added");
+
+            GameObject enemy = null;
+            GameObject player = null;
+            ProjectileShooter shooter = null;
+            try
+            {
+                BuildRuntimeShooter(heavy, out enemy, out player, out shooter);
+                shooter.SetSequenceControlled(true);
+                bool enteredBand;
+                bool ready;
+                Assert.IsNotNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+
+                // Leave the authored firing band before shot two. Force only the scheduling window; the
+                // production validation must still see the real out-of-band target and cancel the phrase.
+                player.transform.position = enemy.transform.position + Vector3.forward * 80f;
+                ShooterField("nextPhraseContactAt").SetValue(shooter, Time.time);
+                ShooterField("followupDeadlineAt").SetValue(shooter, Time.time + 1f);
+                InvokeShooter(shooter, "UpdatePhrase");
+
+                Assert.AreEqual(1, shooter.Fired);
+                Assert.IsFalse(shooter.PhraseActive);
+                Assert.IsTrue(shooter.PhraseEmissionsComplete);
+                Assert.AreEqual(ProjectilePhraseCancellation.OutOfBand, shooter.LastPhraseCancellation);
+                Assert.AreEqual(1, shooter.PhraseCancellationCount);
+
+                player.transform.position = enemy.transform.position + Vector3.forward * 15f;
+                shooter.SetSequenceControlled(false);
+                InvokeShooter(shooter, "Update");
+                Assert.AreEqual(1, shooter.Fired,
+                    "re-entering the route may start a later phrase after cooldown, never repay two missed emissions now");
+            }
+            finally
+            {
+                DestroyOwnedBolts(shooter);
+                if (enemy != null) Object.DestroyImmediate(enemy);
+                if (player != null) Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
         public void TheIncomingWeaveIsBoundedDeterministicAndSettlesBeforeTheCue()
         {
             float phase = ProjectileVisualMath.Phase(17);
@@ -343,6 +578,68 @@ namespace VibeGame1.Tests
                     Assert.Ignore(n + " was built before ProjectileShooter existed; run 4. Build Prefabs");
                 Assert.IsNotNull(p.GetComponent<EnemyController>());
             }
+        }
+
+        static void BuildRuntimeShooter(EnemyData data, out GameObject enemy, out GameObject player,
+                                        out ProjectileShooter shooter)
+        {
+            enemy = new GameObject("HeavyPhraseEnemy");
+            enemy.transform.position = new Vector3(500f, 100f, 500f);
+            enemy.layer = Layers.Enemy;
+            var controller = enemy.AddComponent<EnemyController>();
+            controller.data = data;
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(EnemyController).GetField("<Current>k__BackingField", flags)
+                .SetValue(controller, EnemyController.State.Chase);
+            shooter = enemy.AddComponent<ProjectileShooter>();
+            // EditMode AddComponent does not guarantee MonoBehaviour.Awake. Production always has this
+            // lifecycle edge; the isolated fixture must establish the same controller reference.
+            InvokeShooter(shooter, "Awake");
+
+            player = new GameObject("HeavyPhrasePlayer");
+            player.transform.position = enemy.transform.position + Vector3.forward * 15f;
+            player.layer = Layers.Player;
+            player.AddComponent<Health>();
+            var playerCombat = player.AddComponent<PlayerCombat>();
+            // The shipped Level_01 scene also contains a PlayerCombat. Pin this isolated runtime fixture
+            // to its own target instead of relying on FindAnyObjectByType's undefined scene ordering.
+            typeof(ProjectileShooter).GetField("combat", flags).SetValue(shooter, playerCombat);
+            typeof(ProjectileShooter).GetField("motor", flags).SetValue(shooter, null);
+            Physics.SyncTransforms();
+        }
+
+        static System.Reflection.FieldInfo ShooterField(string name)
+        {
+            return typeof(ProjectileShooter).GetField(name,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        }
+
+        static void InvokeShooter(ProjectileShooter shooter, string method)
+        {
+            typeof(ProjectileShooter).GetMethod(method,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(shooter, null);
+        }
+
+        static void ResolveOwnedIncomingAndOpenSlot(ProjectileShooter shooter)
+        {
+            var bolts = (Projectile[])ShooterField("phraseBolts").GetValue(shooter);
+            var reflected = typeof(Projectile).GetField("reflected",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            for (int i = 0; i < shooter.PhraseShotsEmitted; i++)
+                if (bolts[i] != null) reflected.SetValue(bolts[i], true);
+            ShooterField("nextPhraseContactAt").SetValue(shooter, Time.time);
+            ShooterField("followupDeadlineAt").SetValue(shooter, Time.time + 1f);
+        }
+
+        static void DestroyOwnedBolts(ProjectileShooter shooter)
+        {
+            if (shooter == null) return;
+            var field = ShooterField("phraseBolts");
+            var bolts = field != null ? field.GetValue(shooter) as Projectile[] : null;
+            if (bolts == null) return;
+            for (int i = 0; i < bolts.Length; i++)
+                if (bolts[i] != null) Object.DestroyImmediate(bolts[i].gameObject);
         }
     }
 }

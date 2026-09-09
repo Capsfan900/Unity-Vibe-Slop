@@ -14,6 +14,7 @@ namespace VibeGame1.EditorTools
         const string ShaderName = "Universal Render Pipeline/Lit";
         const string CloudSeaShaderName = "VibeGame1/Cloud Sea";
         const string SolarArenaShaderName = "VibeGame1/Solar Arena";
+        const string ArchitecturalStoneShaderName = "VibeGame1/Architectural Stone";
         const string RainbowBorderShaderName = "VibeGame1/UI/RainbowBorder";
 
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
@@ -63,11 +64,11 @@ namespace VibeGame1.EditorTools
             // tell want opposite intensities.
             // Names are stable - other builders reference them, so the hues changed, not the keys.
 
-            // #151011 -> #262023. The old value was ~0.008 LINEAR reflectance - darker than any real
-            // material - and it covers most of the structural surface area, so the whole world was one
-            // multiplicative near-zero (dark ambient x dark albedo) with nothing for light to land on.
-            new Spec("M_Ground",        Hex("#1B222E"), Color.black),                 // cold stone (lin lum .0157, was #262023 .0157)
-            new Spec("M_Platform",      Hex("#475262"), Hex("#475262") * 0.10f),      // cold ash (lin lum .0821, was #56504A .0821)
+            // The live horizontal ambient probe is healthy, but multiplying it by the old ground albedo
+            // produced only .0029 linear luminance before mortar/occlusion and ACES. Lift reflected
+            // surfaces rather than adding a light or flattening the grade; navigation emission is unchanged.
+            new Spec("M_Ground",        Hex("#36404F"), Color.black),                 // cold stone (lin lum .0502)
+            new Spec("M_Platform",      Hex("#586579"), Hex("#475262") * 0.10f),      // readable ash; established emission unchanged
             // TILE 3. Was EMBER #C4400F x1.15 - the worst collision in the old palette, because ember
             // IS the enemy bolt's hue (Projectile.HotCore, amber at 1.6). A static level trim must never
             // share a hue family with the one thing the player has to deflect at 32 m/s. Now deep AZURE:
@@ -181,10 +182,9 @@ namespace VibeGame1.EditorTools
             // or a checkpoint and the player can trust that read.
             new Spec("M_Gate",          Hex("#060809"), Hex("#2E7ACF") * 0.8f),
             new Spec("M_Torch",         Hex("#2A1206"), Hex("#FF7A1A") * 1.15f),      // flame - warm on purpose, see M_Checkpoint
-            // #1E1819 -> #3A3134. Walls, pillars and obelisks - i.e. VERTICAL faces, which Trilight
-            // ambient lights with the equator term only. Kept just above M_Ground so a wall separates
-            // from the floor it meets.
-            new Spec("M_Stone",         Hex("#2A3443"), Color.black),   // cold (lin lum .0334, was #3A3134 .0334)
+            // Walls, pillars and obelisks are lit primarily by the Trilight equator term. The lifted
+            // cold stone preserves face separation without emission or another renderer/light.
+            new Spec("M_Stone",         Hex("#424D5F"), Color.black),   // cold (lin lum .0729)
             new Spec("M_Lightning",     Color.black,    Hex("#7FD4FF") * 3.5f),
             new Spec("M_Item",          Color.black,    Color.white * 1.2f),
             new Spec("M_Spark",         Color.black,    Color.white * 2.4f),
@@ -270,31 +270,35 @@ namespace VibeGame1.EditorTools
             EnsureFolder();
 
             var shader = Shader.Find(ShaderName);
-            if (shader == null)
+            var architecturalShader = Shader.Find(ArchitecturalStoneShaderName);
+            if (shader == null || architecturalShader == null)
             {
-                Debug.LogError($"[MaterialFactory] Shader '{ShaderName}' not found. Is URP installed?");
+                Debug.LogError("[MaterialFactory] URP/Lit or Architectural Stone shader missing. Reimport shaders and verify URP.");
                 return;
             }
 
             int created = 0, updated = 0;
             foreach (var spec in Table)
             {
+                bool structural = spec.name == "M_Platform" || spec.name == "M_Stone" || spec.name == "M_Ground";
+                var selectedShader = structural ? architecturalShader : shader;
                 string path = PathFor(spec.name);
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
                 bool isNew = mat == null;
                 if (isNew)
                 {
-                    mat = new Material(shader) { name = spec.name };
+                    mat = new Material(selectedShader) { name = spec.name };
                     AssetDatabase.CreateAsset(mat, path);
                     created++;
                 }
                 else
                 {
-                    if (mat.shader != shader) mat.shader = shader;
+                    if (mat.shader != selectedShader) mat.shader = selectedShader;
                     updated++;
                 }
 
                 Configure(mat, spec);
+                if (structural) ConfigureArchitecturalStone(mat);
                 EditorUtility.SetDirty(mat);
             }
 
@@ -498,6 +502,9 @@ namespace VibeGame1.EditorTools
             mat.SetFloat("_BandScale", scale);
             mat.SetFloat("_RimPower", name == "M_SolarCorona" ? 1.1f : 2.2f);
             mat.SetFloat("_Pulse", name == "M_SolarCorona" ? 0.08f : 0.16f);
+            mat.SetFloat("_DetailStrength", name == "M_SolarCorona" ? 0.25f : 0.65f);
+            mat.SetFloat("_FilamentStrength", name == "M_SolarCorona" ? 0.08f : 0.28f);
+            mat.SetFloat("_RimStrength", name == "M_SolarCorona" ? 0.70f : 0.35f);
             // The crossing multiplier ships at 1 and is driven per RENDERER by SolarArenaVisual, so
             // the shared asset is never dirtied by a player flying through a sun. Written here
             // rather than left to the shader default (rule 9: a code default is not a shipped value).
@@ -505,6 +512,21 @@ namespace VibeGame1.EditorTools
             mat.SetOverrideTag("RenderType", "Transparent");
             mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 5;
             EditorUtility.SetDirty(mat);
+        }
+
+        static void ConfigureArchitecturalStone(Material mat)
+        {
+            // Shared metre-scaled finish, with no textures, material instances or extra renderers.
+            // Preserve the house albedo/emission values; the texture only modulates reflected light.
+            mat.SetVector("_BlockSize", new Vector4(2.8f, 1.4f, 0.70f, 0f));
+            mat.SetFloat("_JointWidth", 0.018f);
+            mat.SetFloat("_GrainStrength", 0.12f);
+            mat.SetFloat("_EdgeWear", 0.14f);
+            mat.SetFloat("_ReliefDepth", 0.008f);
+            mat.SetFloat("_Smoothness", 0.22f);
+            mat.SetFloat("_SpecularHighlights", 1f);
+            mat.DisableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
         }
 
         static void Configure(Material mat, Spec spec)

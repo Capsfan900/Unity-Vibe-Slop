@@ -378,9 +378,36 @@ namespace VibeGame1
     }
 
     /// <summary>
-    /// An ordered set of existing projectile-enemy spawners. A sequence never changes a projectile's
-    /// damage, cue, speed, range or facing rules; it only prevents the members from firing together and
-    /// advances after the current bolt resolves.
+    /// A bounded route corridor used to audit where one projectile enemy can create a readable contact.
+    /// It is authoring evidence, not an invisible runtime trigger: ordinary sentries still fire from their
+    /// normal range, sight and facing rules.
+    /// </summary>
+    [Serializable]
+    public class ProjectileEngagementWindowDef
+    {
+        [Tooltip("EnemySpawner name this route window authorizes. Multiple windows may name the same " +
+                 "member when it covers alternate or vertically stacked routes.")]
+        public string spawnerName = "";
+
+        [Tooltip("World-space player-chest line used to audit this encounter beat.")]
+        public Vector3 routeStart;
+        public Vector3 routeEnd = Vector3.forward;
+
+        [Tooltip("Horizontal metres either side of the authored line that still belong to this route.")]
+        [Min(0.1f)] public float halfWidth = 3f;
+
+        [Tooltip("Vertical metres from the line. This separates stacked paths such as the two T2 laps.")]
+        [Min(0.1f)] public float heightTolerance = 2.5f;
+
+        [Tooltip("Earliest and latest horizontal metres from routeStart where forecast contact may land.")]
+        [Min(0f)] public float arrivalStart;
+        [Min(0f)] public float arrivalEnd = 10f;
+    }
+
+    /// <summary>
+    /// A route-audit group for existing projectile-enemy spawners. Records with progress gates also create
+    /// a runtime volley coordinator; records without progress gates leave their sentries autonomous. A
+    /// sequence never changes a projectile's damage, cue, speed, range or facing rules.
     /// </summary>
     [Serializable]
     public class ProjectileSequenceDef
@@ -411,6 +438,20 @@ namespace VibeGame1
         [Tooltip("Minimum distance along progressDirection before each member may arm. Leave empty for the " +
                  "original range-driven sequence behavior.")]
         public float[] memberProgressGates = new float[0];
+
+        [Tooltip("Optional bounded route corridors and predicted-contact ranges. Empty keeps the legacy " +
+                 "audit behavior. Duplicate spawner names describe alternate routes; these do not suppress " +
+                 "otherwise valid runtime shots.")]
+        public ProjectileEngagementWindowDef[] engagementWindows = new ProjectileEngagementWindowDef[0];
+
+        /// <summary>
+        /// Only explicitly progress-gated rows need a runtime coordinator. Route-only records exist so the
+        /// encounter report can audit ordinary autonomous sentries without turning them into one-shot events.
+        /// </summary>
+        public bool CoordinatesRuntime
+        {
+            get { return memberProgressGates != null && memberProgressGates.Length > 0; }
+        }
     }
 
     /// <summary>

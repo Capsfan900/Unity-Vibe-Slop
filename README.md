@@ -49,7 +49,7 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | **Wall run** (no binding — arrive airborne along a wall at a jog or better) | — | — |
 | **Stamina** (the segmented bar above health; DASH / AIR / WALL pips) | — | — |
 | **Settings** (sensitivity, FOV, graphics, audio, flourish key) | Title screen `SETTINGS`, or `Esc` → `SETTINGS` in a level | Same |
-| **Level editor** (build a level in game; see `docs/LEVEL-EDITOR.md`) | `F10`, or `F1` → LEVEL EDITOR | — |
+| **Level editor** (build a level in game; see `docs/LEVEL-EDITOR.md`) | Editor/development: `F10`; release: `` ` `` → `editor unlock` → `F10` | — |
 | **Controls reference** (every bind, on one card) | `Esc` → SETTINGS → INFO, title screen SETTINGS → INFO, or `F1` → INFO | Same |
 | Attack | `LMB` | RB |
 | **Parry** (tap) | `RMB` | LB |
@@ -320,4 +320,6 @@ plays each time. No code change. Empty folders fall back to `ProceduralSfx` synt
 
 All audio is **CC0**. Sources are listed in [`CREDITS.md`](CREDITS.md).
 
-`CLAUDE.md` holds the working notes and design contracts for AI-assisted development on this project.
+`AGENTS.md` is the tool-neutral contract for AI-assisted development on this project. Its linked Markdown
+briefs, workflows and generated dashboard are usable from Codex, Claude Code, Cursor, Zed, Aider, Jules or
+any other coding-agent harness that can read the repository.

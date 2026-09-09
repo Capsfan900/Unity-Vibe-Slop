@@ -93,6 +93,9 @@ namespace VibeGame1
 
         public bool filmGrain = true;
 
+        /// <summary>Small additive movement reactions on both first-person arms. Cosmetic only.</summary>
+        public bool armMovement = true;
+
         /// <summary>Scale on AudioManager's authored master gain. Affects SFX and music alike.</summary>
         public float masterVolume = VolumeDefault;
         /// <summary>Scale on AudioManager's authored music gain. The level radio rides this too.</summary>
@@ -129,6 +132,7 @@ namespace VibeGame1
                 frameRateCap = frameRateCap,
                 bloomScale = bloomScale,
                 filmGrain = filmGrain,
+                armMovement = armMovement,
                 masterVolume = masterVolume,
                 musicVolume = musicVolume,
                 weaponTwirlBinding = weaponTwirlBinding,

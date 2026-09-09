@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using VibeGame1;
@@ -39,12 +40,25 @@ namespace VibeGame1.Tests
             var filler = Atk("jab", 0.5f); var sig = Atk("overhead", 1.0f);
             var ms = Set(E("jab", 1f, 0f, 99f, 0f, filler), E("OVERHEAD", 100f, 0f, 99f, 7f, sig));
             var hist = Fresh(2);
-            int first = ms.SelectIndex(3f, hist, 10f);
-            Assert.AreEqual(1, first, "at weight 100 vs 1 the signature is the pick when it is off cooldown");
-            hist[1] = 10f;   // thrown at t=10
-            for (int i = 0; i < 50; i++)
-                Assert.AreEqual(0, ms.SelectIndex(3f, hist, 12f), "inside the 7 s cooldown only the filler is eligible");
-            Assert.AreEqual(1, ms.SelectIndex(3f, hist, 17.5f), "and it is back once the cooldown has passed");
+            var randomState = UnityEngine.Random.state;
+            try
+            {
+                UnityEngine.Random.InitState(0x51A7);
+                bool chosenBefore = false;
+                for (int i = 0; i < 64; i++) chosenBefore |= ms.SelectIndex(3f, hist, 10f) == 1;
+                Assert.IsTrue(chosenBefore,
+                    "the weighted signature must be eligible before its cooldown starts");
+
+                hist[1] = 10f;   // thrown at t=10
+                for (int i = 0; i < 50; i++)
+                    Assert.AreEqual(0, ms.SelectIndex(3f, hist, 12f),
+                        "inside the 7 s cooldown only the filler is eligible");
+
+                bool chosenAfter = false;
+                for (int i = 0; i < 64; i++) chosenAfter |= ms.SelectIndex(3f, hist, 17.5f) == 1;
+                Assert.IsTrue(chosenAfter, "the signature must be eligible again after cooldown");
+            }
+            finally { UnityEngine.Random.state = randomState; }
         }
 
         [Test]
@@ -154,6 +168,38 @@ namespace VibeGame1.Tests
         {
             Assert.AreEqual(0.8f, EnemyPostureBar.NearBreakRatio, 1e-4f, "Sekiro's orange flash: the bar beats before it breaks, not at it");
             Assert.Greater(EnemyPostureBar.NearBreakHz, 2f); Assert.Less(EnemyPostureBar.NearBreakHz, 8f);
+        }
+
+        [Test]
+        public void EnemyReacquiresPlayerWhenItsRuntimeTargetReferencesAreLost()
+        {
+            var enemyObject = new GameObject("Enemy_Target_Reacquire_Test");
+            var playerObject = new GameObject("Player_Target_Reacquire_Test");
+            try
+            {
+                playerObject.AddComponent<Health>();
+                playerObject.AddComponent<PlayerCombat>();
+
+                var enemy = enemyObject.AddComponent<EnemyController>();
+                var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                typeof(EnemyController).GetField("player", flags).SetValue(enemy, null);
+                typeof(EnemyController).GetField("playerCombat", flags).SetValue(enemy, null);
+
+                bool acquired = (bool)typeof(EnemyController)
+                    .GetMethod("EnsurePlayerTarget", flags)
+                    .Invoke(enemy, null);
+
+                Assert.IsTrue(acquired);
+                Assert.IsNotNull(typeof(EnemyController).GetField("player", flags).GetValue(enemy),
+                    "an enemy whose non-serialized target was cleared must not stay inert forever");
+                Assert.IsNotNull(typeof(EnemyController).GetField("playerCombat", flags).GetValue(enemy),
+                    "reacquisition must restore the combat receiver as well as the transform");
+            }
+            finally
+            {
+                Object.DestroyImmediate(enemyObject);
+                Object.DestroyImmediate(playerObject);
+            }
         }
     }
 }

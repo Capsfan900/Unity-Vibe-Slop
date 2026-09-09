@@ -121,9 +121,8 @@ namespace VibeGame1.Tests
         [Test]
         public void HorizonHasASilhouette()
         {
-            // 2026-09-06 VFX pass: "the sky and surrounds must look polished and like a complete game" --
-            // before this the horizon was fog and nothing else. A jagged near-black ring reads as distant
-            // ruins without spending any of the light budget or introducing a new hue.
+            // The distant ruins are a quiet layer within the haze. Opaque random spires read as a
+            // repeating row of black planets/mountains from the high, open route.
             RunOnBuiltSky((mesh, mats) =>
             {
                 int domeVerts = Starfield.DomeVertexCount;
@@ -132,14 +131,15 @@ namespace VibeGame1.Tests
                 int silhouetteVerts = 0;
                 for (int i = domeVerts; i < cols.Length; i++)
                 {
-                    float peak = Mathf.Max(cols[i].r, Mathf.Max(cols[i].g, cols[i].b));
-                    // Near black, full alpha, and clearly below eye level (the y component of a unit-ish
-                    // direction at radius ~25 with a small negative pitch).
-                    if (cols[i].a >= 0.999f && peak > 0.001f && peak < 0.12f && verts[i].y < 0f)
-                        silhouetteVerts++;
+                    // This scenery ring sits at 97.5% of the dome radius. Inspect its authored alpha
+                    // rather than accidentally counting the new opaque lower atmosphere as ruins.
+                    if (Mathf.Abs(verts[i].magnitude - 25f * 0.975f) > 0.001f) continue;
+                    Assert.That(cols[i].a, Is.InRange(0.10f, 0.26f),
+                        "distant ruin silhouettes must blend into the sky rather than forming black teeth");
+                    silhouetteVerts++;
                 }
                 Assert.GreaterOrEqual(silhouetteVerts, 64,
-                    "expected a full ring of near-black silhouette geometry just below the horizon");
+                    "expected a full ring of subdued ruin silhouettes within the horizon haze");
             });
         }
 
@@ -271,10 +271,10 @@ namespace VibeGame1.Tests
 
             Assert.Greater(fog, zenith,
                 "fog at or under the zenith value is extinction, not haze — distant geometry reads as a hole in the sky");
-            Assert.Less(fog, horizon,
-                "fog brighter than the horizon band would make distant geometry glow against its own backdrop");
-            Assert.Greater(fog, 0.0095f,
-                "fog must sit ABOVE a shadowed stone face (~.009 linear) or distance darkens the deck you are reading");
+            Assert.Greater(fog, horizon,
+                "the composited lower atmosphere now owns the horizon; fog below the bare dome recreates the dark valley");
+            Assert.That(fog, Is.InRange(0.03f, 0.04f),
+                "fog must bridge the cloud/sky tonal valley without becoming a luminous wall");
             Assert.Greater(fog, Lum(ProjectSetup.VoidColor.linear) * 2f,
                 "the fog and the camera clear are different jobs; fog that equals the clear is the pre-A5 value");
 
@@ -287,8 +287,8 @@ namespace VibeGame1.Tests
         [Test]
         public void FogProfileIsTheApprovedStrongerRouteHaze()
         {
-            Assert.AreEqual(Parse("#0E1C34"), ProjectSetup.FogColor,
-                "the visible refinement changes range, not the established sky-horizon hue");
+            Assert.AreEqual(Parse("#20344D"), ProjectSetup.FogColor,
+                "the raised opening requires the measured cloud/sky convergence radiance");
             Assert.AreEqual(36f, ProjectSetup.FogStartDistance, 1e-5f,
                 "the sky-mesh and landing clearance remain unchanged");
             Assert.AreEqual(140f, ProjectSetup.FogEndDistance, 1e-5f,
@@ -326,8 +326,8 @@ namespace VibeGame1.Tests
 
         /// <summary>
         /// Fog must never touch a surface the player is about to stand on. Every jump in Level_01 lands
-        /// within 12 m — the longest is T3_Entry -> T3_Pillar_1 at 9 m (z 189 -> 198), and the T3 pillar
-        /// hops are 5-6 m. Combat resolves at 3-8 m. Both are far inside the start distance, so foot
+        /// within 12 m — the ordinary T3 pillar hops are 5-6 m, while the larger portal approaches are
+        /// covered by the solar transition instead of a visible landing target. Combat resolves at 3-8 m. Both are far inside the start distance, so foot
         /// placement and deflect reads are at fog factor EXACTLY zero, by construction rather than by
         /// eye. What the ramp is allowed to touch is the route AHEAD, which is preview.
         /// </summary>
@@ -349,7 +349,7 @@ namespace VibeGame1.Tests
         [Test]
         public void FogRampsAcrossTheBandTheGameIsActuallyPlayedIn()
         {
-            // The pillar line seen from T3_Entry: a hint of separation, no more.
+            // The pillar line seen from its realm return: a hint of separation, no more.
             Assert.That(FogFactor(25f), Is.InRange(0f, 0.05f), "the near preview band must stay essentially clear");
             // A span's far end / the T2 bridge from the entry. This is the number A5 exists for.
             Assert.That(FogFactor(50f), Is.InRange(0.10f, 0.22f),

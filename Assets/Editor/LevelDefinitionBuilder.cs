@@ -181,13 +181,15 @@ namespace VibeGame1.EditorTools
                            : LevelPieceFactory.PlayerStart(def.playerStart, def.playerStartYaw, root);
             foreach (var sp in level.GetComponentsInChildren<EnemySpawner>(true)) builtSpawners[sp.name] = sp;
 
-            // Optional ordered volleys coordinate existing spawners; every projectile still comes from
-            // ProjectileShooter and therefore keeps its EnemyData, cue, range, sightline and frontal rules.
+            // Progress-gated volleys coordinate existing spawners. Route-only records remain audit data:
+            // binding every ordinary sentry here turns broad range/LOS behaviour into a one-shot invisible
+            // corridor trigger. Engagement windows certify useful contacts but never gate runtime fire.
             if (def.projectileSequences != null)
             {
                 foreach (var sequence in def.projectileSequences)
                 {
                     if (sequence == null || sequence.spawnerNames == null || sequence.spawnerNames.Length == 0) continue;
+                    if (!sequence.CoordinatesRuntime) continue;
                     var ordered = new System.Collections.Generic.List<EnemySpawner>();
                     bool complete = true;
                     foreach (string spawnerName in sequence.spawnerNames)
@@ -206,7 +208,8 @@ namespace VibeGame1.EditorTools
                     host.AddComponent<ProjectileVolleySequence>().Configure(
                         ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout,
                         sequence.shotResolutionTimeout,
-                        sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates);
+                        sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates,
+                        null);
                 }
             }
 

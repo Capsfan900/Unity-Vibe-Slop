@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Reflection;
 using UnityEngine;
 using VibeGame1;
 
@@ -13,6 +14,122 @@ namespace VibeGame1.Tests
     /// </summary>
     public class WeaponSwingArcTests
     {
+        const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+
+        [Test]
+        public void StationaryTrailSamples_PreserveTheArc_AndFinalContactIsExact()
+        {
+            var go = new GameObject("TrailSamplingTest");
+            var trail = go.AddComponent<WeaponTrail>();
+            if (typeof(WeaponTrail).GetField("points", Hidden).GetValue(trail) == null)
+                typeof(WeaponTrail).GetMethod("Awake", Hidden).Invoke(trail, null);
+            try
+            {
+                var record = typeof(WeaponTrail).GetMethod("RecordTip", Hidden);
+                Vector3 start = new Vector3(0f, 0f, 0.5f);
+                Vector3 end = new Vector3(0.2f, 0.1f, 0.5f);
+                record.Invoke(trail, new object[] { start, false });
+                record.Invoke(trail, new object[] { end, false });
+                int count = trail.PointCount;
+                var points = (Vector3[])typeof(WeaponTrail).GetField("points", Hidden).GetValue(trail);
+                Vector3 oldest = points[count - 1];
+                for (int i = 0; i < 20; i++)
+                    Assert.IsFalse((bool)record.Invoke(trail, new object[] { end, false }));
+                Assert.AreEqual(count, trail.PointCount, "a held hand must not manufacture new samples");
+                Assert.AreEqual(oldest, points[count - 1], "hitstop must not replace the arc with identical head points");
+
+                Vector3 exactContact = end + Vector3.right * (WeaponTrail.MinimumSampleDistance * 0.5f);
+                Assert.IsFalse((bool)record.Invoke(trail, new object[] { exactContact, false }),
+                    "sub-pixel movement accumulates instead of consuming the point budget");
+                Assert.IsTrue((bool)record.Invoke(trail, new object[] { exactContact, true }));
+                Assert.AreEqual(exactContact, points[0], "EndStrike must still land exactly on the blade tip");
+                Assert.LessOrEqual(trail.PointCount, trail.maxPoints);
+            }
+            finally { DisposeTrail(trail); }
+        }
+
+        [Test]
+        public void HeldTrail_DissolvesOnTheUnscaledFadeBudget_AndDisableClearsItsSibling()
+        {
+            var go = new GameObject("TrailLifecycleTest");
+            var trail = go.AddComponent<WeaponTrail>();
+            if (typeof(WeaponTrail).GetField("points", Hidden).GetValue(trail) == null)
+                typeof(WeaponTrail).GetMethod("Awake", Hidden).Invoke(trail, null);
+            try
+            {
+                trail.BeginStrike();
+                var record = typeof(WeaponTrail).GetMethod("RecordTip", Hidden);
+                record.Invoke(trail, new object[] { Vector3.forward, false });
+                record.Invoke(trail, new object[] { Vector3.forward + Vector3.right, false });
+                typeof(WeaponTrail).GetField("peak", Hidden).SetValue(trail, trail.PointCount);
+                typeof(WeaponTrail).GetMethod("Draw", Hidden).Invoke(trail, null);
+                var line = (LineRenderer)typeof(WeaponTrail).GetField("line", Hidden).GetValue(trail);
+                Assert.IsTrue(line.enabled);
+                typeof(WeaponTrail).GetMethod("FadeTail", Hidden).Invoke(trail,
+                    new object[] { trail.CurrentFadeSeconds * 0.5f });
+                Assert.Greater(trail.PointCount, 0);
+                typeof(WeaponTrail).GetMethod("FadeTail", Hidden).Invoke(trail,
+                    new object[] { trail.CurrentFadeSeconds * 0.5f });
+                Assert.AreEqual(0, trail.PointCount, "a frozen swing may hold its head, but its old ribbon still expires");
+                typeof(WeaponTrail).GetMethod("OnDisable", Hidden).Invoke(trail, null);
+                Assert.IsFalse(line.enabled, "the camera-space sibling must not survive a disabled viewmodel");
+                Assert.AreEqual(0, line.positionCount);
+                Assert.IsFalse(trail.IsEmitting);
+            }
+            finally { DisposeTrail(trail); }
+        }
+
+        [Test]
+        public void TipSampling_CachesTheHierarchyButKeepsRendererBoundsLive()
+        {
+            var root = new GameObject("TipSamplingCacheTest");
+            var viewmodel = root.AddComponent<WeaponViewmodel>();
+            var held = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            held.name = "HeldWeapon";
+            held.transform.SetParent(root.transform, false);
+            var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tip.name = "TipBlade";
+            tip.transform.SetParent(held.transform, false);
+            tip.transform.localPosition = new Vector3(0f, 2f, 0f);
+            typeof(WeaponViewmodel).GetField("instance", Hidden).SetValue(viewmodel, held);
+
+            try
+            {
+                Vector3 first = viewmodel.TipWorldPosition;
+                var cached = (Renderer)typeof(WeaponViewmodel)
+                    .GetField("cachedTipRenderer", Hidden).GetValue(viewmodel);
+                Assert.AreSame(tip.GetComponent<Renderer>(), cached,
+                    "the named business end should be resolved once for this held model");
+
+                // Warm Unity's renderer-bounds bridge before checking the managed hot path.
+                for (int i = 0; i < 8; i++) _ = viewmodel.TipWorldPosition;
+                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                for (int i = 0; i < 1000; i++) _ = viewmodel.TipWorldPosition;
+                long allocated = System.GC.GetAllocatedBytesForCurrentThread() - before;
+                Assert.LessOrEqual(allocated, 64L,
+                    "active weapon trails must not allocate a renderer array or rescan the hierarchy per sample");
+
+                tip.transform.localPosition += Vector3.right;
+                Vector3 moved = viewmodel.TipWorldPosition;
+                Assert.AreNotEqual(first, moved,
+                    "the renderer is cached, but its current world-space bounds remain authoritative");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        static void DisposeTrail(WeaponTrail trail)
+        {
+            var lineInfo = typeof(WeaponTrail).GetField("line", Hidden);
+            var line = (LineRenderer)lineInfo.GetValue(trail);
+            var matInfo = typeof(WeaponTrail).GetField("mat", Hidden);
+            var mat = (Material)matInfo.GetValue(trail);
+            lineInfo.SetValue(trail, null);
+            matInfo.SetValue(trail, null);
+            if (line != null) Object.DestroyImmediate(line.gameObject);
+            if (mat != null) Object.DestroyImmediate(mat);
+            Object.DestroyImmediate(trail.gameObject);
+        }
+
         [Test]
         public void ZeroAtBothEndpoints()
         {

@@ -43,6 +43,8 @@ namespace VibeGame1
             { Sfx.ParryCue, 0.75f }, { Sfx.Footstep, 0.3f }, { Sfx.Land, 0.5f }, { Sfx.PostureBreak, 0.9f },
             { Sfx.Thunder, 1f }, { Sfx.ItemPickup, 0.6f }, { Sfx.ItemUse, 0.7f },
             { Sfx.Teleport, 0.7f },
+            // A realm can begin attacking during the reveal. Keep its dark warp below the cue.
+            { Sfx.SolarWarp, 0.58f },
             // 2026-09-06 audio pass additions, all under Sfx.ParryCue's 0.75:
             { Sfx.Refuse, 0.5f }, { Sfx.Detonate, 0.7f }, { Sfx.Tension, 0.35f }, { Sfx.Spill, 0.55f },
             // 2026-09-06 weapon-audio pass: light/heavy swing+hit variants, mixed alongside their

@@ -183,6 +183,96 @@ namespace VibeGame1.Tests
             Assert.DoesNotThrow(() => SolarTransition.Cut("SolarGold"));
         }
 
+        [Test]
+        public void EntryAnnouncesOnlySuccessfulTransportOnceThroughTheExistingPool()
+        {
+            // Inactive gameplay objects avoid running a scene or subscribing player lifecycle events.
+            // Seed only the motor's native controller and the audio pool so this exercises the real
+            // Enter -> Teleport -> AudioManager.Play path without starting music or generating a level.
+            var root = new GameObject("SolarAudioEntryProbe");
+            root.SetActive(false);
+            var sourceGo = new GameObject("SolarAudioSourceProbe");
+            var previousManager = AudioManager.I;
+            var singleton = typeof(AudioManager).GetProperty("I");
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance |
+                                                        System.Reflection.BindingFlags.NonPublic;
+            AudioClip clip = null;
+            try
+            {
+                var manager = root.AddComponent<AudioManager>();
+                singleton.SetValue(null, manager);
+                var source = sourceGo.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.volume = 0f; // tests inspect dispatch, listening belongs to the playtest
+                var pool = new AudioSource[12];
+                for (int i = 0; i < pool.Length; i++) pool[i] = source;
+                typeof(AudioManager).GetField("pool", flags).SetValue(manager, pool);
+                var library = (System.Collections.Generic.Dictionary<Sfx, AudioClip[]>)
+                    typeof(AudioManager).GetField("library", flags).GetValue(manager);
+                clip = ProceduralSfx.Build(Sfx.SolarWarp);
+                library.Add(Sfx.SolarWarp, new[] { clip });
+                var next = typeof(AudioManager).GetField("next", flags);
+
+                var portal = root.AddComponent<SolarArenaPortal>();
+                var playerGo = new GameObject("PlayerProbe");
+                playerGo.transform.SetParent(root.transform);
+                var player = playerGo.AddComponent<PlayerCombat>();
+                Assert.IsFalse(portal.Enter(null));
+                Assert.IsFalse(portal.Enter(player), "missing arena");
+                var arenaGo = new GameObject("ArenaProbe", typeof(BoxCollider));
+                arenaGo.transform.SetParent(root.transform);
+                portal.arena = arenaGo.AddComponent<BossArenaTrigger>();
+                // A mini-boss spawner prevents the fixture from waking a real scene's final boss.
+                portal.arena.clearSpawner = arenaGo.AddComponent<EnemySpawner>();
+                Assert.IsFalse(portal.Enter(player), "missing destination");
+                var destination = new GameObject("DestinationProbe");
+                destination.transform.SetParent(root.transform);
+                destination.transform.position = new Vector3(200f, 12f, 300f);
+                portal.realmEntry = destination.transform;
+                Assert.IsFalse(portal.Enter(player), "missing motor");
+                Assert.AreEqual(0, next.GetValue(manager), "rejected attempts must stay silent");
+
+                var motor = playerGo.AddComponent<FirstPersonMotor>();
+                typeof(FirstPersonMotor).GetField("cc", flags)
+                    .SetValue(motor, playerGo.GetComponent<CharacterController>());
+                var lastTeleport = typeof(SolarArenaPortal).GetField("lastTeleportAt", flags);
+                lastTeleport.SetValue(portal, Time.unscaledTime);
+                Assert.IsFalse(portal.Enter(player), "debounced crossing");
+                Assert.AreEqual(0, next.GetValue(manager));
+
+                lastTeleport.SetValue(portal, Time.unscaledTime - 1f);
+                Assert.IsTrue(portal.Enter(player));
+                Assert.AreEqual(destination.transform.position, player.transform.position);
+                Assert.AreEqual(1, next.GetValue(manager), "exactly one pooled dispatch per success");
+                Assert.AreEqual(1f, source.pitch, 0f, "the cinematic sound must not jitter in duration");
+                Assert.IsFalse(portal.Enter(player), "duplicate collider callback");
+                Assert.AreEqual(1, next.GetValue(manager), "duplicates must not layer the warp");
+                lastTeleport.SetValue(portal, Time.unscaledTime - 1f);
+                Assert.IsTrue(portal.Enter(player), "a later valid entry still announces itself");
+                Assert.AreEqual(2, next.GetValue(manager));
+                Assert.AreSame(pool, typeof(AudioManager).GetField("pool", flags).GetValue(manager));
+                Assert.AreSame(clip, library[Sfx.SolarWarp][0], "crossing reuses the preloaded clip");
+
+                // The visual already disarms cleared suns. Enter must share that invariant even when
+                // called directly by a collider/debug harness after the debounce has expired.
+                typeof(BossArenaTrigger).GetField("cleared", flags).SetValue(portal.arena, true);
+                lastTeleport.SetValue(portal, Time.unscaledTime - 1f);
+                player.transform.position = new Vector3(5f, 3f, 9f);
+                Vector3 beforeClearedEntry = player.transform.position;
+                Assert.IsFalse(portal.Enter(player), "a cleared sun cannot restart its transport");
+                Assert.AreEqual(beforeClearedEntry, player.transform.position,
+                    "cleared entry must leave the player on the exterior route");
+                Assert.AreEqual(2, next.GetValue(manager), "cleared entry must not announce a warp");
+            }
+            finally
+            {
+                singleton.SetValue(null, previousManager);
+                Object.DestroyImmediate(sourceGo);
+                Object.DestroyImmediate(root);
+                if (clip != null) Object.DestroyImmediate(clip);
+            }
+        }
+
         // ---------------- colour ----------------
 
         [Test]

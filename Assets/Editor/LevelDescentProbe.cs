@@ -51,7 +51,10 @@ namespace VibeGame1.EditorTools
             opening = openingDescent;
             peakMultiplier = 1f;
             recordedGrants = 0;
-            openingSequence = opening ? UnityEngine.Object.FindAnyObjectByType<ProjectileVolleySequence>() : null;
+            openingSequence = opening
+                ? UnityEngine.Object.FindObjectsByType<ProjectileVolleySequence>()
+                    .FirstOrDefault(s => s.name == "T0_SurgeVolley")
+                : null;
             sequenceWasEnabled = openingSequence != null && openingSequence.enabled;
             if (openingSequence != null) openingSequence.enabled = automaticParries;
             ramp = def.ramps.Single(r => r.name == (opening ? "T0_Ramp_Descent" : "T4_Ramp_Descent"));

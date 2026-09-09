@@ -15,7 +15,7 @@ namespace VibeGame1
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
                     debugWarpBoss, debugRestore, debugSouls, debugGodMode, debugWallRunDiag,
-                    weaponTwirl;
+                    weaponTwirl, consoleToggle, consoleSubmit;
         InputAction useItem, testMenu, wandCycle, interact, lockOn, slide;
         // The in-game level editor (LevelEditor). Optional: a map without them must not crash startup.
         InputAction levelEditor, editorPlace, editorDelete, editorGrab, editorRotate, editorGrow, editorShrink,
@@ -66,6 +66,8 @@ namespace VibeGame1
             debugGodMode = map.FindAction("DebugGodMode", false);
             debugWallRunDiag = map.FindAction("DebugWallRunDiag", false);
             weaponTwirl = map.FindAction(WeaponTwirlActionName, false);
+            consoleToggle = map.FindAction(ConsoleToggleActionName, false);
+            consoleSubmit = map.FindAction(ConsoleSubmitActionName, false);
             levelEditor = map.FindAction("LevelEditor", false);
             editorPlace = map.FindAction("EditorPlace", false);
             editorDelete = map.FindAction("EditorDelete", false);
@@ -174,6 +176,18 @@ namespace VibeGame1
         /// in hand. Cosmetic. <see cref="WeaponTwirl"/> polls this itself. Held FALSE while the settings
         /// screen is listening for a new key, so the key you just chose does not also fire a flourish.</summary>
         public bool WeaponTwirlPressed => weaponTwirl != null && rebind == null && weaponTwirl.WasPressedThisFrame();
+
+        // ---- command console --------------------------------------------------------------------
+
+        public const string ConsoleToggleActionName = "ConsoleToggle";
+        public const string ConsoleSubmitActionName = "ConsoleSubmit";
+
+        /// <summary>Backquote. Available in ordinary builds so a trusted playtester can deliberately
+        /// issue the session-only <c>editor unlock</c> command.</summary>
+        public bool ConsoleTogglePressed => consoleToggle != null && consoleToggle.WasPressedThisFrame();
+
+        /// <summary>Enter while the console input field is focused.</summary>
+        public bool ConsoleSubmitPressed => consoleSubmit != null && consoleSubmit.WasPressedThisFrame();
 
         /// <summary>False when the .inputactions asset predates the action — the settings row says so
         /// rather than offering a rebind that would go nowhere.</summary>
@@ -322,7 +336,8 @@ namespace VibeGame1
         // ---- the in-game level editor (F10 toggles; the rest only mean anything while it is open) ----
 
         /// <summary>
-        /// F10. <b>Editor and development builds only</b> — in a shipped player this is always false.
+        /// F10. Always available in editor/development builds; a shipped player must first grant the
+        /// process-local console switch with the exact <c>editor unlock</c> command.
         /// The in-game level editor is a development tool (docs/LEVEL-EDITOR.md; the 2026-09-05 decision
         /// froze it at v1), and without this gate a playtester who pressed F10 in the middle of a run
         /// was dropped into a fly camera with the motor idle — which is both a way to leave the level
@@ -333,15 +348,55 @@ namespace VibeGame1
         /// <para>This does NOT disable the editor's code. A custom level still loads and plays in a
         /// shipped build — the main menu's CUSTOM rows set <see cref="LevelEditor.PendingLoadPath"/> and
         /// <c>LoadPendingAndPlay</c> calls <c>Enter</c>/<c>Play</c> directly, never through input.
-        /// Only the fly-cam ENTRY is gated. <c>TestMenu</c>'s LEVEL EDITOR row is already behind the
-        /// same symbols, and the EXPORT button behind <c>#if UNITY_EDITOR</c>.</para>
+        /// Only the fly-cam ENTRY is gated. <c>TestMenu</c>'s LEVEL EDITOR row remains behind the
+        /// development symbols, and the EXPORT button behind <c>#if UNITY_EDITOR</c>.</para>
         /// </summary>
-        public bool LevelEditorPressed =>
+        static bool levelEditorSessionUnlocked;
+
+        /// <summary>Whether a shipped player has deliberately unlocked F10 for this process.</summary>
+        public static bool LevelEditorSessionUnlocked { get { return levelEditorSessionUnlocked; } }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetLevelEditorSessionUnlock()
+        {
+            // Also covers Enter Play Mode with domain reload disabled: an earlier run never leaks its
+            // developer grant into the next one.
+            levelEditorSessionUnlocked = false;
+        }
+
+        /// <summary>The pure policy behind the compile-symbol gate, exposed so release behaviour is
+        /// testable from EditMode without producing a second player build.</summary>
+        public static bool LevelEditorShortcutAllowed(bool editorOrDevelopmentBuild, bool sessionUnlocked)
+        {
+            return editorOrDevelopmentBuild || sessionUnlocked;
+        }
+
+        /// <summary>Called only by the command console's exact <c>editor unlock</c> command.</summary>
+        public static void UnlockLevelEditorForSession()
+        {
+            levelEditorSessionUnlocked = true;
+        }
+
+        /// <summary>Test hook and explicit session reset; never persisted.</summary>
+        public static void LockLevelEditorForSession()
+        {
+            levelEditorSessionUnlocked = false;
+        }
+
+        public bool LevelEditorPressed
+        {
+            get
+            {
+                bool privilegedBuild =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            levelEditor != null && levelEditor.WasPressedThisFrame();
+                    true;
 #else
-            false;
+                    false;
 #endif
+                return LevelEditorShortcutAllowed(privilegedBuild, levelEditorSessionUnlocked)
+                    && levelEditor != null && levelEditor.WasPressedThisFrame();
+            }
+        }
         public bool EditorPlacePressed => editorPlace != null && editorPlace.WasPressedThisFrame();
         /// <summary>Left button held: past a short hold on a placed piece this is a GRAB, released = drop.</summary>
         public bool EditorPlaceHeld => editorPlace != null && editorPlace.IsPressed();

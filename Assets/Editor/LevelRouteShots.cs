@@ -38,23 +38,23 @@ namespace VibeGame1.EditorTools
             // entry is "off T2_L2 at z 125, aimed 12 deg south of due west", so shot 02 stands exactly
             // there and looks exactly that way: this is the frame that decides whether the slot reads.
             new Shot("01_arriving_on_T2_L1_looking_at_the_tower",
-                     new Vector3(7f, 5f, 115f), new Vector3(3.5f, 11f, 123f)),
+                     new Vector3(10f, 5f, 147f), new Vector3(3f, 12f, 162f)),
             new Shot("02_the_entry_on_T2_L2_looking_into_the_slot",
-                     new Vector3(7f, 6.5f, 125f), new Vector3(2.5f, 10f, 123.5f)),
+                     new Vector3(11f, 6.5f, 160f), new Vector3(7.6f, 10f, 160.5f)),
             new Shot("03_on_T2_L2_looking_at_the_L3_hop",
-                     new Vector3(6.5f, 6.5f, 125.2f), new Vector3(0f, 8f, 131f)),
+                     new Vector3(11f, 6.5f, 162f), new Vector3(0.5f, 8f, 170f)),
             new Shot("04_below_on_T2_Entry_looking_up_the_tower",
-                     new Vector3(2f, 4f, 107f), new Vector3(4f, 13f, 122f)),
+                     new Vector3(10f, 5f, 146.5f), new Vector3(0f, 13f, 163f)),
             new Shot("05_topping_out_on_T2_L8",
-                     new Vector3(7.5f, 15.5f, 125.5f), new Vector3(4f, 12f, 122f)),
+                     new Vector3(11f, 15.5f, 162f), new Vector3(0.5f, 17f, 170f)),
             new Shot("08_crossing_T2_L2_from_the_south",
-                     new Vector3(7f, 6.5f, 122.5f), new Vector3(4f, 10f, 126f)),
+                     new Vector3(11f, 6.5f, 159f), new Vector3(15.7f, 8f, 166f)),
 
             // THE LONG SPAN — the slide gate, from the run-in.
             new Shot("06_span_run_in_to_the_lintel",
-                     new Vector3(0f, 24.5f, 215.5f), new Vector3(0f, 25.6f, 227f)),
+                     new Vector3(0f, 24.5f, 285.5f), new Vector3(0f, 25.6f, 297f)),
             new Shot("07_span_lintel_close",
-                     new Vector3(0f, 24.5f, 219f), new Vector3(0f, 25.8f, 225f)),
+                     new Vector3(0f, 24.5f, 289f), new Vector3(0f, 25.8f, 295f)),
         };
 
         [MenuItem("VibeGame1/Photograph The New Routes", priority = 301)]

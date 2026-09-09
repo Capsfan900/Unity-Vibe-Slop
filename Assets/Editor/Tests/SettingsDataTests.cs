@@ -29,6 +29,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0, d.screenWidth);
             Assert.AreEqual(0, d.screenHeight);
             Assert.IsTrue(d.filmGrain);
+            Assert.IsTrue(d.armMovement, "movement reactions are cosmetic but ship enabled");
         }
 
         [Test]
@@ -78,7 +79,7 @@ namespace VibeGame1.Tests
             d.mouseSensitivity = 0.2f; d.stickSensitivity = 300f; d.fieldOfView = 110f;
             d.qualityLevel = 1; d.screenWidth = 1280; d.screenHeight = 720;
             d.displayMode = DisplayMode.Windowed; d.vSync = 0; d.frameRateCap = 144;
-            d.bloomScale = 0.5f; d.filmGrain = false;
+            d.bloomScale = 0.5f; d.filmGrain = false; d.armMovement = false;
 
             var c = d.Clone();
             Assert.AreEqual(0.2f, c.mouseSensitivity, 1e-5f);
@@ -92,6 +93,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(144, c.frameRateCap);
             Assert.AreEqual(0.5f, c.bloomScale, 1e-5f);
             Assert.IsFalse(c.filmGrain);
+            Assert.IsFalse(c.armMovement);
         }
 
         // ------------------------------------------------------------------ cycling
@@ -164,17 +166,31 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void Step_ArmMovement_TogglesEitherDirection()
+        {
+            var d = SettingsData.Defaults();
+            Assert.IsTrue(d.armMovement);
+            SettingsMenu.Step(d, SettingsMenu.RowKind.ArmMovement, +1, null, 0);
+            Assert.IsFalse(d.armMovement);
+            SettingsMenu.Step(d, SettingsMenu.RowKind.ArmMovement, -1, null, 0);
+            Assert.IsTrue(d.armMovement);
+        }
+
+        [Test]
         public void Step_Resolution_WalksTheOptionListAndSurvivesAnEmptyOne()
         {
             var d = SettingsData.Defaults();          // 0x0 == native
             var options = new[] { new Vector2Int(2560, 1440), new Vector2Int(1920, 1080), new Vector2Int(1280, 720) };
 
             SettingsMenu.Step(d, SettingsMenu.RowKind.Resolution, +1, options, 0);
-            Assert.AreEqual(1920, d.screenWidth, "native maps to index 0, +1 lands on the second entry");
+            Assert.AreEqual(2560, d.screenWidth, "NATIVE is its own index zero; +1 lands on the first concrete mode");
+            SettingsMenu.Step(d, SettingsMenu.RowKind.Resolution, +1, options, 0);
+            Assert.AreEqual(1920, d.screenWidth);
             SettingsMenu.Step(d, SettingsMenu.RowKind.Resolution, +1, options, 0);
             Assert.AreEqual(1280, d.screenWidth);
             SettingsMenu.Step(d, SettingsMenu.RowKind.Resolution, +1, options, 0);
-            Assert.AreEqual(2560, d.screenWidth, "wraps to the top");
+            Assert.AreEqual(0, d.screenWidth, "the row can always return to the persisted NATIVE sentinel");
+            Assert.AreEqual(0, d.screenHeight);
 
             var e = SettingsData.Defaults();
             SettingsMenu.Step(e, SettingsMenu.RowKind.Resolution, +1, new Vector2Int[0], 0);
@@ -302,6 +318,37 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TargetResolution_NativeMeansTheDisplay_NotTheAlreadyResizedWindow()
+        {
+            Assert.AreEqual(new Vector2Int(2560, 1440),
+                SettingsApplier.TargetResolution(0, 0, 2560, 1440, 1366, 768),
+                "a stale game window must not redefine native");
+            Assert.AreEqual(new Vector2Int(1920, 1080),
+                SettingsApplier.TargetResolution(1920, 1080, 2560, 1440, 1366, 768),
+                "an explicit saved resolution still wins");
+            Assert.AreEqual(new Vector2Int(1366, 768),
+                SettingsApplier.TargetResolution(0, 0, 0, 0, 1366, 768),
+                "headless/no-display fallback is the current surface");
+        }
+
+        [Test]
+        public void ArmMovementSetting_PushesOntoTheVisualPoseChannel()
+        {
+            bool before = MovementPose.Enabled;
+            try
+            {
+                var d = SettingsData.Defaults();
+                d.armMovement = false;
+                Assert.IsFalse(SettingsApplier.ApplyArmMovementSetting(d));
+                Assert.IsFalse(MovementPose.Enabled);
+                d.armMovement = true;
+                Assert.IsTrue(SettingsApplier.ApplyArmMovementSetting(d));
+                Assert.IsTrue(MovementPose.Enabled);
+            }
+            finally { MovementPose.Enabled = before; }
+        }
+
+        [Test]
         public void ApplyLookTo_WritesBothSensitivities_WithoutTouchingPlayerLookCode()
         {
             // The whole reason the applier exists: PlayerLook.cs is another author's file, and its two
@@ -352,6 +399,7 @@ namespace VibeGame1.Tests
                 d.frameRateCap = 144;
                 d.bloomScale = 0.35f;
                 d.filmGrain = false;
+                d.armMovement = false;
                 SettingsStore.Save(d);
 
                 SettingsStore.Forget();                 // drop the cache; force a real prefs read
@@ -368,6 +416,7 @@ namespace VibeGame1.Tests
                 Assert.AreEqual(144, got.frameRateCap);
                 Assert.AreEqual(0.35f, got.bloomScale, 1e-5f);
                 Assert.IsFalse(got.filmGrain);
+                Assert.IsFalse(got.armMovement);
             }
             finally
             {

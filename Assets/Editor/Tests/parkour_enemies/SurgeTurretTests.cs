@@ -99,15 +99,18 @@ namespace VibeGame1.Tests
         public void TheSurgeFallsOffIfYouStopParrying_ButNotBetweenTwoHonestOnes()
         {
             var d = Data();
+            Assert.That(d.parrySurgeSeconds, Is.EqualTo(1.4f).Within(Eps),
+                "the current wider route needs a 7.0 s full-ladder carry, not an unbounded or distance-based rule");
             Assert.Greater(d.parrySurgeSeconds, d.projectileInterval,
                 "a stack must not bleed away inside one bolt metronome: that would punish a clean parry");
             // Grant resets the drop timer, so this number never governs a player who is still inside a
-            // turret's metronome -- it governs the RUN-OUT after the last one. Tightened 2026-09-06 from
-            // 14 s: at 10 s a full x1.60 ladder outlived the span it was earned on, which is a buff.
+            // turret's metronome -- it governs the RUN-OUT after the last one. 1.4 s keeps 0.3 s of slack
+            // over the 1.1 s beat, while five stacks clear in 7.0 s instead of leaking farther down-route.
             Assert.Greater(d.parrySurgeSeconds - d.projectileInterval, 0.25f,
                 "under ~0.25 s of slack over the bolt metronome, a parry that lands a fraction late bleeds a "
                 + "stack and the ladder reads as random rather than as 'keep parrying'");
             float full = SurgeMath.FullDecaySeconds(d.parrySurgeMaxStacks, d.parrySurgeSeconds);
+            Assert.That(full, Is.EqualTo(7f).Within(Eps), "five 1.4 s stacks must clear predictably");
             Assert.LessOrEqual(full, 9f,
                 "a reward that outlives its span is just a buff -- the whole ladder must be gone within a span's length");
             Assert.GreaterOrEqual(full, 5f, "and it must survive the gap between two turrets on a ramp");

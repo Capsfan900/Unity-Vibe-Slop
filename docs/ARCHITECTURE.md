@@ -26,9 +26,9 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 | `Core/` | 9 | `GameManager` (state machine, cursor, `runInBackground`), `InputReader`, `TimeScaleController`, `GameEvents`, `Layers`, `ViewCamera`, `SettingsData` / `SettingsStore` (PlayerPrefs under `vg1.settings.*`) / `SettingsApplier` (the only thing that pushes settings outward; self-bootstrapped `DontDestroyOnLoad`) |
 | `Combat/` | 6 | `Health`, `Posture`, `DamageInfo`, `ParryMath`, `PostureMath`, `EmissiveFlash` |
 | `Player/` | 20 | `FirstPersonMotor` (+ `WallRunMath`, same file), `PlayerLook`, `LockOnController`, `LockOnMarker`, `OffhandViewmodel`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, **`PlayerStamina`**, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
-| `Enemies/Core/` · `Enemies/parkour_enemies/` · `Enemies/souls_enemies/` | 5 | **Two families since 2026-09-06** (`EnemyPaths`): `parkour_enemies` = the span sentries `Sentry_*` (`Projectile`, `ProjectileShooter`, `ProjectileMath`; never melee, mostly shoot); `souls_enemies` = the duels: Grunt, Heavy, the Warden (`BossController`) and every `Legendary_*`. Shared brain in `Core/`: `EnemyController` (FSM), `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
+| `Enemies/Core/` · `Enemies/parkour_enemies/` · `Enemies/souls_enemies/` | 5+ | **Two families since 2026-09-06** (`EnemyPaths`): `parkour_enemies` = the span sentries (`Projectile`, `ProjectileShooter`, `ProjectileVolleySequence`, `ProjectileFlightMath`; never melee, mostly shoot); `souls_enemies` = the duels: Grunt, Heavy, the Warden (`BossController`) and every `Legendary_*`. Shared brain in `Core/`: `EnemyController` (FSM), `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
 | `Level/` | 6 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer` |
-| `UI/` | 11 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), **`MainMenuController`** |
+| `UI/` | 12 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), `DeveloperConsole`, **`MainMenuController`** |
 | `Feel/` | 22 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx`, `ParryImpulse` / `ParryImpact`, `DashImpulse` / `DashFx`, `SlideImpulse` / `SlideFx` (the `*Impulse` is pure math, the `*Fx` / `*Impact` applies it), `SlashFx`, `WeaponTrail`, `WeaponEmber`, `PyreArc`, `EnergyGlow`, `ItemVfx`, `DeathMist`, `SkyFollower`, `Starfield` |
 | `Progression/` | 4 | `SoulsWallet`, `Bloodstain`, `UpgradeMath`, `LevelUpMenu` |
 | `Data/` | 9 | ScriptableObject definitions (see below) |
@@ -41,12 +41,21 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 The 2026-09-07 solar courts are optional `ArenaDef.solarRealm` data. `SolarArenaPortal` adds same-scene
 transport through the motor while `BossArenaTrigger` still owns gates, keeper clearance and reset.
 `SolarRealmPlacement` preserves historical authoring anchors during export. `SolarArenaVisual` and
-its URP shader animate presentation only; floors, enclosures and navigation stay stationary.
+its URP shader animate presentation only; floors, enclosures and navigation stay stationary. Structural
+Ground/Stone/Platform materials use the procedural URP `Architectural Stone` shader for masonry/grain and
+normal-only relief; it never changes mesh, collision, NavMesh bounds or the navigation-trim materials.
 
-The opening five-shot row is optional `LevelDefinition.projectileSequences` data. Its
-`ProjectileVolleySequence` grants launch permission to existing shooters in order, then advances after
-the shot resolves. It retains the original range, line-of-sight, interception, parry and speed-boost
-rules. Ordinary shooters remain autonomous. The full maps and timing contract are in DATAFLOW.md.
+Projectile encounters are reusable `LevelDefinition.projectileSequences` data. Each record groups existing
+shooter spawners and gives each one bounded route/arrival windows for authoring audit; it never invents
+combat stats. Only a record with explicit member progress gates builds a runtime
+`ProjectileVolleySequence` (currently the five-beat T0 opening). Ordinary T1-T4 sentries remain autonomous,
+repeating their normal range, LOS, facing, obstruction and cue-safety firing loop; audit corridors never
+become invisible runtime trigger volumes.
+`ProjectileFlightMath` is the allocation-free shared authority for exact moving-target intercept,
+120 Hz swept-sphere contact forecasting and capped homing, so report and runtime cannot drift. Burst
+count/contact cadence stay on `EnemyData`; the Heavy Sentry owns three 0.42 s contacts followed by a
+2.4 s quiet beat. `Projectile Encounter Report` audits any level at 11 / 17.6 / 27.5 m/s. Full timing and
+cancellation maps are in DATAFLOW.md.
 
 | Path | Contents |
 |---|---|
@@ -101,6 +110,7 @@ concepts and would need de-singletoning first — see the design doc.
 | `ScreenFlash` | Full-screen flashes |
 | `SettingsApplier` | Pushes `SettingsStore.Current` onto `PlayerLook`, `CameraFX`, `QualitySettings`, the URP volume clone. `DontDestroyOnLoad`, bootstrapped by `RuntimeInitializeOnLoadMethod` — nothing to place |
 | `SettingsMenu` | The settings panel, one instance per scene (title screen and pause path share the class) |
+| `DeveloperConsole` | Minimal gameplay HUD console (`help`, `clear`, `editor unlock`); owns only its pause/cursor overlay state, while `InputReader` owns its keys and the session-only F10 grant |
 
 ---
 
@@ -219,7 +229,9 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   hammer *Bronzefall* (0.52 s wind-up into a 360° quake, 130 posture, 6 m knockback), dev blade
   *Oathbreaker* (instant 12 m nova). `SuperKind` chooses only how the blow is drawn; the geometry is
   the numbers. `UltimateAbility` is the driver — repointed, not replaced, so `Q` and the prefab wiring
-  survive. Rule 1 holds: `affectsPlayer:false` slow-mo, realtime waits.
+  survive. `TipWorldPosition` caches the chosen `Tip*` renderer when the held model changes and reads only
+  its live bounds thereafter; active trails therefore follow the animated weapon without a hierarchy scan
+  or renderer-array allocation every frame. Rule 1 holds: `affectsPlayer:false` slow-mo, realtime waits.
 - **Wand cooldown.** The riposte blast is a resource: Emberlance 3.5 s, Stormneedle 5.5 s, Gravecall 7 s,
   Voidspine 9 s. It gates the **blast**, never the deathblow — a cooling wand degrades to the melee
   execute and the prompt says so, because every cooldown is longer than the boss's 5 s deathblow window.
@@ -911,7 +923,7 @@ All balance lives in ScriptableObjects under `Assets/Data/`. Edit in the Inspect
 
 ### Art direction — dark fantasy
 
-Cold sky under **the Eclipse**: an enormous dead sun (38° across, 22° up, over the boss arena) — near-black disc, white-hot rim, the sky around it on fire — over a world drowned in blue (the 2026-09-06 cold-palette pass, user-directed: "change the main colour scheme to blue"). Deep-blue fog, a cold Trilight ambient at the *same luminance* as the warm set it replaced, a pale cold key light, and four separable trim hues — ice cyan / brass gold / azure / ghost green — one per level tile. Warm is reserved for exactly two things now: a combat tell (`M_AlertTell`, the bolt, the cue spark) and fire/safety (`M_Torch`, `M_Checkpoint` — the Dark Souls bonfire read); everything else in the world is cold, so any warm pixel reads as "pay attention" by construction. The sky is `Starfield` geometry, never a skybox — **two submeshes**: an LDR field that can never bloom, and the corona rim alone on an HDR tint. Its shipped geometry is `LevelDefinition.sky` for the shipped level and `Starfield.DefaultEclipse*` for the legacy greybox — keep them equal. Ambient table: sky `#344C78 × 1.35`, equator `#3F5E88 × 1.35`, ground `#0E1326 × 1.35`, key `#5A79AD` @ 1.05 (`Editor/ProjectSetup.AmbientSky` / `.AmbientEquator` / `.AmbientGround` / `.KeyLightColor`, applied in `ProjectSetup.SetupSceneEnvironment` and mirrored — read from the same constants, not hand-copied — in `SandboxBuilder.EnsureEnvironment`). Fog (rebuilt by A5, 2026-09-06) is `#0E1C34` (`ProjectSetup.FogColor`) — the dome's own horizon band `#13233F` at 0.7 value, lin lum .0117 — ramping **36 → 140 m** (`ProjectSetup.FogStartDistance` / `.FogEndDistance`), not the void colour `#060D18` over 45 → 240 that it replaced. Fog is the sky bleeding in front of distance, so it must sit between the dome's zenith and its horizon and above a shadowed stone face; below that it is extinction and it eats the deck you are about to land on. Start distance has a hard floor of ~31 m (the eclipse halo's corners), not the quoted dome radius of 25. Pinned by `SkyEclipseTests`. Visible route atmosphere comes from one bounded `AmbientMist` ParticleSystem on the player root: world-space cold additive sheets with camera fade, no gameplay or collision, built into the Player prefab and pinned by `AmbientMistTests`.
+Cold sky under **the Eclipse**: an enormous dead sun (38° across, 22° up, over the boss arena) — near-black disc, white-hot rim, the sky around it on fire — over a world drowned in blue (the 2026-09-06 cold-palette pass, user-directed: "change the main colour scheme to blue"). Deep-blue fog, a cold Trilight ambient at the *same luminance* as the warm set it replaced, a pale cold key light, and four separable trim hues — ice cyan / brass gold / azure / ghost green — one per level tile. Warm is reserved for exactly two things now: a combat tell (`M_AlertTell`, the bolt, the cue spark) and fire/safety (`M_Torch`, `M_Checkpoint` — the Dark Souls bonfire read); everything else in the world is cold, so any warm pixel reads as "pay attention" by construction. The sky is `Starfield` geometry, never a skybox — **two submeshes**: an LDR field that can never bloom, and the corona rim alone on an HDR tint. Its shipped geometry is `LevelDefinition.sky` for the shipped level and `Starfield.DefaultEclipse*` for the legacy greybox — keep them equal. Ambient table: sky `#344C78 × 1.35`, equator `#3F5E88 × 1.35`, ground `#0E1326 × 1.35`, key `#5A79AD` @ 1.05 (`Editor/ProjectSetup.AmbientSky` / `.AmbientEquator` / `.AmbientGround` / `.KeyLightColor`, applied in `ProjectSetup.SetupSceneEnvironment` and mirrored — read from the same constants, not hand-copied — in `SandboxBuilder.EnsureEnvironment`). Fog is `#20344D` (`ProjectSetup.FogColor`, lin lum .0330), ramping **36 → 140 m**. It matches the composited lower atmosphere rather than the darker bare dome band and remains below nearby cloud luminance; that closes the former black middle-distance valley while keeping every landing inside the zero-fog range. Start distance has a hard floor of ~31 m (the eclipse halo's corners), not the quoted dome radius of 25. `Starfield` supplies the all-yaw atmosphere in its existing LDR mesh, grading -7° to +18° before the opaque eclipse disc/HDR rim. There is no player-following `AmbientMist` in the shipped prefab.
 
 Structural albedos, trim hues and combat-tell colours all live in `Editor/MaterialFactory.Table`; ambient and the key light live in `Editor/ProjectSetup.SetupSceneEnvironment`; enemy body albedos live in `Editor/DataFactory`; the HUD's own colour constants live in `Editor/HudBuilder.cs`. None of these are on a `.mat` or in the Inspector (rules 4 and 9) — change the constant, then re-run the generator that consumes it (`2. Create Materials`, `1. Project Setup` / `7. Build Sandbox`, or `3. Create Data` respectively).
 
@@ -1231,6 +1243,13 @@ spamming the one-shot pool with several near-break enemies at once); and a flask
 now layers `Sfx.Spill` on top of the ordinary `Sfx.Hurt` (`FlaskAbility.Interrupt`) so losing the charge
 reads as more than an ordinary hit. All four are synthesized only (`ProceduralSfx.cs`) — no new clip
 files — and mixed under `Sfx.ParryCue`'s trim.
+
+**2026-09-08 solar crossing.** `Sfx.SolarWarp` is append-only and owns the successful sphere-entry voice;
+it does not repurpose `Teleport`, so ordinary transport keeps its established meaning. The 0.62 s mono
+44.1 kHz procedural fallback is generated once with the other pooled clips: pitch collapses through the
+covered hold into a filtered, detuned slowing tail, with explicit zero endpoints and a 0.58 mix trim below
+`ParryCue`'s 0.75. `SolarArenaPortal.Enter` dispatches it exactly once after successful transport and the
+same-frame visual cut. Rejected, debounced and already-cleared entries dispatch nothing.
 
 **2026-09-06 weapon-audio pass — the roster shared one swing and one hit.** Every weapon's `WeaponController`
 call played the exact same `Sfx.Swing` / `Sfx.Hit` regardless of which was equipped, so a dagger and a

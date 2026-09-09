@@ -104,7 +104,7 @@ namespace VibeGame1.Tests
         }
 
         /// <summary>The ledge the wall is mounted from must hug it: a deck more than ~2 m off the run line
-        /// cannot reach the face before the arc drops below the wall (T2_Entry, 6.5 m off, never mounts).</summary>
+        /// cannot reach the face before the arc drops below the wall (a launch 6.5 m off never mounts).</summary>
         [Test, TestCaseSource(nameof(Walls))]
         public void TheMountLedgeHugsTheWall(string wall, string launch, string[] beside)
         {
@@ -261,13 +261,6 @@ namespace VibeGame1.Tests
             Assert.IsTrue(found, "Spawn_T2_GruntB is gone; the west line's purpose changed");
         }
 
-        /// <summary>The west pad hangs over the entry pad's flank, eight metres up. It must not touch it in plan.</summary>
-        [Test]
-        public void TheWestPadClearsTheEntryPad()
-        {
-            Assert.IsFalse(OverlapXZ(Box("T2_Wall_Landing_West"), Box("T2_Entry")), "T2_Wall_Landing_West overlaps T2_Entry in plan");
-        }
-
         // ------------------------------------------------------------------ the spiral is intact
 
         /// <summary>
@@ -276,14 +269,14 @@ namespace VibeGame1.Tests
         /// </summary>
         static IEnumerable<TestCaseData> NeighbouringHops()
         {
-            yield return new TestCaseData("T2_Entry", "T2_L1", 6).SetName("Hop_T2_Entry_to_T2_L1");
             yield return new TestCaseData("T2_L1", "T2_L2", 12).SetName("Hop_T2_L1_to_T2_L2");
-            yield return new TestCaseData("T2_L2", "T2_L3", 11).SetName("Hop_T2_L2_to_T2_L3");
+            yield return new TestCaseData("T2_L2", "T2_L3", 13).SetName("Hop_T2_L2_to_T2_L3");
             yield return new TestCaseData("T2_L3", "T2_L4", 11).SetName("Hop_T2_L3_to_T2_L4");
-            yield return new TestCaseData("T2_L4", "T2_L5", 12).SetName("Hop_T2_L4_to_T2_L5");
+            yield return new TestCaseData("T2_L4", "T2_L5", 15).SetName("Hop_T2_L4_to_T2_L5");
             yield return new TestCaseData("T2_L5", "T2_L6", 12).SetName("Hop_T2_L5_to_T2_L6");
             yield return new TestCaseData("T2_L6", "T2_L7", 12).SetName("Hop_T2_L6_to_T2_L7");
-            yield return new TestCaseData("T2_L7", "T2_L8", 12).SetName("Hop_T2_L7_to_T2_L8");
+            yield return new TestCaseData("T2_L7", "T2_L8", 15).SetName("Hop_T2_L7_to_T2_L8");
+            yield return new TestCaseData("T2_L8", "T2_L9", 16).SetName("Hop_T2_L8_to_T2_L9");
         }
 
         /// <summary>The level with every wall-run wall and landing removed: the hop as it was before the walls.</summary>

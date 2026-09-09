@@ -19,13 +19,13 @@ namespace VibeGame1
         [SerializeField] Vector3 progressOrigin;
         [SerializeField] Vector3 progressDirection;
         [SerializeField] float[] memberProgressGates = new float[0];
+        [SerializeField] ProjectileEngagementWindowDef[] engagementWindows = new ProjectileEngagementWindowDef[0];
 
         GameObject[] boundInstances = new GameObject[0];
         ProjectileShooter[] shooters = new ProjectileShooter[0];
-        SurgeTurret[] turrets = new SurgeTurret[0];
         Projectile activeBolt;
+        ProjectileShooter activePhraseShooter;
         int current;
-        int grantsBeforeShot;
         float nextLaunchAt;
         float enteredBandAt;
         float shotLaunchedAt;
@@ -46,6 +46,16 @@ namespace VibeGame1
         public float[] MemberProgressGates
         {
             get { return memberProgressGates != null ? (float[])memberProgressGates.Clone() : new float[0]; }
+        }
+        public ProjectileEngagementWindowDef[] EngagementWindows
+        {
+            get
+            {
+                if (engagementWindows == null) return new ProjectileEngagementWindowDef[0];
+                var copy = new ProjectileEngagementWindowDef[engagementWindows.Length];
+                for (int i = 0; i < copy.Length; i++) copy[i] = CloneWindow(engagementWindows[i]);
+                return copy;
+            }
         }
         public string[] SpawnerNames
         {
@@ -73,7 +83,18 @@ namespace VibeGame1
                               float resolutionTimeout, Vector3 gateOrigin, Vector3 gateDirection,
                               float[] progressGates)
         {
-            RetireActiveIncoming();
+            Configure(orderedMembers, gap, readyTimeout, resolutionTimeout, gateOrigin, gateDirection,
+                      progressGates, null);
+        }
+
+        public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout,
+                              float resolutionTimeout, Vector3 gateOrigin, Vector3 gateDirection,
+                              float[] progressGates, ProjectileEngagementWindowDef[] windows)
+        {
+            // Release the OLD controlled instances before replacing members or resizing caches. Doing this
+            // afterwards can index the new array while leaving an old shooter permanently sequence-owned.
+            RetireActiveIncoming(ProjectilePhraseCancellation.SequenceReconfigured);
+            ReleaseMembers();
             members = orderedMembers ?? new EnemySpawner[0];
             recoveryGap = Mathf.Max(0f, gap);
             readinessTimeout = Mathf.Max(0.1f, readyTimeout);
@@ -81,6 +102,7 @@ namespace VibeGame1
             progressOrigin = gateOrigin;
             progressDirection = gateDirection.sqrMagnitude > 0.0001f ? gateDirection.normalized : Vector3.zero;
             memberProgressGates = progressGates != null ? (float[])progressGates.Clone() : new float[0];
+            engagementWindows = CloneWindows(windows);
             AllocateCaches();
             ResetState();
         }
@@ -100,7 +122,7 @@ namespace VibeGame1
         {
             GameEvents.PlayerDied -= OnPlayerDied;
             GameEvents.PlayerRespawned -= Restart;
-            RetireActiveIncoming();
+            RetireActiveIncoming(ProjectilePhraseCancellation.Disabled);
             ReleaseMembers();
             ClearBindings();
         }
@@ -111,7 +133,6 @@ namespace VibeGame1
             if (boundInstances.Length == count) return;
             boundInstances = new GameObject[count];
             shooters = new ProjectileShooter[count];
-            turrets = new SurgeTurret[count];
         }
 
         void BindMembers()
@@ -127,7 +148,6 @@ namespace VibeGame1
                 if (shooters[i] != null) shooters[i].SetSequenceControlled(false);
                 boundInstances[i] = instance;
                 shooters[i] = instance != null ? instance.GetComponent<ProjectileShooter>() : null;
-                turrets[i] = instance != null ? instance.GetComponent<SurgeTurret>() : null;
                 if (shooters[i] != null) shooters[i].SetSequenceControlled(true);
             }
             // LevelManager.ResetEnemies replaces every Instance before raising no dedicated reset event.
@@ -143,18 +163,30 @@ namespace VibeGame1
 
             if (shotLaunched)
             {
-                bool granted = turrets[current] != null && turrets[current].SurgesGranted > grantsBeforeShot;
-                if (granted || activeBolt == null || !activeBolt.IsIncoming)
+                // The shooter owns the WHOLE phrase. A first deflect resolves only its first incoming
+                // obligation; the next sequence member cannot start until every planned emission is done
+                // and every emitted bolt has resolved. Reflected bolts remain alive for their return trip.
+                bool phraseResolved = activePhraseShooter != null
+                    ? activePhraseShooter.PhraseEmissionsComplete && activePhraseShooter.PhraseIncomingResolved
+                    : activeBolt == null || !activeBolt.IsIncoming;
+                if (phraseResolved)
                 {
-                    // A reflected bolt is already resolved for sequencing and must finish its return trip.
                     Advance();
                     return;
                 }
                 if (shotResolutionTimeout > 0f && Time.time - shotLaunchedAt >= shotResolutionTimeout)
                 {
-                    RetireActiveIncoming();
+                    RetireActiveIncoming(ProjectilePhraseCancellation.SequenceTimeout);
                     Advance();
                 }
+                return;
+            }
+
+            ProjectileEngagementWindowDef engagementWindow = null;
+            bool hasEngagementWindow = HasEngagementWindows(current);
+            if (hasEngagementWindow && !TrySelectEngagementWindow(current, out engagementWindow))
+            {
+                if (EveryEngagementWindowPassed(current)) Advance();
                 return;
             }
 
@@ -163,6 +195,11 @@ namespace VibeGame1
             if (HasProgressGate(current) && !bandSeen)
             {
                 if (!ProgressGateReached(current)) return;
+                bandSeen = true;
+                enteredBandAt = Mathf.Max(Time.time, nextLaunchAt);
+            }
+            else if (hasEngagementWindow && !bandSeen)
+            {
                 bandSeen = true;
                 enteredBandAt = Mathf.Max(Time.time, nextLaunchAt);
             }
@@ -179,7 +216,8 @@ namespace VibeGame1
             bool enteredBand;
             bool shotReady;
             bool allowFire = current > 0 || (firstMemberArmed && Time.time >= nextLaunchAt);
-            activeBolt = shooter.TryFireSequenceShot(allowFire, out enteredBand, out shotReady);
+            activeBolt = shooter.TryFireSequenceShot(allowFire, engagementWindow, hasEngagementWindow,
+                                                     out enteredBand, out shotReady);
             if (current == 0 && shotReady && !firstMemberArmed)
             {
                 firstMemberArmed = true;
@@ -189,7 +227,7 @@ namespace VibeGame1
             }
             if (activeBolt != null)
             {
-                grantsBeforeShot = turrets[current] != null ? turrets[current].SurgesGranted : 0;
+                activePhraseShooter = shooter;
                 shotLaunched = true;
                 shotLaunchedAt = Time.time;
                 return;
@@ -207,12 +245,14 @@ namespace VibeGame1
         {
             current++;
             activeBolt = null;
+            activePhraseShooter = null;
             shotLaunched = false;
             firstMemberArmed = current > 0;
             nextLaunchAt = Time.time + recoveryGap;
             // An ungated later member starts its finite readiness window immediately. A gated member waits
             // passively until the player crosses its authored position, then receives that same deadline.
-            bandSeen = current > 0 && current < Count && !HasProgressGate(current);
+            bandSeen = current > 0 && current < Count && !HasProgressGate(current) &&
+                       !HasEngagementWindows(current);
             enteredBandAt = nextLaunchAt;
         }
 
@@ -234,10 +274,63 @@ namespace VibeGame1
                    Vector3.Dot(player.position - progressOrigin, progressDirection) >= memberProgressGates[index];
         }
 
+        bool HasEngagementWindows(int index)
+        {
+            if (members == null || index < 0 || index >= members.Length || members[index] == null ||
+                engagementWindows == null) return false;
+            string spawnerName = members[index].name;
+            for (int i = 0; i < engagementWindows.Length; i++)
+                if (engagementWindows[i] != null && engagementWindows[i].spawnerName == spawnerName) return true;
+            return false;
+        }
+
+        bool TrySelectEngagementWindow(int index, out ProjectileEngagementWindowDef selected)
+        {
+            selected = null;
+            if (player == null)
+            {
+                var combat = FindAnyObjectByType<PlayerCombat>();
+                player = combat != null ? combat.transform : null;
+            }
+            if (player == null || members == null || index < 0 || index >= members.Length || members[index] == null)
+                return false;
+            Vector3 chest = player.position + Vector3.up * 1.2f;
+            string spawnerName = members[index].name;
+            for (int i = 0; i < engagementWindows.Length; i++)
+            {
+                var window = engagementWindows[i];
+                float progress;
+                if (window != null && window.spawnerName == spawnerName &&
+                    ProjectileEngagementMath.ContainsPlayer(window, chest, out progress))
+                {
+                    selected = window;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool EveryEngagementWindowPassed(int index)
+        {
+            if (player == null || members == null || index < 0 || index >= members.Length || members[index] == null)
+                return false;
+            Vector3 chest = player.position + Vector3.up * 1.2f;
+            string spawnerName = members[index].name;
+            bool found = false;
+            for (int i = 0; i < engagementWindows.Length; i++)
+            {
+                var window = engagementWindows[i];
+                if (window == null || window.spawnerName != spawnerName) continue;
+                found = true;
+                if (!ProjectileEngagementMath.HasPassed(window, chest)) return false;
+            }
+            return found;
+        }
+
         void OnPlayerDied()
         {
             waitingForRespawn = true;
-            RetireActiveIncoming();
+            RetireActiveIncoming(ProjectilePhraseCancellation.SequenceReset);
             shotLaunched = false;
         }
 
@@ -251,8 +344,9 @@ namespace VibeGame1
 
         void ResetState()
         {
-            RetireActiveIncoming();
+            RetireActiveIncoming(ProjectilePhraseCancellation.SequenceReset);
             current = 0;
+            activePhraseShooter = null;
             shotLaunched = false;
             shotLaunchedAt = 0f;
             bandSeen = false;
@@ -267,22 +361,47 @@ namespace VibeGame1
                 if (shooters[i] != null) shooters[i].SetSequenceControlled(false);
         }
 
-        void RetireActiveIncoming()
+        void RetireActiveIncoming(ProjectilePhraseCancellation reason)
         {
-            if (activeBolt != null && activeBolt.IsIncoming)
+            if (activePhraseShooter != null)
+                activePhraseShooter.CancelSequencePhrase(reason, true);
+            else if (activeBolt != null && activeBolt.IsIncoming)
             {
                 if (Application.isPlaying) Destroy(activeBolt.gameObject);
                 else DestroyImmediate(activeBolt.gameObject);
             }
             activeBolt = null;
+            activePhraseShooter = null;
         }
 
         void ClearBindings()
         {
             boundInstances = new GameObject[0];
             shooters = new ProjectileShooter[0];
-            turrets = new SurgeTurret[0];
             player = null;
+        }
+
+        static ProjectileEngagementWindowDef[] CloneWindows(ProjectileEngagementWindowDef[] source)
+        {
+            if (source == null) return new ProjectileEngagementWindowDef[0];
+            var copy = new ProjectileEngagementWindowDef[source.Length];
+            for (int i = 0; i < copy.Length; i++) copy[i] = CloneWindow(source[i]);
+            return copy;
+        }
+
+        static ProjectileEngagementWindowDef CloneWindow(ProjectileEngagementWindowDef source)
+        {
+            if (source == null) return null;
+            return new ProjectileEngagementWindowDef
+            {
+                spawnerName = source.spawnerName,
+                routeStart = source.routeStart,
+                routeEnd = source.routeEnd,
+                halfWidth = source.halfWidth,
+                heightTolerance = source.heightTolerance,
+                arrivalStart = source.arrivalStart,
+                arrivalEnd = source.arrivalEnd,
+            };
         }
     }
 }

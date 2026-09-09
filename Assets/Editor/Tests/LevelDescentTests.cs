@@ -129,41 +129,32 @@ namespace VibeGame1.Tests
             Assert.That(descents[0].name, Is.EqualTo("T0_Ramp_Descent"));
             Assert.That(descents[1].name, Is.EqualTo("T4_Ramp_Descent"));
             Assert.That(descents[0].TopPosition.z, Is.LessThan(-8f));
-            Assert.That(descents[1].basePosition, Is.EqualTo(new Vector3(0f, 28f, 298.8f)));
+            Assert.That(descents[1].basePosition, Is.EqualTo(new Vector3(0f, 28f, 394.8f)),
+                "the final descent moves with the widened T4/boss section");
         }
 
-        [Test] public void MigratingTheOriginalBossLocationMatchesARepeatedRework()
+        [Test] public void SolarBossSpawnerKeepsItsHistoricalAuthoringAnchorAcrossRework()
         {
+            var boss = def.spawns.Single(s => s.name == "Spawn_Boss");
+            string historicalAnchor = JsonUtility.ToJson(boss);
             LevelDefinitionAuthoring.Apply(def);
-            string expected = JsonUtility.ToJson(def);
-            // Recreate the pre-descent arena as a unit, then exercise the first migration again.
-            var originalOffset = new Vector3(0f, 12f, -70f);
-            foreach (var p in def.platforms.Where(p => p.name.Contains("Boss"))) p.center += originalOffset;
-            foreach (var s in def.spawns.Where(s => s.name == "Spawn_Boss")) s.position += originalOffset;
-            foreach (var p in def.pickups.Where(p => p.name.Contains("Boss"))) p.position += originalOffset;
-            foreach (var t in def.torches.Where(t => t.name.StartsWith("Torch_Boss_"))) t.basePosition += originalOffset;
             var arena = def.arenas.Single(a => a.gateName == "Boss_Gate");
-            arena.gateOpenPosition += originalOffset;
-            arena.gateClosedPosition += originalOffset;
-            arena.triggerPosition += originalOffset;
-            LevelDefinitionAuthoring.Apply(def);
-            Assert.AreEqual(expected, JsonUtility.ToJson(def));
+            Assert.AreEqual(historicalAnchor, JsonUtility.ToJson(def.spawns.Single(s => s.name == "Spawn_Boss")),
+                "the builder relocates this marker into the solar realm; spacing migrations must not drift it");
+            Assert.AreEqual("Spawn_Boss", arena.solarRealm.enemySpawnerName);
         }
 
-        [Test] public void ShippedBossSouthWallsStillEncloseTheMovedDoorway()
+        [Test] public void ShippedBossApproachStopsOutsideThePortalSun()
         {
-            var arena = def.platforms.Single(p => p.name == "Boss_Arena");
+            var approach = def.platforms.Single(p => p.name == "Boss_Approach");
             var gate = def.arenas.Single(a => a.gateName == "Boss_Gate");
-            foreach (string side in new[] { "L", "R" })
-            {
-                var wall = def.platforms.Single(p => p.name == "Wall_Boss_S_" + side);
-                Assert.That(wall.center.y - wall.size.y / 2f,
-                    Is.EqualTo(arena.center.y + arena.size.y / 2f).Within(0.001f), side + " wall floor");
-                Assert.That(wall.center.z + wall.size.z / 2f,
-                    Is.EqualTo(arena.center.z - arena.size.z / 2f).Within(0.001f), side + " wall front");
-                float innerEdge = Mathf.Abs(wall.center.x) - wall.size.x / 2f;
-                Assert.That(innerEdge, Is.EqualTo(gate.gateSize.x / 2f).Within(0.001f), side + " doorway edge");
-            }
+            float approachEnd = approach.center.z + approach.size.z * 0.5f;
+            float shellNear = gate.solarRealm.exteriorCenter.z - gate.solarRealm.visualRadius;
+            Assert.GreaterOrEqual(shellNear - approachEnd, 1f,
+                "the boss approach must stop before the visible sun rather than disappearing inside it");
+            Assert.Less(gate.gateClosedPosition.z,
+                gate.solarRealm.exteriorCenter.z - gate.solarRealm.exteriorRadius,
+                "the doorway stays on the approach side of the physical portal boundary");
         }
 
         [Test] public void RunOutCheckpointGateAndBossMoveTogether()
@@ -178,7 +169,7 @@ namespace VibeGame1.Tests
             Assert.That(ramp.rise, Is.EqualTo(-12f).Within(0.001f));
             Assert.That(ramp.width, Is.EqualTo(10f).Within(0.001f));
             Assert.That(ramp.yaw, Is.EqualTo(0f).Within(0.001f));
-            Assert.That(deck.size.z, Is.EqualTo(24.4f).Within(0.001f));
+            Assert.That(deck.size.z, Is.EqualTo(11.4f).Within(0.001f));
             Assert.That(entry.size.x, Is.GreaterThanOrEqualTo(ramp.width));
             Assert.That(deck.size.x, Is.GreaterThanOrEqualTo(ramp.width));
             Assert.That(ramp.basePosition.y, Is.EqualTo(entry.center.y + entry.size.y / 2f).Within(0.001f));
@@ -188,9 +179,13 @@ namespace VibeGame1.Tests
             Assert.That(checkpoint.position.y, Is.EqualTo(ramp.TopPosition.y).Within(0.001f));
             Assert.That(checkpoint.position.z, Is.GreaterThan(ramp.TopPosition.z));
             Assert.That(checkpoint.position.z, Is.LessThan(arena.gateClosedPosition.z));
-            Assert.That(boss.position.z, Is.GreaterThan(arena.triggerPosition.z));
-            Assert.That(boss.position.y, Is.EqualTo(ramp.TopPosition.y + 0.1f).Within(0.01f));
-            Assert.That(def.killZone.center.z + def.killZone.size.z / 2f, Is.GreaterThan(boss.position.z + 30f));
+            Assert.That(arena.solarRealm.enemySpawnerName, Is.EqualTo(boss.name));
+            Vector2 realmDelta = new Vector2(arena.solarRealm.enemySpawnPosition.x - arena.solarRealm.realmCenter.x,
+                                             arena.solarRealm.enemySpawnPosition.z - arena.solarRealm.realmCenter.z);
+            Assert.That(realmDelta.magnitude, Is.LessThan(arena.solarRealm.realmFloorRadius),
+                "the physical boss spawn belongs inside the disconnected realm, not beyond the route trigger");
+            Assert.That(def.killZone.center.z + def.killZone.size.z / 2f,
+                Is.GreaterThan(arena.solarRealm.exteriorCenter.z + arena.solarRealm.visualRadius + 30f));
         }
 
         [Test] public void ReportReadsTheShippedSlopeAndDetectsAnAddedBoltObstruction()
@@ -200,7 +195,9 @@ namespace VibeGame1.Tests
             ramp.basePosition += Vector3.up * 3f;
             Assert.That(LevelDescentReport.SurfaceY(ramp, ramp.basePosition + ramp.Heading * 24f), Is.EqualTo(25f).Within(0.001f));
             ramp.basePosition -= Vector3.up * 3f;
-            var blocker = new PlatformDef { name = "Test_BoltObstruction", center = new Vector3(4f, 24f, 310f),
+            Vector3 midpoint = ramp.basePosition + ramp.Heading * (ramp.run * 0.5f);
+            midpoint.y = LevelDescentReport.SurfaceY(ramp, midpoint);
+            var blocker = new PlatformDef { name = "Test_BoltObstruction", center = midpoint + Vector3.right * 4f,
                 size = new Vector3(1f, 20f, 50f) };
             def.platforms = def.platforms.Concat(new[] { blocker }).ToArray();
             Assert.That(LevelDescentReport.Failures(def), Has.Some.Contains("Test_BoltObstruction"));

@@ -88,6 +88,8 @@ namespace VibeGame1
         public bool Enter(PlayerCombat player)
         {
             if (player == null || arena == null || realmEntry == null) return false;
+            // A cleared sun is inert, matching the disarmed approach wash and open return path.
+            if (arena.Cleared) return false;
             if (Time.unscaledTime - lastTeleportAt < TeleportDebounce) return false;
             if (player.GetComponent<FirstPersonMotor>() == null) return false;
             if (!arena.BeginFight(player)) return false;
@@ -97,6 +99,7 @@ namespace VibeGame1
             // so the cover cannot be late; and because it is downstream of the teleport it can never
             // play for a crossing that did not happen.
             SolarTransition.Cut(ThemeKey);
+            AudioManager.Play(Sfx.SolarWarp, 1f, 1f, 0f);
             lastTeleportAt = Time.unscaledTime;
             occupant = player;
             return true;

@@ -240,8 +240,7 @@ namespace VibeGame1
 
         protected virtual void Start()
         {
-            var pc = FindAnyObjectByType<PlayerCombat>();
-            if (pc != null) { player = pc.transform; playerCombat = pc; }
+            EnsurePlayerTarget();
             Init();
             Health.OnDied += HandleDeath;
             Health.OnDamaged += HandleDamaged;
@@ -270,7 +269,8 @@ namespace VibeGame1
 
         protected virtual void Update()
         {
-            if (Current == State.Dead || Current == State.Executed || player == null || data == null) return;
+            if (Current == State.Dead || Current == State.Executed || data == null) return;
+            if (!EnsurePlayerTarget()) return;
             if (Time.timeScale <= 0f) return;
 
             if (visuals != null) visuals.SetPostureRatio(Posture.Ratio);
@@ -384,6 +384,36 @@ namespace VibeGame1
                     }
                     break;
             }
+        }
+
+        /// <summary>
+        /// Reacquires the player when scene order, respawn, or an in-play domain reload invalidates the
+        /// non-serialized target references. Without this retry an otherwise healthy enemy can remain in
+        /// Idle forever because Start is not guaranteed to run again after those transitions.
+        /// </summary>
+        bool EnsurePlayerTarget()
+        {
+            if (player != null && playerCombat != null && playerCombat.transform == player) return true;
+
+            var pc = FindAnyObjectByType<PlayerCombat>();
+            if (pc == null)
+            {
+                player = null;
+                playerCombat = null;
+                playerFlask = null;
+                playerWasDrinking = false;
+                return false;
+            }
+
+            bool changed = pc != playerCombat;
+            player = pc.transform;
+            playerCombat = pc;
+            if (changed)
+            {
+                playerFlask = null;
+                playerWasDrinking = false;
+            }
+            return true;
         }
 
         bool PlayerDrinkEdge()
