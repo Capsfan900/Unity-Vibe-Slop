@@ -316,6 +316,73 @@ namespace VibeGame1.Tests
             Assert.Less(Mathf.Abs(feel.parryFovPunch), feel.dashFovKick,
                 "the deflect must not warp the lens harder than a dash");
         }
+
+        [Test]
+        public void ShippedChromaticVeilIsBriefAndSubordinateToTheContact()
+        {
+            var feel = Shipped();
+            Assert.AreEqual(0.35f, feel.parryChromatic, 1e-4f,
+                "the shipped asset, not just the field initializer, owns the restrained chromatic veil");
+            Assert.AreEqual(0.12f, feel.parryChromaticTime, 1e-4f);
+            Assert.Less(feel.parryChromaticTime, PerfectWindow,
+                "the veil must clear before the full perfect window can become visual noise");
+            Assert.Less(feel.parryChromatic, 0.4f,
+                "a deflect is force and contact, not an RGB screen smear");
+        }
+
+        [Test]
+        public void FeedbackEyeUsesTheCameraFxEyeRatherThanThePlayerRoot()
+        {
+            var root = new GameObject("ParryPlayerRoot");
+            var fxRoot = new GameObject("ParryCameraFx");
+            var eye = new GameObject("ParryEye");
+            var fx = fxRoot.AddComponent<CameraFX>();
+            var singleton = typeof(CameraFX).GetField("<I>k__BackingField",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(singleton);
+            object previous = singleton.GetValue(null);
+            try
+            {
+                root.transform.position = new Vector3(3f, 0f, -4f);
+                eye.transform.position = new Vector3(3f, 1.62f, -4f);
+                eye.transform.rotation = Quaternion.Euler(37f, 24f, 0f);
+                fx.cam = eye.AddComponent<Camera>();
+                // EditMode does not promise Awake for a component created by a test. Own the singleton
+                // seam explicitly so a camera from the loaded editor scene cannot make this test lie.
+                singleton.SetValue(null, fx);
+                Assert.AreSame(eye.transform, ParryImpact.ResolveFeedbackEye(root.transform),
+                    "the hoop must originate from the rendered eye, never the player root at the feet");
+
+                Vector3 hoop = ParryImpulse.ShockOrigin(eye.transform.position, Vector3.zero, false, eye.transform.forward);
+                Assert.AreEqual(eye.transform.position + eye.transform.forward * ParryImpulse.ShockDistance, hoop,
+                    "the resolved eye's position and pitch are the hoop transform path");
+                Assert.Less(hoop.y, eye.transform.position.y,
+                    "a downward-pitched camera produces a downward-pitched crosshair hoop, not a level root hoop");
+            }
+            finally
+            {
+                Object.DestroyImmediate(fxRoot);
+                Object.DestroyImmediate(eye);
+                Object.DestroyImmediate(root);
+                singleton.SetValue(null, previous);
+            }
+        }
+
+        [Test]
+        public void ProjectileAndMeleeFeedbackUseTheCombatSourceRule()
+        {
+            Vector3 player = Vector3.zero;
+            Vector3 attackerBehind = new Vector3(0f, 0f, -8f);
+            Vector3 melee = ParryController.FeedbackSourceDirection(Vector3.zero, attackerBehind, player);
+            Assert.AreEqual(Vector3.back, melee.normalized,
+                "melee feedback stays attacker-based, exactly like the duel facing rule");
+
+            // The runner has already passed the perch, but the bolt is travelling from in front toward
+            // them. Its travel direction, not the obsolete perch position, tells the kick where it hit.
+            Vector3 projectile = ParryController.FeedbackSourceDirection(Vector3.back, attackerBehind, player);
+            Assert.AreEqual(Vector3.forward, projectile.normalized,
+                "projectile feedback must be opposite travel, exactly like projectile parry facing");
+        }
         // ---------------------------------------------------------------- the perfect shockwave
         //
         // The user's ask, 2026-09-07: "the perfect parry needs to have a minimal shockwave visual to

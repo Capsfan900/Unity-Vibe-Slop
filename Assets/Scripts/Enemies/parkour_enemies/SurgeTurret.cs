@@ -57,7 +57,7 @@ namespace VibeGame1
 
             // The confirmation is AUDIO ONLY and it RISES with the stack, so the player hears the ladder
             // climbing without looking at the strip. No new HUD element: StatusStripView already prints
-            // "SPEED x1.36" off SpeedMultiplier, and the strip is where a speed state belongs.
+            // "SPEED SURGE xN" from the live ParrySurge, and the strip is where a speed state belongs.
             float pitch = Mathf.Lerp(1.15f, 1.6f, Mathf.InverseLerp(1, Mathf.Max(1, data.parrySurgeMaxStacks), LastSurge.Stacks));
             AudioManager.Play(Sfx.Tick, 0.7f, pitch, 0.02f);
         }

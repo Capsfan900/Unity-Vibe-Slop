@@ -50,6 +50,8 @@ MonoBehaviour:
   projectileMaxRange: 32
   projectileLead: 1
   projectileHomingDegPerSec: 150
+  projectileAllowTightRouteShots: 0
+  projectileIgnoreDepartureSupport: 1
   parriedProjectileDamage: 45
   parriedProjectilePosture: 50
   parrySpeedGain: 9

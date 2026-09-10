@@ -113,16 +113,23 @@ namespace VibeGame1
                  "misses and you cannot parry'). 0 = a straight line. 180 makes a bolt that always arrives at a runner " +
                  "while still reading as a line; the cue and the speed are untouched.")]
         public float projectileHomingDegPerSec = 0f;
+        [Tooltip("Uses an exact predicted-path obstruction check for a traversal-support sentry instead of the " +
+                 "broad player-contact-radius sweep that brushes nearby parkour geometry. It never bypasses range, " +
+                 "line of sight, solid walls, frontal arrival or cue safety. Keep false for Heavy Sentries and Surge Turrets.")]
+        public bool projectileAllowTightRouteShots;
+        [Tooltip("For a broad-clearance shooter standing on a perch, ignores only that collider's radius-only " +
+                 "brush while the forecast is leaving it. The bolt centreline, adjacent blockers, and any later " +
+                 "re-entry still reject the shot. Used by the Heavy Sentry; keep false for Surge Turrets.")]
+        public bool projectileIgnoreDepartureSupport;
         public float parriedProjectileDamage = 30f;
         public float parriedProjectilePosture = 40f;
         [Tooltip("Metres per second added along the look on a perfect deflect of a bolt.")]
         public float parrySpeedGain = 6f;
 
         [Header("Parry surge — pshooter_enemy03 (2026-09-06)")]
-        [Tooltip("How much FirstPersonMotor.SpeedMultiplier one deflected bolt from this enemy is worth. " +
-                 "0 (the default) means this enemy pays no surge at all, which is every enemy but the turret. " +
-                 "Driven by SurgeTurret -> ParrySurge; the multiplier is the existing item-speed hook and the " +
-                 "HUD status strip already shows it. See SurgeMath.")]
+        [Tooltip("How much FirstPersonMotor.SpeedMultiplier one deflected bolt from this enemy is worth through " +
+                 "its dedicated SurgeTurret payout. 0 means it uses no enemy-specific payout; ordinary Perfects " +
+                 "still use PlayerStatsData's shared surge ladder. The HUD status strip shows live stacks.")]
         public float parrySurgeStep;
         [Tooltip("The ceiling: how many deflects may stack. 1 + step x maxStacks is the fastest the player " +
                  "can ever be made by this enemy.")]

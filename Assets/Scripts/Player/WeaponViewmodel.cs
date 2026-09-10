@@ -546,6 +546,93 @@ namespace VibeGame1
             anim = null;
         }
 
+        // ---- perfect deflect recoil --------------------------------------------------------------
+
+        /// <summary>
+        /// A perfect deflect drives the weapon DOWN and OUT of its CURRENT pose, then lets it settle
+        /// back there. It is deliberately separate from <see cref="GuardImpact"/>: a held guard's
+        /// blocked thud begins at the authored guard stance and has its own heavier timing, while this
+        /// is the sharp confirmation earned by both a tap and a hold.
+        /// </summary>
+        public const float DeflectKickPush = 0.03f;
+        public const float DeflectKickHold = 0.02f;
+        public const float DeflectKickRecover = 0.10f;
+        public const float DeflectKickTotal = DeflectKickPush + DeflectKickHold + DeflectKickRecover;
+
+        /// <summary>
+        /// Same down-and-out language as the guard thud, reduced for a won deflect. Positive local X
+        /// moves farther into the lower-right weapon lane; negative Y lowers it; shallow Z keeps the
+        /// business end out of the crosshair instead of enlarging it toward the lens.
+        /// </summary>
+        public static readonly Pose DeflectKickOffset = new Pose(
+            new Vector3(0.055f, -0.065f, -0.015f), new Vector3(9f, 0f, -7f));
+
+        /// <summary>Pure recoil path for focused tests: 30 ms push, 20 ms contact hold, 100 ms settle.</summary>
+        public static Pose DeflectKickPose(Pose live, Pose settle, float elapsed)
+        {
+            Pose impact = new Pose(live.pos + DeflectKickOffset.pos, live.euler + DeflectKickOffset.euler);
+            if (elapsed <= 0f) return live;
+            if (elapsed < DeflectKickPush) return Pose.Lerp(live, impact, EaseOut(elapsed / DeflectKickPush));
+            if (elapsed < DeflectKickPush + DeflectKickHold) return impact;
+            if (elapsed < DeflectKickTotal)
+                return Pose.Lerp(impact, settle, EaseInOut((elapsed - DeflectKickPush - DeflectKickHold) / DeflectKickRecover));
+            return settle;
+        }
+
+        /// <summary>
+        /// Play the dedicated perfect-deflect recoil from the live model transform. No guarding condition:
+        /// a tap parry deserves the same physical confirmation as a held deflect.
+        /// </summary>
+        public void DeflectImpact()
+        {
+            if (model == null || data == null) return;
+            Pose live = new Pose(model.localPosition, model.localRotation.eulerAngles);
+            Stop();
+            holding = false;
+            anim = StartCoroutine(DeflectImpactCo(live));
+        }
+
+        IEnumerator DeflectImpactCo(Pose live)
+        {
+            Pose settle = guarding || GuardWanted ? data.guard : data.idle;
+            float t = 0f;
+            while (t < DeflectKickPush)
+            {
+                current = DeflectKickPose(live, settle, t);
+                ApplyPose(current); t += TimeScaleController.PlayerDelta; yield return null;
+            }
+
+            current = DeflectKickPose(live, settle, DeflectKickPush);
+            ApplyPose(current);
+            t = 0f;
+            while (t < DeflectKickHold) { t += TimeScaleController.PlayerDelta; yield return null; }
+
+            t = 0f;
+            while (t < DeflectKickRecover)
+            {
+                settle = guarding || GuardWanted ? data.guard : data.idle;
+                current = DeflectKickPose(live, settle, DeflectKickPush + DeflectKickHold + t);
+                ApplyPose(current); t += TimeScaleController.PlayerDelta; yield return null;
+            }
+
+            current = guarding || GuardWanted ? data.guard : data.idle;
+            ApplyPose(current);
+            // A held deflect is already AT the guard pose. Replaying PlayGuard here would add GuardArc's
+            // second outward bump after the authored 0.15 s recoil. Hold this settled pose in the same
+            // coroutine until EndGuard/another action interrupts it; a tap falls through to idle normally.
+            if (guarding || GuardWanted)
+            {
+                holding = true;
+                while (holding)
+                {
+                    current = data.guard;
+                    ApplyPose(current);
+                    yield return null;
+                }
+            }
+            anim = null;
+        }
+
         /// <summary>
         /// Kick the guard on impact: a short shove of the stance away from the blow, snapping back.
         /// A guard that eats all the damage has to show the hit somewhere or it reads as nothing

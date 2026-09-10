@@ -49,6 +49,18 @@ namespace VibeGame1
             return predictedContact + ForecastStep >= earliestContact;
         }
 
+        /// <summary>
+        /// Schedules a rejected autonomous shot for the first launch time whose unchanged flight would
+        /// reach the open contact slot. Advancing a whole metronome beat here can reproduce the same tie
+        /// forever when two sentries share a phase, starving whichever component updates second.
+        /// </summary>
+        public static float RetryTimeForContactSlot(float now, float predictedContact,
+                                                    float earliestContact)
+        {
+            float delay = earliestContact - predictedContact + ForecastStep;
+            return now + Mathf.Max(ForecastStep, delay);
+        }
+
         /// <summary>Applies the one steering step shared by forecast and runtime flight.</summary>
         public static Vector3 HomingDirection(Vector3 currentDirection, Vector3 projectilePosition,
                                               Vector3 targetPosition, float homingDegPerSecond,

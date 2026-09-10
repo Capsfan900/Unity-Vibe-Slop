@@ -32,8 +32,8 @@ namespace VibeGame1
         public Color ultFlash = new Color(1f, 0.5f, 0.15f, 1f);    // ember
 
         [Header("Post FX pulses")]
-        public float parryChromatic = 0.6f;
-        public float parryChromaticTime = 0.25f;
+        public float parryChromatic = 0.35f;
+        public float parryChromaticTime = 0.12f;
         [Tooltip("Metres of shove the player takes when a blow lands on a HELD guard. The guard eats " +
                  "the damage, so the impact has to arrive as movement or it reads as nothing happening.")]
         public float guardShove = 1.2f;

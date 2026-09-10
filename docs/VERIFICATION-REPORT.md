@@ -11,6 +11,46 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Blue-sentry recovery, run scoring, status stacks and parry feel — 2026-09-09
+
+- **Final full EditMode: 1010/1010 passed**, zero failures/skips, 162.7 s. The focused affected surface
+  passed **80/80**; its projectile/Heavy/unchanged-Surge slice passed **57/57**.
+- **Full FeatureTests: 804/804 passed**, zero failures/skips, 58.9 s, from a fresh `Level_01` session
+  after confirming `GameManager.I != null` and `Time.timeScale == 1`. The live HUD readback included
+  `RUN 3600/3560  FOES 0/4  SPLITS 2/4`, and the status toggle hid only effect rows.
+- **Ordinary blue sentries are active again.** Fresh shipped-scene probes observed repeated autonomous
+  emissions in every tight parkour tier: cumulative `Fired` counters reached 11/10 for both T1 shooters,
+  9/8 for both T2 shooters, and 16 for the T3 ordinary shooter. These prove route activity, not a measured
+  cadence; shipped cadence remains the data-pinned 1.6 s. A real incoming blue bolt driven
+  through `ParryController` and `PlayerCombat.ReceiveAttack` resolved Perfect, reflected, dealt no damage,
+  and granted one 1.12x speed stack.
+- **The shipped T3 Heavy is no longer self-silenced by `T3_Perch_E`.** At route position
+  `(-2.5, 25.7, 290)`, it progressed through two live emissions to exactly three and ended its phrase;
+  the authored 0.42 s contact cadence and 2.4 s quiet period remain data-pinned. A temporary solid blocker
+  rejected a subsequent launch. Departure tests also reject an enclosing support, centreline obstruction
+  and a sibling collider; source review confirms the production query fails closed if its hit buffer fills.
+  Ramp Surge Turret policy/tuning remains unchanged.
+- **Run contract readback:** Level_01 requires **3560 souls**, four distinct regular spawners, and the
+  ordered Ninja/Knight/Spellsword/Warden endpoints. The baseline is exact: 400 + 600 + 900 + 1500 boss
+  souls plus four 40-soul regulars. Split targets are 55/60/70/40 s and D/C/B/A/S bonuses are
+  0/25/50/75/100. Terminal evaluation is frozen before progression and ghost handling.
+- **Parry/status integration:** every non-Surge-Turret Perfect pays one +0.12 speed stack, capped at five,
+  with one-stack-at-a-time 2.0 s decay. The existing opening turret keeps its dedicated 1.4 s payout and
+  cannot double-pay. Live HUD toggling preserved the mandatory run row while hiding/restoring the speed
+  effect. Parry feedback now shares the combat source direction and camera eye, always kicks the viewmodel,
+  and uses the authored 0.35 chromatic contact for 0.12 s.
+- **Whole-fight harnesses: PASS.** `parry` executed Knight and Ninja after 8 and 5 perfect deflects with
+  no player damage; `boss` completed all phases and stopped the timer; `death` returned to Playing with
+  full health/flasks and a reset enemy.
+- **Offline compile:** runtime 0 warnings/errors; editor 0 errors with 18 known warnings. **Health Check:**
+  no error section and 1932 broad serialized-null warnings; the validator remains noisy for runtime-wired
+  HUD fields, so this is recorded rather than described as a pristine result.
+
+**Still human-only:** judge whether the frequent blue shots create useful traversal choices at real input
+speed, whether the Heavy's three-parry rhythm is fair while moving, whether the tighter recoil/chromatic
+accent feels visceral without obscuring the next cue, and whether the top-left stack/run display reads
+cleanly during a complete scored run. Automated and harness timing is frame-perfect and cannot prove feel.
+
 ### Expanded route, projectile regression recovery and enemy-AI audit — 2026-09-09
 
 - **Final full EditMode: 981/981 passed**, zero failures/skips, 158.0 s. An earlier 973/979 run exposed one

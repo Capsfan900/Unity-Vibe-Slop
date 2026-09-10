@@ -39,6 +39,19 @@ namespace VibeGame1
         [Tooltip("Ordering within LevelRegistry. Lower runs first.")]
         public int orderIndex = 0;
 
+        [Header("Run scoring")]
+        [Tooltip("Run souls required before defeating the boss records this level as complete. Zero preserves legacy completion.")]
+        [Min(0)] public int requiredRunSouls = 0;
+
+        [Tooltip("Distinct non-split enemy spawners required before defeating the boss records this level as complete. Zero preserves legacy completion.")]
+        [Min(0)] public int requiredRegularKills = 0;
+
+        [Tooltip("Extra souls awarded for each split grade. Enemy base souls remain owned by EnemyController.")]
+        public RunGradeBonusDef gradeBonuses = new RunGradeBonusDef();
+
+        [Tooltip("Ordered run checkpoints. A split closes only when its named spawner dies after all prior splits.")]
+        public RunSplitDef[] runSplits = new RunSplitDef[0];
+
 
         [Header("Player")]
         [Tooltip("Where the run begins. The Player prefab is placed here and LevelManager.startSpawn points at it.")]
@@ -328,6 +341,37 @@ namespace VibeGame1
         [Tooltip("When enabled, the existing gated arena becomes a portal sun. The gate and clear-spawner " +
                  "contract stays unchanged; only the fight's physical room moves to the remote realm.")]
         public SolarRealmDef solarRealm = new SolarRealmDef();
+    }
+
+    /// <summary>One ordered timing segment in a level run.</summary>
+    [Serializable]
+    public class RunSplitDef
+    {
+        [Tooltip("Stable display and telemetry name for this split.")]
+        public string name = "Split";
+
+        [Tooltip("The EnemySpawner whose unique kill closes this split.")]
+        public string endSpawnerName = "";
+
+        [Tooltip("Inclusive grade thresholds in ascending order. At or under S is S; over C is D.")]
+        [Min(0f)] public float sSeconds = 30f;
+        [Min(0f)] public float aSeconds = 35f;
+        [Min(0f)] public float bSeconds = 40f;
+        [Min(0f)] public float cSeconds = 45f;
+    }
+
+    /// <summary>Split grades, ordered from slowest to fastest for stable serialized values.</summary>
+    public enum SplitGrade { D, C, B, A, S }
+
+    /// <summary>Data-authored bonus souls awarded for a split grade.</summary>
+    [Serializable]
+    public class RunGradeBonusDef
+    {
+        [Min(0)] public int dSouls = 0;
+        [Min(0)] public int cSouls = 0;
+        [Min(0)] public int bSouls = 0;
+        [Min(0)] public int aSouls = 0;
+        [Min(0)] public int sSouls = 0;
     }
 
     /// <summary>

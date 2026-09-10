@@ -31,21 +31,37 @@ namespace VibeGame1
         /// itself called by <c>PlayerCombat</c> on the frame a Perfect resolves — so this lands on the
         /// same frame as the flash, the sparks and the enemy recoil, not a frame after them.
         /// </summary>
-        /// <param name="playerEye">Anything on the player; used only to locate the camera rig.</param>
-        /// <param name="attackerPos">World position of the attacker, for the kick direction.</param>
-        public static void Deflect(Transform playerEye, Vector3 attackerPos, bool haveAttacker)
+        /// <param name="playerRoot">Anything on the player; used only as a fallback when no camera exists.</param>
+        /// <param name="sourceDirection">World direction FROM the player toward the attack source.</param>
+        public static void Deflect(Transform playerRoot, Vector3 sourceDirection, bool haveSource)
         {
+            // Resolve once. The perfect hoop is a screen-space confirmation, so its eye has to be the
+            // actual rendered eye, not the player root at the character's feet. Reusing this transform
+            // for the kick also guarantees its directional force agrees with what the player saw.
+            Transform eye = ResolveFeedbackEye(playerRoot);
             // Before the settings guard on purpose: the confirmation that a Perfect happened is the one
             // layer that must never be contingent on an unrelated asset having loaded.
-            Shockwave(playerEye, attackerPos, haveAttacker);
+            Shockwave(eye);
 
             var feel = GameManager.I != null ? GameManager.I.feel : null;
             if (feel == null) return;
 
             HitStopRelease(feel);
-            CameraKick(playerEye, attackerPos, haveAttacker, feel);
+            CameraKick(eye, sourceDirection, haveSource, feel);
             FovPunch(feel);
             Layers(feel);
+        }
+
+        /// <summary>
+        /// The single camera-selection seam for a deflect. CameraFX owns the actual gameplay camera;
+        /// Camera.main is the safe standalone/test fallback; the player root is only the final fallback.
+        /// Keeping the selection here stops a hoop and a kick ever using different eyes.
+        /// </summary>
+        public static Transform ResolveFeedbackEye(Transform fallback)
+        {
+            if (CameraFX.I != null && CameraFX.I.cam != null) return CameraFX.I.cam.transform;
+            var main = Camera.main;
+            return main != null ? main.transform : fallback;
         }
 
         /// <summary>
@@ -66,12 +82,12 @@ namespace VibeGame1
         /// <para>All numbers live in <see cref="ParryImpulse"/> (rule 9) and are pinned by
         /// <c>ParryImpactTests</c>.</para>
         /// </summary>
-        static void Shockwave(Transform playerEye, Vector3 attackerPos, bool haveAttacker)
+        static void Shockwave(Transform eye)
         {
-            Vector3 pos = playerEye != null ? playerEye.position : Vector3.zero;
-            Vector3 fwd = playerEye != null ? playerEye.forward : Vector3.forward;
-            SlashFx.Ring(ParryImpulse.ShockOrigin(pos, attackerPos, haveAttacker, fwd),
-                         ParryImpulse.ShockNormal(pos, attackerPos, haveAttacker, fwd),
+            Vector3 pos = eye != null ? eye.position : Vector3.zero;
+            Vector3 fwd = eye != null ? eye.forward : Vector3.forward;
+            SlashFx.Ring(ParryImpulse.ShockOrigin(pos, Vector3.zero, false, fwd),
+                         ParryImpulse.ShockNormal(pos, Vector3.zero, false, fwd),
                          ParryImpulse.ShockHue,
                          ParryImpulse.ShockRadius,
                          ParryImpulse.ShockSeconds);
@@ -102,22 +118,16 @@ namespace VibeGame1
         /// omnidirectional by construction: it told you something happened and nothing about what. This
         /// is an authored impulse pointed away from the blade that actually hit you.
         /// </summary>
-        static void CameraKick(Transform playerEye, Vector3 attackerPos, bool haveAttacker, GameFeelSettings feel)
+        static void CameraKick(Transform eye, Vector3 sourceDirection, bool haveSource, GameFeelSettings feel)
         {
             if (CameraShake.I == null) return;
 
-            Transform cam = CameraFX.I != null && CameraFX.I.cam != null ? CameraFX.I.cam.transform : null;
-            if (cam == null)
-            {
-                var c = Camera.main;
-                cam = c != null ? c.transform : null;
-            }
-
             Vector3 blowLocal = Vector3.forward;
-            if (cam != null)
+            if (haveSource && sourceDirection.sqrMagnitude > 1e-6f)
             {
-                Vector3 world = haveAttacker ? attackerPos - cam.position : cam.forward;
-                if (world.sqrMagnitude > 1e-6f) blowLocal = cam.InverseTransformDirection(world.normalized);
+                blowLocal = eye != null
+                    ? eye.InverseTransformDirection(sourceDirection.normalized)
+                    : sourceDirection.normalized;
             }
 
             var k = ParryImpulse.FromBlow(blowLocal, feel.parryKickPitch, feel.parryKickYaw,

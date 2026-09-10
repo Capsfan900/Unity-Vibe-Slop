@@ -112,6 +112,8 @@ namespace VibeGame1
             GameEvents.PlayerRespawned += OnRespawned;
             GameEvents.CheckpointReached += OnCheckpoint;
             GameEvents.BossDefeated += OnBossDefeated;
+            GameEvents.SplitGraded += OnSplitGraded;
+            GameEvents.LevelRunEvaluated += OnLevelRunEvaluated;
             GameEvents.UltimateUsed += OnUltimate;
             GameEvents.BossStarted += OnBossStarted;
             GameEvents.ItemsChanged += OnItemsChanged;
@@ -134,6 +136,8 @@ namespace VibeGame1
             GameEvents.PlayerRespawned -= OnRespawned;
             GameEvents.CheckpointReached -= OnCheckpoint;
             GameEvents.BossDefeated -= OnBossDefeated;
+            GameEvents.SplitGraded -= OnSplitGraded;
+            GameEvents.LevelRunEvaluated -= OnLevelRunEvaluated;
             GameEvents.UltimateUsed -= OnUltimate;
             GameEvents.BossStarted -= OnBossStarted;
             GameEvents.ItemsChanged -= OnItemsChanged;
@@ -497,10 +501,44 @@ namespace VibeGame1
 
         void OnBossDefeated()
         {
+            // Scored levels publish one frozen adjudication after the timer stops. Waiting for it keeps
+            // the clear banner, progression and ghost recorder on the same success/failure answer.
+            if (LevelRunScorer.I != null) return;
             deathblowReady = false;
             string time = SpeedrunTimer.I != null ? SpeedrunTimer.Format(SpeedrunTimer.I.Elapsed) : "";
             ClearMomentary();
             ShowCenter($"LEVEL CLEAR\n{time}", Ember, 8f);
+            if (GameManager.I != null) StartCoroutine(WinCo());
+        }
+
+        void OnSplitGraded(RunSplitResult result)
+        {
+            string bonus = result.soulBonus > 0 ? $"  +{result.soulBonus} SOULS" : "";
+            string splitName = string.IsNullOrEmpty(result.name) ? "SPLIT" : result.name.ToUpperInvariant();
+            ShowCenter($"{splitName}  {result.grade}\n{SpeedrunTimer.Format(result.seconds)}{bonus}",
+                       (int)result.grade >= (int)SplitGrade.A ? Ember : SoulsRest, 1.6f);
+        }
+
+        void OnLevelRunEvaluated(LevelRunResult result)
+        {
+            deathblowReady = false;
+            ClearMomentary();
+            string finalSplit = result.hasFinalSplit
+                ? $"\n{(string.IsNullOrEmpty(result.finalSplit.name) ? "SPLIT" : result.finalSplit.name.ToUpperInvariant())}  " +
+                  $"{result.finalSplit.grade}" + (result.finalSplit.soulBonus > 0 ? $"  +{result.finalSplit.soulBonus} SOULS" : "")
+                : "";
+            if (result.completed)
+            {
+                ShowCenter($"LEVEL CLEAR\n{SpeedrunTimer.Format(result.elapsedSeconds)}{finalSplit}", Ember, 8f);
+            }
+            else
+            {
+                string missing = $"\n{SpeedrunTimer.Format(result.elapsedSeconds)}";
+                if (!result.quotaMet) missing += $"\nSOULS  {result.earnedSouls}/{result.requiredSouls}";
+                if (!result.regularKillsMet) missing += $"\nENEMIES  {result.regularKills}/{result.requiredRegularKills}";
+                if (!result.splitsCompleted) missing += $"\nSPLITS  {result.completedSplits}/{result.splitCount}";
+                ShowCenter("RUN INCOMPLETE" + missing + finalSplit, PostureDanger, 8f);
+            }
             if (GameManager.I != null) StartCoroutine(WinCo());
         }
 

@@ -17,6 +17,39 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
+  requiredRunSouls: 3560
+  requiredRegularKills: 4
+  gradeBonuses:
+    dSouls: 0
+    cSouls: 25
+    bSouls: 50
+    aSouls: 75
+    sSouls: 100
+  runSplits:
+  - name: Ninja
+    endSpawnerName: Spawn_Legendary_Ninja
+    sSeconds: 55
+    aSeconds: 63.25
+    bSeconds: 71.5
+    cSeconds: 82.5
+  - name: Knight
+    endSpawnerName: Spawn_Legendary_Knight
+    sSeconds: 60
+    aSeconds: 69
+    bSeconds: 78
+    cSeconds: 90
+  - name: Spellsword
+    endSpawnerName: Spawn_Legendary_Spellsword
+    sSeconds: 70
+    aSeconds: 80.5
+    bSeconds: 91
+    cSeconds: 105
+  - name: Warden
+    endSpawnerName: Spawn_Boss
+    sSeconds: 40
+    aSeconds: 46
+    bSeconds: 52
+    cSeconds: 60
   playerStart: {x: 0, y: 36.3, z: -162.3}
   playerStartYaw: 0
   platforms:

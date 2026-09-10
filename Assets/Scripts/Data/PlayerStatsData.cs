@@ -33,6 +33,14 @@ namespace VibeGame1
         [Tooltip("Floor for a clamped recovery, so a deflect still reads as a distinct beat.")]
         public float parryMinRecovery = 0.05f;
 
+        [Header("Parry Speed Surge")]
+        [Tooltip("Speed multiplier added for each perfect parry outside the opening Surge Turret row.")]
+        public float generalParrySurgeStep = 0.12f;
+        [Tooltip("Maximum speed-surge stacks earned from ordinary enemies, elites, and bosses.")]
+        public int generalParrySurgeMaxStacks = 5;
+        [Tooltip("Seconds between one-stack decay steps after the latest ordinary, elite, or boss perfect parry.")]
+        public float generalParrySurgeSeconds = 2f;
+
         [Header("Posture (Sekiro)")]
         public float basePosture = 100f;
         public float posturePerVitality = 4f;

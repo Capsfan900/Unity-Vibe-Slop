@@ -3,7 +3,8 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// The arithmetic of the PARRY SURGE -- the speed a row of <c>pshooter_enemy03</c> turrets pays out --
+    /// The arithmetic of the PARRY SURGE -- the speed that eligible Perfects pay out, including the
+    /// dedicated <c>pshooter_enemy03</c> turret row --
     /// with no Unity objects in it (the <see cref="ProjectileMath"/> / <see cref="FlareMath"/> arrangement):
     /// <see cref="ParrySurge"/> is the thin layer that hands these numbers to
     /// <c>FirstPersonMotor.SpeedMultiplier</c>, and <c>SurgeTurretTests</c> drives the maths.

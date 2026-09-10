@@ -260,6 +260,10 @@ EnemyController.Update()
                  guarding = InputReader.ParryHeld (RMB DOWN) && not staggered/executing/drinking/ATTACKING
                  timing first, stance second — the guard only ever upgrades a would-be Hit:
                  Perfect → no damage, enemy posture, FULL Pyre gain, hitstop, flash   ⇢ ParryResolved
+                           → `ParryController.NotifyDeflected()` closes into success recovery, then
+                             `ParryImpact` resolves the rendered camera eye, applies the source-direction
+                             kick / FOV / stepped release / layered audio, and `WeaponViewmodel.DeflectImpact()`
+                             recoils from its live pose for both a tap and a held deflect
                  Blocked (timed, late press) → damage × 0.3, PLAYER posture × 0.9, Pyre × 0.35
                  Blocked (HELD GUARD)        → damage × 0.0, PLAYER posture × 1.5, NO Pyre,
                                                guardHitStop 0.05, guardShove 1.2 m, spark at the blade,
@@ -303,6 +307,14 @@ Timing budget for one attack:
   different input from the guard, it is the guard pressed at the right moment.
 - `ParryController.GuardHeld` is settable (`ReleaseGuardOverride()` hands control back to the button),
   following the `TryJump` / `TryDash` idiom, so `FeatureTests > Guard` can hold a stance with no device.
+- **Deflect feedback uses the combat source rule.** Melee uses the attacker; a projectile uses the direction
+  opposite its travel, so the kick, sparks and arc still agree with the actual hit after the runner has
+  passed the sentry. `ParryImpact` resolves its eye once from `CameraFX` (then `Camera.main`, then player
+  fallback): the hoop and directional kick must use the rendered eye, never the root at the player's feet.
+- **A perfect has its own recoil, not the guard thud.** `WeaponViewmodel.DeflectImpact()` starts at the live
+  pose and settles to guard or idle on `TimeScaleController.PlayerDelta`; it is valid for tap and hold.
+  `GuardImpact()` remains the heavier blocked-guard-only response. The chromatic accent is 0.35 for 0.12 s:
+  contact texture, not a veil over the next cue.
 
 ---
 
@@ -827,18 +839,24 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
     calls it on AttackInfo.attacker, and Projectile puts the shooter there.
 
   PlayerCombat.ReceiveAttack → ParryResult.Perfect → attacker.OnParried(postureDamage)
-    → SurgeTurret.OnParried: base first (recoil, posture), then
+    → for every NON-SurgeTurret attacker, PlayerCombat grants the shared player-authored ladder:
+       ParrySurge.Grant(motor, stats.generalParrySurgeStep, generalParrySurgeMaxStacks,
+         generalParrySurgeSeconds). Shipped: +0.12, cap 5, one-stack decay every 2.0 s. A new
+         qualifying Perfect refreshes the decay deadline; misses, blocks and hits do not reset it.
+    → SurgeTurret.OnParried owns the opening ramp's existing dedicated ladder instead, so it is
+       excluded from the shared grant and never double-pays: base first (recoil, posture), then
        postureDamage <= 0 → RETURN.  That is UltimateAbility line 261's courtesy call, not a parry; the
          super must not hand out the whole ladder for free.
        → ParrySurge.Grant(motor, data.parrySurgeStep, parrySurgeMaxStacks, parrySurgeSeconds)
+         (shipped ramp timing remains +0.12, cap 5, 1.4 s one-stack decay)
        → Sfx.Tick at a pitch that RISES with the stack (audio only: no new HUD element)
     ...and independently, inside Projectile as for any sentry, the deflected bolt turns around, shoves the
     player along their look (parrySpeedGain 9) and comes home to kill the 1 HP body. The parry IS the kill.
 
-  ParrySurge (on the PLAYER, added at runtime by Grant -- the Player prefab is untouched)
+  ParrySurge (on the PLAYER, added at runtime by the first eligible Perfect -- the Player prefab is untouched)
     the ONLY driver of FirstPersonMotor.SpeedMultiplier (FirstPersonMotor.cs:301), the existing item-speed
     hook nothing shipped had used. No motor entry point added, no velocity written (hard rule 10), no new
-    resource. StatusStripView already renders it as "SPEED x1.36".
+    resource. StatusStripView renders its actual stack count as "SPEED SURGE xN".
     stacks = SurgeMath.Grant(stacks, max)          one per deflect, capped
     SpeedMultiplier = SurgeMath.Multiplier(stacks, step) = 1 + stacks x step
     Update (TimeScaleController.PlayerDelta, hard rule 1 -- hitstop never freezes the surge or its timer):
@@ -1018,7 +1036,8 @@ NEAR-BREAK read   (EnemyPostureBar.LateUpdate + EnemyVisuals.SetPostureRatio)
    repeating beat: several near-break enemies ticking every ~0.22 s would spam the shared one-shot pool).
 THE SURGE TURRET  (pshooter_enemy03; sandbox pads x -8 / -3 / 2, z -26, a ROW of three) -- SurgeTurret,
    an EnemyController subclass. rangedOnly, so Chase holds the perch and tracks; 1 HP, unreachable posture,
-   no flare. Its OnParried pays a speed surge through ParrySurge. Full flow above, "THE SURGE TURRET".
+   no flare. Its OnParried pays the ramp's dedicated 1.4 s speed-surge timing through ParrySurge and is
+   excluded from PlayerCombat's general 2.0 s Perfect payout to prevent a double stack. Full flow above.
 THE DRILLMASTER   (Legendary_Drillmaster; sandbox pad x 14, z -26, SpawnEnemyInFront 9) -- the showcase body:
    every signature on cooldown, a 1.25 s DELAYED overhead in a 0.5 s fight, a feint, an unblockable kick,
    a far-band lunge, flaskPunishChance 1.0, posture 150. Knight silhouette in slate and cold blue.
@@ -1301,9 +1320,19 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
      ProjectileFlightMath.Plan(real root, chest, motor.Velocity, desired speed, lead, homing, hit radius,
              CueLead + CueMargin) solves the exact constant-velocity intercept, then sweeps forecast projectile
              and player spheres with the same moving-intercept capped-homing step the runtime uses.
+     → world-obstruction forecast: the ordinary blue `pshooter_enemy01` traversal sentry linecasts the
+       exact predicted path through tight route geometry; Heavy Sentry and Surge Turret retain the 1 m
+       broad clearance sweep. All three still require band, LOS, frontal arrival, forecast contact and cue safety.
+       The Heavy's generated `projectileIgnoreDepartureSupport` may ignore only the collider detected
+       directly beneath it while the 1 m forecast leaves that support. The actual centreline, a buried
+       muzzle, any sibling collider, a full NonAlloc hit buffer, and the same support after departure all
+       fail closed. Surge Turrets never inherit this policy.
       → no contact / unsafe cue / blocked sweep:
              refuse this emission; a burst phrase cancels deterministically
      → READY: fire at the plan's launchPosition, direction and fastest cue-safe speed
+     → autonomous arrival reservation occupied: ordinary blue sentry retries at the first safe predicted
+       contact slot; it does not advance one full beat and preserve a same-phase tie forever. Heavy and Surge
+       retain their existing beat behavior.
      → burstCount 3: reserve the next predicted CONTACT at +0.42 s, re-plan and revalidate before each follow-up;
              after emission three the Heavy rests for projectileInterval 2.4 s
      a 0.55 m Bolt core at the chest --
@@ -1339,6 +1368,13 @@ Projectile.Update()  (scaled time: hitstop freezes it)
   contact at or beyond 0.44 s; the planner slows only as much as required, and refuses impossible shots.
 - **A bolt in flight is an INCOMING ATTACK** (`BoltRegistry`, F2). The two cue helpers on `EnemyController` read it with NO range test — a bolt is already aimed at you, so its arrival time is the question, not its perch's distance. Melee's 6 m `InThreatRange` is untouched.
 - **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed** (`ArrivesInFront`, F3). Route windows describe geometry, not the player's parry state; every follow-up still earns a legal shot.
+- **Tight-route permission narrows only the clearance shape.** `EnemyData.projectileAllowTightRouteShots`
+  makes the ordinary blue traversal sentry use a thin exact path, not a world-collision exemption; solid
+  walls, LOS, arrival contact, frontal readability and cue safety remain gates. Heavy Sentries and already-
+  tuned Surge Turrets must stay on their conservative 1 m clearance sweep.
+- **Arrival spacing is an arrival contract, not Update order.** When equal-phase ordinary sentries contest a
+  contact, retry from the first open contact slot. Do not make both wait a whole interval, which recreates
+  their tie and starves the later updater.
 - **The cue lead is FLAT at 0.28 s and stays flat.** F5 lengthens the near FLIGHT (`CueMargin` 0.16, near edge 6 m) instead of scaling the lead with speed: the lead is a contract shared with every melee attack, and an elastic one would give the loudest signal in the game a variable meaning.
 - **The bolt is the one glow in traversal.** Every other effect stays under the 1.05 bloom cap; the bolt's core ships at 1.6 (`Projectile.HotCore`, pinned by `TheBoltIsTheOneGlowInTraversal`) because it is the ATTACK'S tell, and the shooter itself still never glows until it is deflected.
 - **A deflect buys speed through the motor** (`AddImpulse`), flattened along the LOOK — aim at the next ledge and deflect (rule 10; MOVEMENT-PRINCIPLES 5 and 6).
@@ -2089,11 +2125,14 @@ exterior SolarArenaPortal (player crosses the arena sun)
       → ⇢ OnZeroHealth → Posture.Break() + HoldStagger(5s)   = deathblow window
       → riposte (isExecute) → HandleDeath(): SegmentsLeft--, heal, next phase, roar
       → miss the window → HP restored to 12%, fight continues
-  3 segments consumed → ⇢ BossDefeated → timer stops, LEVEL CLEAR → back to the MENU
+  3 segments consumed → ⇢ BossDefeated
 
      BossDefeated
-        → SpeedrunTimer.Stop, RunRecorder saves the ghost, AudioManager fades the boss track
-        → HUDController.OnBossDefeated: "LEVEL CLEAR" + the run time, 8 s
+        → scored level: `LevelRunScorer` stops `SpeedrunTimer`, freezes one `LevelRunResult`, and ⇢ LevelRunEvaluated
+           → completed: `LevelProgress.RecordCompletion`, `RunRecorder` saves ghost, HUD "LEVEL CLEAR"
+           → incomplete: no progress write, `RunRecorder.Discard`, HUD "RUN INCOMPLETE" with unmet gates
+        → unscored legacy level: SpeedrunTimer / RunRecorder / HUD retain the direct BossDefeated completion path
+        → AudioManager fades the boss track
         → WinCo (all REALTIME waits -- Won may stop the clock):
              +2.0 s  GameManager.SetState(Won)
              +4.5 s  cursor released, TimeScaleController.ResetScale(),
@@ -2122,7 +2161,35 @@ Bloodstain OnTriggerEnter → SoulsWallet.Add(amount), destroy
      wallet at the moment of death, not after the respawn)
 LevelUpMenu (Tab) → UpgradeMath.Cost(level, base, growth) → TrySpend → PlayerStats.Increase(stat)
                   → PlayerStats.Apply() → Health.SetMax / PlayerPosture max / flask charges
+
+LevelDefinition run contract (optional; zero/empty preserves legacy completion)
+  → LevelRunScorer begins with SpeedrunTimer.RunStarted
+  → EnemyKilled → resolve its `EnemySpawner.Instance` → authored spawner name credited ONCE for this run
+       → count that enemy's existing base `EnemyData.soulValue` toward run-local earned souls
+       → non-split spawner → distinct regular-kill count
+       → only the CURRENT ordered `RunSplitDef.endSpawnerName` closes a split:
+            elapsed since prior split → D/C/B/A/S threshold → data-authored bonus → SoulsWallet.Add(bonus)
+            ⇢ SplitGraded + RunScoreChanged
+  → BossDefeated → `SpeedrunTimer.FinishRun()` → freeze `LevelRunResult`
+       → earned souls >= requiredRunSouls AND regular kills >= requiredRegularKills AND every split closed
+       → success only: LevelProgress.RecordCompletion + ghost save; otherwise discard ghost
+       ⇢ LevelRunEvaluated (the sole scored-level completion authority for HUD/progress/ghost)
 ```
+
+`Level_01` writes a 3560-soul and four-distinct-regular-spawner gate: 3400 from Ninja, Knight,
+Spellsword and Warden plus four 40-soul regulars. Its ordered endpoints are Ninja,
+Knight, Spellsword and Warden; split bonuses are D/C/B/A/S = 0/25/50/75/100. Its S segments are
+55/60/70/40 seconds, with A/B/C at 1.15/1.30/1.50× those times. The four boss rewards plus four regular
+enemies form the base requirement; bonuses are real earned souls and may help meet the inclusive soul gate.
+
+**Invariants**
+- **Run credit identifies authored spawners, not enemy instances.** Respawns and repeat deaths cannot farm a
+  quota or a split; test-spawned and un-authored enemies do not count.
+- **Splits are strictly ordered.** Killing a later endpoint early grants its base souls (once) but cannot
+  close or award that split; only the current endpoint advances the clock segment.
+- **`LevelRunEvaluated` is frozen once and is the scored-level terminal truth.** Consumers must not infer a
+  clear from `BossDefeated` when a scorer exists. Failed gates show the result then return to the menu, but
+  do not write `LevelProgress` or retain a ghost.
 
 ---
 
@@ -2333,7 +2400,7 @@ VibeGame1/4. Build Prefabs -> PrefabFactory.BuildPlayer()
 ## HUD
 
 ```
-gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
+gameplay ⇢ GameEvents  →  HUDController → widgets
    health / pyre / posture / boss health / boss posture → BarView
    PlayerPostureChanged / BossPostureChanged → BarView.SetNearBreak(ratio ≥ EnemyPostureBar.NearBreakRatio
         0.8, strength, NearBreakHz 4.5) (2026-09-06) — the player and boss posture bars now beat toward
@@ -2390,10 +2457,15 @@ gameplay ⇢ GameEvents (24 events)  →  HUDController → widgets
    ItemsChanged → StatusStripView (top-left, one gap under the loadout pane at y −144)
                                                             one line per HELD item, FIFO,
                                                             "> GRAPPLE" front / dimmed queue
+                  + RunScoreChanged / per-frame scorer read → persistent "RUN souls/required  FOES n/required
+                                                               SPLITS n/total" row when the level has a run contract
                   + per-frame read of the player (the StaminaView idiom, not an event):
                     motor.IsWallSurging   → "WALL SURGE  6.4s"  (WallSurgeRemaining, tenths)
-                    motor.SpeedMultiplier → "SPEED x1.5"        when ≠ 1
+                    ParrySurge.Stacks     → "SPEED SURGE xN"    when N > 0
+                    motor.SpeedMultiplier → "SPEED x1.5"        only for a non-ParrySurge speed source
                     Health.Invulnerable   → "GOD MODE"
+                  F1 developer menu → StatusStripView.StatusEffectsVisible flips active-effect rows only;
+                                      held-item and persistent run rows stay visible
                   blank when idle; the label is rewritten only when a shown value changes
 ```
 
@@ -2481,6 +2553,9 @@ FluidBar.shader (fragment)   bar-space x = uv.x × _Fill; surface = level + wave
 - **The status strip is one multi-line TMP label, rebuilt on change.** `StatusStripView.RowCount` /
   `IsEmpty` / `Text` are the test surface (`FeatureTests > HUD_StatusStrip*`); rows are rich-text
   lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.
+- **The developer effect toggle is effect-only and session-only.** It controls WALL SURGE / SPEED SURGE /
+  generic speed / GOD MODE rows, never held inventory or the level's persistent run contract. Live views
+  rebuild immediately so the F1 menu cannot leave stale text on screen.
 
 ---
 

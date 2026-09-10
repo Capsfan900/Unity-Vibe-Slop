@@ -72,8 +72,8 @@ namespace VibeGame1
         /// It exists so the deflect's camera kick can point somewhere. A kick with no direction is a
         /// shake, and this game already has one of those.
         /// </summary>
-        Vector3 lastBlowFrom;
-        bool haveBlowFrom;
+        Vector3 lastFeedbackSource;
+        bool haveFeedbackSource;
 
         PlayerStatsData d;
         WeaponController weapons;
@@ -234,8 +234,12 @@ namespace VibeGame1
             // The timing is evaluated FIRST and the stance only ever upgrades what would have been a
             // Hit. A hold can never manufacture a Perfect, so the deflect stays strictly better than
             // the guard and the whole design keeps pointing at the window.
-            haveBlowFrom = a.attacker != null;
-            if (haveBlowFrom) lastBlowFrom = a.attacker.transform.position;
+            // The feedback has to use the SAME source rule as the facing check. A melee blow comes
+            // from its attacker, while a bolt comes from against its travel so running past a perch
+            // does not make the kick point toward the perch behind the player.
+            haveFeedbackSource = a.attacker != null || a.incomingDirection.sqrMagnitude > 1e-6f;
+            Vector3 attackerPosition = a.attacker != null ? a.attacker.transform.position : transform.position;
+            lastFeedbackSource = FeedbackSourceDirection(a.incomingDirection, attackerPosition, transform.position);
 
             bool guarding = IsGuarding;
             float elapsed = Current == State.Active ? Time.time - pressTime : float.MaxValue;
@@ -247,6 +251,15 @@ namespace VibeGame1
             Debug.Log($"[Parry] {r} elapsed={(Current == State.Active ? elapsed * 1000f : -1f):F0}ms perfect={PerfectWindow * 1000f:F0}ms facing={facing} unblockable={a.unblockable} guard={guarding}");
 #endif
             return r;
+        }
+
+        /// <summary>
+        /// The feedback counterpart to combat-facing. Kept as a named seam because projectile travel
+        /// and attacker position intentionally disagree after the runner has passed a sentry.
+        /// </summary>
+        public static Vector3 FeedbackSourceDirection(Vector3 incomingDirection, Vector3 attackerPosition, Vector3 playerPosition)
+        {
+            return ParryMath.SourceDirection(incomingDirection, attackerPosition, playerPosition);
         }
 
         /// <summary>
@@ -269,13 +282,13 @@ namespace VibeGame1
             // AFTER EnterRecovery, never before. EnterRecovery calls EndParry, which re-asserts the
             // stance when the button is still down; kicking the blade first and then re-raising the
             // guard on top of it would eat the kickback entirely.
-            ParryImpact.Deflect(transform, lastBlowFrom, haveBlowFrom);
+            ParryImpact.Deflect(transform, lastFeedbackSource, haveFeedbackSource);
 
-            // The blade's own recoil. GuardImpact runs on PlayerDelta (rule 1), so while the world is
+            // The blade's own recoil. DeflectImpact runs on PlayerDelta (rule 1), so while the world is
             // frozen at 0.02 the weapon is the ONE thing still moving — the strongest weight cue in the
-            // package and it costs nothing. It is a no-op unless the stance is actually up, which is
-            // correct: a tap parry has no raised blade to kick.
-            if (viewmodel != null && viewmodel.IsGuarding) viewmodel.GuardImpact();
+            // package and it costs nothing. It starts from the live pose, so tap and hold deflects both
+            // get the same physical confirmation while the blocked-guard thud stays separate.
+            if (viewmodel != null) viewmodel.DeflectImpact();
         }
 
         public void Cancel()

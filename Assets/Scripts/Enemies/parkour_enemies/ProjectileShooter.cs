@@ -60,6 +60,8 @@ namespace VibeGame1
         bool acquired;
         bool sequenceControlled;
         static Material boltMat;
+        const int BroadClearanceHitCapacity = 8;
+        static readonly RaycastHit[] broadClearanceHits = new RaycastHit[BroadClearanceHitCapacity];
 
         // One shared contact reservation closes the reacquisition bug where two different launch phases
         // collapsed to now + acquireDelay and then arrived together. The reservation covers a whole burst.
@@ -234,7 +236,13 @@ namespace VibeGame1
             if (!ProjectileFlightMath.ContactSlotOpen(predictedContact, nextAutonomousContactAt))
             {
                 LastReadiness = ProjectileShotReadiness.ArrivalSpacing;
-                nextFireAt = ProjectileMath.NextBeat(nextFireAt, Time.time, data.projectileInterval);
+                // Two tight-route ghosts can inherit the same span phase. Moving both forward by one full
+                // beat preserves the tie forever and lets the first Update monopolise every contact. Retry
+                // the blue traversal tool at the first safe slot; Heavy and Surge timing stays untouched.
+                nextFireAt = data.projectileAllowTightRouteShots
+                    ? ProjectileFlightMath.RetryTimeForContactSlot(Time.time, predictedContact,
+                                                                  nextAutonomousContactAt)
+                    : ProjectileMath.NextBeat(nextFireAt, Time.time, data.projectileInterval);
                 return;
             }
 
@@ -401,6 +409,12 @@ namespace VibeGame1
             if (!enteredBand) return ProjectileShotReadiness.OutOfBand;
             if (!EnemyController.HasLineOfSight(muzzle, combat.transform.position))
                 return ProjectileShotReadiness.NoLineOfSight;
+            int worldMask = ~(Layers.EnemyMask | Layers.PlayerMask | (1 << Layers.Interactable));
+            // Ray/line casts are not required to report a collider that already contains their origin.
+            // Reject a buried muzzle before any clearance exception is selected, so malformed or
+            // overhanging perch geometry can never let a shooter launch outward through a solid.
+            if (Physics.CheckSphere(muzzle, 0.01f, worldMask, QueryTriggerInteraction.Ignore))
+                return ProjectileShotReadiness.BlockedFlight;
 
             plan = ProjectileFlightMath.Plan(muzzle, chest, targetVelocity, data.projectileSpeed,
                 data.projectileLead, data.projectileHomingDegPerSec, SpawnForwardOffset,
@@ -414,19 +428,52 @@ namespace VibeGame1
                 ? GameManager.I.statsData.facingConeDeg : 75f;
             if (!ProjectileMath.ArrivesInFront(muzzle, chest, targetVelocity, plan.speed, cone))
                 return ProjectileShotReadiness.FacingAway;
-            if (!FlightPathClear(plan, chest, targetVelocity, data.projectileHomingDegPerSec))
+            // Ordinary blue ghosts are traversal tools deliberately perched inside tight geometry. They
+            // keep an exact forecast-path obstruction check, but do not use the 1 m PLAYER-CONTACT radius
+            // as world clearance: that volume was brushing rails and silencing entire parkour spans.
+            // Heavy Sentries and Surge Turrets retain the conservative broad probe unchanged.
+            float worldClearance = data.projectileAllowTightRouteShots ? 0f : Projectile.DefaultHitRadius;
+            Collider departureSupport = data.projectileIgnoreDepartureSupport && worldClearance > 0f
+                ? FindDepartureSupport()
+                : null;
+            if (!FlightPathClear(plan, chest, targetVelocity, data.projectileHomingDegPerSec,
+                                 worldClearance, departureSupport))
                 return ProjectileShotReadiness.BlockedFlight;
             return ProjectileShotReadiness.Ready;
         }
 
+        Collider FindDepartureSupport()
+        {
+            int mask = ~(Layers.EnemyMask | Layers.PlayerMask | (1 << Layers.Interactable));
+            RaycastHit hit;
+            return Physics.Raycast(transform.position + Vector3.up * 0.25f, Vector3.down, out hit, 2.5f,
+                                   mask, QueryTriggerInteraction.Ignore)
+                ? hit.collider
+                : null;
+        }
+
         static bool FlightPathClear(ProjectileFlightPlan plan, Vector3 targetPosition,
-                                    Vector3 targetVelocity, float homingDegPerSecond)
+                                    Vector3 targetVelocity, float homingDegPerSecond,
+                                    float clearanceRadius, Collider departureSupport)
         {
             int mask = ~(Layers.EnemyMask | Layers.PlayerMask | (1 << Layers.Interactable));
             Vector3 projectile = plan.launchPosition;
             Vector3 target = targetPosition;
             Vector3 direction = plan.direction;
             float elapsed = 0f;
+            bool departingSupport = departureSupport != null;
+            // ClosestPoint returns the query point when it is inside (or exactly on) a collider. A broad
+            // cast starting inside its ignored support may report no entry hit, and Linecast is likewise
+            // allowed to miss an origin overlap. Fail closed: the exception is only for a radius brush
+            // beside an honestly clear muzzle, never permission to fire out through solid perch geometry.
+            if (departingSupport &&
+                (departureSupport.ClosestPoint(projectile) - projectile).sqrMagnitude <= 1e-8f)
+                return false;
+            bool supportTouched = departingSupport && SphereTouches(departureSupport, projectile, clearanceRadius);
+            float departureTravel = 0f;
+            float departureLimit = departingSupport
+                ? clearanceRadius + departureSupport.bounds.extents.magnitude + plan.speed * ProjectileFlightMath.ForecastStep
+                : 0f;
             while (elapsed < plan.contactSeconds)
             {
                 float dt = Mathf.Min(ProjectileFlightMath.ForecastStep, plan.contactSeconds - elapsed);
@@ -435,13 +482,59 @@ namespace VibeGame1
                 Vector3 nextProjectile = projectile + direction * plan.speed * dt;
                 Vector3 segment = nextProjectile - projectile;
                 float distance = segment.magnitude;
-                if (distance > 1e-5f && Physics.SphereCast(projectile, Projectile.DefaultHitRadius,
-                    segment / distance, out _, distance, mask, QueryTriggerInteraction.Ignore)) return false;
+                if (distance > 1e-5f)
+                {
+                    Vector3 rayDirection = segment / distance;
+                    if (clearanceRadius <= 1e-5f)
+                    {
+                        if (Physics.Linecast(projectile, nextProjectile, mask,
+                                            QueryTriggerInteraction.Ignore)) return false;
+                    }
+                    else if (!departingSupport)
+                    {
+                        if (Physics.SphereCast(projectile, clearanceRadius, rayDirection, out _, distance,
+                                               mask, QueryTriggerInteraction.Ignore)) return false;
+                    }
+                    else
+                    {
+                        // The support exemption is radius-only. A collider on the actual bolt line still
+                        // blocks, including the support itself, and a sibling blocker in the same segment
+                        // cannot hide behind the ignored nearest hit.
+                        if (Physics.Linecast(projectile, nextProjectile, mask,
+                                            QueryTriggerInteraction.Ignore)) return false;
+                        int hits = Physics.SphereCastNonAlloc(projectile, clearanceRadius, rayDirection,
+                                                              broadClearanceHits, distance, mask,
+                                                              QueryTriggerInteraction.Ignore);
+                        if (hits >= BroadClearanceHitCapacity) return false; // fail closed on truncation
+                        for (int i = 0; i < hits; i++)
+                        {
+                            Collider hit = broadClearanceHits[i].collider;
+                            if (hit != null && hit != departureSupport) return false;
+                        }
+                    }
+                }
                 projectile = nextProjectile;
                 target += targetVelocity * dt;
                 elapsed += dt;
+                if (departingSupport)
+                {
+                    departureTravel += distance;
+                    bool touching = SphereTouches(departureSupport, projectile, clearanceRadius);
+                    supportTouched |= touching;
+                    // Once the radius-expanded support has actually been left, or the small departure
+                    // envelope has elapsed without touching it, the exemption can never re-arm.
+                    if ((supportTouched && !touching) || departureTravel > departureLimit)
+                        departingSupport = false;
+                }
             }
             return true;
+        }
+
+        static bool SphereTouches(Collider collider, Vector3 center, float radius)
+        {
+            if (collider == null || radius <= 0f) return false;
+            Vector3 closest = collider.ClosestPoint(center);
+            return (closest - center).sqrMagnitude <= radius * radius + 1e-5f;
         }
 
         void CancelPhrase(ProjectilePhraseCancellation reason, bool retireIncoming)

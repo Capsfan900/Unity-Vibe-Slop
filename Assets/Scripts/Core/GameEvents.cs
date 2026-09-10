@@ -50,6 +50,12 @@ namespace VibeGame1
         public static event Action<float, float> StaminaChanged;
         /// <summary>A movement ability was refused for lack of stamina. The HUD flashes the bar and names it.</summary>
         public static event Action<StaminaAction> StaminaRefused;
+        /// <summary>Run-local souls, distinct regular kills, or split progress changed.</summary>
+        public static event Action<LevelRunScorer> RunScoreChanged;
+        /// <summary>An ordered run split closed and received its data-authored grade bonus.</summary>
+        public static event Action<RunSplitResult> SplitGraded;
+        /// <summary>The boss ended a run and its score requirements were adjudicated.</summary>
+        public static event Action<LevelRunResult> LevelRunEvaluated;
 
         public static void RaisePlayerHealthChanged(float c, float m) => PlayerHealthChanged?.Invoke(c, m);
         public static void RaisePyreChanged(float v, float max) => PyreChanged?.Invoke(v, max);
@@ -99,6 +105,9 @@ namespace VibeGame1
         public static void RaiseRiposteLanded(EnemyController e) => RiposteLanded?.Invoke(e);
         public static void RaiseStaminaChanged(float c, float m) => StaminaChanged?.Invoke(c, m);
         public static void RaiseStaminaRefused(StaminaAction a) => StaminaRefused?.Invoke(a);
+        public static void RaiseRunScoreChanged(LevelRunScorer scorer) => RunScoreChanged?.Invoke(scorer);
+        public static void RaiseSplitGraded(RunSplitResult result) => SplitGraded?.Invoke(result);
+        public static void RaiseLevelRunEvaluated(LevelRunResult result) => LevelRunEvaluated?.Invoke(result);
 
         /// <summary>Clear all subscribers (domain reload safety when Enter Play Mode options disable reload).</summary>
         public static void ClearAll()
@@ -112,6 +121,9 @@ namespace VibeGame1
             StaminaChanged = null;
             StaminaRefused = null;
             PromptFlash = null;
+            RunScoreChanged = null;
+            SplitGraded = null;
+            LevelRunEvaluated = null;
         }
     }
 }

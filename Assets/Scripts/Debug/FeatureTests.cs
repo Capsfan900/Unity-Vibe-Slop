@@ -4348,8 +4348,8 @@ namespace VibeGame1
 
             // ---- top-left status strip: held items + active effects ------------------------------
             // One row per carried item (front one marked), one per running effect with a countdown,
-            // and NOTHING while idle. The strip reads the live motor for the countdown, so a surge
-            // ended by hand on the motor clock must clear the row on the next frame.
+            // plus the persistent run contract in scored levels. The strip reads the live motor for
+            // the countdown, so a surge ended by hand must clear only its effect row next frame.
             var strip = hud.statusStrip;
             Check("HUD_StatusStripWired", strip != null && strip.text != null,
                 "HudBuilder must build StatusStrip and assign HUDController.statusStrip");
@@ -4362,7 +4362,12 @@ namespace VibeGame1
                 health.Invulnerable = false;
                 yield return null;
                 yield return null;
-                Check("HUD_StatusStripEmptyWhenIdle", strip.IsEmpty, "rows=" + strip.RowCount + " text='" + strip.Text + "'");
+                bool hasRunContract = LevelRunScorer.I != null &&
+                    (LevelRunScorer.I.RequiredSouls > 0 || LevelRunScorer.I.RequiredRegularKills > 0);
+                int persistentRows = hasRunContract ? 1 : 0;
+                Check("HUD_StatusStripIdleState",
+                    hasRunContract ? strip.Text.Contains("RUN ") && strip.RowCount == 1 : strip.IsEmpty,
+                    "rows=" + strip.RowCount + " text='" + strip.Text + "'");
 
                 var hook = MakeItem(ItemEffect.Grapple);
                 hook.displayName = "Test Hook";
@@ -4372,7 +4377,7 @@ namespace VibeGame1
                 items.TryPickup(surge);
                 yield return null;
                 Check("HUD_StatusStripShowsHeldItem", strip.Text.Contains("TEST HOOK"), "text='" + strip.Text + "'");
-                Check("HUD_StatusStripOneRowPerItem", strip.RowCount == 2, "rows=" + strip.RowCount);
+                Check("HUD_StatusStripOneRowPerItem", strip.RowCount == persistentRows + 2, "rows=" + strip.RowCount);
                 Check("HUD_StatusStripMarksCurrentFirst",
                     strip.Text.IndexOf("> TEST HOOK", StringComparison.Ordinal) >= 0
                     && strip.Text.IndexOf("TEST HOOK", StringComparison.Ordinal) < strip.Text.IndexOf("TEST SURGE", StringComparison.Ordinal),
@@ -4390,10 +4395,26 @@ namespace VibeGame1
                     "surging=" + motor.IsWallSurging + " remaining=" + motor.WallSurgeRemaining.ToString("0.0") + " text='" + strip.Text + "'");
                 Check("HUD_StatusStripSurgeRowNotAnItemRow", !strip.Text.Contains("TEST SURGE"), "text='" + strip.Text + "'");
 
+                var testMenu = hud.GetComponent<TestMenu>();
+                if (testMenu != null && testMenu.statusEffectsButton != null)
+                {
+                    StatusStripView.StatusEffectsVisible = true;
+                    testMenu.statusEffectsButton.onClick.Invoke();
+                    yield return null;
+                    Check("HUD_StatusToggleHidesOnlyEffects",
+                        !strip.Text.Contains("WALL SURGE") && (!hasRunContract || strip.Text.Contains("RUN ")),
+                        "text='" + strip.Text + "'");
+                    testMenu.statusEffectsButton.onClick.Invoke();
+                    yield return null;
+                    Check("HUD_StatusToggleRestoresLiveEffect", strip.Text.Contains("WALL SURGE"),
+                        "text='" + strip.Text + "'");
+                }
+                else Check("HUD_StatusToggleButtonWired", false, "generated HUD has no live status toggle button");
+
                 motor.wallSurgeUntil = -99f;
                 yield return null;
                 yield return null;
-                Check("HUD_StatusStripClearsWhenSurgeEnds", !strip.Text.Contains("WALL SURGE") && strip.IsEmpty,
+                Check("HUD_StatusStripClearsWhenSurgeEnds", !strip.Text.Contains("WALL SURGE") && strip.RowCount == persistentRows,
                     "rows=" + strip.RowCount + " text='" + strip.Text + "'");
 
                 health.Invulnerable = true;
@@ -4410,7 +4431,9 @@ namespace VibeGame1
                 health.Invulnerable = godWas;
                 yield return null;
                 yield return null;
-                Check("HUD_StatusStripEmptyAfterEffects", godWas || strip.IsEmpty, "rows=" + strip.RowCount + " text='" + strip.Text + "'");
+                Check("HUD_StatusStripSettlesAfterEffects", godWas || strip.RowCount == persistentRows,
+                    "rows=" + strip.RowCount + " text='" + strip.Text + "'");
+                StatusStripView.StatusEffectsVisible = true;
                 ClearItems();
             }
         }

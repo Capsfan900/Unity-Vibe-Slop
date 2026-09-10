@@ -110,6 +110,7 @@ namespace VibeGame1
                     // back-to-back deflects in a combo feel continuous instead of laggy.
                     parry.NotifyDeflected();
                     a.attacker.OnParried(w.parryPostureDamage * (a.attack != null ? a.attack.parryPostureMultiplier : 1f));
+                    GrantGeneralParrySurge(a.attacker, d);
                     // Pyre: a perfect deflect stokes the fire at full rate. See the Blocked case for
                     // the deliberate asymmetry.
                     resources.AddPyre(stats.PyrePerPerfect + w.pyreBonus);
@@ -195,6 +196,24 @@ namespace VibeGame1
             return result;
         }
 
+        /// <summary>
+        /// A Perfect is a speed-stack confirmation everywhere, except for a Surge Turret: its overridden
+        /// <see cref="SurgeTurret.OnParried"/> already pays the opening ramp's dedicated 1.4 s ladder.
+        /// Keeping the exclusion beside combat resolution prevents the turret from double-granting while
+        /// ordinary blue sentries, Heavy Sentries, melee enemies, and bosses share the authored player data.
+        /// </summary>
+        public static bool ShouldGrantGeneralParrySurge(EnemyController attacker)
+        {
+            return attacker != null && !(attacker is SurgeTurret);
+        }
+
+        void GrantGeneralParrySurge(EnemyController attacker, PlayerStatsData d)
+        {
+            if (!ShouldGrantGeneralParrySurge(attacker) || d == null || motor == null) return;
+            ParrySurge.Grant(motor, d.generalParrySurgeStep, d.generalParrySurgeMaxStacks,
+                             d.generalParrySurgeSeconds);
+        }
+
 
         /// <summary>
         /// Feedback for a blow absorbed by the HELD guard. Deliberately percussive rather than bright:
@@ -235,6 +254,12 @@ namespace VibeGame1
         {
             Vector3 origin = transform.position + Vector3.up * 1.25f;
             if (a.attacker == null) return origin + transform.forward * 0.9f;
+            if (a.incomingDirection.sqrMagnitude > 1e-6f)
+            {
+                Vector3 source = ParryMath.SourceDirection(a.incomingDirection, a.attacker.transform.position,
+                                                            transform.position);
+                return origin + (source.sqrMagnitude > 1e-6f ? source.normalized : transform.forward) * 0.9f;
+            }
             Vector3 to = a.attacker.transform.position + Vector3.up * 1.1f - origin;
             return origin + Vector3.ClampMagnitude(to, 1.0f);
         }
@@ -243,9 +268,9 @@ namespace VibeGame1
         {
             Vector3 p = ContactPoint(a);
             // Back along the incoming line, biased slightly up so debris arcs into view.
-            Vector3 dir = a.attacker != null
-                ? (a.attacker.transform.position - transform.position).normalized
-                : transform.forward;
+            Vector3 attackerPosition = a.attacker != null ? a.attacker.transform.position : transform.position;
+            Vector3 dir = ParryMath.SourceDirection(a.incomingDirection, attackerPosition, transform.position);
+            dir = dir.sqrMagnitude > 1e-6f ? dir.normalized : transform.forward;
             dir = (dir + Vector3.up * 0.45f).normalized;
             SlashFx.Sparks(p, dir, color, count, speed, spread);
         }
@@ -253,9 +278,9 @@ namespace VibeGame1
         void DeflectArc(in AttackInfo a, Color color, float radius)
         {
             Vector3 p = ContactPoint(a);
-            Vector3 toAttacker = a.attacker != null
-                ? (a.attacker.transform.position - transform.position).normalized
-                : transform.forward;
+            Vector3 attackerPosition = a.attacker != null ? a.attacker.transform.position : transform.position;
+            Vector3 toAttacker = ParryMath.SourceDirection(a.incomingDirection, attackerPosition, transform.position);
+            toAttacker = toAttacker.sqrMagnitude > 1e-6f ? toAttacker.normalized : transform.forward;
             // Swept across the line of the blow: the arc plane faces the attacker.
             SlashFx.Arc(p, toAttacker, color, radius, 110f, 0.16f, Vector3.up);
         }

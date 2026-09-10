@@ -23,6 +23,7 @@ namespace VibeGame1.EditorTools
         const string MatDir = "Assets/Materials/";
         const string PrefabDir = "Assets/Prefabs/";
         const string ItemsDir = "Assets/Data/Items/";
+        const string RegistryPath = "Assets/Data/LevelRegistry.asset";
 
         static Material mStone, mCyan, mCloudSea;
         static GameObject pPlayer, pManagers, pHud;
@@ -120,6 +121,12 @@ namespace VibeGame1.EditorTools
                 return;
             }
             if (def == null) { Debug.LogError("[LevelDefinitionBuilder] Null LevelDefinition."); return; }
+            string runScoreError;
+            if (!RunScoreMath.TryValidateDefinition(def, out runScoreError))
+            {
+                Debug.LogError("[LevelDefinitionBuilder] Invalid run scoring on '" + def.SafeLevelId + "': " + runScoreError);
+                return;
+            }
 
             // ACTIVE SCENE GUARD: this builds into whatever scene is currently OPEN, not into
             // def.sceneName, and it ends in SaveOpenScenes(). Run it with Sandbox.unity open and the
@@ -167,6 +174,9 @@ namespace VibeGame1.EditorTools
             var level = new GameObject("Level");
             SetStatic(level);
             Transform root = level.transform;
+            var runScorer = level.AddComponent<LevelRunScorer>();
+            runScorer.definition = def;
+            runScorer.registry = AssetDatabase.LoadAssetAtPath<LevelRegistry>(RegistryPath);
 
             // ---- every piece, through the ONE factory the in-game editor also uses ---------------------
             // The definition's pieces (platforms, start, spawns, checkpoints, torches, pickups, balloons,

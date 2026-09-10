@@ -975,14 +975,17 @@ namespace VibeGame1.EditorTools
             menu.godModeButton = MenuBtn(p, "Player", "TOGGLE GOD MODE", 90f, firstY - step);
             menu.giveSoulsButton = MenuBtn(p, "Player", "+1000 SOULS", 90f, firstY - step * 2f);
             menu.breakPostureButton = MenuBtn(p, "Player", "BREAK MY POSTURE", 90f, firstY - step * 3f);
+            // Session-only HUD declutter switch. The view keeps held items visible; it hides effects only.
+            // TestMenu.RefreshButtons rewrites the label to the live "STATUS EFFECTS: ON/OFF" state.
+            menu.statusEffectsButton = MenuBtn(p, "Player", "STATUS EFFECTS: ON", 90f, firstY - step * 4f);
             // The wand altar is a dev fixture now: hidden and inert until this flips WandPedestal.DevMenuEnabled.
             // TestMenu.RefreshButtons rewrites the label to the live "WAND PEDESTAL: OFF/ON" state.
-            menu.wandPedestalButton = MenuBtn(p, "Player", "WAND PEDESTAL: OFF", 90f, firstY - step * 4f);
+            menu.wandPedestalButton = MenuBtn(p, "Player", "WAND PEDESTAL: OFF", 90f, firstY - step * 5f);
             // BACKLOG 2b's viewmodel movement channel, switchable live. The user asked for the toggle the
             // day it was built: it is a FEEL change they may not want, and one you cannot turn off
             // mid-run cannot be judged against the version without it.
             // TestMenu.RefreshButtons rewrites the label to the live "ARM MOVEMENT: ON/OFF" state.
-            menu.armMovementButton = MenuBtn(p, "Player", "ARM MOVEMENT: ON", 90f, firstY - step * 5f);
+            menu.armMovementButton = MenuBtn(p, "Player", "ARM MOVEMENT: ON", 90f, firstY - step * 6f);
 
             // Enemies
             ColumnHeader(p, "ENEMIES", 360f, headerY);

@@ -28,8 +28,8 @@ MonoBehaviour:
   hurtFlash: {r: 1, g: 0.1, b: 0.2, a: 1}
   hurtFlashAlpha: 0.4
   ultFlash: {r: 0.1, g: 0.9, b: 1, a: 1}
-  parryChromatic: 0.6
-  parryChromaticTime: 0.25
+  parryChromatic: 0.35
+  parryChromaticTime: 0.12
   guardShove: 1.2
   dashFovKick: 8
   ultFovKick: 15

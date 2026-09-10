@@ -578,9 +578,9 @@ word in `HUDController.OnParry` — and reading a word costs a beat the player d
 
 **Shipped.** One `SlashFx.Ring` fired from `ParryImpact.Shockwave`, all numbers in `ParryImpulse`:
 0.34 m radius (**30% of screen height** at 1.05 m and the shipped 95° vFOV), 0.18 s, `#A8E6DA` — the
-same teal as the word it replaces. Normal is the level direction to the attacker, so it is a wave-front
-seen face-on; origin is the contact point the sparks and the crescent already use, pushed 0.12 m down
-the line.
+same teal as the word it replaces. It is anchored 1.05 m in front of the actual rendered camera and faces
+that eye, so camera pitch cannot drop it toward the player root or distort the confirmation. The sparks
+and crescent remain world-contact effects driven by the same incoming strike direction.
 
 - **A closed hoop is the message.** Blocked, Guard and Hit are all spark fans; only a Perfect throws a
   ring, so presence alone distinguishes it.
@@ -592,7 +592,8 @@ the line.
 - **It cannot lie.** `ParryImpact.Deflect` is called only from `ParryController.NotifyDeflected`, only
   from the `ParryResult.Perfect` branch.
 
-**Not seen, only reasoned.** Nobody looked at the screen. Pinned by 5 assertions in `ParryImpactTests`.
+**Not seen, only reasoned.** Nobody looked at the screen. `ParryImpactTests` pin the camera-selection seam,
+including a pitched eye, and the authored shape values.
 **One thing to look for in the playtest:** teal at 168° sits ~20° from two shipped level trims (ghost
 green ~142°, ice cyan ~186°). They are static 0.013–0.082 albedo surfaces and this is a moving
 additive hoop for 0.18 s, so confusion is not expected — but that is reasoned, not seen.

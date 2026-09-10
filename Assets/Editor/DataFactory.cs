@@ -340,6 +340,11 @@ namespace VibeGame1.EditorTools
             // One bolt remains one learnable beat. Write this after CopySerialized so a future source-enemy
             // retune cannot silently turn the basic span sentry into a phrase.
             sentryGrunt.projectileBurstCount = 1; sentryGrunt.projectileBurstInterval = 0.42f;
+            // The pale ghost is a traversal tool placed inside tight parkour. Its exact predicted path
+            // must stay clear, but the 1 m PLAYER-CONTACT sweep must not turn a nearby ledge into permanent
+            // silence; the runtime bolt itself has never collided with world geometry.
+            sentryGrunt.projectileAllowTightRouteShots = true;
+            sentryGrunt.projectileIgnoreDepartureSupport = false;
             // THE GHOST (2026-09-06, user-directed body redesign; see PrefabFactory.BuildGhostBody).
             // bodyColor is written into the SHELL's _BaseColor by EnemyVisuals, so it must be the same
             // value as M_SentryGhost's albedo or the shell and the hem would be two different colours.
@@ -359,6 +364,11 @@ namespace VibeGame1.EditorTools
             // cadence: cue 0.28 + perfect recovery 0.08 + 0.06 s of honest slack. projectileInterval 2.4
             // stays the quiet cooldown and starts only after the third emission.
             sentryHeavy.projectileBurstCount = 3; sentryHeavy.projectileBurstInterval = 0.42f;
+            sentryHeavy.projectileAllowTightRouteShots = false;
+            // The 1 m broad sweep used to graze T3_Perch_E before a bolt could leave its own muzzle,
+            // permanently silencing the Heavy. Ignore only that detected standing support during departure;
+            // every other broad obstruction remains conservative.
+            sentryHeavy.projectileIgnoreDepartureSupport = true;
             // The shipped DevBlade is the upper bound: 60 * 1.2 = 72 immediate posture, plus 50 on
             // each reflected return. Two complete exchanges are 244; the third parry reaches 316.
             // At 330 the deathblow prompt therefore cannot replace the third projectile answer, while
@@ -385,6 +395,10 @@ namespace VibeGame1.EditorTools
             // Opening rows are sequenced one TURRET at a time. Each member owns one bolt, never a hidden
             // sub-phrase, so the level-authored five-member ladder remains five distinct reads.
             turret.projectileBurstCount = 1; turret.projectileBurstInterval = 0.42f;
+            // CopySerialized inherits the ordinary ghost's tight-route policy. The ramp turret is already
+            // tuned correctly and keeps the conservative broad clearance forecast unchanged.
+            turret.projectileAllowTightRouteShots = false;
+            turret.projectileIgnoreDepartureSupport = false;
 
             // ONE HIT, FROM ANYTHING. 1 HP: a swing, a reflected bolt, a wand, a riposte -- every damage
             // source in the game does at least 1. Not 0 (Health treats a zero-max body as a divide it has
@@ -2085,6 +2099,13 @@ namespace VibeGame1.EditorTools
             stats.parryIncomingLookahead = 0.6f;
             stats.parryCueSafetyMargin = 0.04f;
             stats.parryMinRecovery = 0.05f;
+            // Every perfect parry participates in the same readable speed ladder. The opening Surge
+            // Turret keeps its own tighter 1.4 s run-out; ordinary blue sentries fire every 1.6 s, so
+            // their general ladder needs 2.0 s to reward consecutive clean contacts without becoming
+            // permanent traversal speed.
+            stats.generalParrySurgeStep = 0.12f;
+            stats.generalParrySurgeMaxStacks = 5;
+            stats.generalParrySurgeSeconds = 2f;
             stats.blockDamageMultiplier = 0.3f;
             stats.facingConeDeg = 75f;
             stats.basePosture = 100f;
@@ -2133,6 +2154,11 @@ namespace VibeGame1.EditorTools
             // has to land somewhere the player can feel.
             feel.guardHitStop = 0.05f;
             feel.guardShove = 1.2f;
+            // The deflect's chromatic veil is a brief contact accent, never a screen-covering haze.
+            // The hitstop, force package, audio and enemy flash carry the weight; this clears while the
+            // next cue is still legible.
+            feel.parryChromatic = 0.35f;
+            feel.parryChromaticTime = 0.12f;
             // Deflect impact (rule 9). Every one of these is FORCE — rotation, translation, FOV, time,
             // spectral width. Nothing here brightens the frame: EnemyVisuals.CueFlash owns the
             // brightness budget and must remain the loudest event on screen. ParryImpulse holds the

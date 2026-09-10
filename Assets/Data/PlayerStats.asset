@@ -25,6 +25,9 @@ MonoBehaviour:
   parryIncomingLookahead: 0.6
   parryCueSafetyMargin: 0.04
   parryMinRecovery: 0.05
+  generalParrySurgeStep: 0.12
+  generalParrySurgeMaxStacks: 5
+  generalParrySurgeSeconds: 2
   basePosture: 100
   posturePerVitality: 4
   postureRegenPerSecond: 22

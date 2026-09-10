@@ -3667,3 +3667,104 @@ references and proves they are restored together.
 
 **Invariant.** A scene-owned AI target is a recoverable reference, not a one-shot startup assumption. Missing
 targets may pause a brain, but they cannot permanently disable it once the player exists again.
+
+## 2026-09-09 — A traversal bolt cannot use player-contact clearance as world clearance
+
+**Symptom.** The ordinary blue `pshooter_enemy01` sentries were awake and had line of sight in tight
+parkour, yet rejected almost every shot as blocked. The ramp Surge Turrets were already readable and must
+not be retuned.
+
+**Root cause.** The conservative 1 m `SphereCast` used to prove a flight path doubles as a player-contact
+radius. On a sentry deliberately tucked beside rails and landing lips, that broad volume grazed nearby
+route geometry even when the actual predicted bolt line was clear. Two ordinary sentries sharing a beat
+also advanced together after an arrival-spacing refusal, preserving their tie and starving the second one.
+
+**Fix.** `EnemyData.projectileAllowTightRouteShots` is true only for the ordinary blue traversal sentry.
+It linecasts the exact forecast path instead of broad-clearing the player's contact radius; range, LOS,
+solid walls, frontal arrival, contact forecast and cue safety still apply. Heavy Sentries and Surge Turrets
+retain the 1 m sweep. A rejected autonomous blue shot retries at the first safe contact slot rather than a
+full shared beat.
+
+**Invariant.** Tight-route support narrows the obstruction shape; it never waives combat readability.
+Arrival reservations are handed off by predicted contact time, never by component Update order. Keep the
+tight-route policy false for Heavy and Surge, and keep departure-support exemption false for Surge.
+
+## 2026-09-09 — A broad Heavy forecast may leave its own support, never ignore the world
+
+**Symptom.** The T3 Heavy stayed in `BlockedFlight` from valid shipped route positions and never began its
+three-shot phrase, even after ordinary blue sentries were restored.
+
+**Root cause.** Its intentionally conservative 1 m forecast swept against `T3_Perch_E`, the collider it
+was standing on, before the bolt could clear the muzzle. Disabling broad clearance would have erased the
+Heavy's safety identity and risked changing the already-correct Surge Turrets.
+
+**Fix.** `projectileIgnoreDepartureSupport` is authored only on the Heavy. The shooter detects the exact
+collider below its root and ignores only that collider's radius-only hits during the initial departure.
+The actual centreline, a muzzle inside geometry, sibling colliders, a saturated eight-hit buffer, and any
+support contact after departure reject the emission. Every follow-up still re-plans and revalidates. The
+shipped T3 Heavy was then observed emitting its complete three-shot phrase from the route; a temporary
+solid blocker still rejected the shot.
+
+**Invariant.** A launch-support exception is collider-specific, departure-only, and fail-closed. It must
+never be copied onto Surge Turrets or widened into permission to shoot through the support itself.
+
+## 2026-09-09 — A parry impact must answer the strike the player saw
+
+**Symptom.** The deflect already read, but its force package could be displaced from the crosshair and a
+tap parry lacked the weapon's physical answer. A longer chromatic veil also risked masking the next cue.
+
+**Root cause.** The impact package was passed the player root rather than the rendered eye, and feedback
+trusted the attacker's old position even for a bolt whose travel direction was now the truthful source.
+Weapon kickback reused held-guard state, so a tap had no recoil.
+
+**Fix.** `ParryImpact` resolves one feedback eye from `CameraFX`, then `Camera.main`, then the player root;
+the hoop and directional kick share it. `ParryController` derives melee feedback from the attacker and bolt
+feedback opposite `AttackInfo.incomingDirection`, the same rule as combat facing. `WeaponViewmodel.DeflectImpact`
+starts at the live pose for both tap and hold, while guarded hits keep their separate thud. The authored
+chromatic contact is 0.35 for 0.12 s.
+
+**Invariant.** Presentation source direction must equal combat source direction, and a Perfect's feedback
+must originate from the camera that rendered it. Do not turn a perfect's recoil into a guard-only effect or
+let post FX cover the next readable cue.
+
+The same Perfect also grants the shared speed ladder after `attacker.OnParried`. The opening
+`SurgeTurret` is deliberately excluded because its override already grants one stack with its dedicated
+1.4 s decay; every other attacker uses the player-authored 2.0 s decay. Keep that exclusion beside combat
+resolution so a turret bolt can never double-pay.
+
+## 2026-09-09 — Run completion is a frozen authored contract, not an inferred boss clear
+
+**Symptom.** A boss death alone could not express the requested run objective: all three sub-bosses and the
+main boss, four distinct regular encounters, plus a D-to-S split reward. Treating every enemy instance as
+credit also leaves respawn farming and duplicated ghost/progression decisions.
+
+**Root cause.** `BossDefeated`, wallet balance and ghost recording had separate legacy listeners but no
+run-local adjudicator. Instance identity changes on respawn, so it cannot represent one authored encounter.
+
+**Fix.** `LevelRunScorer` begins with the run timer, credits each authored `EnemySpawner` name once,
+closes only the current ordered split endpoint, adds the data-authored grade bonus, then freezes one
+`LevelRunResult` on boss defeat. `Level_01` is authored at 3560 run souls (the three sub-bosses, Warden,
+and four 40-soul regulars), four distinct regular spawners,
+Ninja/Knight/Spellsword/Warden splits and D/C/B/A/S bonuses 0/25/50/75/100. On a scored level,
+`LevelRunEvaluated` decides HUD, progression and ghost handling: success records/saves; failure reports
+the missing gates, records no completion and discards the ghost.
+
+**Invariant.** Count authored spawner names exactly once; a later split killed early cannot skip order.
+`LevelRunEvaluated` is immutable terminal authority for scored levels. A legacy level with an empty run
+contract keeps its direct boss-clear behavior.
+
+## 2026-09-09 — Effect visibility must not hide run requirements
+
+**Symptom.** The requested top-left status presentation needed a readable parry-speed stack and a developer
+toggle without making held items or mandatory run objectives disappear.
+
+**Root cause.** The strip previously had only generic transient player reads. A broad visibility toggle
+would conflate inventory, temporary effects and level requirements.
+
+**Fix.** `StatusStripView` reads `ParrySurge.Stacks` as `SPEED SURGE xN`, and reads the scorer for a
+persistent RUN / FOES / SPLITS row. The F1 developer menu flips session-only
+`StatusStripView.StatusEffectsVisible`; live views rebuild immediately. The switch suppresses only active
+effect rows, while held items and run progress remain visible.
+
+**Invariant.** The HUD observes status and scoring; it never writes speed, stacks or run credit. A developer
+effect preference is not a way to hide inventory or a completion gate.

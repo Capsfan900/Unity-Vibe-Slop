@@ -45,21 +45,23 @@ namespace VibeGame1
 
         void OnEnable()
         {
-            GameEvents.BossDefeated += OnRunFinished;
+            GameEvents.BossDefeated += OnLegacyRunFinished;
+            GameEvents.LevelRunEvaluated += OnRunEvaluated;
             if (SpeedrunTimer.I != null)
             {
                 SpeedrunTimer.I.RunStarted += OnRunStarted;
-                SpeedrunTimer.I.RunFinished += OnRunFinished;
+                SpeedrunTimer.I.RunFinished += OnLegacyRunFinished;
             }
         }
 
         void OnDisable()
         {
-            GameEvents.BossDefeated -= OnRunFinished;
+            GameEvents.BossDefeated -= OnLegacyRunFinished;
+            GameEvents.LevelRunEvaluated -= OnRunEvaluated;
             if (SpeedrunTimer.I != null)
             {
                 SpeedrunTimer.I.RunStarted -= OnRunStarted;
-                SpeedrunTimer.I.RunFinished -= OnRunFinished;
+                SpeedrunTimer.I.RunFinished -= OnLegacyRunFinished;
             }
         }
 
@@ -83,7 +85,28 @@ namespace VibeGame1
             IsRecording = true;
         }
 
-        void OnRunFinished()
+        /// <summary>
+        /// Old levels have no score adjudicator, so the timer/boss remains their completion signal. A
+        /// scored level deliberately waits for LevelRunEvaluated: RunFinished happens while the scorer
+        /// is still constructing its frozen result and must never save a failed quota run.
+        /// </summary>
+        void OnLegacyRunFinished()
+        {
+            if (LevelRunScorer.I != null) return;
+            FinishRecording();
+        }
+
+        void OnRunEvaluated(LevelRunResult result)
+        {
+            if (!result.completed)
+            {
+                Discard();
+                return;
+            }
+            FinishRecording();
+        }
+
+        void FinishRecording()
         {
             if (!IsRecording) return;
             IsRecording = false;

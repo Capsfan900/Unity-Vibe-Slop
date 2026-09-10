@@ -37,6 +37,8 @@ namespace VibeGame1
         public Button godModeButton;
         public Button giveSoulsButton;
         public Button breakPostureButton;
+        [Tooltip("Flips StatusStripView.StatusEffectsVisible. Held item rows remain visible.")]
+        public Button statusEffectsButton;
         [Tooltip("Flips WandPedestal.DevMenuEnabled. Label is rewritten to the live state on every refresh.")]
         public Button wandPedestalButton;
         public Button armMovementButton;
@@ -90,6 +92,7 @@ namespace VibeGame1
             Wire(infoButton, OpenInfo);
             Wire(giveSoulsButton, GiveSouls);
             Wire(breakPostureButton, BreakPosture);
+            Wire(statusEffectsButton, ToggleStatusEffects);
             Wire(wandPedestalButton, ToggleWandPedestal);
             Wire(armMovementButton, ToggleArmMovement);
             Wire(killNearbyButton, KillNearby);
@@ -249,6 +252,16 @@ namespace VibeGame1
         }
 
         /// <summary>
+        /// Switches only temporary-effect rows in the top-left strip. This is session-static like the
+        /// other F1 developer switches, and StatusStripView immediately rebuilds every live instance.
+        /// </summary>
+        public void ToggleStatusEffects()
+        {
+            StatusStripView.StatusEffectsVisible = !StatusStripView.StatusEffectsVisible;
+            RefreshButtons();
+        }
+
+        /// <summary>
         /// The wand altar at spawn is hidden and inert by default; this is the one place it is switched
         /// on. Every WandPedestal applies the flag on its next Update, so the altar appears (or vanishes)
         /// the moment the menu closes. Public so the feature suite can drive the same body the button does.
@@ -354,6 +367,12 @@ namespace VibeGame1
             {
                 var text = wandPedestalButton.GetComponentInChildren<TMP_Text>();
                 if (text != null) text.text = WandPedestal.DevMenuEnabled ? "WAND PEDESTAL: ON" : "WAND PEDESTAL: OFF";
+            }
+
+            if (statusEffectsButton != null)
+            {
+                var text = statusEffectsButton.GetComponentInChildren<TMP_Text>();
+                if (text != null) text.text = StatusStripView.StatusEffectsVisible ? "STATUS EFFECTS: ON" : "STATUS EFFECTS: OFF";
             }
 
             if (armMovementButton != null)

@@ -148,6 +148,22 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void ASpacingTieRetriesAtTheFirstSafeContact_InsteadOfStarvingEveryBeat()
+        {
+            const float now = 100f;
+            const float predicted = 100.40f;
+            const float occupiedUntil = 100.82f;
+            float retry = ProjectileFlightMath.RetryTimeForContactSlot(now, predicted, occupiedUntil);
+            float unchangedFlight = predicted - now;
+
+            Assert.That(retry, Is.EqualTo(100.428333f).Within(1e-4f));
+            Assert.IsTrue(ProjectileFlightMath.ContactSlotOpen(retry + unchangedFlight, occupiedUntil),
+                "the second sentry must own the first safe contact instead of losing the same 1.6 s tie forever");
+            Assert.Less(retry - now, 1.6f,
+                "a spacing collision is a short hand-off between traversal tools, not a skipped full beat");
+        }
+
+        [Test]
         public void RelativeSweepFindsTheSameEarliestContactAt20_60_240FpsAndAHitch()
         {
             float expected = 9f / 63.5f;
@@ -373,6 +389,17 @@ namespace VibeGame1.Tests
             Assert.AreEqual(1, basic.projectileBurstCount, "the ordinary ghost remains one read per beat");
             Assert.AreEqual(1, turret.projectileBurstCount, "the authored opening row remains five one-shot members");
             Assert.AreEqual(3, heavy.projectileBurstCount, "the Heavy Sentry's identity is three rapid parries");
+            Assert.IsTrue(basic.projectileAllowTightRouteShots,
+                "the blue ghost is a frequent traversal tool, so nearby parkour may not silence a clear shot");
+            Assert.IsFalse(heavy.projectileAllowTightRouteShots,
+                "the Heavy keeps the conservative broad flight-clearance contract");
+            Assert.IsFalse(turret.projectileAllowTightRouteShots,
+                "the tuned ramp Surge Turret must not inherit the blue ghost's exception");
+            Assert.IsFalse(basic.projectileIgnoreDepartureSupport);
+            Assert.IsTrue(heavy.projectileIgnoreDepartureSupport,
+                "the Heavy keeps its broad sweep but may leave the exact perch beneath its muzzle");
+            Assert.IsFalse(turret.projectileIgnoreDepartureSupport,
+                "the tuned ramp Surge Turret must not inherit the Heavy's departure-only policy");
             Assert.AreEqual(0.42f, heavy.projectileBurstInterval, Eps,
                 "0.28 cue + 0.08 perfect recovery + 0.06 honest slack");
             Assert.AreEqual(2.4f, heavy.projectileInterval, Eps,
@@ -392,6 +419,165 @@ namespace VibeGame1.Tests
                 "the third cue must remain a projectile parry, not be replaced by a deathblow prompt");
             Assert.GreaterOrEqual(heavy.parriedProjectileDamage * 3f, heavy.maxHP,
                 "the third reflected return still finishes the enemy");
+        }
+
+        [Test]
+        public void TightRouteClearanceKeepsTheOrdinaryGhostActive_WithoutChangingTheHeavy()
+        {
+            var basic = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy01"));
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            if (basic == null || heavy == null) Assert.Ignore("run 3. Create Data");
+            string yaml = System.IO.File.ReadAllText(EnemyPaths.Data("pshooter_enemy01"));
+            if (!yaml.Contains("projectileAllowTightRouteShots"))
+                Assert.Ignore("run 3. Create Data after the tight-route firing policy was added");
+
+            GameObject enemy = null;
+            GameObject player = null;
+            GameObject blocker = null;
+            ProjectileShooter shooter = null;
+            try
+            {
+                blocker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                blocker.name = "TightRouteClearanceBrush";
+                blocker.transform.position = new Vector3(500.85f, 101.25f, 507.5f);
+                blocker.transform.localScale = new Vector3(0.2f, 0.2f, 1f);
+
+                BuildRuntimeShooter(basic, out enemy, out player, out shooter);
+                Physics.SyncTransforms();
+                Assert.IsTrue(EnemyController.HasLineOfSight(enemy.transform.position + Vector3.up * 1.3f,
+                                                             player.transform.position),
+                    "the blocker is beside the centreline: ordinary LOS remains honestly clear");
+                shooter.SetSequenceControlled(true);
+                bool enteredBand;
+                bool ready;
+                Assert.IsNotNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.IsTrue(enteredBand);
+                Assert.IsTrue(ready, "nearby parkour must not silence the ordinary traversal ghost");
+                Assert.AreEqual(ProjectileShotReadiness.Ready, shooter.LastReadiness);
+
+                DestroyOwnedBolts(shooter);
+
+                // Put a thin solid brush directly across the forecast chest path. One of the broader
+                // head/feet visibility rays remains clear, so this specifically proves the relaxed ghost
+                // still audits its actual bolt path and cannot shoot through a wall.
+                blocker.transform.position = new Vector3(500f, 101.25f, 507.5f);
+                blocker.transform.localScale = new Vector3(4f, 0.18f, 0.2f);
+                Physics.SyncTransforms();
+                Assert.IsTrue(EnemyController.HasLineOfSight(enemy.transform.position + Vector3.up * 1.3f,
+                                                             player.transform.position),
+                    "a head or feet sightline stays visible so the forecast-path guard owns this rejection");
+                Assert.IsNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.IsTrue(enteredBand);
+                Assert.IsFalse(ready);
+                Assert.AreEqual(ProjectileShotReadiness.BlockedFlight, shooter.LastReadiness,
+                    "tight-route mode may clear a nearby rail, never a solid brush across the bolt path");
+
+                Object.DestroyImmediate(enemy);
+                Object.DestroyImmediate(player);
+                enemy = null;
+                player = null;
+                shooter = null;
+
+                // Restore the beside-path rail brush: Heavy should retain the old broad 1 m clearance
+                // and reject this conservative case, while the ordinary ghost above accepts it.
+                blocker.transform.position = new Vector3(500.85f, 101.25f, 507.5f);
+                blocker.transform.localScale = new Vector3(0.2f, 0.2f, 1f);
+                BuildRuntimeShooter(heavy, out enemy, out player, out shooter);
+                Physics.SyncTransforms();
+                shooter.SetSequenceControlled(true);
+                Assert.IsNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.IsTrue(enteredBand);
+                Assert.IsFalse(ready);
+                Assert.AreEqual(ProjectileShotReadiness.BlockedFlight, shooter.LastReadiness,
+                    "the Heavy's broad flight-clearance behavior is unchanged");
+            }
+            finally
+            {
+                DestroyOwnedBolts(shooter);
+                if (enemy != null) Object.DestroyImmediate(enemy);
+                if (player != null) Object.DestroyImmediate(player);
+                if (blocker != null) Object.DestroyImmediate(blocker);
+            }
+        }
+
+        [Test]
+        public void HeavyCanLeaveItsOwnSupport_ButThatSupportAndSiblingGeometryStillBlockTheBoltLine()
+        {
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            if (heavy == null) Assert.Ignore("run 3. Create Data");
+            GameObject enemy = null;
+            GameObject player = null;
+            GameObject support = null;
+            GameObject sibling = null;
+            ProjectileShooter shooter = null;
+            try
+            {
+                BuildRuntimeShooter(heavy, out enemy, out player, out shooter);
+                // Match the shipped T3 geometry: the target is below the high east perch, so the 1 m
+                // broad sweep brushes the top while the actual centreline clears it.
+                player.transform.position = enemy.transform.position + Vector3.forward * 15f + Vector3.down * 6f;
+                support = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                support.name = "HeavyDepartureSupport";
+                support.transform.position = enemy.transform.position + Vector3.down * 0.55f;
+                support.transform.localScale = new Vector3(3f, 1f, 3f);
+                Physics.SyncTransforms();
+
+                shooter.SetSequenceControlled(true);
+                bool enteredBand;
+                bool ready;
+                Assert.IsNotNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready),
+                    "a radius-only brush against the exact support beneath the Heavy must not silence its phrase");
+                Assert.IsTrue(ready);
+                Assert.AreEqual(ProjectileShotReadiness.Ready, shooter.LastReadiness);
+                DestroyOwnedBolts(shooter);
+                shooter.CancelSequencePhrase(ProjectilePhraseCancellation.SequenceReset, true);
+
+                // A second collider in the same departure segment is never covered by the support exemption.
+                sibling = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                sibling.name = "HeavySupportSiblingBlocker";
+                sibling.transform.position = enemy.transform.position + new Vector3(0.85f, 0.5f, 0.9f);
+                sibling.transform.localScale = new Vector3(0.2f, 0.2f, 0.4f);
+                Physics.SyncTransforms();
+                Assert.IsNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.AreEqual(ProjectileShotReadiness.BlockedFlight, shooter.LastReadiness,
+                    "an adjacent collider may not hide behind the ignored support hit");
+
+                Object.DestroyImmediate(sibling);
+                sibling = null;
+                // Extending that SAME support under the forecast makes the centreline enter it after
+                // departure. The exemption is radius-only, never permission to shoot through the perch.
+                support.transform.localScale = new Vector3(3f, 1f, 8f);
+                Physics.SyncTransforms();
+                Assert.IsFalse(InvokeFlightPathClear(enemy, player, heavy, support.GetComponent<Collider>()),
+                    "the departure exception itself must reject the selected support on the bolt centreline");
+                Assert.IsNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.That(shooter.LastReadiness,
+                    Is.EqualTo(ProjectileShotReadiness.BlockedFlight)
+                        .Or.EqualTo(ProjectileShotReadiness.NoLineOfSight),
+                    "the exact support still blocks, regardless of which conservative gate sees it first");
+
+                // An overhanging/tall support can contain the muzzle at launch. Casts that begin inside a
+                // collider are not a dependable obstruction signal, so the departure exception must fail
+                // closed before forecasting instead of granting permission to shoot outward through it.
+                support.transform.position = enemy.transform.position + Vector3.up * 0.8f;
+                support.transform.localScale = new Vector3(3f, 4f, 3f);
+                Physics.SyncTransforms();
+                Assert.IsFalse(InvokeFlightPathClear(enemy, player, heavy, support.GetComponent<Collider>()),
+                    "the low-level forecast must fail closed when its ignored support encloses launch");
+                Assert.IsNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.That(shooter.LastReadiness,
+                    Is.EqualTo(ProjectileShotReadiness.BlockedFlight)
+                        .Or.EqualTo(ProjectileShotReadiness.NoLineOfSight),
+                    "a selected support enclosing the launch centre is solid geometry, never a radius brush");
+            }
+            finally
+            {
+                DestroyOwnedBolts(shooter);
+                if (enemy != null) Object.DestroyImmediate(enemy);
+                if (player != null) Object.DestroyImmediate(player);
+                if (support != null) Object.DestroyImmediate(support);
+                if (sibling != null) Object.DestroyImmediate(sibling);
+            }
         }
 
         [Test]
@@ -640,6 +826,24 @@ namespace VibeGame1.Tests
             if (bolts == null) return;
             for (int i = 0; i < bolts.Length; i++)
                 if (bolts[i] != null) Object.DestroyImmediate(bolts[i].gameObject);
+        }
+
+        static bool InvokeFlightPathClear(GameObject enemy, GameObject player, EnemyData data,
+                                          Collider departureSupport)
+        {
+            Vector3 muzzle = enemy.transform.position + Vector3.up * 1.3f;
+            Vector3 chest = player.transform.position + Vector3.up * 1.2f;
+            ProjectileFlightPlan plan = ProjectileFlightMath.Plan(muzzle, chest, Vector3.zero,
+                data.projectileSpeed, data.projectileLead, data.projectileHomingDegPerSec,
+                ProjectileShooter.SpawnForwardOffset, Projectile.DefaultHitRadius,
+                Projectile.CueLead + ProjectileShooter.CueMargin, Projectile.DefaultMaxLife);
+            var method = typeof(ProjectileShooter).GetMethod("FlightPathClear",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+            return (bool)method.Invoke(null, new object[] {
+                plan, chest, Vector3.zero, data.projectileHomingDegPerSec,
+                Projectile.DefaultHitRadius, departureSupport
+            });
         }
     }
 }

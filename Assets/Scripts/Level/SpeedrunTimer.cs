@@ -24,8 +24,8 @@ namespace VibeGame1
         void Awake() { I = this; }
         void OnDestroy() { if (I == this) I = null; }
 
-        void OnEnable() { GameEvents.BossDefeated += Stop; }
-        void OnDisable() { GameEvents.BossDefeated -= Stop; }
+        void OnEnable() { GameEvents.BossDefeated += FinishRun; }
+        void OnDisable() { GameEvents.BossDefeated -= FinishRun; }
 
         void Update()
         {
@@ -53,7 +53,12 @@ namespace VibeGame1
             return true;
         }
 
-        void Stop()
+        /// <summary>
+        /// Freezes the clock and raises <see cref="RunFinished"/> once. Public so the level scorer can
+        /// establish the single boss-end ordering: stop time first, snapshot the result second, then
+        /// publish that evaluated result to progression, HUD and ghost recording.
+        /// </summary>
+        public void FinishRun()
         {
             if (Finished) return;
             Running = false;

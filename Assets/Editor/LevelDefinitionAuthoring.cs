@@ -708,12 +708,44 @@ namespace VibeGame1.EditorTools
             ApplyOpeningDescent(def);
             ApplySolarRealms(def);
             ApplyProjectileEncounterSequences(def);
+            ApplyRunScoring(def);
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
                                  "{8} platforms and {9} torches total.",
                                  reshaped, Perches.Length, moved, balloons.Count, waters.Count, def.ramps.Length,
                                  RouteBeacons.Length, gated, def.platforms.Length, def.torches.Length);
+        }
+
+        /// <summary>Writes the campaign run contract as level data, never as a scorer-side level special case.</summary>
+        static void ApplyRunScoring(LevelDefinition def)
+        {
+            // User contract: every scored run answers all three sub-bosses, the Warden, and any four
+            // authored regular enemies. 400 + 600 + 900 + 1500 + (4 * 40) = 3560 baseline souls;
+            // split bonuses are additional rewards and never substitute for the boss/regular gates.
+            def.requiredRunSouls = 3560;
+            def.requiredRegularKills = 4;
+            def.gradeBonuses = new RunGradeBonusDef { dSouls = 0, cSouls = 25, bSouls = 50, aSouls = 75, sSouls = 100 };
+            def.runSplits = new[]
+            {
+                Split("Ninja", "Spawn_Legendary_Ninja", 55f),
+                Split("Knight", "Spawn_Legendary_Knight", 60f),
+                Split("Spellsword", "Spawn_Legendary_Spellsword", 70f),
+                Split("Warden", "Spawn_Boss", 40f),
+            };
+        }
+
+        static RunSplitDef Split(string name, string endSpawnerName, float sSeconds)
+        {
+            return new RunSplitDef
+            {
+                name = name,
+                endSpawnerName = endSpawnerName,
+                sSeconds = sSeconds,
+                aSeconds = sSeconds * 1.15f,
+                bSeconds = sSeconds * 1.30f,
+                cSeconds = sSeconds * 1.50f,
+            };
         }
 
         /// <summary>

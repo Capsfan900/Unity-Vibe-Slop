@@ -27,8 +27,8 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 | `Combat/` | 6 | `Health`, `Posture`, `DamageInfo`, `ParryMath`, `PostureMath`, `EmissiveFlash` |
 | `Player/` | 20 | `FirstPersonMotor` (+ `WallRunMath`, same file), `PlayerLook`, `LockOnController`, `LockOnMarker`, `OffhandViewmodel`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, **`PlayerStamina`**, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
 | `Enemies/Core/` · `Enemies/parkour_enemies/` · `Enemies/souls_enemies/` | 5+ | **Two families since 2026-09-06** (`EnemyPaths`): `parkour_enemies` = the span sentries (`Projectile`, `ProjectileShooter`, `ProjectileVolleySequence`, `ProjectileFlightMath`; never melee, mostly shoot); `souls_enemies` = the duels: Grunt, Heavy, the Warden (`BossController`) and every `Legendary_*`. Shared brain in `Core/`: `EnemyController` (FSM), `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
-| `Level/` | 6 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer` |
-| `UI/` | 12 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), `DeveloperConsole`, **`MainMenuController`** |
+| `Level/` | 7 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer`, **`LevelRunScorer` / `RunScoreMath`** (authored-spawner score, ordered splits and frozen completion) |
+| `UI/` | 13 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, **`StatusStripView`**, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), `DeveloperConsole`, **`MainMenuController`** |
 | `Feel/` | 22 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx`, `ParryImpulse` / `ParryImpact`, `DashImpulse` / `DashFx`, `SlideImpulse` / `SlideFx` (the `*Impulse` is pure math, the `*Fx` / `*Impact` applies it), `SlashFx`, `WeaponTrail`, `WeaponEmber`, `PyreArc`, `EnergyGlow`, `ItemVfx`, `DeathMist`, `SkyFollower`, `Starfield` |
 | `Progression/` | 4 | `SoulsWallet`, `Bloodstain`, `UpgradeMath`, `LevelUpMenu` |
 | `Data/` | 9 | ScriptableObject definitions (see below) |
@@ -57,6 +57,17 @@ count/contact cadence stay on `EnemyData`; the Heavy Sentry owns three 0.42 s co
 2.4 s quiet beat. `Projectile Encounter Report` audits any level at 11 / 17.6 / 27.5 m/s. Full timing and
 cancellation maps are in DATAFLOW.md.
 
+The ordinary blue `pshooter_enemy01` is a traversal support tool in tight parkour: its authored
+`projectileAllowTightRouteShots` replaces only the broad 1 m world-clearance sweep with a thin exact
+forecast-path linecast. Range, LOS, solid-wall obstruction, frontal arrival, contact forecast and cue
+safety remain mandatory. Heavy Sentries and Surge Turrets retain the broad sweep. When autonomous blue
+sentries share an arrival phase, the rejected one retries at the first safe contact slot instead of moving
+both onto the same next beat; contact spacing is preserved without Update-order starvation.
+The Heavy's separate `projectileIgnoreDepartureSupport` policy keeps that broad sweep but exempts only a
+radius-only brush against its detected standing collider during launch departure. Centreline obstruction,
+an enclosed muzzle, adjacent geometry, later re-entry and saturated hit queries still reject the shot;
+the ramp Surge Turret explicitly keeps the policy disabled.
+
 | Path | Contents |
 |---|---|
 | `Assets/Scenes/` | `MainMenu.unity` (**build index 0** — the game boots here), `Level_01.unity` (the campaign level) and `Sandbox.unity` |
@@ -83,6 +94,11 @@ into gameplay. `GameEvents.ClearAll()` exists for domain-reload safety.
 `CheckpointReached` · `EnemyKilled` · `BossStarted` · `BossHealthChanged` · `BossPostureChanged` ·
 `BossDefeated` · `PromptChanged` · `UltimateUsed` · `PlayerPostureChanged` · `PlayerPostureBroken` ·
 `DeathblowReady` · `ItemsChanged` · `ItemPickedUp` · `ItemUsed` · `RiposteLanded`
+
+`RunScoreChanged` / `SplitGraded` / `LevelRunEvaluated` form the scored-level chain: the scorer publishes
+live run state, then a data-authored split result, then exactly one frozen boss-end adjudication. HUD,
+progression and ghosts use that adjudication when a scorer exists rather than independently treating
+`BossDefeated` as success.
 
 `RiposteLanded` is raised **before** the killing damage, so listeners can still read the victim's
 position and state. It is raised by whichever path actually lands the riposte: `WandController` at the
@@ -153,6 +169,16 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
 - **Parry windows.** Perfect `0.13` / late `0.12` / whiff recovery `0.5`. `cueLead` `0.28` is serialized
   on `EnemyController` and must stay ≈ reaction (0.20) + half the perfect window. No enemy attack windup
   below `0.45`.
+- **A perfect is contact from the rendered eye.** `ParryController` derives feedback from the same source
+  rule combat uses (attacker for melee, opposite projectile travel for bolts). `ParryImpact` resolves the
+  actual gameplay camera once for the hoop and directional kick, then `WeaponViewmodel.DeflectImpact`
+  recoils from the live pose for both tap and held parries on player delta. The chromatic contact accent is
+  deliberately short (0.35 for 0.12 s); force, sound and weapon response carry the weight while the next
+  cue stays readable.
+- **A perfect advances the speed ladder.** Every non-SurgeTurret Perfect grants the runtime `ParrySurge`
+  from `PlayerStatsData` (+0.12, cap 5, one stack decays every 2.0 s). The opening Surge Turret keeps its
+  existing enemy-authored 1.4 s decay and is excluded from the general grant, so one bolt always pays one
+  stack. Misses, blocks and hits do not erase the chain; expiry walks it down one stack at a time.
 - **Posture (Sekiro).** Both sides have it. A perfect parry costs the player **nothing**; a held guard
   costs `damage × 1.5` posture, a timed block `damage × 0.9`, a raw hit `damage × 0.5`, unblockables
   ×1.5 on top. Player break = 1.5 s stagger, 0.4× move speed, no jump/dash/attack/parry/flask/super, and
@@ -913,6 +939,7 @@ All balance lives in ScriptableObjects under `Assets/Data/`. Edit in the Inspect
 | `PlayerStatsData` | `PlayerStats.asset` — parry windows, posture, flask, Pyre, super slow-mo |
 | `UpgradeTable` | Souls costs |
 | `GameFeelSettings` | Hitstop, shake, flash, FOV kick |
+| `LevelDefinition` run contract | Required run souls / distinct regular spawners, ordered split endpoints and D-to-S bonus table |
 
 ⚠️ **`VibeGame1/3. Create Data` overwrites these.** Values you want to keep must go back into
 `Assets/Editor/DataFactory.cs`.
