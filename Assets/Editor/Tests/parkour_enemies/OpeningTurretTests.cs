@@ -6,7 +6,7 @@ using VibeGame1.EditorTools;
 
 namespace VibeGame1.Tests
 {
-    /// <summary>The authored five-beat opening: left, right, left, then the elevated pair.</summary>
+    /// <summary>The authored opening: five Surge beats, then two three-contact Heavy phrases.</summary>
     public class OpeningTurretTests
     {
         LevelDefinition def;
@@ -22,18 +22,20 @@ namespace VibeGame1.Tests
         [TearDown] public void Clean() { Object.DestroyImmediate(def); }
 
         [Test]
-        public void VolleyIsFiveExistingTurretsInLeftRightLeftOverheadOrder()
+        public void VolleyIsFiveSurgeTurretsThenTwoBottomHeavyReliquaries()
         {
             var volley = def.projectileSequences.Single(s => s.name == "T0_SurgeVolley");
             Assert.That(volley.spawnerNames, Is.EqualTo(new[]
             {
                 "Spawn_T0_Surge_1", "Spawn_T0_Surge_2", "Spawn_T0_Surge_3",
-                "Spawn_T0_Surge_4", "Spawn_T0_Surge_5"
+                "Spawn_T0_Surge_4", "Spawn_T0_Surge_5",
+                "Spawn_T0_Reliquary_1", "Spawn_T0_Reliquary_2"
             }));
 
             var shots = volley.spawnerNames.Select(n => def.spawns.Single(s => s.name == n)).ToArray();
-            Assert.That(shots.Length, Is.EqualTo(5));
-            Assert.That(shots.All(s => s.prefabKey == "pshooter_enemy03"), Is.True);
+            Assert.That(shots.Length, Is.EqualTo(7));
+            Assert.That(shots.Take(5).All(s => s.prefabKey == "pshooter_enemy03"), Is.True);
+            Assert.That(shots.Skip(5).All(s => s.prefabKey == "pshooter_enemy02"), Is.True);
             Assert.That(Mathf.Sign(shots[0].position.x), Is.EqualTo(-1f), "first is left");
             Assert.That(Mathf.Sign(shots[1].position.x), Is.EqualTo(1f), "second is right");
             Assert.That(Mathf.Sign(shots[2].position.x), Is.EqualTo(-1f), "third returns left");
@@ -55,10 +57,16 @@ namespace VibeGame1.Tests
                 Assert.That(Vector3.Distance(shots[i].position, expected[i]), Is.LessThan(0.001f),
                     "perch " + (i + 1) + " is at " + shots[i].position + ", authored as " + expected[i]);
 
+            Assert.That(Vector3.Distance(shots[5].position, new Vector3(-10f, 0.1f, 6f)),
+                Is.LessThan(0.001f));
+            Assert.That(Vector3.Distance(shots[6].position, new Vector3(10f, 0.1f, 6f)),
+                Is.LessThan(0.001f));
+
             Assert.That(volley.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -159.8f)));
             Assert.That(volley.progressDirection, Is.EqualTo(Vector3.forward));
-            Assert.That(volley.memberProgressGates, Is.EqualTo(new[] { 0f, 18f, 40f, 64f, 87f }));
-            Assert.That(volley.shotResolutionTimeout, Is.EqualTo(1.25f).Within(0.001f));
+            Assert.That(volley.memberProgressGates,
+                Is.EqualTo(new[] { 0f, 18f, 40f, 64f, 87f, 90f, 112f }));
+            Assert.That(volley.shotResolutionTimeout, Is.EqualTo(1.75f).Within(0.001f));
         }
 
         [Test]
@@ -101,6 +109,36 @@ namespace VibeGame1.Tests
             float supportedTravel = heavy.arrivalEnd - heavy.arrivalStart;
             Assert.GreaterOrEqual(supportedTravel / 11f, 1.3f,
                 "the Heavy Sentry needs enough authored floor for all three separately parryable contacts");
+        }
+
+        [Test]
+        public void BottomReliquariesEachOwnThreeFastParriesOutsideTheSlideLane()
+        {
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            Assert.IsNotNull(heavy, "shipped Heavy Reliquary data missing");
+            Assert.AreEqual(3, heavy.projectileBurstCount);
+            Assert.AreEqual(0.42f, heavy.projectileBurstInterval, 0.0001f);
+            Assert.AreEqual(48f, heavy.projectileMaxRange, 0.0001f,
+                "the pair must announce before the runner reaches their shared bottom run-out");
+
+            var ramp = def.ramps.Single(r => r.name == "T0_Ramp_Descent");
+            var volley = def.projectileSequences.Single(s => s.name == "T0_SurgeVolley");
+            for (int i = 0; i < 2; i++)
+            {
+                string suffix = (i + 1).ToString();
+                var spawn = def.spawns.Single(s => s.name == "Spawn_T0_Reliquary_" + suffix);
+                var pad = def.platforms.Single(p => p.name == "T0_ReliquaryPad_" + suffix);
+                var window = volley.engagementWindows.Single(w => w.spawnerName == spawn.name);
+
+                Assert.AreEqual("pshooter_enemy02", spawn.prefabKey);
+                Assert.That(Mathf.Abs(pad.center.x) - pad.size.x * 0.5f,
+                    Is.GreaterThan(ramp.width * 0.5f), pad.name + " must not narrow the slide lane");
+                Assert.That(spawn.position.y,
+                    Is.EqualTo(pad.center.y + pad.size.y * 0.5f + 0.1f).Within(0.001f));
+                Assert.IsTrue(ProjectileEngagementMath.IsValid(window));
+                Assert.GreaterOrEqual(window.arrivalEnd - window.arrivalStart, 22f,
+                    spawn.name + " needs route time for all three contacts");
+            }
         }
 
         [Test]
@@ -183,7 +221,8 @@ namespace VibeGame1.Tests
 
             // Announcement = how far below its gate each perch sits. Beat 1 alone used to be 22 m while
             // the rest were 26-32, which is why its bolt flew half as long as every other one.
-            var perches = volley.spawnerNames.Select(n => def.spawns.Single(s => s.name == n)).ToArray();
+            var perches = volley.spawnerNames.Take(5)
+                .Select(n => def.spawns.Single(s => s.name == n)).ToArray();
             for (int i = 0; i < perches.Length; i++)
             {
                 float announcement = perches[i].position.z - (volley.progressOrigin.z + volley.memberProgressGates[i]);
@@ -223,7 +262,7 @@ namespace VibeGame1.Tests
         public void EveryAuthoredBeatHasAnUnblockedFrontalApproachLine()
         {
             var volley = def.projectileSequences.Single(s => s.name == "T0_SurgeVolley");
-            var targets = volley.memberProgressGates
+            var targets = volley.memberProgressGates.Take(5)
                 .Select(progress => RampChest(volley.progressOrigin.z + progress)).ToArray();
             var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
             Assert.IsNotNull(data, "shipped surge turret data missing");
@@ -266,8 +305,9 @@ namespace VibeGame1.Tests
             var volley = def.projectileSequences.Single(s => s.name == "T0_SurgeVolley");
             Assert.IsNotNull(data);
             Assert.IsNotNull(stats);
-            Assert.That(volley.spawnerNames.Length, Is.EqualTo(data.parrySurgeMaxStacks));
-            Assert.That(SurgeMath.Multiplier(volley.spawnerNames.Length, data.parrySurgeStep),
+            int surgeCount = volley.spawnerNames.Count(n => n.StartsWith("Spawn_T0_Surge_"));
+            Assert.That(surgeCount, Is.EqualTo(data.parrySurgeMaxStacks));
+            Assert.That(SurgeMath.Multiplier(surgeCount, data.parrySurgeStep),
                 Is.EqualTo(SurgeMath.MaxMultiplier(data.parrySurgeMaxStacks, data.parrySurgeStep)).Within(0.0001f));
             Assert.That(volley.recoveryGap, Is.GreaterThan(stats.parrySuccessRecovery + 0.02f),
                 "the next launch waits until the player can raise the blade again");

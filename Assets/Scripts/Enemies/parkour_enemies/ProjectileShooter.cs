@@ -206,8 +206,10 @@ namespace VibeGame1
                 // A blue traversal sentry is often read through a railing or between stacked ledges.
                 // Once it has paid the authored arm-up, one occluded frame must not make it pay the
                 // whole 0.7 s again. The shot itself still repeats LOS and flight validation before it
-                // can emit. Heavy Sentries and Surge Turrets keep their conservative reacquisition.
-                if (!PreservesAcquisitionOnOcclusion(data.projectileAllowTightRouteShots)) acquired = false;
+                // can emit. Multi-contact Heavies also retain an arm-up they already paid; one rail or
+                // landing frame must not charge them a new 2.4 s beat. Surge Turrets remain conservative.
+                if (!UsesResponsivePlanning(data.projectileAllowTightRouteShots,
+                                            data.projectileBurstCount)) acquired = false;
                 LastReadiness = ProjectileShotReadiness.NoLineOfSight;
                 return;
             }
@@ -226,10 +228,11 @@ namespace VibeGame1
             if (LastReadiness != ProjectileShotReadiness.Ready)
             {
                 // A transient facing/contact/path rejection should not throw away an entire legal
-                // parkour window. Ordinary blue sentries retry briefly; conservative ranged enemies
-                // retain their authored full-beat scheduling.
-                nextFireAt = RejectionRetryTime(data.projectileAllowTightRouteShots, nextFireAt,
-                                                Time.time, data.projectileInterval);
+                // parkour window. Traversal sentries and multi-contact Heavies retry briefly; a
+                // conservative one-shot target retains its authored full-beat scheduling.
+                nextFireAt = RejectionRetryTime(
+                    UsesResponsivePlanning(data.projectileAllowTightRouteShots, data.projectileBurstCount),
+                    nextFireAt, Time.time, data.projectileInterval);
                 return;
             }
             if (phraseHasEngagementWindow &&
@@ -247,8 +250,9 @@ namespace VibeGame1
                 LastReadiness = ProjectileShotReadiness.ArrivalSpacing;
                 // Two tight-route ghosts can inherit the same span phase. Moving both forward by one full
                 // beat preserves the tie forever and lets the first Update monopolise every contact. Retry
-                // the blue traversal tool at the first safe slot; Heavy and Surge timing stays untouched.
-                nextFireAt = data.projectileAllowTightRouteShots
+                // the blue traversal tool at the first safe slot; Surge timing stays untouched.
+                nextFireAt = UsesResponsivePlanning(data.projectileAllowTightRouteShots,
+                                                     data.projectileBurstCount)
                     ? ProjectileFlightMath.RetryTimeForContactSlot(Time.time, predictedContact,
                                                                   nextAutonomousContactAt)
                     : ProjectileMath.NextBeat(nextFireAt, Time.time, data.projectileInterval);
@@ -287,6 +291,10 @@ namespace VibeGame1
             LastReadiness = EvaluateShot(data, out enteredBand, out plan);
             if (LastReadiness != ProjectileShotReadiness.Ready)
             {
+                // A started three-contact phrase is a combat promise. Re-plan transient rail, facing,
+                // landing and flight failures inside the existing finite deadline instead of silently
+                // deleting contacts two and three. Life, target and range loss remain terminal.
+                if (RetriesPhraseReadiness(LastReadiness)) return;
                 CancelPhrase(CancellationFor(LastReadiness), false);
                 return;
             }
@@ -295,7 +303,6 @@ namespace VibeGame1
                                                                  TargetVelocity, plan.contactSeconds))
             {
                 LastReadiness = ProjectileShotReadiness.OutsideEngagementWindow;
-                CancelPhrase(ProjectilePhraseCancellation.OutsideEngagementWindow, false);
                 return;
             }
 
@@ -422,13 +429,41 @@ namespace VibeGame1
             return allowTightRouteShots;
         }
 
+        /// <summary>
+        /// Traversal planning recovers quickly from a transient rejection. The pale one-shot sentry opts
+        /// in through tight-route clearance; the Heavy opts in because deleting any of its three authored
+        /// contacts changes the enemy's identity. Conservative one-shot targets do neither.
+        /// </summary>
+        public static bool UsesResponsivePlanning(bool allowTightRouteShots, int burstCount)
+        {
+            return allowTightRouteShots || burstCount > 1;
+        }
+
         /// <summary>Next autonomous attempt after a transient planning rejection.</summary>
-        public static float RejectionRetryTime(bool allowTightRouteShots, float previousBeat,
+        public static float RejectionRetryTime(bool responsivePlanning, float previousBeat,
                                                float now, float interval)
         {
-            return allowTightRouteShots
+            return responsivePlanning
                 ? now + TightRouteRetrySeconds
                 : ProjectileMath.NextBeat(previousBeat, now, interval);
+        }
+
+        /// <summary>True when a started phrase should re-plan until its existing finite deadline.</summary>
+        public static bool RetriesPhraseReadiness(ProjectileShotReadiness readiness)
+        {
+            switch (readiness)
+            {
+                case ProjectileShotReadiness.NoLineOfSight:
+                case ProjectileShotReadiness.FacingAway:
+                case ProjectileShotReadiness.UnsafeFlight:
+                case ProjectileShotReadiness.NoContact:
+                case ProjectileShotReadiness.BlockedFlight:
+                case ProjectileShotReadiness.OutsideEngagementWindow:
+                case ProjectileShotReadiness.ArrivalSpacing:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         ProjectileShotReadiness EvaluateShot(EnemyData data, out bool enteredBand,
@@ -463,7 +498,8 @@ namespace VibeGame1
 
             float cone = GameManager.I != null && GameManager.I.statsData != null
                 ? GameManager.I.statsData.facingConeDeg : 75f;
-            bool readableArrival = data.projectileAllowTightRouteShots
+            bool readableArrival = UsesResponsivePlanning(data.projectileAllowTightRouteShots,
+                                                           data.projectileBurstCount)
                 ? ProjectileMath.ArrivesInsideFacing(muzzle, chest, targetVelocity, plan.speed,
                                                      combat.transform.forward, cone)
                 : ProjectileMath.ArrivesInFront(muzzle, chest, targetVelocity, plan.speed, cone);

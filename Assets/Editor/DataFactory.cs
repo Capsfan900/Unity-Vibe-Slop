@@ -365,6 +365,11 @@ namespace VibeGame1.EditorTools
             // stays the quiet cooldown and starts only after the third emission.
             sentryHeavy.projectileBurstCount = 3; sentryHeavy.projectileBurstInterval = 0.42f;
             sentryHeavy.projectileAllowTightRouteShots = false;
+            // A full phrase needs two follow-up contacts while a 27.5 m/s runner is still crossing its
+            // answerable approach. The inherited 32 m band was barely one second of route coverage and
+            // made a bottom-of-ramp pair wake too late; 48 m announces the phrase without changing speed,
+            // cue, cadence or any of the conservative LOS/flight-clearance checks.
+            sentryHeavy.projectileMaxRange = 48f;
             // The 1 m broad sweep used to graze T3_Perch_E before a bolt could leave its own muzzle,
             // permanently silencing the Heavy. Ignore only that detected standing support during departure;
             // every other broad obstruction remains conservative.

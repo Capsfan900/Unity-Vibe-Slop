@@ -172,7 +172,11 @@ namespace VibeGame1.Tests
             Assert.IsTrue(ProjectileShooter.PreservesAcquisitionOnOcclusion(true),
                 "ordinary blue sentries are authored inside tight parkour and retain their acquired beat");
             Assert.IsFalse(ProjectileShooter.PreservesAcquisitionOnOcclusion(false),
-                "the Heavy keeps its conservative clearance/acquisition contract");
+                "false still denotes conservative broad-clearance policy");
+            Assert.IsTrue(ProjectileShooter.UsesResponsivePlanning(false, 3),
+                "a Heavy retains its paid arm-up because a three-contact phrase is a traversal promise");
+            Assert.IsFalse(ProjectileShooter.UsesResponsivePlanning(false, 1),
+                "a conservative one-shot Surge Turret keeps its authored full-beat rejection rhythm");
 
             var turret = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
             if (turret == null) Assert.Ignore("run 3. Create Data");
@@ -194,7 +198,12 @@ namespace VibeGame1.Tests
 
             float heavyRetry = ProjectileShooter.RejectionRetryTime(false, previousBeat, now, ordinaryInterval);
             Assert.AreEqual(ProjectileMath.NextBeat(previousBeat, now, ordinaryInterval), heavyRetry, Eps,
-                "the Heavy retains the old conservative metronome after a rejected shot");
+                "the boolean is the resolved planning policy; false retains the conservative metronome");
+
+            float burstRetry = ProjectileShooter.RejectionRetryTime(
+                ProjectileShooter.UsesResponsivePlanning(false, 3), previousBeat, now, ordinaryInterval);
+            Assert.That(burstRetry, Is.EqualTo(now + ProjectileShooter.TightRouteRetrySeconds).Within(Eps),
+                "a Heavy may not lose a complete 2.4 s beat to one transient planning rejection");
 
             const float turretInterval = 1.1f;
             float turretRetry = ProjectileShooter.RejectionRetryTime(false, previousBeat, now, turretInterval);
@@ -404,7 +413,9 @@ namespace VibeGame1.Tests
                 Assert.Greater(ProjectileMath.TimeToImpact(e.projectileMinRange, launch), Projectile.CueLead,
                     e.name + ": the nearest bolt would arrive before its cue could fire");
                 Assert.Greater(e.parriedProjectileDamage, 0f); Assert.Greater(e.parrySpeedGain, 0f);
-                Assert.LessOrEqual(e.projectileMaxRange, e.aggroRange + 20f);
+                float farCeiling = e == heavy ? 48f : e.aggroRange + 20f;
+                Assert.LessOrEqual(e.projectileMaxRange, farCeiling,
+                    e.name + ": range may announce the route but must stay inside its authored ceiling");
                 // The 2026-09-05 retune from play: a bolt is answered at a run, never waited for.
                 Assert.GreaterOrEqual(e.projectileSpeed, 28f, e.name + ": " + e.projectileSpeed + " m/s is a bolt you stop and wait for");
                 Assert.Less(ProjectileMath.TimeToImpact(15f, e.projectileSpeed), 0.55f, e.name + ": a mid-band shot must arrive inside ~half a second");
@@ -538,6 +549,8 @@ namespace VibeGame1.Tests
                 "0.28 cue + 0.08 perfect recovery + 0.06 honest slack");
             Assert.AreEqual(2.4f, heavy.projectileInterval, Eps,
                 "the old interval is now the quiet cooldown after the third emission");
+            Assert.AreEqual(48f, heavy.projectileMaxRange, Eps,
+                "a 27.5 m/s runner needs enough approach for the entire three-contact phrase");
             Assert.AreEqual(330f, heavy.maxPosture, Eps,
                 "330 is the round ceiling above all three DevBlade parries plus two completed returns");
             Assert.LessOrEqual(heavy.projectileBurstCount, ProjectileShooter.MaxBurstShots,
@@ -766,6 +779,73 @@ namespace VibeGame1.Tests
                 if (enemy != null) Object.DestroyImmediate(enemy);
                 if (player != null) Object.DestroyImmediate(player);
             }
+        }
+
+        [Test]
+        public void HeavyPhraseRetriesATransientFacingLoss_InsteadOfBecomingAOneShotEnemy()
+        {
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            if (heavy == null) Assert.Ignore("run 3. Create Data");
+
+            GameObject enemy = null;
+            GameObject player = null;
+            ProjectileShooter shooter = null;
+            try
+            {
+                BuildRuntimeShooter(heavy, out enemy, out player, out shooter);
+                shooter.SetSequenceControlled(true);
+                bool enteredBand;
+                bool ready;
+                Assert.IsNotNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                Assert.AreEqual(1, shooter.Fired);
+
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                player.transform.forward = Vector3.forward; // deliberately look away for one planning frame
+                InvokeShooter(shooter, "UpdatePhrase");
+
+                Assert.AreEqual(1, shooter.Fired);
+                Assert.IsTrue(shooter.PhraseActive,
+                    "a brief post-parry look correction must not delete the remaining two contacts");
+                Assert.AreEqual(ProjectileShotReadiness.FacingAway, shooter.LastReadiness);
+                Assert.AreEqual(ProjectilePhraseCancellation.None, shooter.LastPhraseCancellation);
+
+                player.transform.forward = Vector3.back;
+                InvokeShooter(shooter, "UpdatePhrase");
+                Assert.AreEqual(2, shooter.Fired,
+                    "the next legal frame resumes the authored phrase instead of waiting 2.4 seconds");
+
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                InvokeShooter(shooter, "UpdatePhrase");
+                Assert.AreEqual(3, shooter.Fired);
+                Assert.IsTrue(shooter.PhraseEmissionsComplete);
+                Assert.AreEqual(ProjectilePhraseCancellation.None, shooter.LastPhraseCancellation);
+            }
+            finally
+            {
+                DestroyOwnedBolts(shooter);
+                if (enemy != null) Object.DestroyImmediate(enemy);
+                if (player != null) Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
+        public void OnlyTransientFollowupFailuresRetryInsideTheBoundedPhraseWindow()
+        {
+            foreach (var readiness in new[]
+            {
+                ProjectileShotReadiness.NoLineOfSight,
+                ProjectileShotReadiness.FacingAway,
+                ProjectileShotReadiness.UnsafeFlight,
+                ProjectileShotReadiness.NoContact,
+                ProjectileShotReadiness.BlockedFlight,
+                ProjectileShotReadiness.OutsideEngagementWindow,
+                ProjectileShotReadiness.ArrivalSpacing,
+            })
+                Assert.IsTrue(ProjectileShooter.RetriesPhraseReadiness(readiness), readiness.ToString());
+
+            Assert.IsFalse(ProjectileShooter.RetriesPhraseReadiness(ProjectileShotReadiness.OutOfBand));
+            Assert.IsFalse(ProjectileShooter.RetriesPhraseReadiness(ProjectileShotReadiness.EnemyUnavailable));
+            Assert.IsFalse(ProjectileShooter.RetriesPhraseReadiness(ProjectileShotReadiness.TargetUnavailable));
         }
 
         [Test]

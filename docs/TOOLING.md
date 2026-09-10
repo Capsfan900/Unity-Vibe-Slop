@@ -451,10 +451,12 @@ restores the prior invulnerability flag, returns the player, clears its projecti
 turrets. Health protection is OFF for the parry variant (invulnerability bypasses attack resolution).
 `Start(false, true)` checks a mid-ramp jump cancellation. Live movement/jump input aborts the probe.
 `StartOpening(false)` runs the same motor check on the new opening ramp; `StartOpening(true)` enables
-its five-turret encounter and requires real surge grants from all five turrets. Individual shot/grant counts remain
+its seven-member encounter and requires real surge grants from all five Surge Turrets plus exactly three
+emissions and resolutions from each bottom Heavy Reliquary. Individual shot/grant counts remain
 in the report: firing without a deflect does not prove that the bolt offered a frontal parry.
-The opening variant requires all five contacts on the 120 m slope, the full 1.60x multiplier, and
-arrival at the run-out. It reports each deflect time, position, slope progress and actual cue-to-contact interval. After the single
+The opening variant requires all five Surge contacts on the 144 m slope, both three-contact Heavy phrases,
+the full 1.60x multiplier, and arrival at the run-out. It reports each deflect time, position, slope progress,
+Heavy readiness/cancellation and actual cue-to-contact interval. After the single
 entry impulse, movement comes from the motor and real parry rewards. Automatic parries prove
 integration, not a human input recording or a guarantee of encounter fairness.
 The automatic-parry driver uses `EditorApplication.update`, which can poll too slowly when unfocused

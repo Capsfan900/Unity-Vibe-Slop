@@ -2,7 +2,7 @@
 
 What is actually proven about `vibegame1`, how it was proven, and — just as important — what is **not**.
 
-Latest run date: 2026-09-09. The dated sections below retain earlier results for history; reproduce the
+Latest run date: 2026-09-10. The dated sections below retain earlier results for history; reproduce the
 current checks with the commands in [TOOLING.md](TOOLING.md).
 
 Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -10,6 +10,31 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 ---
 
 ## Results
+
+### Heavy Reliquary root cause and opening-ramp pair — 2026-09-10
+
+- **Final full EditMode: 1028/1028 passed**, zero failures/skips, 152.1 s. A preceding run found one stale
+  36 m ceiling assertion after the intentional Heavy range change; the final result includes its corrected,
+  type-specific 48 m guard and all generated Level 1 data.
+- **Full FeatureTests: 804/804 passed**, zero failures/skips, 58.3 s, from a fresh unpaused Level_01 session
+  after proving `GameManager.I != null` and `Time.timeScale == 1`.
+- **Live opening integration: PASS.** One real-motor descent produced five Surge contacts followed by both
+  Heavy Reliquaries at exactly 3/3 shots. The probe recorded 11 perfect parries, 11 total emissions,
+  `Ready/None` final readiness/cancellation for both Heavies, and the full 1.60x Surge multiplier.
+- **Root cause is reproduced and closed.** The first seam placement produced 2/3 then 0/3: the runner's
+  forecast third contact passed just outside the 75-degree answer cone. Moving the data-authored pair to
+  flanking pads at `(-10,0.1,6)` / `(10,0.1,6)` kept all six arrivals frontal. Transient follow-up planning
+  failures now retry only inside the existing finite deadline instead of deleting the phrase; terminal
+  life/target/range failures and persistent timeouts still cancel without catch-up.
+- **Existing projectile enemies regressed cleanly.** The two shipped T2 blue sentries emitted repeatedly in
+  fresh live route probes (6 shots lower, 8 shots upper during their observation windows). The generic
+  Projectile Encounter Report passes every authored shooter at 11/17.6/27.5 m/s; Level Arc Report passes.
+- **Compile and health:** runtime compile has zero warnings/errors; editor compile has zero errors and the
+  same 18 known warnings. Health Check has no error section and the existing broad serialized-null warnings.
+
+**Still human-only:** judge whether the final six-parry Heavy finish is enjoyable at manual input timing and
+whether the two run-out flank silhouettes read clearly while descending. The automated driver has exact
+incoming timing unavailable to a player, so it proves integration and safety, not subjective fairness.
 
 ### Spawn leaderboard and end-of-level Heavy reliability — 2026-09-10
 

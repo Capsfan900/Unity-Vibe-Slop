@@ -47,7 +47,7 @@ MonoBehaviour:
   projectileAcquireDelay: 0.7
   projectileSpeed: 36
   projectileMinRange: 6
-  projectileMaxRange: 32
+  projectileMaxRange: 48
   projectileLead: 1
   projectileHomingDegPerSec: 150
   projectileAllowTightRouteShots: 0

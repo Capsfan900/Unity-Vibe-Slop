@@ -585,6 +585,20 @@ MonoBehaviour:
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
+  - name: T0_ReliquaryPad_1
+    center: {x: -10, y: -0.5, z: 6}
+    size: {x: 3, y: 1, z: 3}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
+  - name: T0_ReliquaryPad_2
+    center: {x: 10, y: -0.5, z: 6}
+    size: {x: 3, y: 1, z: 3}
+    materialKey: Stone
+    trim: 1
+    trimMaterialKey: NeonCyan
+    isStatic: 1
   ramps:
   - name: T1_Ramp_Stone12
     basePosition: {x: 1.75, y: 0, z: 16.3}
@@ -739,6 +753,16 @@ MonoBehaviour:
     prefabKey: pshooter_enemy03
     position: {x: -3.2, y: 15.1, z: -46.800003}
     yaw: 165
+    isBoss: 0
+  - name: Spawn_T0_Reliquary_1
+    prefabKey: pshooter_enemy02
+    position: {x: -10, y: 0.1, z: 6}
+    yaw: 150
+    isBoss: 0
+  - name: Spawn_T0_Reliquary_2
+    prefabKey: pshooter_enemy02
+    position: {x: 10, y: 0.1, z: 6}
+    yaw: 210
     isBoss: 0
   pickups:
   - name: Pickup_Hook_Spawn
@@ -1050,9 +1074,11 @@ MonoBehaviour:
     - Spawn_T0_Surge_3
     - Spawn_T0_Surge_4
     - Spawn_T0_Surge_5
+    - Spawn_T0_Reliquary_1
+    - Spawn_T0_Reliquary_2
     recoveryGap: 0.11
     readinessTimeout: 1.1
-    shotResolutionTimeout: 1.25
+    shotResolutionTimeout: 1.75
     progressOrigin: {x: 0, y: 0, z: -159.8}
     progressDirection: {x: 0, y: 0, z: 1}
     memberProgressGates:
@@ -1061,6 +1087,8 @@ MonoBehaviour:
     - 40
     - 64
     - 87
+    - 90
+    - 112
     engagementWindows:
     - spawnerName: Spawn_T0_Surge_1
       routeStart: {x: 0, y: 37.2, z: -159.8}
@@ -1097,6 +1125,20 @@ MonoBehaviour:
       heightTolerance: 9
       arrivalStart: 90
       arrivalEnd: 130
+    - spawnerName: Spawn_T0_Reliquary_1
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 3
+      arrivalStart: 90
+      arrivalEnd: 130
+    - spawnerName: Spawn_T0_Reliquary_2
+      routeStart: {x: 0, y: 37.2, z: -159.8}
+      routeEnd: {x: 0, y: 1.2, z: -15.800003}
+      halfWidth: 7
+      heightTolerance: 3
+      arrivalStart: 112
+      arrivalEnd: 143
   - name: T1_ParryRoute
     spawnerNames:
     - Spawn_T1_GruntA

@@ -3852,3 +3852,26 @@ skipping the root from generic platform export.
 **Invariant.** Physical world presentation and screen HUD presentation are separate consumers of the same
 model. `GhostHud.BoardVisible` ships false. A generated display must be data-owned, round-trippable,
 non-colliding and excluded from navigation geometry.
+
+## 2026-09-10 â€” A three-contact Heavy phrase cannot be planned as three unrelated one-shots
+
+**Symptom.** The Heavy Reliquary commonly fired one or two bolts, then appeared to bug out for its full
+2.4-second cooldown. Two requested Heavies placed directly on the opening-ramp seam reproduced 2/3 and 0/3
+emissions at maximum route speed even though a stationary test had previously produced repeated bursts.
+
+**Root cause.** Every follow-up repeated the correct safety checks, but any single-frame LOS, facing, contact
+or swept-clearance rejection immediately destroyed the entire phrase. A parry changes player velocity, so
+the next forecast can legitimately need a frame to settle. The inherited 32 m range also armed a full-speed
+runner too late. Finally, a seam-side muzzle moved behind the runner's predicted third contact and correctly
+failed the 75-degree parry cone; this was a placement error, not an AI error.
+
+**Fix.** Multi-contact planning preserves paid acquisition, retries initial rejections after 0.08 s, and
+re-plans transient follow-up failures inside the existing finite deadline. Life, target and range loss still
+cancel immediately; persistent failures time out with no catch-up. Heavy arrival readability uses the same
+actual player look direction as the blue traversal sentry. The shipped Heavy range is 48 m. The opening pair
+is data-authored on flanking pads at (-10,0.1,6)/(10,0.1,6), after the five unchanged Surge Turrets in one
+seven-member coordinator. A live moving probe resolved 3/3 + 3/3 with no cancellations.
+
+**Invariant.** Once a readable multi-contact phrase begins, transient re-planning may delay its next contact
+but never silently erase it. Every emitted follow-up still passes range, LOS, facing, cue/contact and solid-
+flight validation. Fix an unanswerable predicted bearing with placement before widening the parry cone.

@@ -774,6 +774,8 @@ namespace VibeGame1.EditorTools
                     Window("Spawn_T0_Surge_3", start, end, 7f, 3f, 42f, 70f),
                     Window("Spawn_T0_Surge_4", start, end, 7f, 9f, 66f, 94f),
                     Window("Spawn_T0_Surge_5", start, end, 7f, 9f, 90f, 130f),
+                    Window("Spawn_T0_Reliquary_1", start, end, 7f, 3f, 90f, 130f),
+                    Window("Spawn_T0_Reliquary_2", start, end, 7f, 3f, 112f, 143f),
                 };
             }
 
@@ -1034,9 +1036,11 @@ namespace VibeGame1.EditorTools
             // reads as a widening of the lane rather than an object in it. The last pair share one
             // connected open Z-shaped dais whose offset decks leave both downward shot lines clear.
             var spawns = new List<SpawnDef>(def.spawns);
-            spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_"));
+            spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_") ||
+                                  s.name.StartsWith("Spawn_T0_Reliquary_"));
             platforms.RemoveAll(p => p.name.StartsWith("T0_TurretPad_") ||
-                                     p.name.StartsWith("T0_OverheadDais_"));
+                                     p.name.StartsWith("T0_OverheadDais_") ||
+                                     p.name.StartsWith("T0_ReliquaryPad_"));
             // Progress down the slope, in metres from the crest lip. 30 is the fix: it gives beat 1 the
             // 26-32 m of announcement every other beat already had.
             var lowerPerches = new[]
@@ -1130,6 +1134,33 @@ namespace VibeGame1.EditorTools
                     position = shot, yaw = shot.x > 0f ? 195f : 165f
                 });
             }
+
+            // Two Heavy Reliquaries close the hill side-by-side on the bottom run-out flanks. A seam
+            // placement made contact three pass behind a 27.5 m/s runner; z=6 keeps both sources ahead
+            // through all six contacts while still reading as the base of the ramp. Their pads remain
+            // outside Ground_Start's +/-8 m deck edge and never narrow the route.
+            var reliquaryShots = new[]
+            {
+                new Vector3(-10f, 0.1f, 6f),
+                new Vector3( 10f, 0.1f, 6f),
+            };
+            for (int i = 0; i < reliquaryShots.Length; i++)
+            {
+                var shot = reliquaryShots[i];
+                string suffix = (i + 1).ToString();
+                platforms.Add(new PlatformDef
+                {
+                    name = "T0_ReliquaryPad_" + suffix,
+                    center = new Vector3(shot.x, shot.y - 0.6f, shot.z),
+                    size = new Vector3(3f, 1f, 3f), materialKey = "Stone", trim = true,
+                    trimMaterialKey = "NeonCyan"
+                });
+                spawns.Add(new SpawnDef
+                {
+                    name = "Spawn_T0_Reliquary_" + suffix, prefabKey = "pshooter_enemy02",
+                    position = shot, yaw = shot.x > 0f ? 210f : 150f
+                });
+            }
             def.platforms = platforms.ToArray();
             def.spawns = spawns.ToArray();
 
@@ -1141,14 +1172,17 @@ namespace VibeGame1.EditorTools
                 spawnerNames = new[]
                 {
                     "Spawn_T0_Surge_1", "Spawn_T0_Surge_2", "Spawn_T0_Surge_3",
-                    "Spawn_T0_Surge_4", "Spawn_T0_Surge_5"
+                    "Spawn_T0_Surge_4", "Spawn_T0_Surge_5",
+                    "Spawn_T0_Reliquary_1", "Spawn_T0_Reliquary_2"
                 },
                 // 0.08 s is the shipped successful-parry recovery; another 0.03 s gives input slack before
                 // the next launch. A closing runner can contact sooner than the nominal 0.44 s flight, so
                 // the live opening probe owns the actual contact-spacing proof.
                 recoveryGap = 0.11f,
                 readinessTimeout = 1.1f,
-                shotResolutionTimeout = 1.25f,
+                // A Heavy phrase spans 0.84 s after its first predicted contact; do not retire a clean
+                // third answer on the one-shot Surge timeout.
+                shotResolutionTimeout = 1.75f,
                 // The lip of the hill. Gate values are metres down the slope from here, which is also how
                 // the perches above are placed, so a gate and its perch are directly comparable.
                 progressOrigin = new Vector3(0f, 0f, topZ),
@@ -1157,7 +1191,7 @@ namespace VibeGame1.EditorTools
                 // beat 1 alone opened at 22 and its bolt flew half as long as every other one.
                 // DO NOT RAISE THE FIRST GATE. See the summary above - it was tried on 2026-09-07 and the
                 // sliding parry rhythm broke. Move geometry instead.
-                memberProgressGates = new[] { 0f, 18f, 40f, 64f, 87f }
+                memberProgressGates = new[] { 0f, 18f, 40f, 64f, 87f, 90f, 112f }
             });
             def.projectileSequences = sequences.ToArray();
 

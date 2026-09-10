@@ -19,6 +19,7 @@ namespace VibeGame1.EditorTools
         static RampDef ramp;
         static readonly List<EnemySpawner> spawners = new List<EnemySpawner>();
         static readonly List<ProjectileShooter> shooters = new List<ProjectileShooter>();
+        static readonly List<ProjectileShooter> heavyShooters = new List<ProjectileShooter>();
         static readonly List<SurgeTurret> turrets = new List<SurgeTurret>();
         static readonly StringBuilder log = new StringBuilder();
         static readonly HashSet<Projectile> recordedCueContacts = new HashSet<Projectile>();
@@ -30,11 +31,11 @@ namespace VibeGame1.EditorTools
         static string result = "Not run";
         static bool opening;
         static float peakMultiplier;
-        static int recordedGrants;
+        static int recordedGrants, recordedPerfects, startingPerfects;
         static ProjectileVolleySequence openingSequence;
         static bool sequenceWasEnabled;
 
-        /// <summary>The authored opening sequence must grant all five real turret deflects.</summary>
+        /// <summary>The authored opening sequence must resolve five Surge deflects and both 3-shot Heavies.</summary>
         public static string StartOpening(bool automaticParries)
         {
             return Start(automaticParries, false, true);
@@ -51,6 +52,7 @@ namespace VibeGame1.EditorTools
             opening = openingDescent;
             peakMultiplier = 1f;
             recordedGrants = 0;
+            recordedPerfects = 0;
             openingSequence = opening
                 ? UnityEngine.Object.FindObjectsByType<ProjectileVolleySequence>()
                     .FirstOrDefault(s => s.name == "T0_SurgeVolley")
@@ -61,6 +63,7 @@ namespace VibeGame1.EditorTools
             motor = UnityEngine.Object.FindAnyObjectByType<FirstPersonMotor>();
             health = motor.GetComponent<Health>(); parry = motor.GetComponent<ParryController>();
             combat = motor.GetComponent<PlayerCombat>();
+            startingPerfects = combat.PerfectParries;
             parry.Cancel();
             returnPosition = motor.transform.position; returnYaw = motor.transform.eulerAngles.y;
             oldInvulnerable = health.Invulnerable;
@@ -68,15 +71,19 @@ namespace VibeGame1.EditorTools
             health.Invulnerable = !automaticParries;
             health.ResetFull();
             var surge = motor.GetComponent<ParrySurge>(); if (surge != null) surge.Clear();
-            spawners.Clear(); shooters.Clear(); turrets.Clear();
+            spawners.Clear(); shooters.Clear(); heavyShooters.Clear(); turrets.Clear();
             foreach (var sp in UnityEngine.Object.FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None)
-                         .Where(s => s.name.StartsWith(opening ? "Spawn_T0_Surge_" : "Spawn_T4_Surge_"))
+                         .Where(s => opening
+                             ? s.name.StartsWith("Spawn_T0_Surge_") || s.name.StartsWith("Spawn_T0_Reliquary_")
+                             : s.name.StartsWith("Spawn_T4_Surge_"))
                          .OrderBy(s => s.name))
             {
                 sp.Spawn(); spawners.Add(sp);
                 var shooter = sp.Instance.GetComponent<ProjectileShooter>();
                 shooter.enabled = automaticParries; shooters.Add(shooter);
-                turrets.Add(sp.Instance.GetComponent<SurgeTurret>());
+                var turret = sp.Instance.GetComponent<SurgeTurret>();
+                if (turret != null) turrets.Add(turret);
+                if (sp.name.StartsWith("Spawn_T0_Reliquary_")) heavyShooters.Add(shooter);
             }
             if (openingSequence != null && automaticParries) openingSequence.Restart();
             foreach (var bolt in UnityEngine.Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None))
@@ -155,15 +162,23 @@ namespace VibeGame1.EditorTools
                             return;
                         }
                     }
-                    if (reached && turrets.Count == 5 && turrets.All(s => !ReferenceEquals(s, null) && s.SurgesGranted >= 1))
+                    int currentPerfects = combat.PerfectParries - startingPerfects;
+                    if (currentPerfects != recordedPerfects)
                     {
-                        Finish(peakMultiplier >= 1.599f ? "PASS: all five opening turrets parried on the slope; full speed boost; reached run-out"
-                            : "FAIL: five parries did not sustain the full speed boost");
-                        return;
+                        recordedPerfects = currentPerfects;
+                        log.AppendLine(string.Format("Opening perfect {0}: t={1:0.000}, progress={2:0.00}/{3:0.00}",
+                            currentPerfects, t, along, ramp.run));
                     }
-                    if (reached)
+                    bool surgesDone = turrets.Count == 5 &&
+                        turrets.All(s => !ReferenceEquals(s, null) && s.SurgesGranted >= 1);
+                    bool heaviesDone = heavyShooters.Count == 2 &&
+                        heavyShooters.All(s => !ReferenceEquals(s, null) && s.Fired == 3 &&
+                                               s.PhraseEmissionsComplete && s.PhraseIncomingResolved);
+                    if (reached && surgesDone && heaviesDone)
                     {
-                        Finish("FAIL: reached the run-out before all five deflects");
+                        Finish(peakMultiplier >= 1.599f
+                            ? "PASS: five Surge parries and both 3-shot Heavies resolved; reached run-out"
+                            : "FAIL: five Surge parries did not sustain the full speed boost");
                         return;
                     }
                 }
@@ -202,10 +217,18 @@ namespace VibeGame1.EditorTools
             int requiredGrants = opening ? 5 : 3;
             if (withParries && (turrets.Count != requiredGrants || distinctGrants < requiredGrants) && verdict.StartsWith("PASS"))
                 verdict = "FAIL: slide completed but fewer than " + requiredGrants + " turrets granted a surge";
+            if (opening && withParries &&
+                (heavyShooters.Count != 2 || heavyShooters.Any(s => ReferenceEquals(s, null) || s.Fired != 3)) &&
+                verdict.StartsWith("PASS"))
+                verdict = "FAIL: opening completed without both Heavy Reliquaries emitting exactly 3 shots";
             log.AppendLine(string.Format("{0}; maxSpeed={1:0.00}; worstFrame={2:0.000}; airborneFrames={3}; endSlideZ={4:0.00}; fired={5}; surgeGrants={6}",
                 verdict, maxSpeed, worstDelta, airborneFrames, endSlideZ, fired, grants));
             log.AppendLine("Surges by turret: " + string.Join(",", turrets.Select(t => ReferenceEquals(t, null) ? "missing" : t.SurgesGranted.ToString()).ToArray()));
             log.AppendLine("Shots by turret: " + string.Join(",", shooters.Select(t => ReferenceEquals(t, null) ? "missing" : t.Fired.ToString()).ToArray()));
+            log.AppendLine("Shots by Heavy: " + string.Join(",", heavyShooters.Select(t => ReferenceEquals(t, null) ? "missing" : t.Fired.ToString()).ToArray()));
+            log.AppendLine("Heavy readiness/cancellation: " + string.Join(",", heavyShooters.Select(t =>
+                ReferenceEquals(t, null) ? "missing" : t.LastReadiness + "/" + t.LastPhraseCancellation +
+                "/active=" + t.PhraseActive).ToArray()));
             log.AppendLine("Peak movement multiplier: " + peakMultiplier.ToString("0.00"));
             result = log.ToString();
             if (EditorApplication.isPlaying && motor != null)

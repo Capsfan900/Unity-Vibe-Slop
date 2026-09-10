@@ -880,19 +880,22 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
           -> ProjectileShooter validates life, band, LOS, facing, swept blocker path and cue-safe flight
              before EVERY emission
          -> one-shot data emits one bolt; Heavy data owns a three-shot phrase whose CONTACTS, not launch
-            frames, are reserved 0.42 s apart; cancellation is final and never creates catch-up debt
+            frames, are reserved 0.42 s apart. A transient LOS/facing/flight rejection re-plans inside the
+            finite follow-up deadline; death, missing target or leaving range cancels immediately, and an
+            expired phrase never creates catch-up debt
       -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that phrase is done
       -> recoveryGap 0.11 s follows resolution, just beyond shipped parrySuccessRecovery 0.08 s
       -> optional progressOrigin / progressDirection / memberProgressGates hold each member until the
-         runner crosses its authored route distance; the opening gates are 0/16/40/64/87 m down the hill
+         runner crosses its authored route distance; the opening gates are 0/18/40/64/87/90/112 m
       -> after that gate and the recovery gap, a 1.1 s readiness deadline skips unavailable members;
          ungated sequences retain their previous deadline behavior, and resets clear the gate latch
       -> PlayerRespawned or wholesale EnemySpawner instance replacement restarts and rebinds the row
-      -> optional shotResolutionTimeout (opening: 1.25 s, legacy default: 0) bounds an unresolved launched
+      -> optional shotResolutionTimeout (opening: 1.75 s, legacy default: 0) bounds an unresolved launched
          shot; retire only that sequence's incoming bolt, then resume normal recovery and order
       -> reset/death/rebind or timeout clears owned incoming shots; reflected return shots keep their payoff
 
-    SHIPPED RUNTIME SEQUENCE: T0_SurgeVolley (5). T1_ParryRoute, T2_ParryRoute, T3_ParryRoute and
+    SHIPPED RUNTIME SEQUENCE: T0_SurgeVolley (7 members: five one-shot Surge Turrets followed by two
+      three-contact Heavy Reliquaries at the opening run-out). T1_ParryRoute, T2_ParryRoute, T3_ParryRoute and
       T4_SurgeRoute are audit-only route groups whose enemies fire autonomously. `Projectile Encounter
       Report` accepts any LevelDefinition and proves ownership, valid windows and at least one safe contact
       per window at 11 / 17.6 / 27.5 m/s.
@@ -1306,21 +1309,22 @@ ProjectileShooter.Awake()  autonomous sentries retain the shared span epoch; onl
                           volley (the shipped T0 opening) waits for its sequence owner.
 ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData.shootsProjectiles)
    gate: awake (Current != Idle), alive, not staggered, not committed (no bolt during a melee wind-up),
-         not aggroLocked, player inside [projectileMinRange 6 (turret 2.5), projectileMaxRange 32 (turret 36)], HasLineOfSight
+         not aggroLocked, player inside [projectileMinRange 6 (turret 2.5), projectileMaxRange
+         32 ordinary / 48 Heavy / 36 Surge], HasLineOfSight
          (same three lines; only cast once the band test passes)
    → F1, THE ARM-UP: on the out-of-band/blocked → in-band TRANSITION,
      nextFireAt = ProjectileMath.AcquireBeat(nextFireAt, now, interval, projectileAcquireDelay 0.7) -- the beat is
      HELD, so a stale one used to fire on the FIRST FRAME the line cleared: the frame you crest a ledge or land.
      Only ever moves a beat forward, and never by more than one interval. The ordinary blue tight-route
-     sentry preserves this completed acquisition across a brief LOS loss; every restored line still revalidates
-     band, LOS, facing, obstruction and flight before emission. Heavy and Surge reacquire normally.
+     sentry and the Heavy's multi-contact planner preserve completed acquisition across a brief LOS loss;
+     every restored line still revalidates band, LOS, facing, obstruction and flight. Surge reacquires normally.
    → at a launch request (autonomous beat or ProjectileVolleySequence phrase):
-     F3, NO BOLT AT A FLEEING BACK: ordinary blue uses ProjectileMath.ArrivesInsideFacing with the player's
-             actual flat AimForward; Heavy and Surge retain ArrivesInFront(muzzle, chest, motor.Velocity, speed,
-             statsData.facingConeDeg 75). Both predict the arrival point and take the bearing it comes FROM there
-             (ParryMath.SourceDirection, the rule the parry itself is judged by). Ordinary blue refuses any
-             outside-look-cone arrival; Heavy/Surge refuse only when outside their movement-facing cone AND
-             receding. Refusal advances/cancels rather than building debt.
+     F3, NO BOLT AT A FLEEING BACK: ordinary blue and the three-contact Heavy use
+             ProjectileMath.ArrivesInsideFacing with the player's actual flat AimForward; Surge retains
+             ArrivesInFront(muzzle, chest, motor.Velocity, speed, statsData.facingConeDeg 75). Both predict
+             the arrival point and take the bearing it comes FROM there (ParryMath.SourceDirection, the rule
+             the parry itself judges). A Heavy phrase remains answerable while a deflect changes velocity;
+             the one-shot Surge keeps its movement-facing ramp contract.
      ProjectileFlightMath.Plan(real root, chest, motor.Velocity, desired speed, lead, homing, hit radius,
              CueLead + CueMargin) solves the exact constant-velocity intercept, then sweeps forecast projectile
              and player spheres with the same moving-intercept capped-homing step the runtime uses.
@@ -1332,12 +1336,13 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
        muzzle, any sibling collider, a full NonAlloc hit buffer, and the same support after departure all
        fail closed. Surge Turrets never inherit this policy.
       → no contact / unsafe cue / blocked sweep:
-             refuse this emission; ordinary blue retries after 0.08 s while the legal route window is still
-             present; a Heavy/Surge waits its full beat and a burst phrase cancels deterministically
+             refuse this emission; ordinary blue and Heavy planning retry after 0.08 s. During an active
+             Heavy phrase, transient failures retry only until its bounded follow-up deadline; a persistent
+             failure cancels without catch-up. The one-shot Surge retains its full-beat behavior.
      → READY: fire at the plan's launchPosition, direction and fastest cue-safe speed
      → autonomous arrival reservation occupied: ordinary blue sentry retries at the first safe predicted
-       contact slot; it does not advance one full beat and preserve a same-phase tie forever. Heavy and Surge
-       retain their existing beat behavior.
+       contact slot; it does not advance one full beat and preserve a same-phase tie forever. Heavy uses the
+       same responsive hand-off; Surge retains its existing beat behavior.
      → burstCount 3: reserve the next predicted CONTACT at +0.42 s, re-plan and revalidate before each follow-up;
              after emission three the Heavy rests for projectileInterval 2.4 s
      a 0.55 m Bolt core at the chest --
@@ -1379,8 +1384,8 @@ Projectile.Update()  (scaled time: hitstop freezes it)
 - **The flight is the tell, and it is cued at 0.28 s like every attack.** A launch must forecast first
   contact at or beyond 0.44 s; the planner slows only as much as required, and refuses impossible shots.
 - **A bolt in flight is an INCOMING ATTACK** (`BoltRegistry`, F2). The two cue helpers on `EnemyController` read it with NO range test — a bolt is already aimed at you, so its arrival time is the question, not its perch's distance. Melee's 6 m `InThreatRange` is untouched.
-- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed**. Ordinary blue judges the player's real look, allowing a deliberate backpedal/look-back shot; Heavy and Surge retain movement-facing. Route windows describe geometry, not the player's parry state; every follow-up still earns a legal shot.
-- **Brief tight-route occlusion does not repay the acquire delay.** Ordinary blue remains armed and retries a rejected legal plan in 0.08 s, but every emission still passes the whole launch contract. The conservative enemies keep their old reacquire/full-beat behavior.
+- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed**. Ordinary blue and Heavy judge the player's real look, allowing deliberate look-back answers; Surge retains movement-facing. Route windows describe geometry, not parry state; every follow-up still earns a legal shot.
+- **Brief traversal occlusion does not repay the acquire delay.** Ordinary blue and the Heavy's multi-contact planner remain armed and retry a rejected legal plan in 0.08 s, but every emission still passes the whole launch contract. A Heavy that has begun a phrase retries transient failures only until its finite deadline. The one-shot Surge keeps its old reacquire/full-beat behavior.
 - **Forecast clocks cannot disagree.** A player moving through world hitstop still has player-clock/motor velocity; never divide that displacement by slowed world delta for a projectile cue.
 - **Ground contact is not a fall.** On flat support, the motor's small negative-Y stick velocity must not
   forecast the player through the deck and reject a legal Heavy burst. Apply the shared ground-aware helper
@@ -2074,10 +2079,13 @@ DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
   a falling runner) survive any change to the hill's length. All five contacts belong on the slope, around
   progress 16/28/51/76/97; the 47 m of empty slope below the last contact is the deliberate exhale, where
   the five-stack 1.60x surge is felt before the run-out hands the player to `Ground_Start`.
+  Two `pshooter_enemy02` Heavy Reliquaries then sit on 3 m cyan-trimmed pads at **(-10,0.1,6)** and
+  **(10,0.1,6)**, outside `Ground_Start`'s +/-8 m edge. They are members 6/7 of the same coordinator and
+  each resolves its full three-contact phrase before the next member advances.
 - **The T0 volley's gate coordinate, and why `memberProgressGates[0]` is 0 (2026-09-07).**
   `T0_SurgeVolley.progressOrigin` sits **on the ramp's top edge** (0,0,-159.8) with
   `progressDirection = forward`, so a gate value and a perch's slope progress are the same kind of number.
-  Gates are `{ 0, 18, 40, 64, 87 }`. Two rules came out of play that day:
+  Gates are `{ 0, 18, 40, 64, 87, 90, 112 }`; the last two belong to the bottom Heavy pair. Two rules came out of play that day:
   **(a) a gate is a FLOOR on where a beat may open, not a schedule.** `memberProgressGates[0]` was raised
   0 -> 14 to "buy runway before the first enemy"; the user reported the sliding parry rhythm broke ("the
   logic for those was somewhat working ... but now its off"). Raising it did not add approach, it deleted

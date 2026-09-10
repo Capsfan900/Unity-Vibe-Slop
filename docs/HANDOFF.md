@@ -2,6 +2,27 @@
 
 ## Latest continuation — 2026-09-10
 
+The Heavy Reliquary follow-up is complete. The actual remaining failure was phrase-level: a single transient
+LOS/facing/flight rejection on contact two or three immediately erased the rest of the three-shot promise and
+started the 2.4 s cooldown. Heavy planning now preserves paid acquisition, uses the player's real look-facing,
+retries transient initial plans after 0.08 s, and re-plans active follow-ups only inside their existing finite
+deadline. Terminal life/target/range failures still cancel immediately, and persistent failures still time out
+without catch-up. The Heavy's generated range is 48 m so a full-speed runner receives the whole phrase.
+
+Level 1 now has two requested `pshooter_enemy02` Heavy Reliquaries on cyan-trimmed flanking pads at
+`(-10,0.1,6)` and `(10,0.1,6)`, visually at the first ramp's bottom run-out and outside the route. They append
+to the existing progress-gated opening coordinator after the five unchanged Surge Turrets. The final live
+real-motor probe recorded 11 perfects / 11 shots: five one-shot Surge beats, Heavy 1 at 3/3, and Heavy 2 at
+3/3, with both ending `Ready/None` and no cancellation. Earlier seam placements reproduced the bug at 2/3
+and 0/3 because the final predicted arrival crossed just outside the 75-degree parry cone; moving the pads,
+not widening combat rules, fixed it. Both original T2 blue sentries also emitted repeatedly in fresh live
+route probes (6 lower / 8 upper).
+
+Final verification for this continuation: EditMode **1028/1028** (152.1 s), FeatureTests **804/804**
+(58.3 s), Level Arc and Projectile Encounter reports PASS, runtime/editor compiles have zero errors, and
+Health Check has no error section. The rollback tag is `pre-heavy-turret-root-cause-2026-09-10`. The user-owned
+music replacement, `.claude/settings.local.json`, `Portraits/`, and unrelated `RouteShots/` remain untouched.
+
 The previously interrupted session is now closed cleanly. Level 1 has a large cyan-glowing physical
 leaderboard behind the spawn, generated from `LevelDefinition.worldLeaderboard` and bound to the existing
 local `Leaderboard` model. It truthfully says `LOCAL BEST RUNS` / `SAVED ON THIS DEVICE`, supports eight
