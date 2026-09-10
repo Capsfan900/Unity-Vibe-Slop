@@ -369,7 +369,8 @@ namespace VibeGame1
                     // circling once it is happy. Recovering by hugging the player is what made every
                     // wind-up unreadable.
                     FaceTarget(toP, dt, 0.6f);
-                    Reposition(toP, dist, dt);
+                    if (RepositionsDuringRecover(data.rangedOnly)) Reposition(toP, dist, dt);
+                    else if (locomotion != null) locomotion.Stop();
                     if (Time.time >= stateEnd)
                     {
                         if (resumeComboAfterRecover && CanResumeCombo(dist)) ResumeCombo();
@@ -384,6 +385,15 @@ namespace VibeGame1
                     }
                     break;
             }
+        }
+
+        /// <summary>
+        /// A ranged-only enemy is a fixed route tool in every non-dead state. Letting the generic melee
+        /// recovery step run after a reflected bolt walked sentries off their authored perches.
+        /// </summary>
+        public static bool RepositionsDuringRecover(bool rangedOnly)
+        {
+            return !rangedOnly;
         }
 
         /// <summary>

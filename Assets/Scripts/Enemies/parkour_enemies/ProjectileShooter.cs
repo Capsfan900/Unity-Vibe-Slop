@@ -401,7 +401,16 @@ namespace VibeGame1
 
         Vector3 Muzzle { get { return transform.position + Vector3.up * 1.3f; } }
         Vector3 Chest { get { return combat.transform.position + Vector3.up * 1.2f; } }
-        Vector3 TargetVelocity { get { return motor != null ? motor.Velocity : Vector3.zero; } }
+        Vector3 TargetVelocity
+        {
+            get
+            {
+                return motor != null
+                    ? ProjectileMath.GroundAwareTargetVelocity(motor.Velocity, motor.IsGrounded,
+                                                               motor.GroundNormal)
+                    : Vector3.zero;
+            }
+        }
 
         /// <summary>
         /// Ordinary blue route tools retain an acquisition through momentary cover. This never makes a

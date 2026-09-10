@@ -14,7 +14,8 @@ the "Still needs code" section at the bottom rather than working around it silen
 ## 1. Levels
 
 A level is one `LevelDefinition` asset: identity, platforms, ramps, spawns, pickups, checkpoints, torches,
-the boss arena, the kill plane and the player start. `LevelDefinitionBuilder` turns it into a scene.
+the optional world leaderboard, the boss arena, the kill plane and the player start.
+`LevelDefinitionBuilder` turns it into a scene.
 
 ### 1a. Migration: DONE. The level is data now.
 
@@ -43,6 +44,9 @@ Definition**, then rebuild and diff. The round trip is the proof the two represe
      face), `width`, `run`, `rise`, `thickness`, `yaw`. See §1c.
    - **spawns** — `prefabKey` (`Enemy_Grunt`, `Enemy_Heavy`, `Legendary_*`, `Boss`), `yaw`, `isBoss`.
    - **pickups** — `itemKey` matching an item asset name in `Assets/Data/Items/`.
+   - **worldLeaderboard** — optional physical local-record display: enable state, root name, world
+     position/yaw, width/height, row count and backing/glow material keys. It is presentation only; the
+     existing `Leaderboard` model owns the data.
    - **checkpoints** — `name` matters: `LevelManager.Warp()` finds checkpoints **by name**, and F5
      warps to the LAST one (`Checkpoint_4`). One per tile entrance.
    - **pedestals** — wand altars. `groundPosition` is the floor it stands on; the plinth, crystal,

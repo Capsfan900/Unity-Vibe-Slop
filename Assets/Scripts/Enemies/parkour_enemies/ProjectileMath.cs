@@ -89,6 +89,30 @@ namespace VibeGame1
         }
 
         /// <summary>
+        /// Removes the motor's deliberate downward ground-stick from a projectile forecast. The player is
+        /// not falling while grounded, and forecasting that -2 m/s through the supporting deck makes an
+        /// otherwise clear Heavy Sentry shot intersect the floor. Real airborne descent and every upward
+        /// launch remain intact because vertical movement matters to the contact forecast there.
+        /// </summary>
+        public static Vector3 GroundAwareTargetVelocity(Vector3 velocity, bool isGrounded)
+        {
+            return GroundAwareTargetVelocity(velocity, isGrounded, Vector3.up);
+        }
+
+        /// <summary>
+        /// Surface-aware overload. Only a flat support identifies negative Y as the motor's ground-stick;
+        /// authored ramps retain their tuned vertical forecast until the motor exposes its true slope
+        /// displacement as velocity rather than applying that displacement separately.
+        /// </summary>
+        public static Vector3 GroundAwareTargetVelocity(Vector3 velocity, bool isGrounded, Vector3 groundNormal)
+        {
+            bool flatSupport = groundNormal.sqrMagnitude < 1e-6f ||
+                               Vector3.Dot(groundNormal.normalized, Vector3.up) >= 0.999f;
+            if (isGrounded && flatSupport && velocity.y < 0f) velocity.y = 0f;
+            return velocity;
+        }
+
+        /// <summary>
         /// The parry contract for enemies is that the cue fires <c>cueLead</c> (0.28 s) before impact.
         /// A bolt has no wind-up of its own -- its flight IS the wind-up -- so the cue is due the frame
         /// its remaining flight drops under the lead. Fires once.

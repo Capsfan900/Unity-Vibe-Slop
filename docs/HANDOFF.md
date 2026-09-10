@@ -1,4 +1,32 @@
-# Handoff — projectile AI, run scoring, status stacks and parry feel
+# Handoff — spawn leaderboard, projectile AI, run scoring, status stacks and parry feel
+
+## Latest continuation — 2026-09-10
+
+The previously interrupted session is now closed cleanly. Level 1 has a large cyan-glowing physical
+leaderboard behind the spawn, generated from `LevelDefinition.worldLeaderboard` and bound to the existing
+local `Leaderboard` model. It truthfully says `LOCAL BEST RUNS` / `SAVED ON THIS DEVICE`, supports eight
+rank/time/death rows, and leaves the removed screen-space GhostHud board disabled. Astra's final review found
+that the original populated typography could overlap the footer; the shipped 26-point row layout is now
+guarded by a preferred-height test using eight longest-form VERIFIED entries. The display is entirely on
+the Sky layer, has no colliders, and round-trips through the level exporter without becoming platforms.
+
+The lone end-of-level turret is `Spawn_T3_Heavy`, using `pshooter_enemy02` (the Heavy Reliquary). Its motor
+target was grounded but still carried the motor's deliberate negative-Y ground-stick, which made the flight
+planner forecast the player through the deck and reject later shots as `BlockedFlight`. Planning, runtime
+steering and runtime cue/contact prediction now share `GroundAwareTargetVelocity`: negative Y is cleared
+only on near-flat grounded support. Real falls, upward launches and slopes remain untouched. Ranged-only
+Recover also stops locomotion instead of running melee Reposition, so a parried Heavy stays on its perch.
+
+Verification on the final tree: full EditMode **1025/1025** (160.1 s), focused board/projectile **44/44**,
+full FeatureTests **804/804** (58.9 s), Level Arc Report PASS, Projectile Encounter Report PASS, runtime
+compile clean, editor compile clean except the same 18 known warnings, and Health Check with no errors / the
+same 1932 broad warnings. The live Heavy fired repeated full phrases to nine shots with zero cancellations
+and did not move after a real parry. The opening ramp probe independently passed all five slope shots and
+parries with a full 1.60x boost, proving the existing ramp-turret behavior survived.
+
+Rollback tag: `pre-spawn-leaderboard-2026-09-09`. The implementation landed as the single
+revertible commit `[Astra] Add spawn leaderboard and repair Heavy turret bursts`. User-owned music changes,
+`.claude/settings.local.json`, `Portraits/`, and unrelated `RouteShots/` remain outside that commit.
 
 ## What happened
 
@@ -55,29 +83,33 @@ finished architectural materials, and agent-agnostic project dashboard updates r
 
 ## State of the tree
 
-- Baseline rollback tag for this focused continuation: `pre-projectile-ui-pass-2026-09-09`.
+- Current rollback tag: `pre-spawn-leaderboard-2026-09-09`; the earlier projectile/UI rollback tag remains
+  historical context.
 - Recovery note: the original session completed implementation and verification but stopped before its
   documented commit was created. The resumed Astra integration audited and recovered that intact worktree.
 - All required material/data/prefab/HUD/main-menu/level generators were run in the open Unity editor. The
   canonical `Level_01` scene and shipped data/prefab values are current. Two consecutive level reworks
   produced SHA-256 `7EE7FBB72B497D551673AC1C42E86C2DB90C31DE3142080FD19A9DCF925D4B89`.
 - The prior recovery is commit `7be071a` (`[Astra] Restore projectile AI, run scoring and parry feedback`).
-  This focused continuation is one revertible Astra integration containing code, generated HUD/scene,
-  tests and system maps together.
-  The user's local `.claude/settings.local.json`, `Portraits/`, and `RouteShots/` capture
-  output remain intentionally uncommitted.
+  The current spawn-board/Heavy continuation is one revertible Astra integration containing code,
+  generated scene, tests and system maps together.
+  The user's local `.claude/settings.local.json`, `Portraits/`, music changes and unrelated `RouteShots/`
+  capture output remain intentionally uncommitted. Only `RouteShots/spawn-leaderboard/` belongs to this pass.
 - No subagent work remains in flight.
 
 ## Verification
 
-- Full EditMode: **1017/1017 passed**, zero failures/skips, **176.9 s**, on the final code and asset tree.
-  Focused affected surface: **85/85**; the final seven new regression tests passed **7/7**.
-- Full FeatureTests: **804/804 passed**, zero failures/skips, **58.7 s**, from a fresh unpaused `Level_01`
+- Full EditMode: **1025/1025 passed**, zero failures/skips, **160.1 s**, on the final code and asset tree.
+  Focused leaderboard/projectile surface: **44/44**, including the eight-row rendered-height assertion.
+- Full FeatureTests: **804/804 passed**, zero failures/skips, **58.9 s**, from a fresh unpaused `Level_01`
   session after checking `GameManager.I != null` and `Time.timeScale == 1`.
 - Live Level_01 probes: all five shipped ordinary placements emitted while the player moved through T1,
   both T2 layers and T3; the lower T2 also fired during the look-back/backpedal case. A real blue bolt
-  Perfect reflected and paid one 1.12x stack; the T3 Heavy emitted exactly three from the route and a
-  temporary solid blocker rejected its next launch. Ramp turrets were not retuned.
+  Perfect reflected and paid one 1.12x stack. The T3 Heavy now emitted repeated full phrases to nine shots,
+  zero cancellations and no post-parry perch drift. Ramp turrets were not retuned; the opening descent probe
+  separately passed five slope shots/five parries with the full 1.60x boost.
+- Spawn leaderboard readback: one 10 x 5 m board at `(0, 39, -170.6)`, eight rows, all descendants on Sky,
+  zero colliders, local-only wording, and the legacy screen board still hidden.
 - Whole-fight `DebugHarness` runs passed for `parry`, `boss` and `death`: Spellsword/Knight completed with
   8/8 perfect deflects and executions, all boss phases completed, and respawn rebuilt the enemy instance.
 - Health Check reports no error section / **1932 warnings**. Offline runtime and editor assemblies compile with zero
@@ -97,6 +129,8 @@ state machines and effect budgets. They cannot prove player feel or visual comfo
 2. Complete a scored run and judge the two-level top-left status/run display, subtle crosshair projectile
    bracket, D–S split payouts and 3560-soul gate.
 3. Judge the tighter parry recoil/chromatic contact and projectile cue/audio with real human timing.
+4. Turn around at the Level 1 spawn and judge the physical leaderboard's reading distance and glow with
+   both an empty board and several saved runs.
 
 ## Open questions for the user
 

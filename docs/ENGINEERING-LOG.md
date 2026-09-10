@@ -3820,3 +3820,35 @@ the crosshair only after the existing projectile cue fires and only inside its 0
 
 **Invariant.** Persistent macro information belongs in the edge hierarchy; immediate action information may
 briefly reinforce at the reticle. The HUD observes `BoltRegistry` and never becomes aim assist or early warning.
+
+## 2026-09-09 — Flat-ground stick velocity is not projectile target descent
+
+**Symptom.** The lone T3 Heavy could emit once, then remain at `BlockedFlight`; in other starts it never
+emitted. Its three-shot phrase looked random despite valid range, line of sight and authored timing.
+
+**Root cause.** `FirstPersonMotor` intentionally keeps about -2 m/s Y velocity while grounded so the
+controller stays attached to a deck. Projectile planning treated that contact residue as a real fall and
+forecast the target through the platform. After a parry, `EnemyController.Recover` also ran the melee
+`Reposition` path for `rangedOnly` enemies, letting the fixed sentry drift off its authored pad.
+
+**Fix.** `ProjectileMath.GroundAwareTargetVelocity` is shared by launch planning, runtime steering and
+runtime contact/cue prediction. It clears negative Y only on flat grounded support; airborne descent,
+upward movement and grounded ramp motion are preserved. Recover now stops locomotion for `rangedOnly`
+enemies while melee enemies retain Reposition.
+
+**Invariant.** Normalize the motor's flat-ground contact residue at every projectile forecast boundary,
+never globally. A ramp is motion, an airborne fall is motion, and a ranged-only perch is not a melee lane.
+
+## 2026-09-09 — A spawn leaderboard is level content, not a restored HUD pane
+
+**Symptom.** The requested large glowing leaderboard behind the Level 1 spawn needed to survive rebuilds
+without bringing back the previously removed top-right BEST RUNS screen UI or polluting the NavMesh.
+
+**Fix.** Optional `LevelDefinition.worldLeaderboard` data is authored, built and exported with the level.
+`WorldLeaderboardView` observes the existing local leaderboard and labels it truthfully. The generated root
+and every descendant use the Sky layer and have no colliders; the exporter captures its marker/config before
+skipping the root from generic platform export.
+
+**Invariant.** Physical world presentation and screen HUD presentation are separate consumers of the same
+model. `GhostHud.BoardVisible` ships false. A generated display must be data-owned, round-trippable,
+non-colliding and excluded from navigation geometry.

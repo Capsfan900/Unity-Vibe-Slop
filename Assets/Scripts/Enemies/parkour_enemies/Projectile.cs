@@ -231,7 +231,10 @@ namespace VibeGame1
                 // Steering and the launch forecast use the same moving-target intercept. Chasing the
                 // current chest bends a correct lead behind a fast crossing runner and moves the parry
                 // beat outside the authored route window.
-                Vector3 expectedVelocity = motor != null ? motor.Velocity : Vector3.zero;
+                Vector3 expectedVelocity = motor != null
+                    ? ProjectileMath.GroundAwareTargetVelocity(motor.Velocity, motor.IsGrounded,
+                                                               motor.GroundNormal)
+                    : Vector3.zero;
                 dir = ProjectileFlightMath.HomingDirection(dir, transform.position, Chest(playerT),
                     expectedVelocity, speed, data.projectileHomingDegPerSec, dt);
             }
@@ -242,7 +245,10 @@ namespace VibeGame1
             {
                 if (playerT == null || combat == null) { Spend(); return; }
                 Vector3 target = Chest(playerT);
-                Vector3 expectedTargetVelocity = motor != null ? motor.Velocity : Vector3.zero;
+                Vector3 expectedTargetVelocity = motor != null
+                    ? ProjectileMath.GroundAwareTargetVelocity(motor.Velocity, motor.IsGrounded,
+                                                               motor.GroundNormal)
+                    : Vector3.zero;
                 Vector3 targetStart = hasTargetHistory
                     ? ProjectileMath.ContinuousTargetStart(previousTargetChest, target, expectedTargetVelocity,
                                                            TimeScaleController.PlayerDelta)

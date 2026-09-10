@@ -11,6 +11,36 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Spawn leaderboard and end-of-level Heavy reliability — 2026-09-10
+
+- **Final full EditMode: 1025/1025 passed**, zero failures/skips, 160.1 s. The focused leaderboard and
+  projectile surface passed **44/44** after the final full-board layout assertion was added.
+- **Full FeatureTests: 804/804 passed**, zero failures/skips, 58.9 s, from a newly started Level_01 session
+  after explicitly proving `GameManager.I != null` and `Time.timeScale == 1`.
+- **The T3 Heavy now repeats complete bursts.** Before the fix, the live shipped enemy remained at
+  `BlockedFlight` with zero shots because the grounded motor's intentional downward stick velocity was
+  forecast as a fall through its deck. After the shared flat-ground normalization it fired a complete
+  three-shot phrase, repeated to nine shots with zero cancellations, and remained at its authored
+  `(17.50, 31.58, 310.00)` perch through a real `OnParried(40)` recovery.
+- **The already-good ramp turrets remain unchanged in behavior.** The live opening-descent probe completed
+  the 14-degree ramp with all five turrets firing once, all five projectiles parried on the slope, cue leads
+  0.276-0.289 s, and the full 1.60x speed boost. The correction preserves airborne falls, upward launches
+  and non-flat grounded velocity.
+- **The Level 1 spawn board is shipped level data.** It regenerates at `(0, 39, -170.6)`, faces the spawn,
+  shows up to eight local rank/time/death rows, subscribes to the existing leaderboard, and labels its scope
+  as local/device-saved. Every descendant is on the Sky layer with no collider, so it cannot enter the
+  Default-only NavMesh or block traversal. The old screen-space leaderboard stays hidden.
+- **Astra release review caught and closed the populated-state overflow.** The final row typography fits
+  eight longest-form `VERIFIED` rows inside the rows rectangle above the footer; the test measures TMP's
+  preferred height rather than relying on the empty-board screenshot.
+- **Reports and compile:** Level Arc Report verdict PASS; Projectile Encounter Report verdict PASS at
+  11/17.6/27.5 m/s; runtime compile 0 warnings/errors; editor compile 0 errors with the same 18 known
+  warnings. Health Check has no error section and the unchanged 1932 broad serialized-null warnings.
+
+**Still human-only:** judge the board's final reading distance and glow during ordinary play, and the Heavy's
+three-parry rhythm while approaching at player-controlled speed. Automated probes prove state, timing and
+layout bounds, not subjective feel.
+
 ### Final blue-sentry reliability and focused combat-UI pass — 2026-09-09
 
 - **Final full EditMode: 1017/1017 passed**, zero failures/skips, 176.9 s. The focused projectile/UI/

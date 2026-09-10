@@ -1349,6 +1349,9 @@ Projectile.Update()  (scaled time: hitstop freezes it)
    measured from relative swept motion and reconciled with the launch plan. Both use
    ProjectileMath.ForecastTargetVelocity: motor velocity first, or transform displacement divided by
    TimeScaleController.PlayerDelta -- never slowed Time.deltaTime -- so hitstop cannot fabricate speed.
+   Every motor read then passes through ProjectileMath.GroundAwareTargetVelocity. On flat grounded support
+   only, the motor's intentional negative-Y ground-stick residue becomes zero before planning, steering and
+   cue/contact prediction. Airborne falls, upward launches and grounded slope velocity remain unchanged.
    → the amber Core CHILD alone weaves up to 0.34 m on a deterministic per-shot phase before the cue;
      it eases in over 0.09 s, fades back over 0.12 s, and is exactly on the logical line for the whole
      remaining ≤ 0.28 s cue window. A 7-point fixed buffer records the visible head, so the trail curves too.
@@ -1379,6 +1382,11 @@ Projectile.Update()  (scaled time: hitstop freezes it)
 - **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed**. Ordinary blue judges the player's real look, allowing a deliberate backpedal/look-back shot; Heavy and Surge retain movement-facing. Route windows describe geometry, not the player's parry state; every follow-up still earns a legal shot.
 - **Brief tight-route occlusion does not repay the acquire delay.** Ordinary blue remains armed and retries a rejected legal plan in 0.08 s, but every emission still passes the whole launch contract. The conservative enemies keep their old reacquire/full-beat behavior.
 - **Forecast clocks cannot disagree.** A player moving through world hitstop still has player-clock/motor velocity; never divide that displacement by slowed world delta for a projectile cue.
+- **Ground contact is not a fall.** On flat support, the motor's small negative-Y stick velocity must not
+  forecast the player through the deck and reject a legal Heavy burst. Apply the shared ground-aware helper
+  in launch planning and both runtime projectile forecasts. Do not flatten a ramp or an airborne fall.
+- **A ranged-only recovery holds its perch.** `EnemyController.Recover` stops locomotion for `rangedOnly`
+  enemies; only melee enemies run `Reposition`. A deflected sentry must resume shooting from the same pad.
 - **Tight-route permission narrows only the clearance shape.** `EnemyData.projectileAllowTightRouteShots`
   makes the ordinary blue traversal sentry use a thin exact path, not a world-collision exemption; solid
   walls, LOS, arrival contact, frontal readability and cue safety remain gates. Heavy Sentries and already-
@@ -2462,6 +2470,13 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
                                        "Ghost/Toggle Leaderboard Panel" turns it on for debugging. There
                                        is no HUD pane path any more — HUDController has no BEST RUNS
                                        fields, and HudBuilder emits no BestRunsPane
+   LevelDefinition.worldLeaderboard is authored behind Level_01's StartSpawn
+      -> LevelDefinitionBuilder.BuildWorldLeaderboard: one generated root, stone backing, cyan emissive rails,
+         world-space Canvas; every descendant is on Starfield.SkyLayer and has no collider
+      -> WorldLeaderboardView.TrySubscribe -> Leaderboard.I.Top / Leaderboard.Changed
+         "LOCAL BEST RUNS" plus rank/time/deaths, up to the authored eight rows; truthful empty state and
+         "SAVED ON THIS DEVICE" footer. It is a physical local-record display, not the removed screen HUD.
+      -> LevelDefinitionExporter captures the marker/config and skips the root from generic platform export.
    HintText (top-right, one line)     contextual hints ONLY — the static bind list is gone from play:
                                        ControlsInfo.Text → the settings INFO card (SettingsPanelKit, one
                                        emitter for the pause path AND the title path) and F1 → INFO

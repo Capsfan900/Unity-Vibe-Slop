@@ -12,15 +12,15 @@ problem** that makes live co-op risky. Combat code is untouched by this feature.
 ## What it does
 
 Finish the level and your run is recorded. Next attempt, a translucent ghost of your personal best runs the
-course beside you in real time, with a live delta under the timer, and a leaderboard of your best times in the
-top-right.
+course beside you in real time, with a live delta under the timer. Level 1 also presents your local best
+times on a large glowing physical board behind the spawn.
 
 | | |
 |---|---|
 | Records | Position, yaw, pitch, state flags, equipped weapon — at a fixed 30 Hz tick |
 | Ghost | Translucent figure driven by the **same run clock**, so it is a race, not a replay |
 | Delta | `-0.62s` green = ahead of PB · `+1.14s` red = behind |
-| Leaderboard | Best 10 runs per level, kept on disk |
+| Leaderboard | Best 8 runs per level, kept on disk and shown on Level 1's physical spawn board |
 | Backend | `LocalLeaderboardBackend` — swappable for a remote one without touching call sites |
 
 ---
@@ -34,7 +34,8 @@ SpeedrunTimer ──RunStarted/RunFinished──> RunRecorder ──GhostRecordi
                                                                               │
                                               GhostPlayer <──GhostRecording───┘
                                                    │
-                                              GhostHud (delta + table)
+                                              GhostHud (delta + debug-only hidden table)
+                                              WorldLeaderboardView (Level 1 physical board)
 ```
 
 | File | Role |
@@ -44,8 +45,9 @@ SpeedrunTimer ──RunStarted/RunFinished──> RunRecorder ──GhostRecordi
 | `Assets/Scripts/Ghost/GhostPlayer.cs` | Builds and drives the translucent ghost; computes the delta |
 | `Assets/Scripts/Ghost/RunStore.cs` | Disk persistence — index file + one blob per run |
 | `Assets/Scripts/Ghost/Leaderboard.cs` | `ILeaderboardBackend`, `LocalLeaderboardBackend`, the model |
-| `Assets/Scripts/Ghost/GhostHud.cs` | Self-building canvas: delta + table |
+| `Assets/Scripts/Ghost/GhostHud.cs` | Self-building canvas: live delta + debug-only hidden table |
 | `Assets/Scripts/Ghost/GhostRacing.cs` | Orchestrator, self-bootstrapping |
+| `Assets/Scripts/UI/WorldLeaderboardView.cs` | Physical local-record presenter generated from `LevelDefinition.worldLeaderboard` |
 
 ### Three decisions worth knowing
 
@@ -58,9 +60,13 @@ instead of it.
 
 **2. It self-bootstraps.**
 `GhostRacing` installs itself via `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` if a `SpeedrunTimer` is
-present. Nothing was added to any prefab or to the level builder, so a `4. Build Prefabs` or `6. Build Level`
-rebuild can never drop the feature, and removing it means deleting one folder. The HUD builds its own canvas
-for the same reason — it is immune to a HUD rebuild and cannot collide with `HUDController`.
+present. The recorder, model, playback and delta remain independent of generated prefabs. `GhostHud` builds
+its own screen canvas, while the optional world board is deliberate level content generated from
+`LevelDefinition.worldLeaderboard`; rebuilding Level 1 recreates it deterministically.
+
+The world board reads `Leaderboard.I.Top` and `Changed`. It says `LOCAL BEST RUNS` and `SAVED ON THIS DEVICE`
+because the current backend is local-only; it never invents global ranks or verified names. The old top-right
+screen board remains disabled (`GhostHud.BoardVisible == false`) except for its explicit debug toggle.
 
 **3. The delta is measured by position, not by clock.**
 Comparing elapsed times directly would always read zero — the ghost and the player share one clock. Instead a

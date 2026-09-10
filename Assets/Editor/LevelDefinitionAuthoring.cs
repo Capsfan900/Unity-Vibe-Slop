@@ -706,6 +706,7 @@ namespace VibeGame1.EditorTools
 
             ApplyDescent(def);
             ApplyOpeningDescent(def);
+            ApplySpawnLeaderboard(def);
             ApplySolarRealms(def);
             ApplyProjectileEncounterSequences(def);
             ApplyRunScoring(def);
@@ -1172,6 +1173,27 @@ namespace VibeGame1.EditorTools
             // Catch falls behind the new crest while retaining the final arena's z 450 boundary.
             def.killZone.center = new Vector3(0f, -30f, 130f);
             def.killZone.size = new Vector3(200f, 2f, 640f);
+        }
+
+        /// <summary>
+        /// Places the local-records board on the entry deck behind the final authored spawn. Keeping this
+        /// derived from playerStart makes repeated authoring deterministic when the opening descent moves.
+        /// </summary>
+        public static void ApplySpawnLeaderboard(LevelDefinition def)
+        {
+            if (def == null) return;
+            Vector3 behind = Quaternion.Euler(0f, def.playerStartYaw, 0f) * Vector3.back;
+            def.worldLeaderboard = new WorldLeaderboardDef
+            {
+                enabled = true,
+                name = "WorldLeaderboard",
+                position = def.playerStart + behind * 8.3f + Vector3.up * 2.7f,
+                yaw = Mathf.Repeat(def.playerStartYaw + 180f, 360f),
+                size = new Vector2(10f, 5f),
+                rowCount = Leaderboard.DisplayCount,
+                backingMaterialKey = "Stone",
+                glowMaterialKey = "NeonCyan",
+            };
         }
 
         /// <summary>

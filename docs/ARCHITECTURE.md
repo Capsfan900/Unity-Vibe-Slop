@@ -71,6 +71,11 @@ Surge Turrets retain their conservative movement-facing and full-beat reacquisit
 `ProjectileMath.ForecastTargetVelocity` is the sole target-velocity forecast used by both runtime cue ETA
 and planning: motor velocity is authoritative, and its transform fallback divides by the player clock.
 World hitstop can therefore freeze the bolt without inventing a 50x player velocity or suppressing its cue.
+All three motor-velocity consumers also share `ProjectileMath.GroundAwareTargetVelocity`: it removes only
+the small downward ground-stick residue on flat support. Airborne descent, upward launches and grounded
+ramps retain their real vertical forecast. This prevents deck-mounted Heavy Sentries from rejecting legal
+bursts as `BlockedFlight`. A `rangedOnly` enemy also stops during Recover instead of entering melee
+`Reposition`, so a deflected sentry cannot walk off its authored perch.
 The Heavy's separate `projectileIgnoreDepartureSupport` policy keeps that broad sweep but exempts only a
 radius-only brush against its detected standing collider during launch departure. Centreline obstruction,
 an enclosed muzzle, adjacent geometry, later re-entry and saturated hit queries still reject the shot;
@@ -411,8 +416,9 @@ Aggression compresses *dead time only*, never wind-ups:
 | `data.parryRecoilSeconds` | ×0.55 |
 | Combo gap | ×0.45, minus `0.04 s` per consecutive parry |
 
-Enemies also **step toward the player during `Recover`** (`StepToward`, via `agent.Move` so they stay on
-the NavMesh), so backing off never buys a free reset. And a deflect no longer ends the exchange: at
+Melee enemies also **step toward the player during `Recover`** (`StepToward`, via `agent.Move` so they stay
+on the NavMesh), so backing off never buys a free reset. `rangedOnly` enemies stop and hold their authored
+perch throughout Recover. And a deflect no longer ends the exchange: at
 `aggression ≥ 0.5` with hits remaining, the enemy recoils briefly then **resumes its combo**, each
 follow-up arriving sooner — a real Sekiro exchange, floored so it never becomes unreactable.
 
@@ -981,6 +987,10 @@ else here. The key-bind reference is not on the playing HUD at all — `Controls
 menu. Weapon name in bone; teal is left to the wand alone so the accent means one
 thing. The fluid bars and the Pyre fire are styling passes applied afterwards through
 `Editor/HudExtensions.cs`, which find `HealthBar` / `StaminaBar` / `PyreBar` by name.
+Level_01 has a separate **physical world leaderboard** behind its spawn: an authored, regenerable
+`LevelDefinition.worldLeaderboard` display labeled `LOCAL BEST RUNS`, bound to the same local-only model.
+It is world presentation on the Sky layer with no colliders and does not restore the removed screen pane;
+`GhostHud.BoardVisible` remains false outside its explicit debug toggle.
 **Material names are historical and no longer describe their colour** — they are kept stable because the
 builders reference them by name:
 

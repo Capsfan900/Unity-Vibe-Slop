@@ -60,7 +60,8 @@ namespace VibeGame1
 
     /// <summary>
     /// The leaderboard model. Owns the backend and caches the current level's rows.
-    /// Rendering lives in <see cref="GhostHud"/>; this class holds no UI.
+    /// Rendering lives in <see cref="GhostHud"/> and <see cref="WorldLeaderboardView"/>;
+    /// this class holds no UI.
     /// </summary>
     public class Leaderboard : MonoBehaviour
     {

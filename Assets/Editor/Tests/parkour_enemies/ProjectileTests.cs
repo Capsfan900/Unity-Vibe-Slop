@@ -228,6 +228,45 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void GroundedForecastRemovesOnlyTheMotorGravityResidue()
+        {
+            Vector3 observedMotorVelocity = new Vector3(6.25f, -2f, -11.5f);
+            Vector3 forecast = ProjectileMath.GroundAwareTargetVelocity(observedMotorVelocity, true);
+
+            Assert.AreEqual(6.25f, forecast.x, Eps);
+            Assert.AreEqual(0f, forecast.y, Eps,
+                "a grounded motor's persistent gravity residue must not forecast the player through the floor");
+            Assert.AreEqual(-11.5f, forecast.z, Eps,
+                "grounded forecast must retain exact traversal velocity along the route");
+
+            Vector3 rampNormal = new Vector3(0f, 0.97f, 0.24f).normalized;
+            Assert.AreEqual(observedMotorVelocity,
+                ProjectileMath.GroundAwareTargetVelocity(observedMotorVelocity, true, rampNormal),
+                "the already-tuned opening ramp keeps its existing grounded vertical forecast");
+        }
+
+        [Test]
+        public void AirborneAndJumpForecastsKeepVerticalVelocity()
+        {
+            Vector3 falling = new Vector3(-3f, -9.8f, 14f);
+            Vector3 jumping = new Vector3(-3f, 7.2f, 14f);
+
+            Assert.AreEqual(falling, ProjectileMath.GroundAwareTargetVelocity(falling, false),
+                "a real fall must remain part of a bolt's contact forecast");
+            Assert.AreEqual(jumping, ProjectileMath.GroundAwareTargetVelocity(jumping, true),
+                "upward jump velocity must never be flattened merely because the grounded flag is stale");
+        }
+
+        [Test]
+        public void RangedOnlyRecoveryKeepsTheAuthoredPerch()
+        {
+            Assert.IsFalse(EnemyController.RepositionsDuringRecover(true),
+                "a reflected bolt must not route a fixed sentry through melee repositioning");
+            Assert.IsTrue(EnemyController.RepositionsDuringRecover(false),
+                "ordinary melee enemies still use their recovery spacing");
+        }
+
+        [Test]
         public void BlueSentryFacingUsesLookDirection_NotTheBackpedalVelocityProxy()
         {
             // The player is moving away from the perch but looking back at it: that is a deliberate,

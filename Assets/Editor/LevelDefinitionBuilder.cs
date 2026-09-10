@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
+using TMPro;
 using SceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace VibeGame1.EditorTools
@@ -291,6 +292,10 @@ namespace VibeGame1.EditorTools
             // collider keep it presentation-only and outside the Default-only NavMesh bake below.
             CloudSea.BuildCampaign(root, mCloudSea);
 
+            // A physical local-records display behind Level 1's spawn. This is intentionally not part
+            // of GhostHud: it is world scenery the player turns around to inspect, never mid-run HUD.
+            BuildWorldLeaderboard(def, root, ctx);
+
             // ---- kill zone --------------------------------------------------------------------------
             if (def.killZone != null)
             {
@@ -441,6 +446,101 @@ namespace VibeGame1.EditorTools
         {
             go.layer = layer;
             foreach (Transform child in go.transform) SetLayerRecursively(child.gameObject, layer);
+        }
+
+        static void BuildWorldLeaderboard(LevelDefinition level, Transform parent, LevelPieceContext ctx)
+        {
+            var data = level.worldLeaderboard;
+            if (data == null || !data.enabled) return;
+
+            float width = Mathf.Max(4f, data.size.x);
+            float height = Mathf.Max(2.5f, data.size.y);
+            var root = LevelPieceFactory.Empty(
+                string.IsNullOrWhiteSpace(data.name) ? "WorldLeaderboard" : data.name,
+                data.position, Quaternion.Euler(0f, data.yaw, 0f), parent);
+            var view = root.AddComponent<WorldLeaderboardView>();
+
+            Material backing = ctx.Material(data.backingMaterialKey);
+            Material glow = ctx.Material(data.glowMaterialKey);
+            LeaderboardVisualBox("Backing", new Vector3(0f, 0f, 0.12f),
+                new Vector3(width, height, 0.24f), backing, root.transform);
+
+            const float rail = 0.13f;
+            float faceZ = -0.18f;
+            LeaderboardVisualBox("Glow_Top", new Vector3(0f, height * 0.5f, faceZ),
+                new Vector3(width + rail, rail, rail), glow, root.transform);
+            LeaderboardVisualBox("Glow_Bottom", new Vector3(0f, -height * 0.5f, faceZ),
+                new Vector3(width + rail, rail, rail), glow, root.transform);
+            LeaderboardVisualBox("Glow_Left", new Vector3(-width * 0.5f, 0f, faceZ),
+                new Vector3(rail, height, rail), glow, root.transform);
+            LeaderboardVisualBox("Glow_Right", new Vector3(width * 0.5f, 0f, faceZ),
+                new Vector3(rail, height, rail), glow, root.transform);
+            LeaderboardVisualBox("Glow_Divider", new Vector3(0f, height * 0.19f, faceZ),
+                new Vector3(width * 0.90f, rail * 0.55f, rail * 0.55f), glow, root.transform);
+
+            var canvasGo = new GameObject("WorldCanvas", typeof(RectTransform));
+            canvasGo.transform.SetParent(root.transform, false);
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 2;
+            var canvasRect = canvasGo.GetComponent<RectTransform>();
+            float metresPerUnit = width / 1000f;
+            canvasRect.sizeDelta = new Vector2(1000f, height / metresPerUnit);
+            canvasRect.localScale = Vector3.one * metresPerUnit;
+            canvasRect.localPosition = new Vector3(0f, 0f, -0.25f);
+
+            var heading = LeaderboardText(canvasRect, "Heading", 64f, FontStyles.Bold,
+                TextAlignmentOptions.Center, new Vector2(0.06f, 0.72f), new Vector2(0.94f, 0.96f),
+                new Color(0.86f, 1f, 1f, 1f));
+            var rows = LeaderboardText(canvasRect, "Rows", 26f, FontStyles.Normal,
+                TextAlignmentOptions.TopLeft, new Vector2(0.10f, 0.14f), new Vector2(0.90f, 0.68f),
+                new Color(0.73f, 0.87f, 0.89f, 1f));
+            rows.lineSpacing = 4f;
+            var footer = LeaderboardText(canvasRect, "Footer", 25f, FontStyles.Normal,
+                TextAlignmentOptions.Center, new Vector2(0.08f, 0.025f), new Vector2(0.92f, 0.12f),
+                new Color(0.48f, 0.68f, 0.71f, 1f));
+
+            view.Configure(level.displayName, data, heading, rows, footer);
+            SetLayerRecursively(root, Starfield.SkyLayer);
+        }
+
+        static GameObject LeaderboardVisualBox(string name, Vector3 localPosition, Vector3 localScale,
+                                               Material material, Transform parent)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.transform.localScale = localScale;
+            var renderer = go.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return go;
+        }
+
+        static TMP_Text LeaderboardText(RectTransform parent, string name, float size, FontStyles style,
+                                        TextAlignmentOptions alignment, Vector2 anchorMin, Vector2 anchorMax,
+                                        Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var text = go.AddComponent<TextMeshProUGUI>();
+            if (TMP_Settings.defaultFontAsset != null) text.font = TMP_Settings.defaultFontAsset;
+            text.fontSize = size;
+            text.fontStyle = style;
+            text.alignment = alignment;
+            text.color = color;
+            text.richText = true;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.raycastTarget = false;
+            return text;
         }
 
         static void BuildSolarRealm(ArenaDef arena, BossArenaTrigger fight, Transform levelRoot, LevelPieceContext ctx)

@@ -91,6 +91,10 @@ namespace VibeGame1
                  "only decides which authored spawner may shoot next.")]
         public ProjectileSequenceDef[] projectileSequences = new ProjectileSequenceDef[0];
 
+        [Header("World Displays")]
+        [Tooltip("Optional physical local-records board. It is generated with the level and never restores the removed screen-space BEST RUNS HUD.")]
+        public WorldLeaderboardDef worldLeaderboard = new WorldLeaderboardDef();
+
         [Header("Sky")]
         public SkyDef sky = new SkyDef();
 
@@ -102,6 +106,24 @@ namespace VibeGame1
         {
             get { return string.IsNullOrWhiteSpace(levelId) ? name : levelId; }
         }
+    }
+
+    /// <summary>
+    /// A presentation-only, world-space view of the existing local leaderboard. The builder puts every
+    /// descendant on the Sky layer and removes colliders, so the display cannot alter traversal or the
+    /// Default-only NavMesh bake. Runtime data still comes from <see cref="Leaderboard"/>.
+    /// </summary>
+    [Serializable]
+    public class WorldLeaderboardDef
+    {
+        public bool enabled = false;
+        public string name = "WorldLeaderboard";
+        public Vector3 position;
+        public float yaw = 180f;
+        public Vector2 size = new Vector2(10f, 5f);
+        [Range(1, Leaderboard.DisplayCount)] public int rowCount = Leaderboard.DisplayCount;
+        public string backingMaterialKey = "Stone";
+        public string glowMaterialKey = "NeonCyan";
     }
 
     /// <summary>A box of geometry: platform, wall, pillar or rail. Everything solid is one of these.</summary>

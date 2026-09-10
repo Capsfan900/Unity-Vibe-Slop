@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace VibeGame1
 {
     /// <summary>
-    /// Ghost racing HUD: the live delta and the leaderboard table.
+    /// Ghost racing HUD: the live delta and a debug-only screen leaderboard table.
     ///
     /// This builds its own Canvas at runtime rather than being authored into HUD.prefab. That keeps ghost
     /// racing entirely self-contained — it can be added or removed without touching HudBuilder or

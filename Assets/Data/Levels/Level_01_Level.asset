@@ -1205,6 +1205,15 @@ MonoBehaviour:
       heightTolerance: 4
       arrivalStart: 38
       arrivalEnd: 58
+  worldLeaderboard:
+    enabled: 1
+    name: WorldLeaderboard
+    position: {x: 0, y: 39, z: -170.6}
+    yaw: 180
+    size: {x: 10, y: 5}
+    rowCount: 8
+    backingMaterialKey: Stone
+    glowMaterialKey: NeonCyan
   sky:
     enabled: 1
     starCount: 1200

@@ -157,6 +157,30 @@ namespace VibeGame1.EditorTools
                 skipNames.Add(volley.name);
             }
 
+            // The physical leaderboard is one authored display, not six boxes and a Canvas. Capture its
+            // marker/configuration and keep the backing mesh out of the generic platform export below.
+            var worldBoard = levelRoot.GetComponentInChildren<WorldLeaderboardView>(true);
+            if (worldBoard != null)
+            {
+                def.worldLeaderboard = new WorldLeaderboardDef
+                {
+                    enabled = true,
+                    name = worldBoard.name,
+                    position = worldBoard.transform.position,
+                    yaw = worldBoard.transform.eulerAngles.y,
+                    size = worldBoard.BoardSize,
+                    rowCount = worldBoard.MaxRows,
+                    backingMaterialKey = worldBoard.BackingMaterialKey,
+                    glowMaterialKey = worldBoard.GlowMaterialKey,
+                };
+                skipNames.Add(worldBoard.name);
+            }
+            else
+            {
+                if (def.worldLeaderboard == null) def.worldLeaderboard = new WorldLeaderboardDef();
+                def.worldLeaderboard.enabled = false;
+            }
+
             // The sky's build parameters (star count, seed, eclipse angles) cannot be recovered from the
             // mesh it produced. Record only that a sky exists; the numbers stay as authored on the asset.
             def.sky.enabled = false;
