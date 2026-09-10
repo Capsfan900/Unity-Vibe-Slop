@@ -3768,3 +3768,55 @@ effect rows, while held items and run progress remain visible.
 
 **Invariant.** The HUD observes status and scoring; it never writes speed, stacks or run credit. A developer
 effect preference is not a way to hide inventory or a completion gate.
+
+## 2026-09-09 — Tight-route occlusion must not restart a traversal sentry's thought
+
+**Symptom.** The ordinary blue squids fired only in odd pockets or appeared passive on stacked parkour,
+even though the already-tuned ramp turrets felt correct.
+
+**Root cause.** Every one-frame rail or ledge LOS loss cleared acquisition, charging the full 0.7 s delay
+again. A transient forecast rejection then discarded another complete 1.6 s beat. Backpedalling also used
+movement velocity as a facing proxy, so looking directly at a squid while moving away could suppress it.
+
+**Fix.** Only the authored tight-route blue sentry preserves completed acquisition across brief occlusion,
+retries a rejected plan after 0.08 s and uses actual flat look-facing. The emission itself still revalidates
+range, LOS, solid obstruction, frontal arrival, contact and cue safety. Heavy Sentries and Surge Turrets
+retain their conservative behavior and all existing tuning.
+
+**Invariant.** A glimpse interruption may delay a blue shot, but it must not make the sentry repay its whole
+acquisition. Fast retry is permission to reconsider, never permission to fire through a failed gate.
+
+## 2026-09-09 — Projectile forecasts must use the same clock as player motion
+
+**Symptom.** A bolt could steer correctly yet lose or delay its cue around parry hitstop.
+
+**Root cause.** Runtime steering read motor velocity, while the cue fallback divided player-clock movement
+by scaled `Time.deltaTime`. During a 0.02 world scale that manufactured roughly 50x target speed and could
+turn a valid incoming contact into a separating/no-contact forecast.
+
+**Fix / invariant.** `ProjectileMath.ForecastTargetVelocity` now owns both reads: authoritative motor
+velocity, otherwise transform displacement over `TimeScaleController.PlayerDelta`. Never compare a player-
+clock displacement with world-clock delta.
+
+## 2026-09-09 — God mode protects health; it does not mute parry
+
+**Symptom.** During F8 testing a valid blue-bolt parry appeared to stop working.
+
+**Root cause.** `PlayerCombat.ReceiveAttack` returned `None` for invulnerability before evaluating the parry.
+
+**Fix / invariant.** Invulnerability ignores damage outcomes but allows `Perfect` to complete its normal
+deflect, reflection, posture and movement-reward path. A debug survival switch must not disable the mechanic
+being tested. `ExecuteInteractor.IsExecuting` remains an early rejection before parry resolution because
+deathblow invulnerability owns a sealed presentation, not a debug playtest state.
+
+## 2026-09-09 — Fast combat UI reinforces the decision at its point of use
+
+**Symptom.** The top-left run contract was one dense line, its maximum status stack could exceed its panel,
+and a world-space projectile cue lacked restrained central reinforcement during high-speed traversal.
+
+**Fix.** The run contract is now a primary `RUN earned/required` row plus a quieter FOES/SPLITS context row;
+the strip is 184 px, sized for all eight shipped rows. `ProjectileThreatView` draws four low-alpha brackets around
+the crosshair only after the existing projectile cue fires and only inside its 0.28 s action window.
+
+**Invariant.** Persistent macro information belongs in the edge hierarchy; immediate action information may
+briefly reinforce at the reticle. The HUD observes `BoltRegistry` and never becomes aim assist or early warning.

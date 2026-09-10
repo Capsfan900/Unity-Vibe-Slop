@@ -164,6 +164,101 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void TightRouteOcclusionKeepsTheBlueSentryArmed_ButConservativeShootersReacquire()
+        {
+            // A rail briefly hiding a blue traversal sentry must not charge it another 0.7 s arm-up
+            // when the runner clears the rail. Heavy and Surge are deliberately conservative: their
+            // acquisition state resets, so a newly restored line still gets its honest breath.
+            Assert.IsTrue(ProjectileShooter.PreservesAcquisitionOnOcclusion(true),
+                "ordinary blue sentries are authored inside tight parkour and retain their acquired beat");
+            Assert.IsFalse(ProjectileShooter.PreservesAcquisitionOnOcclusion(false),
+                "the Heavy keeps its conservative clearance/acquisition contract");
+
+            var turret = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
+            if (turret == null) Assert.Ignore("run 3. Create Data");
+            Assert.IsFalse(ProjectileShooter.PreservesAcquisitionOnOcclusion(turret.projectileAllowTightRouteShots),
+                "the already-tuned Surge Turret must not inherit the blue sentry's occlusion exception");
+        }
+
+        [Test]
+        public void TightRouteTransientRejectionRetriesImmediately_ConservativeShootersHoldTheirBeat()
+        {
+            const float previousBeat = 100f;
+            const float now = 100.25f;
+            const float ordinaryInterval = 1.6f;
+
+            float ordinaryRetry = ProjectileShooter.RejectionRetryTime(true, previousBeat, now, ordinaryInterval);
+            Assert.That(ordinaryRetry, Is.EqualTo(now + ProjectileShooter.TightRouteRetrySeconds).Within(Eps),
+                "a transient clear-path rejection on the blue traversal tool gets its authored short retry, never a full silent beat");
+            Assert.Less(ordinaryRetry - now, ordinaryInterval);
+
+            float heavyRetry = ProjectileShooter.RejectionRetryTime(false, previousBeat, now, ordinaryInterval);
+            Assert.AreEqual(ProjectileMath.NextBeat(previousBeat, now, ordinaryInterval), heavyRetry, Eps,
+                "the Heavy retains the old conservative metronome after a rejected shot");
+
+            const float turretInterval = 1.1f;
+            float turretRetry = ProjectileShooter.RejectionRetryTime(false, previousBeat, now, turretInterval);
+            Assert.AreEqual(ProjectileMath.NextBeat(previousBeat, now, turretInterval), turretRetry, Eps,
+                "the tuned ramp turret remains on its full beat after a rejection");
+        }
+
+        [Test]
+        public void RuntimeForecastUsesMotorVelocityAndThePlayerClockDuringWorldHitstop()
+        {
+            // A player remains mobile through world hitstop. Dividing their observed displacement by the
+            // scaled world delta would turn a 27.5 m/s runner into a false 1375 m/s target at 0.02x.
+            Vector3 motorVelocity = new Vector3(4f, 0f, 27.5f);
+            const float playerDelta = 1f / 60f;
+            Vector3 previousChest = new Vector3(10f, 2f, 40f);
+            Vector3 currentChest = previousChest + motorVelocity * playerDelta;
+            float scaledWorldDelta = playerDelta * 0.02f;
+            Vector3 badScaledObservation = (currentChest - previousChest) / scaledWorldDelta;
+
+            Vector3 fromMotor = ProjectileMath.ForecastTargetVelocity(motorVelocity, true,
+                previousChest, currentChest, playerDelta);
+            Assert.That(Vector3.Distance(motorVelocity, fromMotor), Is.LessThan(Eps),
+                "the motor's player-clock velocity is the authoritative forecast input during hitstop");
+            Assert.Greater(badScaledObservation.magnitude, fromMotor.magnitude * 20f,
+                "this fixture would catch a regression back to observed displacement / scaled Time.deltaTime");
+
+            Vector3 fallback = ProjectileMath.ForecastTargetVelocity(Vector3.zero, false,
+                previousChest, currentChest, playerDelta);
+            Assert.That(Vector3.Distance(motorVelocity, fallback), Is.LessThan(Eps),
+                "without a motor, infer from PlayerDelta, never the slowed world clock");
+        }
+
+        [Test]
+        public void BlueSentryFacingUsesLookDirection_NotTheBackpedalVelocityProxy()
+        {
+            // The player is moving away from the perch but looking back at it: that is a deliberate,
+            // parryable backpedal and must fire. Turning the LOOK away is the distinct unsafe case.
+            Vector3 muzzle = Vector3.zero;
+            Vector3 chest = Vector3.forward * 20f;
+            Vector3 fleeingVelocity = Vector3.forward * 12f;
+
+            Assert.IsTrue(ProjectileMath.ArrivesInsideFacing(muzzle, chest, fleeingVelocity, 40f,
+                Vector3.back, 75f),
+                "looking back toward the blue sentry keeps a fleeing run answerable");
+            Assert.IsFalse(ProjectileMath.ArrivesInsideFacing(muzzle, chest, fleeingVelocity, 40f,
+                Vector3.forward, 75f),
+                "the same movement while looking away remains a bolt at an unanswerable back");
+        }
+
+        [Test]
+        public void GodModeStillAllowsPerfectParries_ButIgnoresDamageOutcomes()
+        {
+            Assert.IsTrue(PlayerCombat.CanResolveWhileInvulnerable(false),
+                "F8 invulnerability must keep the real blue-bolt parry path live");
+            Assert.IsFalse(PlayerCombat.CanResolveWhileInvulnerable(true),
+                "execution invulnerability must keep its presentation sealed from a carried parry window");
+            Assert.IsFalse(PlayerCombat.ShouldIgnoreWhileInvulnerable(ParryResult.Perfect),
+                "F8 must keep the real blue-bolt Perfect/reflection path live");
+            Assert.IsTrue(PlayerCombat.ShouldIgnoreWhileInvulnerable(ParryResult.Hit));
+            Assert.IsTrue(PlayerCombat.ShouldIgnoreWhileInvulnerable(ParryResult.Blocked));
+            Assert.IsTrue(PlayerCombat.ShouldIgnoreWhileInvulnerable(ParryResult.None));
+        }
+
+        [Test]
         public void RelativeSweepFindsTheSameEarliestContactAt20_60_240FpsAndAHitch()
         {
             float expected = 9f / 63.5f;
@@ -784,6 +879,7 @@ namespace VibeGame1.Tests
 
             player = new GameObject("HeavyPhrasePlayer");
             player.transform.position = enemy.transform.position + Vector3.forward * 15f;
+            player.transform.forward = Vector3.back; // the ordinary blue sentry's source is behind this fixture player
             player.layer = Layers.Player;
             player.AddComponent<Health>();
             var playerCombat = player.AddComponent<PlayerCombat>();

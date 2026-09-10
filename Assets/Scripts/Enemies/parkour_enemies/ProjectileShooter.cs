@@ -52,6 +52,7 @@ namespace VibeGame1
         public const float FirstBeatDelay = 1f;
         public const float SpawnForwardOffset = 0.6f;
         public const int MaxBurstShots = 3;
+        public const float TightRouteRetrySeconds = 0.08f;
 
         EnemyController ctrl;
         PlayerCombat combat;
@@ -202,7 +203,11 @@ namespace VibeGame1
             }
             if (!EnemyController.HasLineOfSight(muzzle, combat.transform.position))
             {
-                acquired = false;
+                // A blue traversal sentry is often read through a railing or between stacked ledges.
+                // Once it has paid the authored arm-up, one occluded frame must not make it pay the
+                // whole 0.7 s again. The shot itself still repeats LOS and flight validation before it
+                // can emit. Heavy Sentries and Surge Turrets keep their conservative reacquisition.
+                if (!PreservesAcquisitionOnOcclusion(data.projectileAllowTightRouteShots)) acquired = false;
                 LastReadiness = ProjectileShotReadiness.NoLineOfSight;
                 return;
             }
@@ -220,7 +225,11 @@ namespace VibeGame1
             LastReadiness = EvaluateShot(data, out enteredBand, out plan);
             if (LastReadiness != ProjectileShotReadiness.Ready)
             {
-                nextFireAt = ProjectileMath.NextBeat(nextFireAt, Time.time, data.projectileInterval);
+                // A transient facing/contact/path rejection should not throw away an entire legal
+                // parkour window. Ordinary blue sentries retry briefly; conservative ranged enemies
+                // retain their authored full-beat scheduling.
+                nextFireAt = RejectionRetryTime(data.projectileAllowTightRouteShots, nextFireAt,
+                                                Time.time, data.projectileInterval);
                 return;
             }
             if (phraseHasEngagementWindow &&
@@ -394,6 +403,25 @@ namespace VibeGame1
         Vector3 Chest { get { return combat.transform.position + Vector3.up * 1.2f; } }
         Vector3 TargetVelocity { get { return motor != null ? motor.Velocity : Vector3.zero; } }
 
+        /// <summary>
+        /// Ordinary blue route tools retain an acquisition through momentary cover. This never makes a
+        /// shot legal: LOS and the complete flight plan are still revalidated on the emission frame.
+        /// Heavy Sentries and Surge Turrets deliberately return false.
+        /// </summary>
+        public static bool PreservesAcquisitionOnOcclusion(bool allowTightRouteShots)
+        {
+            return allowTightRouteShots;
+        }
+
+        /// <summary>Next autonomous attempt after a transient planning rejection.</summary>
+        public static float RejectionRetryTime(bool allowTightRouteShots, float previousBeat,
+                                               float now, float interval)
+        {
+            return allowTightRouteShots
+                ? now + TightRouteRetrySeconds
+                : ProjectileMath.NextBeat(previousBeat, now, interval);
+        }
+
         ProjectileShotReadiness EvaluateShot(EnemyData data, out bool enteredBand,
                                                out ProjectileFlightPlan plan)
         {
@@ -426,7 +454,11 @@ namespace VibeGame1
 
             float cone = GameManager.I != null && GameManager.I.statsData != null
                 ? GameManager.I.statsData.facingConeDeg : 75f;
-            if (!ProjectileMath.ArrivesInFront(muzzle, chest, targetVelocity, plan.speed, cone))
+            bool readableArrival = data.projectileAllowTightRouteShots
+                ? ProjectileMath.ArrivesInsideFacing(muzzle, chest, targetVelocity, plan.speed,
+                                                     combat.transform.forward, cone)
+                : ProjectileMath.ArrivesInFront(muzzle, chest, targetVelocity, plan.speed, cone);
+            if (!readableArrival)
                 return ProjectileShotReadiness.FacingAway;
             // Ordinary blue ghosts are traversal tools deliberately perched inside tight geometry. They
             // keep an exact forecast-path obstruction check, but do not use the 1 m PLAYER-CONTACT radius

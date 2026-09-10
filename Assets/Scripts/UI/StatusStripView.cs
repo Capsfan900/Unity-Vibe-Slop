@@ -46,6 +46,7 @@ namespace VibeGame1
         static readonly Color EffectColor = new Color(0.878f, 0.627f, 0.188f);   // #E0A030
         /// <summary>Mint — banked run progress, matching the HUD's persistent progress language.</summary>
         static readonly Color RunColor = new Color(0.663f, 0.847f, 0.627f);      // #A9D8A0
+        static readonly Color RunSecondaryColor = new Color(0.663f, 0.847f, 0.627f, 0.62f);
         /// <summary>Blood — god mode is a cheat and reads as one.</summary>
         static readonly Color GodColor = new Color(1f, 0.227f, 0.102f);          // #FF3A1A
 
@@ -182,9 +183,12 @@ namespace VibeGame1
             {
                 if (rows > 0) sb.Append('\n');
                 sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(RunColor)).Append(">RUN ")
-                  .Append(shownRunSouls).Append('/').Append(shownRequiredRunSouls)
-                  .Append("  FOES ").Append(shownRegularKills).Append('/').Append(shownRequiredRegularKills)
-                  .Append("  SPLITS ").Append(shownCompletedSplits).Append('/').Append(shownSplitCount)
+                  .Append(shownRunSouls).Append('/').Append(shownRequiredRunSouls).Append("</color>");
+                rows++;
+                sb.Append('\n');
+                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGBA(RunSecondaryColor)).Append(">FOES ")
+                  .Append(shownRegularKills).Append('/').Append(shownRequiredRegularKills)
+                  .Append("   SPLITS ").Append(shownCompletedSplits).Append('/').Append(shownSplitCount)
                   .Append("</color>");
                 rows++;
             }

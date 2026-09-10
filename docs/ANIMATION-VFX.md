@@ -302,6 +302,17 @@ timing remain the shared sentry contract. `HeavySentryVisualTests` holds the no-
 recesses and renderer/material budget. Human playtest still owns the final question: whether the three
 apertures and 0.42 s phrase are readable together at full route speed.
 
+### 3.7a Projectile cue — quiet reticle reinforcement ✅ 2026-09-09
+
+The bolt remains the attack's primary tell: amber flight, white-hot cue flare and `Sfx.ParryCue` in the
+world. At parkour speed that decision happens at the crosshair, so `ProjectileThreatView` adds four small
+bone/mint brackets there only after the existing cue has fired and only during its remaining 0.28 s action
+window. The pulse uses unscaled time, stays at or below 0.32 alpha, and resets when hidden. It neither
+blooms nor introduces a second timing language; it is a restrained confirmation of the same cue.
+
+The bracket is deliberately registry-driven and display-only. It cannot identify a shooter, aim, reveal an
+uncued shot or alter parry timing. Human playtest still decides whether 0.32 is visible enough in motion.
+
 ### 3.8 The sentry detonation and flare grapple ✅ first pass, 2026-09-06
 
 **Finding, this audit.** Two brand-new effects, untested by a human: the sentry detonation

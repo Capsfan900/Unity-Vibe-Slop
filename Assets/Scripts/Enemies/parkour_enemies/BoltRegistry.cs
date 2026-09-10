@@ -76,6 +76,18 @@ namespace VibeGame1
             return false;
         }
 
+        /// <summary>
+        /// Is a bolt whose one-shot cue has already fired still forecast to impact by the limit?
+        /// Projectile reports <c>float.MaxValue</c> for cueTime after cueing, so this is the truthful
+        /// UI-facing read rather than trying to recover a spent cue timestamp.
+        /// </summary>
+        public static bool AnyCuedImpactBefore(float limit)
+        {
+            for (int i = 0; i < live.Count; i++)
+                if (live[i].cueTime == float.MaxValue && live[i].impactTime <= limit) return true;
+            return false;
+        }
+
         /// <summary>Soonest bolt cue at or before <paramref name="limit"/>, or <c>float.MaxValue</c>.</summary>
         public static float EarliestCueTime(float limit)
         {

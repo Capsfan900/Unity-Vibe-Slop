@@ -11,17 +11,20 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
-### Blue-sentry recovery, run scoring, status stacks and parry feel — 2026-09-09
+### Final blue-sentry reliability and focused combat-UI pass — 2026-09-09
 
-- **Final full EditMode: 1010/1010 passed**, zero failures/skips, 162.7 s. The focused affected surface
-  passed **80/80**; its projectile/Heavy/unchanged-Surge slice passed **57/57**.
-- **Full FeatureTests: 804/804 passed**, zero failures/skips, 58.9 s, from a fresh `Level_01` session
+- **Final full EditMode: 1017/1017 passed**, zero failures/skips, 176.9 s. The focused projectile/UI/
+  unchanged-turret affected surface passed **85/85**; the seven last-added regression tests passed **7/7**
+  after the final generated-HUD assertion was present.
+- **Full FeatureTests: 804/804 passed**, zero failures/skips, 58.7 s, from a fresh `Level_01` session
   after confirming `GameManager.I != null` and `Time.timeScale == 1`. The live HUD readback included
-  `RUN 3600/3560  FOES 0/4  SPLITS 2/4`, and the status toggle hid only effect rows.
+  the two-line run contract, and the status toggle hid only effect rows.
 - **Ordinary blue sentries are active again.** Fresh shipped-scene probes observed repeated autonomous
-  emissions in every tight parkour tier: cumulative `Fired` counters reached 11/10 for both T1 shooters,
-  9/8 for both T2 shooters, and 16 for the T3 ordinary shooter. These prove route activity, not a measured
-  cadence; shipped cadence remains the data-pinned 1.6 s. A real incoming blue bolt driven
+  emissions from all five real placements: both T1 shooters, both vertically separated T2 shooters, and
+  the T3 ordinary shooter. The lower T2 case fired while the player backpedalled but looked at it. These
+  prove route activity, not a measured cadence; shipped cadence remains the data-pinned 1.6 s. Brief LOS
+  loss no longer repays acquisition, transient legal-plan rejection retries after 0.08 s, and runtime/cue
+  forecasts now share motor/player-clock velocity. A real incoming blue bolt driven
   through `ParryController` and `PlayerCombat.ReceiveAttack` resolved Perfect, reflected, dealt no damage,
   and granted one 1.12x speed stack.
 - **The shipped T3 Heavy is no longer self-silenced by `T3_Perch_E`.** At route position
@@ -39,17 +42,25 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
   cannot double-pay. Live HUD toggling preserved the mandatory run row while hiding/restoring the speed
   effect. Parry feedback now shares the combat source direction and camera eye, always kicks the viewmodel,
   and uses the authored 0.35 chromatic contact for 0.12 s.
-- **Whole-fight harnesses: PASS.** `parry` executed Knight and Ninja after 8 and 5 perfect deflects with
+- **UI hierarchy/readability:** the persistent run objective is a primary `RUN earned/required` row with
+  quieter FOES/SPLITS context beneath it; the generated 184 px strip is sized for eight possible shipped rows. A four-mark
+  crosshair bracket appears only after an incoming bolt's existing cue fires, within its 0.28 s action
+  window, and peaks at alpha 0.32. Live readback measured an active 0.234 alpha and the generated prefab
+  contract is test-pinned. It is display-only and cannot aim, select or reveal an uncued bolt.
+- **Whole-fight harnesses: PASS.** `parry` executed Spellsword and Knight after 8 perfect deflects each with
   no player damage; `boss` completed all phases and stopped the timer; `death` returned to Playing with
-  full health/flasks and a reset enemy.
+  full health/flasks and a reset enemy. God mode now preserves Perfect parry resolution while still ignoring
+  non-perfect damage outcomes; a separate assertion keeps execution invulnerability sealed before parry.
 - **Offline compile:** runtime 0 warnings/errors; editor 0 errors with 18 known warnings. **Health Check:**
   no error section and 1932 broad serialized-null warnings; the validator remains noisy for runtime-wired
   HUD fields, so this is recorded rather than described as a pristine result.
 
 **Still human-only:** judge whether the frequent blue shots create useful traversal choices at real input
-speed, whether the Heavy's three-parry rhythm is fair while moving, whether the tighter recoil/chromatic
-accent feels visceral without obscuring the next cue, and whether the top-left stack/run display reads
-cleanly during a complete scored run. Automated and harness timing is frame-perfect and cannot prove feel.
+speed, whether the subtle central bracket is noticeable without becoming noise, whether the Heavy's
+three-parry rhythm is fair while moving, and whether the two-level top-left hierarchy reads cleanly during
+a complete scored run, including the rendered worst-case eight-row stack. Automated and harness timing is
+frame-perfect and cannot prove feel; helper tests also do not measure actual cue-to-contact lead through a
+moving-player hitstop.
 
 ### Expanded route, projectile regression recovery and enemy-AI audit — 2026-09-09
 

@@ -4348,7 +4348,7 @@ namespace VibeGame1
 
             // ---- top-left status strip: held items + active effects ------------------------------
             // One row per carried item (front one marked), one per running effect with a countdown,
-            // plus the persistent run contract in scored levels. The strip reads the live motor for
+            // plus the persistent two-line run contract in scored levels. The strip reads the live motor for
             // the countdown, so a surge ended by hand must clear only its effect row next frame.
             var strip = hud.statusStrip;
             Check("HUD_StatusStripWired", strip != null && strip.text != null,
@@ -4364,9 +4364,9 @@ namespace VibeGame1
                 yield return null;
                 bool hasRunContract = LevelRunScorer.I != null &&
                     (LevelRunScorer.I.RequiredSouls > 0 || LevelRunScorer.I.RequiredRegularKills > 0);
-                int persistentRows = hasRunContract ? 1 : 0;
+                int persistentRows = hasRunContract ? 2 : 0;
                 Check("HUD_StatusStripIdleState",
-                    hasRunContract ? strip.Text.Contains("RUN ") && strip.RowCount == 1 : strip.IsEmpty,
+                    hasRunContract ? strip.Text.Contains("RUN ") && strip.RowCount == persistentRows : strip.IsEmpty,
                     "rows=" + strip.RowCount + " text='" + strip.Text + "'");
 
                 var hook = MakeItem(ItemEffect.Grapple);

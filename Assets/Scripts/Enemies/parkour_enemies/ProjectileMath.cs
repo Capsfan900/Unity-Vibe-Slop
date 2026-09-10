@@ -75,6 +75,20 @@ namespace VibeGame1
         }
 
         /// <summary>
+        /// Velocity used by runtime homing and contact forecasts. The player motor advances on PlayerDelta,
+        /// not scaled world delta, so dividing its observed displacement by Time.deltaTime during hitstop
+        /// invents a roughly fifty-times-faster runner and makes a valid bolt temporarily lose its cue.
+        /// Prefer the motor's authoritative velocity; legacy targets fall back to the same player clock.
+        /// </summary>
+        public static Vector3 ForecastTargetVelocity(Vector3 expectedVelocity, bool hasExpectedVelocity,
+                                                     Vector3 previousTarget, Vector3 currentTarget,
+                                                     float playerDelta)
+        {
+            if (hasExpectedVelocity) return expectedVelocity;
+            return playerDelta > 1e-6f ? (currentTarget - previousTarget) / playerDelta : Vector3.zero;
+        }
+
+        /// <summary>
         /// The parry contract for enemies is that the cue fires <c>cueLead</c> (0.28 s) before impact.
         /// A bolt has no wind-up of its own -- its flight IS the wind-up -- so the cue is due the frame
         /// its remaining flight drops under the lead. Fires once.
@@ -190,6 +204,20 @@ namespace VibeGame1
             Vector3 arrival = LeadTarget(muzzle, chest, v, speed, 1f);
             Vector3 travel = arrival - muzzle;
             return ParryMath.IsFacing(v, ParryMath.SourceDirection(travel, muzzle, arrival), coneDeg);
+        }
+
+        /// <summary>
+        /// Actual-look variant used by ordinary blue traversal sentries. Movement is not facing: a player
+        /// can backpedal while deliberately watching a squid, or sprint past while looking elsewhere.
+        /// The predicted contact still uses velocity; only the parry-readability veto uses player forward.
+        /// </summary>
+        public static bool ArrivesInsideFacing(Vector3 muzzle, Vector3 chest, Vector3 playerVelocity,
+                                               float speed, Vector3 playerForward, float coneDeg)
+        {
+            Vector3 arrival = LeadTarget(muzzle, chest, playerVelocity, speed, 1f);
+            Vector3 travel = arrival - muzzle;
+            return ParryMath.IsFacing(playerForward,
+                                      ParryMath.SourceDirection(travel, muzzle, arrival), coneDeg);
         }
 
         /// <summary>

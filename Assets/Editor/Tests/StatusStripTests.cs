@@ -24,6 +24,7 @@ namespace VibeGame1.Tests
         public void TearDown()
         {
             StatusStripView.StatusEffectsVisible = true;
+            BoltRegistry.Reset();
             if (item != null) Object.DestroyImmediate(item);
             if (root != null) Object.DestroyImmediate(root);
         }
@@ -112,21 +113,22 @@ namespace VibeGame1.Tests
             var strip = Strip();
             SetRows(strip, new ItemData[0], 2);
             Set(strip, "shownRunSouls", 3425);
-            Set(strip, "shownRequiredRunSouls", 3460);
+            Set(strip, "shownRequiredRunSouls", 3560);
             Set(strip, "shownRegularKills", 3);
             Set(strip, "shownRequiredRegularKills", 4);
             Set(strip, "shownCompletedSplits", 3);
             Set(strip, "shownSplitCount", 4);
             Rebuild(strip);
-            StringAssert.Contains("RUN 3425/3460", strip.Text);
+            StringAssert.Contains("RUN 3425/3560", strip.Text);
             StringAssert.Contains("FOES 3/4", strip.Text);
             StringAssert.Contains("SPLITS 3/4", strip.Text);
             StringAssert.Contains("SPEED SURGE x2", strip.Text);
+            Assert.AreEqual(3, strip.RowCount, "two run-objective rows plus the active effect are all visible");
 
             StatusStripView.StatusEffectsVisible = false;
-            StringAssert.Contains("RUN 3425/3460", strip.Text);
+            StringAssert.Contains("RUN 3425/3560", strip.Text);
             StringAssert.DoesNotContain("SPEED SURGE", strip.Text);
-            Assert.AreEqual(1, strip.RowCount);
+            Assert.AreEqual(2, strip.RowCount, "persistent run objective retains both primary and secondary rows");
         }
 
         [Test]
@@ -152,6 +154,43 @@ namespace VibeGame1.Tests
             var label = testMenu.statusEffectsButton.GetComponentInChildren<TMP_Text>();
             Assert.IsNotNull(label, "STATUS EFFECTS button has no TMP label");
             Assert.AreEqual("STATUS EFFECTS: ON", label.text);
+        }
+
+        [Test]
+        public void ProjectileThreatBracketOnlyReadsTheExistingCueWindow()
+        {
+            float now = 100f;
+            BoltRegistry.Report(1, float.MaxValue, now + Projectile.CueLead * 0.5f);
+            Assert.IsTrue(ProjectileThreatView.IsActionable(now), "a cued bolt inside the parry window is actionable");
+
+            BoltRegistry.Reset();
+            BoltRegistry.Report(1, now + 0.01f, now + Projectile.CueLead * 0.5f);
+            Assert.IsFalse(ProjectileThreatView.IsActionable(now), "a bolt before its cue must not light the bracket");
+
+            BoltRegistry.Reset();
+            BoltRegistry.Report(1, float.MaxValue, now + Projectile.CueLead + 0.1f);
+            Assert.IsFalse(ProjectileThreatView.IsActionable(now), "a cued bolt outside the actionable window must not light it");
+        }
+
+        [Test]
+        public void GeneratedHudFitsTheFullStatusStack_AndShipsOneQuietThreatBracket()
+        {
+            var hud = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HUD.prefab");
+            if (hud == null) Assert.Ignore("HUD.prefab missing - run VibeGame1/5. Build HUD");
+
+            var strip = hud.transform.Find("StatusStrip");
+            Assert.IsNotNull(strip, "generated HUD has no top-left status strip");
+            Assert.GreaterOrEqual(strip.GetComponent<RectTransform>().sizeDelta.y, 184f,
+                "three items, two run rows and all three dev effects would clip");
+
+            var threat = hud.GetComponentInChildren<ProjectileThreatView>(true);
+            Assert.IsNotNull(threat, "generated HUD has no projectile cue reinforcement");
+            Assert.IsNotNull(threat.group);
+            Assert.IsNotNull(threat.bracket);
+            Assert.AreEqual(0f, threat.group.alpha, 0.001f, "the bracket must ship hidden");
+            Assert.That(threat.maxAlpha, Is.InRange(0.2f, 0.4f),
+                "the bolt cue should read without competing with PERFECT or DEATHBLOW");
+            Assert.AreEqual(4, threat.transform.childCount, "the cue is one restrained four-mark bracket");
         }
     }
 }

@@ -1311,12 +1311,16 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
    → F1, THE ARM-UP: on the out-of-band/blocked → in-band TRANSITION,
      nextFireAt = ProjectileMath.AcquireBeat(nextFireAt, now, interval, projectileAcquireDelay 0.7) -- the beat is
      HELD, so a stale one used to fire on the FIRST FRAME the line cleared: the frame you crest a ledge or land.
-     Only ever moves a beat forward, and never by more than one interval.
+     Only ever moves a beat forward, and never by more than one interval. The ordinary blue tight-route
+     sentry preserves this completed acquisition across a brief LOS loss; every restored line still revalidates
+     band, LOS, facing, obstruction and flight before emission. Heavy and Surge reacquire normally.
    → at a launch request (autonomous beat or ProjectileVolleySequence phrase):
-     F3, NO BOLT AT A FLEEING BACK: ProjectileMath.ArrivesInFront(muzzle, chest, motor.Velocity, speed,
-             statsData.facingConeDeg 75) -- predicts the arrival point, takes the bearing it comes FROM there
-             (ParryMath.SourceDirection, the rule the parry itself is judged by) and refuses to LAUNCH when that
-             is outside the cone AND the run is receding. Refusal advances/cancels rather than building debt.
+     F3, NO BOLT AT A FLEEING BACK: ordinary blue uses ProjectileMath.ArrivesInsideFacing with the player's
+             actual flat AimForward; Heavy and Surge retain ArrivesInFront(muzzle, chest, motor.Velocity, speed,
+             statsData.facingConeDeg 75). Both predict the arrival point and take the bearing it comes FROM there
+             (ParryMath.SourceDirection, the rule the parry itself is judged by). Ordinary blue refuses any
+             outside-look-cone arrival; Heavy/Surge refuse only when outside their movement-facing cone AND
+             receding. Refusal advances/cancels rather than building debt.
      ProjectileFlightMath.Plan(real root, chest, motor.Velocity, desired speed, lead, homing, hit radius,
              CueLead + CueMargin) solves the exact constant-velocity intercept, then sweeps forecast projectile
              and player spheres with the same moving-intercept capped-homing step the runtime uses.
@@ -1328,7 +1332,8 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
        muzzle, any sibling collider, a full NonAlloc hit buffer, and the same support after departure all
        fail closed. Surge Turrets never inherit this policy.
       → no contact / unsafe cue / blocked sweep:
-             refuse this emission; a burst phrase cancels deterministically
+             refuse this emission; ordinary blue retries after 0.08 s while the legal route window is still
+             present; a Heavy/Surge waits its full beat and a burst phrase cancels deterministically
      → READY: fire at the plan's launchPosition, direction and fastest cue-safe speed
      → autonomous arrival reservation occupied: ordinary blue sentry retries at the first safe predicted
        contact slot; it does not advance one full beat and preserve a same-phase tie forever. Heavy and Surge
@@ -1341,7 +1346,9 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
      Projectile.Fire(shooter, data, dir/speed from the shared flight plan)
 Projectile.Update()  (scaled time: hitstop freezes it)
    LOGICAL root follows ProjectileFlightMath.HomingDirection toward the moving intercept; the cue ETA is
-   measured from relative swept motion and reconciled with the launch plan
+   measured from relative swept motion and reconciled with the launch plan. Both use
+   ProjectileMath.ForecastTargetVelocity: motor velocity first, or transform displacement divided by
+   TimeScaleController.PlayerDelta -- never slowed Time.deltaTime -- so hitstop cannot fabricate speed.
    → the amber Core CHILD alone weaves up to 0.34 m on a deterministic per-shot phase before the cue;
      it eases in over 0.09 s, fades back over 0.12 s, and is exactly on the logical line for the whole
      remaining ≤ 0.28 s cue window. A 7-point fixed buffer records the visible head, so the trail curves too.
@@ -1350,6 +1357,8 @@ Projectile.Update()  (scaled time: hitstop freezes it)
      Clear() on reflect / spend / destroy -- F2: EnemyController.AnyAttackIncoming and .EarliestCueTime consult the
      registry as well as the melee list, so a missed bolt parry costs parryMistimeRecovery 0.2 s and not the
      parryWhiffRecovery 0.5 s mash tax, and ParryController.ClampRecoveryToNextCue works on a span
+     ProjectileThreatView reads only AnyCuedImpactBefore(now + 0.28): four quiet brackets reinforce an
+     already-fired cue at the crosshair, never reveal an uncued shot or become a second targeting system
    → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×2.3 (CueFlareScale) and its core goes white-hot (CueCore)
                                                                         (the same lead every attack gives)
    → within hitRadius of the chest → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
@@ -1367,7 +1376,9 @@ Projectile.Update()  (scaled time: hitstop freezes it)
 - **The flight is the tell, and it is cued at 0.28 s like every attack.** A launch must forecast first
   contact at or beyond 0.44 s; the planner slows only as much as required, and refuses impossible shots.
 - **A bolt in flight is an INCOMING ATTACK** (`BoltRegistry`, F2). The two cue helpers on `EnemyController` read it with NO range test — a bolt is already aimed at you, so its arrival time is the question, not its perch's distance. Melee's 6 m `InThreatRange` is untouched.
-- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed** (`ArrivesInFront`, F3). Route windows describe geometry, not the player's parry state; every follow-up still earns a legal shot.
+- **A sentry that has just acquired you takes a breath** (`AcquireBeat`, F1) and **never shoots a back it has already passed**. Ordinary blue judges the player's real look, allowing a deliberate backpedal/look-back shot; Heavy and Surge retain movement-facing. Route windows describe geometry, not the player's parry state; every follow-up still earns a legal shot.
+- **Brief tight-route occlusion does not repay the acquire delay.** Ordinary blue remains armed and retries a rejected legal plan in 0.08 s, but every emission still passes the whole launch contract. The conservative enemies keep their old reacquire/full-beat behavior.
+- **Forecast clocks cannot disagree.** A player moving through world hitstop still has player-clock/motor velocity; never divide that displacement by slowed world delta for a projectile cue.
 - **Tight-route permission narrows only the clearance shape.** `EnemyData.projectileAllowTightRouteShots`
   makes the ordinary blue traversal sentry use a thin exact path, not a world-collision exemption; solid
   walls, LOS, arrival contact, frontal readability and cue safety remain gates. Heavy Sentries and already-
@@ -2457,8 +2468,9 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
    ItemsChanged → StatusStripView (top-left, one gap under the loadout pane at y −144)
                                                             one line per HELD item, FIFO,
                                                             "> GRAPPLE" front / dimmed queue
-                  + RunScoreChanged / per-frame scorer read → persistent "RUN souls/required  FOES n/required
-                                                               SPLITS n/total" row when the level has a run contract
+                  + RunScoreChanged / per-frame scorer read → persistent two-level run contract:
+                                                               "RUN souls/required" in mint, then quieter
+                                                               "FOES n/required   SPLITS n/total"
                   + per-frame read of the player (the StaminaView idiom, not an event):
                     motor.IsWallSurging   → "WALL SURGE  6.4s"  (WallSurgeRemaining, tenths)
                     ParrySurge.Stacks     → "SPEED SURGE xN"    when N > 0
@@ -2467,6 +2479,9 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
                   F1 developer menu → StatusStripView.StatusEffectsVisible flips active-effect rows only;
                                       held-item and persistent run rows stay visible
                   blank when idle; the label is rewritten only when a shown value changes
+   BoltRegistry.AnyCuedImpactBefore(now + Projectile.CueLead) → ProjectileThreatView at the crosshair:
+                  four 30 px bracket marks, unscaled restrained pulse, alpha ≤ 0.32; hidden until the
+                  projectile's existing one-shot cue has fired and impact is within 0.28 s
 ```
 
 #### The Pyre fire — `FireBarView` + `VibeGame1/UI/FireBar`
@@ -2552,7 +2567,11 @@ FluidBar.shader (fragment)   bar-space x = uv.x × _Fill; surface = level + wave
   are positioned against them and `HudColumnTests` pins the numbers.
 - **The status strip is one multi-line TMP label, rebuilt on change.** `StatusStripView.RowCount` /
   `IsEmpty` / `Text` are the test surface (`FeatureTests > HUD_StatusStrip*`); rows are rich-text
-  lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.
+  and the generated strip is 184 px, sized for the maximum eight shipped rows. Run progress spends two rows so
+  its required soul target stays primary while encounter/split context remains available at a glance. Rows
+  are lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.
+- **The projectile bracket reinforces action, not surveillance.** It reads the existing bolt registry only
+  after the world-space/audio cue has fired. It cannot aim, select, reveal an uncued attack or influence combat.
 - **The developer effect toggle is effect-only and session-only.** It controls WALL SURGE / SPEED SURGE /
   generic speed / GOD MODE rows, never held inventory or the level's persistent run contract. Live views
   rebuild immediately so the F1 menu cannot leave stale text on screen.

@@ -82,7 +82,11 @@ namespace VibeGame1
         public ParryResult ReceiveAttack(in AttackInfo a)
         {
             if (health.IsDead) return ParryResult.None;
-            if (health.Invulnerable) return ParryResult.None;
+            bool invulnerable = health.Invulnerable;
+            // ExecuteInteractor also owns Health.Invulnerable during its sealed deathblow sequence.
+            // Do not let a carried parry window kick the player/viewmodel through that presentation;
+            // only the non-executing dev-God case is allowed to keep resolving Perfects.
+            if (invulnerable && !CanResolveWhileInvulnerable(IsExecuting)) return ParryResult.None;
 
             var d = GameManager.I.statsData;
             var feel = GameManager.I.feel;
@@ -94,6 +98,10 @@ namespace VibeGame1
             bool facing = ParryMath.IsFacing(transform.forward, to, d.facingConeDeg);
 
             var result = parry.Resolve(a, facing);
+            // God mode is a damage exemption, not a combat-input mute. Keeping Perfect resolution live
+            // lets F8 playtests exercise real squid bolts, reflections and speed stacks. Non-perfect
+            // attacks remain completely ignored, preserving the existing invulnerability contract.
+            if (invulnerable && ShouldIgnoreWhileInvulnerable(result)) return ParryResult.None;
             var w = weapons.Current;
 
             // Captured before this hit resolves: a hit that BREAKS posture is not itself amplified,
@@ -194,6 +202,18 @@ namespace VibeGame1
 
             GameEvents.RaiseParryResolved(result);
             return result;
+        }
+
+        /// <summary>Only non-execution invulnerability (the F8 path) may continue to parry resolution.</summary>
+        public static bool CanResolveWhileInvulnerable(bool isExecuting)
+        {
+            return !isExecuting;
+        }
+
+        /// <summary>God mode suppresses damage outcomes, never a successfully timed deflect.</summary>
+        public static bool ShouldIgnoreWhileInvulnerable(ParryResult result)
+        {
+            return result != ParryResult.Perfect;
         }
 
         /// <summary>

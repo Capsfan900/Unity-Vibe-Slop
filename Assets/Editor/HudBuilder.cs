@@ -450,6 +450,20 @@ namespace VibeGame1.EditorTools
             crosshair.raycastTarget = false;
             Rect(crosshair.gameObject, Center, Center, Center, Vector2.zero, new Vector2(6f, 6f));
 
+            // A restrained four-corner bracket: it reads an existing bolt cue without becoming a new
+            // prompt, direction indicator, or gameplay signal. It sits close to (but never over) PERFECT.
+            var threatRoot = Group("ProjectileThreat", t, Center, Center, Center, Vector2.zero, new Vector2(30f, 30f));
+            var threat = threatRoot.gameObject.AddComponent<ProjectileThreatView>();
+            threat.group = threatRoot.gameObject.AddComponent<CanvasGroup>();
+            threat.group.alpha = 0f;
+            threat.bracket = threatRoot.GetComponent<RectTransform>();
+            threat.maxAlpha = 0.32f;
+            threat.pulseHz = 7f;
+            ThreatBracket(threatRoot, new Vector2(-11f, 11f), new Vector2(7f, 2f));
+            ThreatBracket(threatRoot, new Vector2(11f, 11f), new Vector2(7f, 2f));
+            ThreatBracket(threatRoot, new Vector2(-11f, -11f), new Vector2(7f, 2f));
+            ThreatBracket(threatRoot, new Vector2(11f, -11f), new Vector2(7f, 2f));
+
             hud.parryPopup = Txt("ParryPopup", t, "PERFECT", 44f, Cyan, TextAlignmentOptions.Center);
             hud.parryPopup.fontStyle = FontStyles.Bold;
             hud.parryPopup.alpha = 0f;
@@ -1250,7 +1264,9 @@ namespace VibeGame1.EditorTools
         {
             var root = new GameObject("StatusStrip", typeof(RectTransform));
             root.transform.SetParent(parent, false);
-            Rect(root, TopLeft, TopLeft, TopLeft, new Vector2(32f + Inset, y), new Vector2(500f, 140f));
+            // Eight possible rows: three held items, two-line run objective, Wall Surge, Speed Surge,
+            // and God Mode. The extra height prevents the objective/effect rows clipping in dev play.
+            Rect(root, TopLeft, TopLeft, TopLeft, new Vector2(32f + Inset, y), new Vector2(500f, 184f));
             var view = root.AddComponent<StatusStripView>();
 
             view.text = Txt("Rows", root.transform, "", 15f, Bone, TextAlignmentOptions.TopLeft);
@@ -1260,6 +1276,14 @@ namespace VibeGame1.EditorTools
             view.text.richText = true;
             Stretch(view.text.gameObject);
             return view;
+        }
+
+        static Image ThreatBracket(Transform parent, Vector2 position, Vector2 size)
+        {
+            var img = Img("ThreatBracket", parent, new Color(0.878f, 0.627f, 0.188f, 1f));
+            img.raycastTarget = false;
+            Rect(img.gameObject, Center, Center, Center, position, size);
+            return img;
         }
 
         static TMP_Text Pip(string name, Transform parent, string text, float x)

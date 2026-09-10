@@ -28,7 +28,7 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 | `Player/` | 20 | `FirstPersonMotor` (+ `WallRunMath`, same file), `PlayerLook`, `LockOnController`, `LockOnMarker`, `OffhandViewmodel`, `PlayerCombat`, `ParryController`, `PlayerPosture`, `PlayerStats`, `PlayerResources`, **`PlayerStamina`**, `WeaponController`, `WeaponViewmodel`, `ViewmodelArm`, `WandController`, `ExecuteInteractor`, `FlaskAbility`, `UltimateAbility`, `PlayerItems`, `PlayerDeath` |
 | `Enemies/Core/` · `Enemies/parkour_enemies/` · `Enemies/souls_enemies/` | 5+ | **Two families since 2026-09-06** (`EnemyPaths`): `parkour_enemies` = the span sentries (`Projectile`, `ProjectileShooter`, `ProjectileVolleySequence`, `ProjectileFlightMath`; never melee, mostly shoot); `souls_enemies` = the duels: Grunt, Heavy, the Warden (`BossController`) and every `Legendary_*`. Shared brain in `Core/`: `EnemyController` (FSM), `EnemyVisuals`, `EnemyPostureBar`, `EnemySpawner` |
 | `Level/` | 7 | `LevelManager`, `Checkpoint`, `ItemPickup`, `BossArenaTrigger`, `KillZone`, `SpeedrunTimer`, **`LevelRunScorer` / `RunScoreMath`** (authored-spawner score, ordered splits and frozen completion) |
-| `UI/` | 13 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, **`StatusStripView`**, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), `DeveloperConsole`, **`MainMenuController`** |
+| `UI/` | 14 | `HUDController`, `BarView`, **`StaminaView`**, `BossBarView`, `ItemSlotView`, **`StatusStripView`**, **`ProjectileThreatView`**, `ScreenFlash`, `PromptView`, `PauseMenu`, `WandSelectMenu`, `SettingsMenu` (one class serves both the title screen and the pause path), `DeveloperConsole`, **`MainMenuController`** |
 | `Feel/` | 22 | `CameraShake`, `CameraFX`, `PlayerFeedback`, `FlickerLight`, `LightningEffect`, `AudioManager`, `ProceduralSfx`, `ParryImpulse` / `ParryImpact`, `DashImpulse` / `DashFx`, `SlideImpulse` / `SlideFx` (the `*Impulse` is pure math, the `*Fx` / `*Impact` applies it), `SlashFx`, `WeaponTrail`, `WeaponEmber`, `PyreArc`, `EnergyGlow`, `ItemVfx`, `DeathMist`, `SkyFollower`, `Starfield` |
 | `Progression/` | 4 | `SoulsWallet`, `Bloodstain`, `UpgradeMath`, `LevelUpMenu` |
 | `Data/` | 9 | ScriptableObject definitions (see below) |
@@ -63,6 +63,14 @@ forecast-path linecast. Range, LOS, solid-wall obstruction, frontal arrival, con
 safety remain mandatory. Heavy Sentries and Surge Turrets retain the broad sweep. When autonomous blue
 sentries share an arrival phase, the rejected one retries at the first safe contact slot instead of moving
 both onto the same next beat; contact spacing is preserved without Update-order starvation.
+Because tight stacked routes produce momentary rail/ledge occlusion, that same flag preserves the blue
+sentry's completed acquisition and retries a transiently rejected plan after 0.08 s. Every retry still
+revalidates the full launch contract. Frontal readability for this traversal tool uses the player's actual
+look direction, so looking back while backpedalling can deliberately invite a shot; Heavy Sentries and
+Surge Turrets retain their conservative movement-facing and full-beat reacquisition rules.
+`ProjectileMath.ForecastTargetVelocity` is the sole target-velocity forecast used by both runtime cue ETA
+and planning: motor velocity is authoritative, and its transform fallback divides by the player clock.
+World hitstop can therefore freeze the bolt without inventing a 50x player velocity or suppressing its cue.
 The Heavy's separate `projectileIgnoreDepartureSupport` policy keeps that broad sweep but exempts only a
 radius-only brush against its detected standing collider during launch departure. Centreline obstruction,
 an enclosed muzzle, adjacent geometry, later re-entry and saturated hit queries still reject the shot;

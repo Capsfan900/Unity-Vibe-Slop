@@ -247,7 +247,12 @@ namespace VibeGame1
                     ? ProjectileMath.ContinuousTargetStart(previousTargetChest, target, expectedTargetVelocity,
                                                            TimeScaleController.PlayerDelta)
                     : target;
-                Vector3 targetVelocity = (target - targetStart) / dt;
+                // The motor and launch/steering forecasts all speak in player-clock metres per second.
+                // Using scaled world dt here made the same player appear ~50x faster during hitstop,
+                // which could turn a valid contact/cue into infinity for a few frames.
+                Vector3 targetVelocity = ProjectileMath.ForecastTargetVelocity(
+                    expectedTargetVelocity, motor != null, targetStart, target,
+                    TimeScaleController.PlayerDelta);
                 previousTargetChest = target;
                 hasTargetHistory = true;
                 float hitFraction;
