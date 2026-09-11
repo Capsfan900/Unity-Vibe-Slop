@@ -47,14 +47,17 @@ normal-only relief; it never changes mesh, collision, NavMesh bounds or the navi
 
 Projectile encounters are reusable `LevelDefinition.projectileSequences` data. Each record groups existing
 shooter spawners and gives each one bounded route/arrival windows for authoring audit; it never invents
-combat stats. Only a record with explicit member progress gates builds a runtime
-`ProjectileVolleySequence` (currently the five-beat T0 opening). Ordinary T1-T4 sentries remain autonomous,
+combat stats. Only a record with explicit member progress gates or `repeatFromIndex >= 0` builds a runtime
+`ProjectileVolleySequence` (currently the five Surge beats followed by the alternating T0 Heavy pair, plus
+the three ordered single-shot Surge Turrets on T4's fast final ramp). Ordinary T1-T3 sentries remain autonomous,
 repeating their normal range, LOS, facing, obstruction and cue-safety firing loop; audit corridors never
 become invisible runtime trigger volumes.
 `ProjectileFlightMath` is the allocation-free shared authority for exact moving-target intercept,
 120 Hz swept-sphere contact forecasting and capped homing, so report and runtime cannot drift. Burst
-count/contact cadence stay on `EnemyData`; the Heavy Sentry owns three 0.42 s contacts followed by a
-2.4 s quiet beat. `Projectile Encounter Report` audits any level at 11 / 17.6 / 27.5 m/s. Full timing and
+count/contact cadence stay on `EnemyData`; the Heavy Reliquary owns three 0.40 s contacts. Each emitted
+bolt reports one immutable phrase/ordinal outcome, all three ordered Perfects are required to destroy it,
+and its 0.90 s rest starts only when the final incoming obligation resolves. `Projectile Encounter Report`
+audits any level at 11 / 17.6 / 27.5 m/s. Full timing and
 cancellation maps are in DATAFLOW.md.
 
 The ordinary blue `pshooter_enemy01` is a traversal support tool in tight parkour: its authored
@@ -65,9 +68,9 @@ sentries share an arrival phase, the rejected one retries at the first safe cont
 both onto the same next beat; contact spacing is preserved without Update-order starvation.
 Because tight stacked routes produce momentary rail/ledge occlusion, that same flag preserves the blue
 sentry's completed acquisition and retries a transiently rejected plan after 0.08 s. Every retry still
-revalidates the full launch contract. Frontal readability for this traversal tool uses the player's actual
-look direction, so looking back while backpedalling can deliberately invite a shot; Heavy Sentries and
-Surge Turrets retain their conservative movement-facing and full-beat reacquisition rules.
+revalidates the full launch contract. Frontal readability for blue and Heavy uses the player's actual
+look direction, so looking back while backpedalling can deliberately invite a shot; Surge Turrets retain
+their conservative movement-facing and full-beat reacquisition rules.
 `ProjectileMath.ForecastTargetVelocity` is the sole target-velocity forecast used by both runtime cue ETA
 and planning: motor velocity is authoritative, and its transform fallback divides by the player clock.
 World hitstop can therefore freeze the bolt without inventing a 50x player velocity or suppressing its cue.
@@ -869,13 +872,15 @@ HUD slot.
   renderers; `GameEvents.PlayerRespawned` restores them, so a run always starts from the same state.
 - Colour comes from `ItemData.color` (HDR) via `MaterialPropertyBlock`, so one prefab serves every item.
 
-There are exactly **two** items and both are MOVES — the level is built around them, Neon White
-style (kill to move, wall to move). Nothing in the slot heals or protects.
+There are exactly **three live items** and all are MOVES — the level is built around timing and
+momentum, Neon White style. Nothing in the slot heals or protects. Serialized `WallSurge = 1` remains
+only as a retired enum tombstone so old assets cannot silently become a different item.
 
 | Item | Effect | Behaviour |
 |---|---|---|
-| **Grapple** (HOOK, cyan) | `Grapple` | Hooks the lock-on target, else the enemy nearest the crosshair (28 m, 12°, world line of sight). `FirstPersonMotor.BeginPull` flies the player to `ExecuteInteractor.stabStandoff × scale` in 0.35 s; on arrival a normal enemy is posture-broken and deathblown through `ExecuteInteractor.ExecuteNow` (the ONE execute path, so `RiposteLanded` fires). A `Legendary_*` / boss that is staggered dies the same way; one that is not takes 35% of its max posture and you land at stand-off. No target → "NO TARGET", **not consumed**. |
-| **Wall Surge** (SURGE, yellow) | `WallSurge` | `FirstPersonMotor.StartWallSurge(8)`: motor STATE, not a tuning write. While `IsWallSurging`, `WallRunSettings` scales top speed and accel ×1.5 and zeroes `minEntrySpeed` (any airborne touch attaches), and both stamina calls in `TryWallRun` / `AdvanceWallRun` are skipped. HUD prompt counts down "SURGE 8s". |
+| **Grapple** (HOOK, cyan) | `Grapple` | Preserves the normal-enemy arrival execute. A turret Hook instead requires its real incoming projectile to collide within 0.13 s of E: the contact resolves through `PlayerCombat`, Perfect-deflects, kills that turret through ordinary `Health`, and primes one bonus airborne dash-jump. A miss still pulls but grants no kill/bonus. |
+| **Rebound** (green) | `Rebound` | Arms the next successful airborne dash or wall jump. That exit gains a capped 1.18× +3 m/s carry and refreshes the air dash. Failed input and ground dashes retain it. |
+| **Deflect Sigil** (violet) | `DeflectSigil` | Waits through blocks/hits for the next Perfect, then adds two extra speed stacks and a +5 m/s forward impulse. |
 
 ### Refusal keeps the item
 
@@ -949,7 +954,7 @@ All balance lives in ScriptableObjects under `Assets/Data/`. Edit in the Inspect
 | `WandData` | Emberlance, Gravecall, Stormneedle, Voidspine (`Assets/Data/Wands/`) |
 | `EnemyData` / `BossData` | Grunt, Heavy, Boss |
 | `EnemyAttackData` | 11 attacks (Grunt_Jab/Slash/Heavy, Heavy_Step/Sweep/Overhead, Boss_×5) |
-| `ItemData` | Grapple, WallSurge |
+| `ItemData` | Grapple, Rebound, DeflectSigil (`WallSurge = 1` retired tombstone only) |
 | `PlayerStatsData` | `PlayerStats.asset` — parry windows, posture, flask, Pyre, super slow-mo |
 | `UpgradeTable` | Souls costs |
 | `GameFeelSettings` | Hitstop, shake, flash, FOV kick |

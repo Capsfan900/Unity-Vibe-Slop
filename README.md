@@ -68,7 +68,7 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 `F` is shared: while a wand altar's `[F]  CHOOSE WAND` prompt is showing it opens the wand menu, otherwise it
 drinks a flask. `R` still cycles wands as a debug convenience. **The wand altar is a dev fixture**: it is
 hidden until you turn on `WAND PEDESTAL` in the `F1` test menu, and you start every run with all four wands
-(Emberlance equipped) either way. Held items and running effects (WALL SURGE countdown, GOD MODE) are listed
+(Emberlance equipped) either way. Held items and running effects (REBOUND/SIGIL armed, speed stacks, GOD MODE) are listed
 in the small strip under SOULS at the top-left.
 
 **Movement tech.** A slide needs speed to start and adds up to 5 m/s on top of it — 16 m/s out of a run —
@@ -199,10 +199,12 @@ There are exactly two, and both are ways to MOVE:
 
 | Item | Effect |
 |---|---|
-| **Grapple** (HOOK) | Hook the enemy you are locked on to, or the one nearest your crosshair within 28 m, and get pulled to it in a third of a second. Lesser enemies die on arrival — a Sekiro-style deathblow, so a kill is the move. A legendary or the boss survives unless it was already staggered: it loses 35% of its posture and you land at its feet. With nothing to hook the item is kept. |
-| **Wall Surge** (SURGE) | For eight seconds every wall run is free (no stamina), 1.5× faster, and attaches at any speed. |
+| **Grapple** (HOOK) | Hook a normal foe for the existing arrival execute. Against a turret, collide with that turret's real bolt on the E timing: it Perfect-deflects, destroys the turret and primes one bonus airborne dash-jump. A miss still pulls but grants no kill or bonus. |
+| **Rebound** | Arms the next successful airborne dash or wall jump for stronger capped carry and a refreshed air dash. |
+| **Deflect Sigil** | Waits through blocks and hits; your next Perfect adds two extra speed stacks and a forward impulse. |
 
-A Hook and a Surge sit at the level spawn point so both are testable immediately.
+A Hook and a Rebound sit at the level spawn point so both are testable immediately; later pickups alternate
+Rebound and Deflect Sigil by route role.
 
 ## Rebuilding generated content
 
@@ -308,10 +310,10 @@ VibeGame1.DebugHarness.Run("parry");   // or "boss" / "death"
 **An enemy** — add an `EnemyData` (+ `EnemyAttackData` per attack, windup ≥ 0.45 s) in `DataFactory`,
 add a prefab case in `PrefabFactory`, then place an `EnemySpawner` in `LevelGreyboxBuilder`. Run 3, 4, 6.
 
-**An item** — there are deliberately only two (`Grapple`, `WallSurge`). If a third is ever justified:
-add an `ItemEffect` value, handle it in `PlayerItems.Apply()` (return `false` to refuse and keep the
-item), create the `ItemData` asset in `DataFactory`, build its offhand viewmodel in `PrefabFactory`, and
-reference it by `itemKey` from the level definition. Run 3, 4, 6.
+**An item** — the live set is `Grapple`, `Rebound`, and `DeflectSigil` (`WallSurge = 1` is a retired
+serialization tombstone). Append a new `ItemEffect` value, handle it in `PlayerItems.Apply()` (return
+`false` to refuse and keep the item), create the `ItemData` asset in `DataFactory`, build its offhand
+viewmodel in `PrefabFactory`, and reference it by `itemKey` from the level definition. Run 3, 4, 6.
 
 **A sound** — drop `.ogg`/`.wav` files into `Assets/Resources/Audio/Sfx/<SfxName>/`. A random variant
 plays each time. No code change. Empty folders fall back to `ProceduralSfx` synthesis.

@@ -273,6 +273,22 @@ namespace VibeGame1.Tests
                 "therefore not doing anything.");
         }
 
+        [Test]
+        public void NaturalReleasePrediction_UsesTheFirstHonestClockOrDecay()
+        {
+            var p = Shipped();
+            Assert.AreEqual(0.26f, WallRunMath.NaturalReleaseIn(p.maxDuration - 0.26f, 11f, true, p), 1e-4f,
+                "holding forward makes the duration cap the predictable release");
+            Assert.AreEqual(p.maxDuration, WallRunMath.NaturalReleaseIn(0f, p.minSustainSpeed, true, p), 1e-4f,
+                "the shipped forward top-up saves a sustain-floor run; it is not an immediate decay release");
+
+            float expectedDecay = Mathf.Log(6f / p.minSustainSpeed) / p.speedDecay;
+            Assert.AreEqual(expectedDecay, WallRunMath.NaturalReleaseIn(0f, 6f, false, p), 1e-4f,
+                "released input must cue the actual decay release, not the later duration cap");
+            Assert.AreEqual(0f, WallRunMath.NaturalReleaseIn(0f, p.minSustainSpeed, false, p), 1e-4f,
+                "a run already at its sustain floor releases now");
+        }
+
         // ------------------------------------------------------------------ the exit
 
         [Test]
@@ -289,6 +305,21 @@ namespace VibeGame1.Tests
             // is the other way round (push 12 vs whatever you carried), and that is the whole difference.
             Assert.Greater(Mathf.Abs(v.z), Mathf.Abs(v.x) * 1.5f,
                 "the run exit is throwing you sideways off the wall like an ordinary wall jump");
+        }
+
+        [Test]
+        public void PerfectExit_UsesTheSameClampWithASmallExtraTangentBoost()
+        {
+            var p = Shipped();
+            Vector3 ordinary = WallRunMath.Exit(new Vector3(0f, 0f, 9f), Normal, Vector3.forward, p, 22f);
+            Vector3 perfect = WallRunMath.PerfectExit(new Vector3(0f, 0f, 9f), Normal, Vector3.forward, p, 22f);
+
+            Assert.AreEqual(p.exitTangentBoost * 0.5f, perfect.z - ordinary.z, 1e-3f,
+                "the perfect should add half the authored run-exit tangent boost (+2 m/s shipped)");
+            Assert.AreEqual(ordinary.x, perfect.x, 1e-3f, "a perfect does not widen the outward shove");
+            Assert.AreEqual(ordinary.y, perfect.y, 1e-3f, "a perfect does not change jump height");
+            Assert.LessOrEqual(new Vector2(perfect.x, perfect.z).magnitude, 22f + 1e-3f,
+                "the perfect exit bypassed the normal run-exit speed clamp");
         }
 
         [Test]

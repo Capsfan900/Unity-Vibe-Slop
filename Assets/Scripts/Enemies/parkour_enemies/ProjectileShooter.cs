@@ -80,6 +80,14 @@ namespace VibeGame1
         float followupDeadlineAt;
         ProjectileEngagementWindowDef activeEngagementWindow;
         bool phraseHasEngagementWindow;
+        int nextPhraseId;
+        int activePhraseId = -1;
+        int phrasePerfects;
+        int phraseIncomingOutcomes;
+        bool phraseInvalidated;
+        bool phraseRestApplied;
+        float lastIncomingResolvedAt = -1f;
+        float nextPhraseAllowedAt = -1f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void ResetSpanBeat()
@@ -101,6 +109,11 @@ namespace VibeGame1
         public ProjectilePhraseCancellation LastPhraseCancellation { get; private set; }
         public int PhraseCancellationCount { get; private set; }
         public static float NextAutonomousContactAt { get { return nextAutonomousContactAt; } }
+        /// <summary>World time the previous phrase's final incoming obligation resolved, or -1 before one.</summary>
+        public float LastIncomingResolvedAt { get { return lastIncomingResolvedAt; } }
+        /// <summary>Earliest time a new phrase may start; the authored quiet starts at incoming resolution.</summary>
+        public float NextPhraseAllowedAt { get { return nextPhraseAllowedAt; } }
+        public bool IsPhraseResting { get { return Time.time < nextPhraseAllowedAt; } }
 
         /// <summary>
         /// True once every emitted shot has stopped being an incoming player attack. Reflected bolts count
@@ -143,7 +156,7 @@ namespace VibeGame1
         {
             enteredBand = false;
             shotReady = false;
-            if (!sequenceControlled || phraseActive) return null;
+            if (!sequenceControlled || phraseActive || !PhraseIncomingResolved || IsPhraseResting) return null;
             EnemyData data;
             if (!CanShoot(out data)) return null;
 
@@ -313,9 +326,9 @@ namespace VibeGame1
                 Projectile prior = phraseBolts[i];
                 if (prior == null || !prior.IsIncoming) continue;
                 float priorContact = prior.PredictedContactAt;
-                if (priorContact >= float.MaxValue) contactFloor = float.MaxValue;
-                else contactFloor = Mathf.Max(contactFloor,
-                    ProjectileFlightMath.NextContactTime(priorContact, cadence));
+                if (priorContact < float.MaxValue)
+                    contactFloor = Mathf.Max(contactFloor,
+                        ProjectileFlightMath.NextContactTime(priorContact, cadence));
             }
 
             float predictedContact = Time.time + plan.contactSeconds;
@@ -334,7 +347,6 @@ namespace VibeGame1
             {
                 phraseActive = false;
                 phraseEmissionsComplete = true;
-                nextFireAt = Time.time + Mathf.Max(0.01f, data.projectileInterval);
                 return;
             }
 
@@ -350,7 +362,13 @@ namespace VibeGame1
         Projectile BeginPhrase(EnemyData data, ProjectileFlightPlan plan, bool reserveAutonomousContact,
                                ProjectileEngagementWindowDef engagementWindow, bool hasEngagementWindow)
         {
+            if (!PhraseIncomingResolved) return null; // never replace an unresolved phrase's obligations
             for (int i = 0; i < phraseBolts.Length; i++) phraseBolts[i] = null;
+            activePhraseId = ++nextPhraseId;
+            phrasePerfects = 0;
+            phraseIncomingOutcomes = 0;
+            phraseInvalidated = false;
+            phraseRestApplied = false;
             phraseTargetCount = Mathf.Clamp(data.projectileBurstCount, 1, MaxBurstShots);
             phraseShotsEmitted = 0;
             phraseActive = phraseTargetCount > 1;
@@ -374,11 +392,51 @@ namespace VibeGame1
         Projectile Emit(ProjectileFlightPlan plan, EnemyData data)
         {
             Projectile shot = FireAt(plan, data);
+            shot.AssignPhrase(activePhraseId, phraseShotsEmitted);
+            shot.IncomingResolved += OnPhraseIncomingResolved;
             if (phraseShotsEmitted < phraseBolts.Length) phraseBolts[phraseShotsEmitted] = shot;
             phraseShotsEmitted++;
             LastPredictedContactAt = Time.time + plan.contactSeconds;
             LastReadiness = ProjectileShotReadiness.Ready;
             return shot;
+        }
+
+        void OnPhraseIncomingResolved(Projectile shot, ParryResult outcome)
+        {
+            if (shot == null || shot.PhraseId != activePhraseId) return;
+            phraseIncomingOutcomes++;
+            int required = ctrl != null && ctrl.data != null ? ctrl.data.perfectBurstParriesToDestroy : 0;
+            // Ordinary sentries retain their authored phrase and reflected-damage behaviour. Only a
+            // data-marked Heavy treats incoming results as a strict all-perfect destruction contract.
+            if (!phraseInvalidated && required > 0 &&
+                (outcome != ParryResult.Perfect || shot.PhraseOrdinal != phrasePerfects))
+            {
+                phraseInvalidated = true;
+                CancelPhrase(ProjectilePhraseCancellation.FollowupWindowExpired, false);
+            }
+            else if (!phraseInvalidated && required > 0)
+            {
+                phrasePerfects++;
+                if (phrasePerfects == required && ctrl != null && ctrl.IsAlive && ctrl.Health != null)
+                {
+                    // Health owns death; reflected bolt damage is authored zero, so the phrase is the only
+                    // global Heavy kill path and melee damage remains untouched.
+                    ctrl.Health.TakeDamage(new DamageInfo { damage = ctrl.Health.Current, source = gameObject });
+                }
+            }
+            ApplyPhraseRestIfResolved();
+        }
+
+        void ApplyPhraseRestIfResolved()
+        {
+            if (phraseRestApplied || !phraseEmissionsComplete ||
+                phraseIncomingOutcomes < phraseShotsEmitted) return;
+            phraseRestApplied = true;
+            lastIncomingResolvedAt = Time.time;
+            var data = ctrl != null ? ctrl.data : null;
+            float rest = data != null ? Mathf.Max(0.01f, data.projectileInterval) : 0f;
+            nextPhraseAllowedAt = Time.time + rest;
+            nextFireAt = Mathf.Max(nextFireAt, nextPhraseAllowedAt);
         }
 
         bool CanShoot(out EnemyData data)
@@ -498,11 +556,13 @@ namespace VibeGame1
 
             float cone = GameManager.I != null && GameManager.I.statsData != null
                 ? GameManager.I.statsData.facingConeDeg : 75f;
+            Vector3 predictedChest = chest + targetVelocity * plan.contactSeconds;
             bool readableArrival = UsesResponsivePlanning(data.projectileAllowTightRouteShots,
                                                            data.projectileBurstCount)
-                ? ProjectileMath.ArrivesInsideFacing(muzzle, chest, targetVelocity, plan.speed,
+                ? ProjectileMath.ArrivesInsideFacing(plan.contactDirection, muzzle, predictedChest,
                                                      combat.transform.forward, cone)
-                : ProjectileMath.ArrivesInFront(muzzle, chest, targetVelocity, plan.speed, cone);
+                : ProjectileMath.ArrivesInFront(muzzle, chest, targetVelocity, plan.contactDirection,
+                                                predictedChest, cone);
             if (!readableArrival)
                 return ProjectileShotReadiness.FacingAway;
             // Ordinary blue ghosts are traversal tools deliberately perched inside tight geometry. They
@@ -617,6 +677,8 @@ namespace VibeGame1
         void CancelPhrase(ProjectilePhraseCancellation reason, bool retireIncoming)
         {
             bool hadPending = phraseActive || !PhraseIncomingResolved;
+            if (reason != ProjectilePhraseCancellation.None)
+                phraseInvalidated = true;
             phraseActive = false;
             phraseEmissionsComplete = true;
             phraseHasEngagementWindow = false;
@@ -627,8 +689,7 @@ namespace VibeGame1
                 PhraseCancellationCount++;
             }
             if (retireIncoming) RetirePhraseIncoming();
-            var data = ctrl != null ? ctrl.data : null;
-            if (data != null) nextFireAt = Time.time + Mathf.Max(0.01f, data.projectileInterval);
+            ApplyPhraseRestIfResolved();
         }
 
         void RetirePhraseIncoming()
@@ -674,7 +735,8 @@ namespace VibeGame1
                 else DestroyImmediate(col);
             }
             core.transform.SetParent(go.transform, false);
-            core.transform.localScale = Vector3.one * Projectile.CoreSize;
+            core.transform.localScale = Vector3.one * Projectile.CoreSize *
+                Mathf.Max(0.5f, data.projectileVisualScale);
             if (boltMat == null)
             {
                 boltMat = SlashFx.CreateAdditiveMaterial(new Color(1f, 0.55f, 0.2f, 1f));

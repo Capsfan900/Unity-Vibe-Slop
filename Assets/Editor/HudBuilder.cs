@@ -768,7 +768,7 @@ namespace VibeGame1.EditorTools
 
         // ---------------- test menu ----------------
 
-        static readonly string[] ItemAssetNames = { "Grapple", "WallSurge" };
+        static readonly string[] ItemAssetNames = { "Grapple", "Rebound", "DeflectSigil" };
 
 
         /// <summary>
@@ -1264,9 +1264,9 @@ namespace VibeGame1.EditorTools
         {
             var root = new GameObject("StatusStrip", typeof(RectTransform));
             root.transform.SetParent(parent, false);
-            // Eight possible rows: three held items, two-line run objective, Wall Surge, Speed Surge,
+            // Nine possible rows: three held items, two-line run objective, Rebound, Sigil, Speed Surge,
             // and God Mode. The extra height prevents the objective/effect rows clipping in dev play.
-            Rect(root, TopLeft, TopLeft, TopLeft, new Vector2(32f + Inset, y), new Vector2(500f, 184f));
+            Rect(root, TopLeft, TopLeft, TopLeft, new Vector2(32f + Inset, y), new Vector2(500f, 204f));
             var view = root.AddComponent<StatusStripView>();
 
             view.text = Txt("Rows", root.transform, "", 15f, Bone, TextAlignmentOptions.TopLeft);

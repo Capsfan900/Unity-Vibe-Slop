@@ -7,260 +7,65 @@ using A = VibeGame1.EditorTools.LevelArcAnalyzer;
 
 namespace VibeGame1.Tests
 {
-    /// <summary>
-    /// <b>Every authored traversal in Level_01, flown.</b>
-    ///
-    /// <para><c>FeatureTests > LevelStructure</c> checks that the GAP between two platforms is inside the
-    /// reachability envelope. It cannot see an obstruction in the middle of the arc, and that blind spot is
-    /// exactly why the wall-jump buttress designed for The Ascent sat unbuilt in BACKLOG §5b for want of a
-    /// play test. These tests close it: they simulate the player's real ballistic arc, swept as the real
-    /// capsule, against every box in the level definition.</para>
-    ///
-    /// <para>They are EDIT-mode and pure — no scene, no play mode — so they run headless while the editor
-    /// is busy, which is the only reason they get run at all. The movement constants come off the shipped
-    /// <c>Player.prefab</c>, so retuning the motor retunes these tests rather than invalidating them.</para>
-    ///
-    /// <para><b>What passing means.</b> That a clean line exists and the geometry does not lie. It does not
-    /// mean the jump feels good, is readable, or is fair; no test can say that, and no human has yet played
-    /// the routes added here.</para>
-    /// </summary>
-    [Category("LevelLines")]  // slow: simulates the motor along the level lines; excluded by VibeGame1/Run Quick EditMode Tests
+    [Category("LevelLines")]
     public class LevelArcClearanceTests
     {
-        static LevelDefinition def;
-        static List<A.Box> boxes;
-        static A.MoveProfile profile;
-        static float floorY;
+        LevelDefinition def;
+        A.MoveProfile profile;
 
         [OneTimeSetUp]
         public void Load()
         {
-            def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelArcReport.DefaultLevel);
-            Assert.IsNotNull(def, "Level_01_Level.asset is missing");
-            string err;
-            Assert.IsTrue(A.TryLoadProfile(out profile, out err), err);
-            boxes = A.BoxesFrom(def);
-            floorY = def.killZone.center.y;
+            var shipped = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelDefinitionAuthoring.Level01);
+            def = Object.Instantiate(shipped);
+            LevelDefinitionAuthoring.Apply(def);
+            string error;
+            Assert.IsTrue(A.TryLoadProfile(out profile, out error), error);
         }
+        [OneTimeTearDown] public void Clean() { Object.DestroyImmediate(def); }
 
-        // ------------------------------------------------------------------ the constants are real
-
-        [Test]
-        public void MoveProfile_ComesFromThePlayerPrefabAndIsSane()
+        static IEnumerable<TestCaseData> MainHops()
         {
-            Assert.Less(profile.gravity, 0f, "gravity must pull down");
-            Assert.Greater(profile.jumpHeight, 0f);
-            Assert.Greater(profile.groundSpeed, 0f);
-            Assert.Greater(profile.capsuleRadius, 0f);
-            Assert.Greater(profile.standHeight, profile.slideHeight,
-                "a slide that is not shorter than standing cannot pass under anything");
-            Assert.AreEqual(Mathf.Sqrt(2f * -profile.gravity * profile.jumpHeight), profile.JumpTakeoffSpeed, 0.001f);
-        }
-
-        // ------------------------------------------------------------------ the baseline route
-
-        static IEnumerable<TestCaseData> BaseRouteCases()
-        {
-            foreach (var r in LevelArcReport.BaseRoute)
-                yield return new TestCaseData(r.from, r.to).SetName("Base_" + r.from + "_to_" + r.to);
-        }
-
-        /// <summary>
-        /// The whole course, hop by hop, with the stick RELEASED — no air control assumed, which is the
-        /// conservative reading. Any new geometry that stands in one of these arcs fails here instead of
-        /// in someone's run.
-        /// </summary>
-        [Test, TestCaseSource(nameof(BaseRouteCases))]
-        public void BaselineHopHasACleanArc(string from, string to)
-        {
-            var v = A.AnalyzeHop(boxes, from, to, profile, profile.groundSpeed, floorY);
-            Assert.IsTrue(v.exists, v.Summary());
-            Assert.GreaterOrEqual(v.cleanLaunchPoints, 3,
-                "a hop that works from fewer than three of the sampled take-off spots is a pixel-perfect " +
-                "jump, not a route: " + v.Summary());
-        }
-
-        // ------------------------------------------------------------------ the tech lines
-
-        static readonly A.AirControl[] WithBraking = { A.AirControl.None, A.AirControl.Brake };
-
-        [Test]
-        public void SlideJump_Stone1ToFast1_IsReachableWithTheTech()
-        {
-            var v = A.AnalyzeHop(boxes, "T1_Stone_1", "T1_Fast_1", profile, profile.SlideJumpSpeed, floorY, WithBraking);
-            Assert.IsTrue(v.exists, v.Summary());
-        }
-
-        [Test]
-        public void SlideJump_Stone1ToFast1_IsOutOfReachOfTheBaseKit()
-        {
-            var v = A.AnalyzeHop(boxes, "T1_Stone_1", "T1_Fast_1", profile, profile.groundSpeed, floorY);
-            Assert.IsFalse(v.exists,
-                "the fast line must EXCEED the base envelope or the tech buys nothing: " + v.Summary());
-        }
-
-        [Test]
-        public void SlideJump_Fast1RejoinsTheCourse()
-        {
-            var v = A.AnalyzeHop(boxes, "T1_Fast_1", "T1_Stone_4", profile, profile.groundSpeed, floorY);
-            Assert.IsTrue(v.exists, "the exit from a fast line is NOT a second gate: " + v.Summary());
-        }
-
-        // ------------------------------------------------------------------ slide gates
-
-        [Test]
-        public void T1FallenObelisk_IsASlideGateAndNotAWall()
-        {
-            var v = A.CheckLintel(boxes, "T1_Fallen_Obelisk", "T1_Causeway", profile);
-            Assert.IsTrue(v.exists, "T1_Fallen_Obelisk missing");
-            Assert.IsTrue(v.slideFits, v.Summary("T1_Fallen_Obelisk", "T1_Causeway"));
-            Assert.IsTrue(v.standingBlocked, v.Summary("T1_Fallen_Obelisk", "T1_Causeway"));
-            Assert.IsTrue(v.jumpable, "it must stay jumpable, or it costs ACCESS rather than time: " +
-                                      v.Summary("T1_Fallen_Obelisk", "T1_Causeway"));
-            Assert.IsTrue(v.spansTheDeck, v.Summary("T1_Fallen_Obelisk", "T1_Causeway"));
-        }
-
-        [Test]
-        public void T3FallenLintel_IsASlideGateAndNotAWall()
-        {
-            var v = A.CheckLintel(boxes, "T3_Fallen_Lintel", "T3_Span", profile);
-            Assert.IsTrue(v.exists, "T3_Fallen_Lintel missing");
-            Assert.IsTrue(v.slideFits, v.Summary("T3_Fallen_Lintel", "T3_Span"));
-            Assert.IsTrue(v.standingBlocked, v.Summary("T3_Fallen_Lintel", "T3_Span"));
-            Assert.IsTrue(v.jumpable, v.Summary("T3_Fallen_Lintel", "T3_Span"));
-            Assert.IsTrue(v.spansTheDeck, v.Summary("T3_Fallen_Lintel", "T3_Span"));
-        }
-
-        [Test]
-        public void T3FallenLintel_DoesNotSitOnThePickupOrObstructTheSpanRun()
-        {
-            var v = A.AnalyzeHop(boxes, "T3_Pillar_4", "T3_Span", profile, profile.groundSpeed, floorY);
-            Assert.IsTrue(v.exists, "the lintel must not block the arrival on the span: " + v.Summary());
-
-            int il = A.IndexOf(boxes, "T3_Fallen_Lintel");
-            Assert.GreaterOrEqual(il, 0);
-            var l = boxes[il];
-            foreach (var pk in def.pickups)
+            string[][] routes =
             {
-                bool inside = pk.position.x > l.min.x - 0.4f && pk.position.x < l.max.x + 0.4f &&
-                              pk.position.y > l.min.y - 0.4f && pk.position.y < l.max.y + 0.4f &&
-                              pk.position.z > l.min.z - 0.4f && pk.position.z < l.max.z + 0.4f;
-                Assert.IsFalse(inside, pk.name + " is inside T3_Fallen_Lintel");
-            }
+                new[] { "T1_Stone_1", "T1_Stone_2", "T1_Stone_3", "T1_Stone_4", "T1_Causeway" },
+                new[] { "T2_L1", "T2_L2", "T2_L3", "T2_L4", "T2_L5", "T2_L6", "T2_L7", "T2_L8", "T2_L9", "T2_L10", "T2_L11" },
+                new[] { "T3_Pillar_1", "T3_Pillar_2", "T3_Pillar_3", "T3_Pillar_4", "T3_Span", "T3_Step_1", "T3_Step_2" },
+            };
+            foreach (var route in routes)
+                for (int i = 0; i + 1 < route.Length; i++)
+                    yield return new TestCaseData(route[i], route[i + 1]).SetName(route[i] + "_To_" + route[i + 1]);
         }
 
-        // ------------------------------------------------------------------ the buttress on The Ascent
-
-        [Test]
-        public void Buttress_Exists()
+        [Test, TestCaseSource(nameof(MainHops))]
+        public void OpenMainCourseIsCleanAtBaseRunSpeed(string from, string to)
         {
-            Assert.GreaterOrEqual(A.IndexOf(boxes, "T2_Buttress"), 0,
-                "The Ascent is a 20 m tower and the obvious home for wall jumping; T2_Buttress is its line.");
+            var verdict = A.AnalyzeHop(A.BoxesFrom(def), from, to, profile, profile.groundSpeed, def.killZone.center.y);
+            Assert.IsTrue(verdict.exists, verdict.Summary());
+            Assert.GreaterOrEqual(verdict.cleanLaunchPoints, 3, verdict.Summary());
         }
 
-        [Test]
-        public void Buttress_FormsAClimbableChimneyWithTheTower()
+        static IEnumerable<TestCaseData> PortalGates()
         {
-            var g = A.MeasureChimney(boxes, "T2_Tower", "T2_Buttress", profile);
-            Assert.IsTrue(g.valid, "chimney geometry: " + g.reason);
-            Assert.GreaterOrEqual(g.width, 1.5f);
-            Assert.LessOrEqual(g.width, 3f);
-            Assert.Less(g.shortTop, g.tallTop,
-                "the two faces must be DIFFERENT heights so the climb has an exit — you leave over the shorter one");
+            yield return new TestCaseData("T1_Causeway", new Vector3(0f, 1.5f, 73.05f), new Vector3(12f, 1f, 1f));
+            yield return new TestCaseData("T2_L11", new Vector3(0f, 19.5f, 200.92f), new Vector3(12f, 1f, 1f));
+            yield return new TestCaseData("T3_Step_2", new Vector3(0f, 26.5f, 341.67f), new Vector3(12f, 1f, 1f));
         }
 
-        /// <summary>
-        /// THE TEST THAT UNBLOCKED §5b. The fin stands beside the take-off for <c>T2_L2 → T2_L3</c>, and
-        /// the reason it was never built is that nothing could say whether it obstructed that arc. It can
-        /// now, and this is the assertion that keeps it true.
-        /// </summary>
-        [Test]
-        public void Buttress_DoesNotObstructTheL2ToL3Hop()
+        [Test, TestCaseSource(nameof(PortalGates))]
+        public void PortalEntryRequiresProjectileEarnedCarry(string from, Vector3 targetCenter, Vector3 targetSize)
         {
-            var v = A.AnalyzeHop(boxes, "T2_L2", "T2_L3", profile, profile.groundSpeed, floorY);
-            Assert.IsTrue(v.exists, v.Summary());
-            Assert.GreaterOrEqual(v.cleanLaunchPoints, 8,
-                "the buttress may narrow the take-off but it must not squeeze it to a sliver: " + v.Summary());
-        }
+            var boxes = A.BoxesFrom(def);
+            boxes.Add(new A.Box("PortalEntry", targetCenter, targetSize));
+            var refused = A.AnalyzeHop(boxes, from, "PortalEntry", profile, profile.SlideJumpSpeed, def.killZone.center.y);
+            Assert.IsFalse(refused.exists, refused.Summary() + " -- the portal is not a speed check");
 
-        [Test]
-        public void Buttress_ClimbsToTheExitLedge()
-        {
-            var o = BestButtressClimb();
-            Assert.IsTrue(o.success,
-                "no sequence of wall pushes tops out on T2_L8: best attempt reached y " +
-                o.peakY.ToString("0.00") + " and ended on " + o.landedOn);
-            Assert.LessOrEqual(o.pushes, profile.maxWallJumps,
-                "the climb must fit inside one airtime's worth of wall jumps");
-        }
-
-        /// <summary>The shortcut has to be a shortcut: the base kit must not be able to make the same jump.</summary>
-        [Test]
-        public void Buttress_ShortcutIsOutOfReachOfTheBaseKit()
-        {
-            var v = A.AnalyzeHop(boxes, "T2_L2", "T2_L8", profile, profile.groundSpeed, floorY, WithBraking);
-            Assert.IsFalse(v.exists, "T2_L2 -> T2_L8 must need the wall jump: " + v.Summary());
-        }
-
-        /// <summary>
-        /// And it has to rejoin the course BEFORE the arena, or the gate is bypassed and the run soft-locks.
-        /// T2_L8 is mid-spiral; the remaining ledges still lead into the portal approach at T2_L11.
-        /// </summary>
-        [Test]
-        public void Buttress_RejoinsTheCourseAheadOfTheArena()
-        {
-            var onward = A.AnalyzeHop(boxes, "T2_L8", "T2_L9", profile, profile.groundSpeed, floorY);
-            Assert.IsTrue(onward.exists, "the exit ledge must continue the course: " + onward.Summary());
-
-            int i8 = A.IndexOf(boxes, "T2_L8"), ib = A.IndexOf(boxes, "T2_L11");
-            Assert.GreaterOrEqual(i8, 0);
-            Assert.GreaterOrEqual(ib, 0);
-            Assert.Less(boxes[i8].max.z + 0.01f, boxes[ib].max.z,
-                "T2_L8 must still be short of the final ledge that launches into the portal trigger");
-        }
-
-        [Test]
-        public void Buttress_DoesNotStandOnTheL2Deck()
-        {
-            int ifin = A.IndexOf(boxes, "T2_Buttress"), i2 = A.IndexOf(boxes, "T2_L2");
-            Assert.GreaterOrEqual(ifin, 0);
-            var f = boxes[ifin];
-            var l2 = boxes[i2];
-            Assert.LessOrEqual(f.max.x, l2.min.x + 0.001f,
-                "the buttress hangs on L2's west FACE; standing it on the deck eats the run-up");
-        }
-
-        static A.ClimbOutcome BestButtressClimb()
-        {
-            int ie = A.IndexOf(boxes, "T2_L2"), ifin = A.IndexOf(boxes, "T2_Buttress");
-            var entry = boxes[ie];
-            var fin = boxes[ifin];
-            float inset = profile.SweptRadius + 0.05f;
-
-            var best = new A.ClimbOutcome();
-            best.peakY = -999f; best.landedOn = "(fell)";
-
-            for (int zi = 0; zi < 7; zi++)
-            {
-                // The whole ledge edge beside the fin, not just the part inside the slot: the fin is
-                // flush with the ledge's face, so the slot's MOUTH is past the fin's end.
-                float z = Mathf.Lerp(Mathf.Max(entry.min.z, fin.min.z - 2f) + inset,
-                                     Mathf.Min(entry.max.z, fin.max.z + 2f) - inset, zi / 6f);
-                if (z < entry.min.z + inset || z > entry.max.z - inset) continue;
-                for (int ai = 0; ai < 7; ai++)
-                {
-                    float ang = Mathf.Lerp(-20f, 30f, ai / 6f) * Mathf.Deg2Rad;
-                    Vector3 dir = new Vector3(-Mathf.Cos(ang), 0f, Mathf.Sin(ang));
-                    Vector3 feet = new Vector3(entry.min.x + inset, entry.max.y, z);
-                    if (!A.StandFree(feet, profile, boxes, ie)) continue;
-                    var o = A.ClimbChimney(boxes, profile, feet,
-                                           dir * profile.groundSpeed + Vector3.up * profile.JumpTakeoffSpeed,
-                                           "T2_L8", "T2_L2", floorY);
-                    if (o.success && (!best.success || o.pushes < best.pushes)) best = o;
-                    else if (!best.success && o.peakY > best.peakY) best = o;
-                }
-            }
-            return best;
+            // Parkour shooters ship 9 m/s of forward gain. Two clean answers provide a robust earned-speed
+            // proof without depending on an exact one-contact threshold at the edge of the capsule sweep.
+            float earned = profile.groundSpeed + 18f;
+            var answered = A.AnalyzeHop(boxes, from, "PortalEntry", profile, earned, def.killZone.center.y);
+            Assert.IsTrue(answered.exists, answered.Summary());
+            Assert.GreaterOrEqual(answered.cleanLaunchPoints, 2, answered.Summary());
         }
     }
 }

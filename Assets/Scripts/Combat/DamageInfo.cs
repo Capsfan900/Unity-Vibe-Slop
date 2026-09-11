@@ -18,6 +18,8 @@ namespace VibeGame1
     {
         public EnemyAttackData attack;
         public EnemyController attacker;
+        /// <summary>The real incoming bolt, when this attack arrived by projectile contact.</summary>
+        public Projectile projectile;
         public float damage;
         public bool unblockable;
         /// <summary>

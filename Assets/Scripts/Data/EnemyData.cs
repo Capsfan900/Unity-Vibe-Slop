@@ -13,6 +13,11 @@ namespace VibeGame1
         public float postureRegen = 10f;
         public float postureRegenDelay = 1.5f;
         public float staggerSeconds = 3f;
+        [Tooltip("False for mechanical turret bodies: posture Add/Break calls become inert and generated " +
+                 "prefabs omit posture/deathblow presentation. Health and melee damage remain normal.")]
+        public bool usesPosture = true;
+        [Tooltip("Explicit turret role used by Hook and prefab presentation. Never infer this from rangedOnly.")]
+        public bool isTurret;
 
         [Header("Movement")]
         public float moveSpeed = 4.5f;
@@ -125,6 +130,16 @@ namespace VibeGame1
         public float parriedProjectilePosture = 40f;
         [Tooltip("Metres per second added along the look on a perfect deflect of a bolt.")]
         public float parrySpeedGain = 6f;
+        [Header("Projectile readability")]
+        [Tooltip("Presentation-only multiplier for the bolt core. Logical hit radius and path are unchanged.")]
+        [Min(0.5f)] public float projectileVisualScale = 1f;
+        [Tooltip("Presentation-only multiplier for trail width.")]
+        [Min(0.5f)] public float projectileTrailScale = 1f;
+        [Tooltip("Presentation-only multiplier for the press-now cue flare.")]
+        [Min(0.5f)] public float projectileCueScale = 1f;
+        [Tooltip("Ordered Perfect contacts required from one burst to destroy this turret. Zero disables " +
+                 "the contract. Any other incoming result invalidates that burst.")]
+        [Min(0)] public int perfectBurstParriesToDestroy;
 
         [Header("Parry surge — pshooter_enemy03 (2026-09-06)")]
         [Tooltip("How much FirstPersonMotor.SpeedMultiplier one deflected bolt from this enemy is worth through " +

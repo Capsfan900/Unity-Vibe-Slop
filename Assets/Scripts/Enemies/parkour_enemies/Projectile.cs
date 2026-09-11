@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 namespace VibeGame1
 {
@@ -77,6 +78,15 @@ namespace VibeGame1
         float speed;
         float age;
         bool cued, reflected, spent;
+        bool incomingOutcomeReported;
+        int phraseId = -1;
+        int phraseOrdinal = -1;
+
+        /// <summary>Immutable phrase identity assigned by the firing shooter; -1 for ordinary bolts.</summary>
+        public int PhraseId { get { return phraseId; } }
+        public int PhraseOrdinal { get { return phraseOrdinal; } }
+        /// <summary>Raised exactly once when this bolt stops being an incoming player obligation.</summary>
+        public event Action<Projectile, ParryResult> IncomingResolved;
         Vector3 previousTargetChest;
         bool hasTargetHistory;
         float cueAt = -1f;
@@ -124,6 +134,9 @@ namespace VibeGame1
             cued = false;
             reflected = false;
             spent = false;
+            incomingOutcomeReported = false;
+            phraseId = -1;
+            phraseOrdinal = -1;
             cueAt = -1f;
             arrivedAt = -1f;
             PredictedContactAt = float.IsPositiveInfinity(initialContactSeconds)
@@ -132,6 +145,20 @@ namespace VibeGame1
             ResetTargetHistory(playerT);
             BuildTrail();
             visualPhase = ProjectileVisualMath.Phase(boltId);
+        }
+
+        public void AssignPhrase(int id, int ordinal)
+        {
+            if (phraseId >= 0) return;
+            phraseId = id;
+            phraseOrdinal = ordinal;
+        }
+
+        void ResolveIncoming(ParryResult outcome)
+        {
+            if (incomingOutcomeReported) return;
+            incomingOutcomeReported = true;
+            IncomingResolved?.Invoke(this, outcome);
         }
 
         LineRenderer trail;
@@ -157,7 +184,8 @@ namespace VibeGame1
             if (core == null) return;
             if (visual == null) visual = core.transform;
             baseScale = visual.localScale;
-            trail = SlashFx.CreateLine(visual, "Trail", TrailPoints, CoreSize * TrailWidthScale, 0.03f, false, core.sharedMaterial);
+            float trailScale = data != null ? Mathf.Max(0.5f, data.projectileTrailScale) : 1f;
+            trail = SlashFx.CreateLine(visual, "Trail", TrailPoints, CoreSize * TrailWidthScale * trailScale, 0.03f, false, core.sharedMaterial);
             trail.useWorldSpace = true;
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             trail.receiveShadows = false;
@@ -292,7 +320,8 @@ namespace VibeGame1
                     if (visual != null)
                     {
                         if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
-                        visual.localScale = baseScale * CueFlareScale; // the flare: "press now", the same beat as a body's cue
+                        float cueScale = data != null ? Mathf.Max(0.5f, data.projectileCueScale) : 1f;
+                        visual.localScale = baseScale * CueFlareScale * cueScale; // "press now"
                     }
                     SetCoreColor(CueCore);                      // ...and the core goes white-hot for the same reason
                 }
@@ -330,10 +359,13 @@ namespace VibeGame1
                                                    hitRadius + 0.3f, out returnHitFraction))
             {
                 transform.position = Vector3.Lerp(previousBolt, currentBolt, returnHitFraction);
+                bool phraseDestroyer = data != null && data.perfectBurstParriesToDestroy > 0;
                 var info = new DamageInfo
                 {
-                    damage = data != null ? data.parriedProjectileDamage : 20f,
-                    postureDamage = data != null ? data.parriedProjectilePosture : 20f,
+                    // Heavy destruction is adjudicated by the exact phrase callback below, not by a
+                    // stale reflected-damage asset. Other enemies preserve their authored returns.
+                    damage = !phraseDestroyer && data != null ? data.parriedProjectileDamage : 0f,
+                    postureDamage = !phraseDestroyer && data != null ? data.parriedProjectilePosture : 0f,
                     point = transform.position,
                     direction = dir,
                     source = playerT != null ? playerT.gameObject : gameObject
@@ -353,48 +385,62 @@ namespace VibeGame1
             {
                 attack = data != null ? data.projectileAttack : null,
                 attacker = shooter,
+                projectile = this,
                 damage = data != null && data.projectileAttack != null ? data.projectileAttack.damage : 10f,
                 unblockable = false,
                 incomingDirection = dir     // P2: the parry is judged against the BOLT, not the perch's bearing
             };
             var result = shooter != null ? combat.ReceiveAttack(info) : ParryResult.None;
 
-            if (result == ParryResult.Perfect && shooter != null && shooter.IsAlive)
+            if (result == ParryResult.Perfect)
             {
-                // Deflected: back it goes, and the deflect buys speed toward the look.
-                reflected = true;
+                // Movement payout belongs to the successful contact, not to whether the return target
+                // survives its response. Hook and a Heavy's third clean answer may kill synchronously.
                 BoltRegistry.Clear(boltId);   // flying the other way: no longer incoming
                 PredictedContactAt = float.MaxValue;
-                dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
-                speed *= reflectSpeedScale;
-                ResetTargetHistory(shooter.transform);
-                if (visual != null)
-                {
-                    if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
-                    visual.localScale = baseScale;
-                }
-                ResetTrail();                 // no incoming curve dragged behind the straight reflected payoff
-                SetCoreColor(HotCore);
                 if (motor != null)
                 {
                     Vector3 aim = look != null ? look.AimForward : playerT.forward;
                     motor.AddImpulse(ProjectileMath.SpeedGain(aim, data != null ? data.parrySpeedGain : 6f));
                 }
                 if (CameraFX.I != null) CameraFX.I.FovKick(deflectFovKick);
-                return;
+
+                var items = combat != null ? combat.GetComponent<PlayerItems>() : null;
+                if (items != null) items.CompleteHookPerfect(this, shooter);
+
+                ResolveIncoming(result); // after the final perfect's player payout / hook path
+
+                if (shooter != null && shooter.IsAlive)
+                {
+                    // Deflected: back it goes. The incoming obligation is already resolved.
+                    reflected = true;
+                    dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
+                    speed *= reflectSpeedScale;
+                    ResetTargetHistory(shooter.transform);
+                    if (visual != null)
+                    {
+                        if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
+                        visual.localScale = baseScale;
+                    }
+                    ResetTrail();
+                    SetCoreColor(HotCore);
+                    return;
+                }
             }
+            ResolveIncoming(result);
             Spend();
         }
 
         void Spend()
         {
             if (spent) return;
+            if (!reflected) ResolveIncoming(ParryResult.None);
             spent = true;
             PredictedContactAt = float.MaxValue;
             BoltRegistry.Clear(boltId);
             Destroy(gameObject);
         }
 
-        void OnDestroy() { BoltRegistry.Clear(boltId); }
+        void OnDestroy() { if (!reflected) ResolveIncoming(ParryResult.None); BoltRegistry.Clear(boltId); }
     }
 }

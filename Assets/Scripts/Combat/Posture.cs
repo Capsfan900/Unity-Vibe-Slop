@@ -16,6 +16,7 @@ namespace VibeGame1
         public float Current { get; private set; }
         public bool IsBroken { get; private set; }
         public float Ratio => max > 0 ? Current / max : 0f;
+        public bool Enabled { get; private set; } = true;
 
         /// <summary>Optional multiplier on regen (enemy sets it to its health fraction).</summary>
         public Func<float> RegenMultiplier;
@@ -27,8 +28,9 @@ namespace VibeGame1
         float lastHitTime = -99f;
         float brokenUntil;
 
-        public void Configure(float maxValue, float regen, float delay, float stagger)
+        public void Configure(float maxValue, float regen, float delay, float stagger, bool enabled = true)
         {
+            Enabled = enabled;
             max = Mathf.Max(1f, maxValue);
             regenPerSecond = regen;
             regenDelay = delay;
@@ -40,7 +42,7 @@ namespace VibeGame1
 
         public void Add(float amount)
         {
-            if (IsBroken || amount <= 0f) return;
+            if (!Enabled || IsBroken || amount <= 0f) return;
             lastHitTime = Time.time;
             var (v, broke) = PostureMath.Apply(Current, max, amount);
             Current = v;
@@ -50,7 +52,7 @@ namespace VibeGame1
 
         public void Break()
         {
-            if (IsBroken) return;
+            if (!Enabled || IsBroken) return;
             IsBroken = true;
             Current = max;
             brokenUntil = Time.time + staggerSeconds;
@@ -78,11 +80,12 @@ namespace VibeGame1
         /// <summary>Extend the current stagger (used while an execute plays).</summary>
         public void HoldStagger(float seconds)
         {
-            if (IsBroken) brokenUntil = Mathf.Max(brokenUntil, Time.time + seconds);
+            if (Enabled && IsBroken) brokenUntil = Mathf.Max(brokenUntil, Time.time + seconds);
         }
 
         void Update()
         {
+            if (!Enabled) return;
             if (IsBroken)
             {
                 if (Time.time >= brokenUntil) EndStagger();

@@ -47,15 +47,34 @@ namespace VibeGame1
         /// </summary>
         public static ParrySurge Grant(FirstPersonMotor onMotor, float stepPerStack, int maxStacks, float stackSeconds)
         {
-            if (onMotor == null || stepPerStack <= 0f || maxStacks <= 0) return null;
+            return Grant(onMotor, stepPerStack, maxStacks, stackSeconds, 1, true);
+        }
+
+        /// <summary>
+        /// Adds bonus stacks without replacing the tuning selected by the parry that just resolved.
+        /// Deflect Sigil calls this from ParryResolved, after the source enemy has paid its own stack.
+        /// </summary>
+        public static ParrySurge GrantBonus(FirstPersonMotor onMotor, int count, float fallbackStep,
+                                            int fallbackMaxStacks, float fallbackStackSeconds)
+        {
+            return Grant(onMotor, fallbackStep, fallbackMaxStacks, fallbackStackSeconds, count, false);
+        }
+
+        static ParrySurge Grant(FirstPersonMotor onMotor, float stepPerStack, int maxStacks,
+                                float stackSeconds, int count, bool replaceTuning)
+        {
+            if (onMotor == null || stepPerStack <= 0f || maxStacks <= 0 || count <= 0) return null;
             var s = onMotor.GetComponent<ParrySurge>();
             if (s == null) s = onMotor.gameObject.AddComponent<ParrySurge>();
             s.motor = onMotor;
             // The latest perfect owns the tuning: the opening turret keeps its short run-out, while the
             // general ladder keeps enough slack for ordinary blue-sentry cadence.
-            s.step = stepPerStack; s.maxStacks = maxStacks; s.stackSeconds = stackSeconds;
-            s.stacks = SurgeMath.Grant(s.stacks, maxStacks);
-            s.nextDropAt = SurgeMath.NextDropTime(s.clock, stackSeconds);
+            if (replaceTuning || s.step <= 0f || s.maxStacks <= 0)
+            {
+                s.step = stepPerStack; s.maxStacks = maxStacks; s.stackSeconds = stackSeconds;
+            }
+            for (int i = 0; i < count; i++) s.stacks = SurgeMath.Grant(s.stacks, s.maxStacks);
+            s.nextDropAt = SurgeMath.NextDropTime(s.clock, s.stackSeconds);
             s.Push();
             return s;
         }

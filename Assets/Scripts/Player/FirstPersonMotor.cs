@@ -263,9 +263,9 @@ namespace VibeGame1
         // Three PERFECTs, each a short window around a physical moment the player can learn to feel
         // (PerfectMath explains the sizes: Sekiro's 0.20 s deflect and Celeste's 0.08 s coyote bracket
         // them). A miss is simply the ordinary move -- nothing taken, nothing said.
-        [Tooltip("Seconds before the wall-run loan runs out in which a wall jump is PERFECT (the wall is " +
-                 "about to give up). Also the seconds after a natural let-go in which the exit-grace jump " +
-                 "is perfect. The exit grace itself is 0.15 s.")]
+        [Tooltip("The hybrid PERFECT wall-exit lead and forgiveness, seconds. When a clock, speed-decay " +
+                 "or stamina release is predictable, the WALL EXIT [SPACE] cue and window open this long " +
+                 "BEFORE it; the same window remains after a natural let-go. Early manual exits stay ordinary.")]
         public float perfectWallJumpWindow = 0.14f;
         [Tooltip("Stamina given back for a perfect wall jump. The run cost 12 to enter and 22/s to hold; " +
                  "20 is the entry plus a third of a second of it, so a perfect chain sustains itself.")]
@@ -339,8 +339,10 @@ namespace VibeGame1
         public int SlideChain => slideChain;
         /// <summary>Would a dash press fire THIS frame: gate, cooldown, air charge and stamina all
         /// together. The HUD pip reads this; it is the only honest answer to "can I dash".</summary>
-        public bool CanDashNow => CanAct && now >= dashReadyAt && (IsGrounded || !airDashUsed)
-                                  && (stamina == null || stamina.CanAfford(stamina.dashCost));
+        public bool CanDashNow => CanAct &&
+                                  ((reboundArmed && !IsGrounded) ||
+                                   (now >= dashReadyAt && (IsGrounded || !airDashUsed))) &&
+                                  (stamina == null || stamina.CanAfford(stamina.dashCost));
         /// <summary>Would a wall run be allowed to start if a wall were beside you now (budget, cooldown,
         /// stamina - not geometry).</summary>
         public bool CanWallRunNow => CanAct && wallRunsUsed < maxWallRuns && now >= wallRunReadyAt
@@ -351,6 +353,14 @@ namespace VibeGame1
         public Vector3 WallRunNormal => wallRunning ? wallRunNormal : Vector3.zero;
         /// <summary>Unit direction the current run travels along the face. Zero when not running.</summary>
         public Vector3 WallRunDirection => wallRunning ? wallRunDir : Vector3.zero;
+        /// <summary>True during the taught hybrid wall-exit window. Its cue begins before predictable
+        /// clock / decay / stamina let-goes and survives the short natural-release forgiveness grace.</summary>
+        public bool WallRunPerfectWindowOpen => wallRunPerfectWindowOpen;
+        /// <summary>True while the current jump-eligible dash is inside its taught timing window.</summary>
+        public bool DashJumpPerfectWindowOpen => IsDashing && !LastDashWasBurst &&
+            (dashFromGround || hookDashJumpArmed) &&
+            PerfectMath.DashJumpIsPerfect(now - dashStartedAt, perfectDashJumpMinDelay,
+                                          perfectDashJumpWindow);
         public Vector3 LastGroundedPosition { get; private set; }
         /// <summary>Downward speed at the moment of the last landing (for camera dip / land sfx).</summary>
         public float LastLandingSpeed { get; private set; }
@@ -505,27 +515,18 @@ namespace VibeGame1
             if (wallRunning)
             {
                 Vector3 rn = wallRunNormal, rd = wallRunDir;
-                // NO PERFECT HERE (2026-09-07, the user's call). This branch used to award one for
-                // leaving on the loan's "last breath" -- PerfectMath.WallJumpFromRunIsPerfect against
-                // wallRunMaxDuration. Two things were wrong with it and both made the reward a lottery
-                // rather than a skill:
-                //   1. The moment MOVED. A run ends at maxDuration only if speed survives; a 6 m/s entry
-                //      with the stick released decays to wallRunMinSustainSpeed at ln(6/4)/0.35 = 1.16 s,
-                //      and a low bar ends it earlier still. The same wall could put the window anywhere
-                //      across a ~0.6 s band chosen by entry speed, stick hold and stamina -- none of
-                //      which the player is counting. On a decayed run this branch was unreachable.
-                //   2. NOTHING TOLD THE PLAYER. The window sat before an end no cue preceded.
-                // The exit grace below is now the ONLY wall-jump perfect: one anchor, the drop, which
-                // already has a cue (the sag and Sfx.Land in PlayerFeedback). See ENGINEERING-LOG's
-                // "a cue that fires too close to the impact" -- the same bug, already fixed once for the
-                // parry, whose invariant is cueLead ~= 0.20 + perfectWindow / 2.
-                vel = WallRunMath.Exit(vel, rn, rd, WallRunSettings, dashSpeed);
+                // The cue and this flag are anchored to the predicted REAL release (clock, decay or
+                // stamina), never a hidden fixed-duration threshold. Early exits stay ordinary and
+                // reliable; only the taught hybrid window pays the extra reward.
+                bool perfect = wallRunPerfectWindowOpen;
+                vel = ConsumeReboundOnAirExit(WallRunExit(vel, rn, rd, perfect));
                 lastWallNormal = rn;
                 hasLastWall = true;
                 jumpPressedAt = -99f;
                 if (look != null) look.AddRollKick(Mathf.Sign(WallSide(rn)) * -wallRunExitRollKick, 0.28f);
                 EndWallRun(WallRunEnd.Jumped);
                 if (OnWallJumped != null) OnWallJumped();
+                if (perfect) Perfect(PerfectKind.WallJump, perfectWallJumpRefund);
                 return true;
             }
 
@@ -541,12 +542,12 @@ namespace VibeGame1
                 Vector3 rd = wallRunLastDir;
                 if (rd.sqrMagnitude > 0.5f)
                 {
-                    // PERFECT: the wall let go and the press came within the window of it. Reaching this
-                    // branch at all means the run was ridden to its end rather than bailed early.
-                    bool perfect = PerfectMath.GraceJumpIsPerfect(now - wallRunLeftAt, perfectWallJumpWindow);
-                    vel = WallRunMath.Exit(vel, rn, rd, WallRunSettings, dashSpeed);
+                    // The post-release half of the hybrid forgives an honest reaction to the let-go.
+                    bool perfect = PerfectMath.WallJumpHybridIsPerfect(-1f, now - wallRunLeftAt, perfectWallJumpWindow);
+                    vel = ConsumeReboundOnAirExit(WallRunExit(vel, rn, rd, perfect));
                     EndHang();
                     wallRunLeftAt = -99f;
+                    wallRunPerfectWindowOpen = false;
                     jumpPressedAt = -99f;
                     if (look != null) look.AddRollKick(Mathf.Sign(WallSide(rn)) * -wallRunExitRollKick, 0.28f);
                     if (OnWallJumped != null) OnWallJumped();
@@ -575,6 +576,7 @@ namespace VibeGame1
             vel.x = hx;
             vel.z = hz;
             vel.y = wallJumpUpSpeed;
+            vel = ConsumeReboundOnAirExit(vel);
 
             lastWallNormal = n;
             hasLastWall = true;
@@ -584,6 +586,17 @@ namespace VibeGame1
             EndSlide();   // not forced: under a low ceiling we stay slid and stand once clear
             if (OnWallJumped != null) OnWallJumped();
             return true;
+        }
+
+        /// <summary>The ordinary exit uses its authored tangent boost. A perfect uses the exact same
+        /// capped exit law with a modest extra half-boost (+2 m/s at the shipped +4), never a raw
+        /// velocity write or a second movement resource.</summary>
+        Vector3 WallRunExit(Vector3 velocity, Vector3 normal, Vector3 direction, bool perfect)
+        {
+            var settings = WallRunSettings;
+            return perfect
+                ? WallRunMath.PerfectExit(velocity, normal, direction, settings, dashSpeed)
+                : WallRunMath.Exit(velocity, normal, direction, settings, dashSpeed);
         }
 
         // ---------------------------------------------------------------- wall run
@@ -679,6 +692,7 @@ namespace VibeGame1
             wallRunElapsed = 0f;
             wallRunNormal = n;
             wallRunDir = runDir;
+            wallRunPerfectWindowOpen = false;
             EndHang();
             wallRunsUsed++;
             // The face you are running is the face you may not re-enter, by exactly the rule that stops a
@@ -716,6 +730,7 @@ namespace VibeGame1
             bool natural = why == WallRunEnd.Expired || why == WallRunEnd.Decayed
                         || why == WallRunEnd.LostWall || why == WallRunEnd.Exhausted;
             wallRunLeftAt = natural ? now : -99f;
+            wallRunPerfectWindowOpen = natural;
             wallRunLastDir = wallRunDir;
             wallRunLastNormal = wallRunNormal;
             if (look != null) look.SetRollBias(0f);
@@ -858,6 +873,25 @@ namespace VibeGame1
             return used;
         }
 
+        /// <summary>Refresh the taught pre-release half of the hybrid window from the release the player
+        /// can actually predict on this run. A face disappearing has no honest advance cue, but
+        /// <see cref="EndWallRun"/> still grants its post-release forgiveness.</summary>
+        void UpdateWallRunPerfectWindow(bool holdingForward)
+        {
+            if (!wallRunning)
+            {
+                wallRunPerfectWindowOpen = wallRunLeftAt >= 0f &&
+                    PerfectMath.WallJumpHybridIsPerfect(-1f, now - wallRunLeftAt, perfectWallJumpWindow);
+                return;
+            }
+
+            float along = Mathf.Abs(vel.x * wallRunDir.x + vel.z * wallRunDir.z);
+            float seconds = WallRunMath.NaturalReleaseIn(wallRunElapsed, along, holdingForward, WallRunSettings);
+            if (!IsWallSurging && stamina != null && !stamina.Infinite && stamina.wallRunDrainPerSecond > 0f)
+                seconds = Mathf.Min(seconds, stamina.Current / stamina.wallRunDrainPerSecond);
+            wallRunPerfectWindowOpen = PerfectMath.WallJumpHybridIsPerfect(seconds, -1f, perfectWallJumpWindow);
+        }
+
         /// <summary>+1 when the wall is on the player's RIGHT, -1 when it is on the left. The normal
         /// points AWAY from the face, so a wall on the right has a normal pointing left.</summary>
         float WallSide(Vector3 wallNormal)
@@ -882,6 +916,12 @@ namespace VibeGame1
         /// <summary>The dash in flight began on the ground (or inside coyote): a jump may be thrown out of it.</summary>
         bool dashFromGround;
         bool airDashUsed;
+        // One-use item rewards. The motor owns these because only it knows an air exit really fired.
+        bool hookDashJumpArmed;
+        bool hookDashAttempt;
+        bool reboundArmed;
+        float reboundExitMultiplier = 1f;
+        float reboundBonusSpeed;
         Vector3 dashDir;
         /// <summary>Speed of the dash in flight: dashSpeed, or dashSpeed x pullBurstMultiplier for a burst.</summary>
         float dashSpeedNow;
@@ -917,6 +957,7 @@ namespace VibeGame1
         float wallRunElapsed, wallRunReadyAt = -99f;
         float wallLostTime;                 // seconds the probe has failed for, inside wallRunLostGrace
         float wallRunLeftAt = -99f;         // motor clock when the last run ended on its own
+        bool wallRunPerfectWindowOpen;
         Vector3 wallRunLastDir;             // run direction at that moment, for the exit-grace jump
         Vector3 wallRunLastNormal;          // the LAST PROBED normal, not the entry one: curved faces
         int wallRunsUsed;
@@ -1030,6 +1071,7 @@ namespace VibeGame1
             // the one place in the game where losing a trade costs you nothing. Checked BEFORE the run
             // advances: a run consumes the whole frame and returns, so a check after it never fired.
             if (wallRunning && !canAct) EndWallRun(WallRunEnd.Cancelled);
+            UpdateWallRunPerfectWindow(Vector3.Dot(wish, wallRunDir) > 0.1f);
             if (wallRunning)
             {
                 bool buffered = now - jumpPressedAt <= jumpBuffer;
@@ -1038,8 +1080,9 @@ namespace VibeGame1
                     // Left the wall with the run's momentum. The rest of the frame is ordinary air, so
                     // fall through with dt intact.
                 }
-                else if (canAct && dashRequested && (burst || (now >= dashReadyAt && !airDashUsed
-                         && (stamina == null || stamina.CanAfford(stamina.dashCost)))))
+                else if (canAct && dashRequested && (burst || ((reboundArmed ||
+                         (now >= dashReadyAt && !airDashUsed)) &&
+                         (stamina == null || stamina.CanAfford(stamina.dashCost)))))
                 {
                     // Same gate as the dash below (airborne, so the air dash must be unspent) — otherwise
                     // a spent dash press dropped you off the wall and no dash came.
@@ -1057,6 +1100,11 @@ namespace VibeGame1
 
             Vector3 hv = new Vector3(vel.x, 0f, vel.z);
 
+            if (!IsDashing && hookDashAttempt)
+            {
+                hookDashAttempt = false;
+                hookDashJumpArmed = false; // the primed dash ended without its jump
+            }
             if (IsDashing)
             {
                 hv = dashDir * dashSpeedNow;
@@ -1069,12 +1117,21 @@ namespace VibeGame1
                 // dash so vel.y survives the next frame, and the dash's speed is already in hv, so it
                 // becomes carried momentum that settles like every other burst. This is the move the
                 // PERFECT window rewards (MOVEMENT-PRINCIPLES rule 4: the moment, not the frame).
-                if (canAct && dashFromGround && now - jumpPressedAt <= jumpBuffer)
+                if (canAct && (dashFromGround || hookDashJumpArmed) && now - jumpPressedAt <= jumpBuffer)
                 {
+                    bool hookBonus = hookDashJumpArmed;
                     bool perfect = !LastDashWasBurst
                         && PerfectMath.DashJumpIsPerfect(now - dashStartedAt, perfectDashJumpMinDelay, perfectDashJumpWindow);
                     EndSlide();
                     vel.y = Mathf.Sqrt(2f * -gravity * jumpHeight);
+                    if (hookBonus)
+                    {
+                        hv = Vector3.ClampMagnitude(hv * pullBurstMultiplier, maxHorizontalSpeed);
+                        vel.y *= 1.12f;
+                        hookDashJumpArmed = false;
+                        hookDashAttempt = false;
+                        airDashUsed = false;
+                    }
                     jumpPressedAt = -99f;
                     lastGroundedTime = -99f;
                     IsGrounded = false;
@@ -1242,7 +1299,9 @@ namespace VibeGame1
 
                 // The burst short-circuits every gate INCLUDING the stamina spend: TrySpend has a side
                 // effect, so it must stay last and must not run for a burst.
-                if (canAct && dashRequested && (burst || (now >= dashReadyAt && (IsGrounded || !airDashUsed)
+                bool reboundAirDash = reboundArmed && !IsGrounded;
+                bool ordinaryDashReady = now >= dashReadyAt && (IsGrounded || !airDashUsed);
+                if (canAct && dashRequested && (burst || ((reboundAirDash || ordinaryDashReady)
                     && (stamina == null || stamina.TrySpend(stamina.dashCost, StaminaAction.Dash)))))
                 {
                     EndSlide();
@@ -1264,11 +1323,15 @@ namespace VibeGame1
                     else
                     {
                         dashReadyAt = now + dashCooldown;
-                        if (!IsGrounded) airDashUsed = true;
-                        dashSpeedNow = dashSpeed;
+                        if (!IsGrounded) airDashUsed = !reboundAirDash;
+                        dashSpeedNow = reboundAirDash
+                            ? Mathf.Min(maxHorizontalSpeed, dashSpeed * reboundExitMultiplier + reboundBonusSpeed)
+                            : dashSpeed;
+                        if (reboundAirDash) ClearRebound();
                         LastDashWasBurst = false;
                     }
                     dashStartedAt = now;
+                    hookDashAttempt = hookDashJumpArmed;
                     hv = dashDir * dashSpeedNow;
                     vel.y = 0f;
                     if (OnDashed != null) OnDashed();
@@ -1615,6 +1678,7 @@ namespace VibeGame1
             waterVolume = null;
             pullBurstUntil = -99f;
             pullBurstPending = false;
+            ClearItemMovementBonuses();
             dashStartedAt = -99f;
             pullBurstOpenedAt = -99f;
             LastGroundedPosition = position;
@@ -1746,9 +1810,11 @@ namespace VibeGame1
         bool pulling;
         Vector3 pullStart, pullTarget;
         float pullStartedAt, pullSeconds, pullArcHeight;
+        bool pullRewardsArrival = true;
 
         /// <summary>True while a <see cref="BeginPull"/> is in flight.</summary>
         public bool IsPulling => pulling;
+        public bool LastPullArrived { get; private set; }
         /// <summary>Where the current pull is heading. Zero when not pulling.</summary>
         public Vector3 PullTarget => pulling ? pullTarget : Vector3.zero;
         /// <summary>Fired once when a pull ends, for any reason. The argument is true on arrival, false
@@ -1767,6 +1833,13 @@ namespace VibeGame1
         /// </summary>
         public void BeginPull(Vector3 target, float seconds)
         {
+            BeginPull(target, seconds, true);
+        }
+
+        /// <summary>Pull with an explicit arrival reward. Flare/ordinary pulls keep the legacy burst;
+        /// turret Hook earns its separate dash-jump only from a matching projectile Perfect.</summary>
+        public void BeginPull(Vector3 target, float seconds, bool rewardArrival)
+        {
             EndSlide(true);
             EndWallRun(WallRunEnd.Cancelled);
             EndHang();   // another pull is a new move; it does not inherit the last toss window
@@ -1781,6 +1854,8 @@ namespace VibeGame1
             // the pull reads as a swing rather than a slide along a string.
             pullArcHeight = Mathf.Clamp((target - pullStart).magnitude * 0.08f, 0.35f, 2.2f);
             pulling = true;
+            pullRewardsArrival = rewardArrival;
+            LastPullArrived = false;
             IsGrounded = false;
         }
 
@@ -1794,15 +1869,61 @@ namespace VibeGame1
         void EndPull(bool arrived)
         {
             pulling = false;
+            LastPullArrived = arrived;
             lastGroundedTime = -99f;    // no stale coyote from before the pull
             airDashUsed = false;        // the arc counts as a fresh start for the air kit
-            if (arrived)
+            if (arrived && pullRewardsArrival)
             {
                 // The grapple EXIT BURST is armed here and opened in Update once control is back.
                 pullBurstPending = true;
                 pullBurstPendingUntil = now + pullBurstHold;
             }
             if (OnPullEnded != null) OnPullEnded(arrived);
+        }
+
+        /// <summary>One airborne dash may now be jumped out of. Only a successful turret Hook Perfect
+        /// calls this; pull arrival alone never does.</summary>
+        public void PrimeHookDashJump() { hookDashJumpArmed = true; }
+        public bool IsHookDashJumpArmed { get { return hookDashJumpArmed; } }
+
+        /// <summary>Arm the next legal airborne dash or wall jump.</summary>
+        public void ArmRebound(float exitMultiplier, float bonusSpeed)
+        {
+            reboundArmed = true;
+            reboundExitMultiplier = Mathf.Max(1f, exitMultiplier);
+            reboundBonusSpeed = Mathf.Max(0f, bonusSpeed);
+        }
+
+        public bool IsReboundArmed { get { return reboundArmed; } }
+
+        Vector3 ConsumeReboundOnAirExit(Vector3 exit)
+        {
+            if (!reboundArmed) return exit;
+            Vector3 horizontal = new Vector3(exit.x, 0f, exit.z);
+            float speed = horizontal.magnitude;
+            if (speed > 0.001f)
+                horizontal = horizontal.normalized * Mathf.Min(maxHorizontalSpeed,
+                    speed * reboundExitMultiplier + reboundBonusSpeed);
+            exit.x = horizontal.x;
+            exit.z = horizontal.z;
+            airDashUsed = false;
+            dashReadyAt = now;
+            ClearRebound();
+            return exit;
+        }
+
+        void ClearRebound()
+        {
+            reboundArmed = false;
+            reboundExitMultiplier = 1f;
+            reboundBonusSpeed = 0f;
+        }
+
+        public void ClearItemMovementBonuses()
+        {
+            hookDashJumpArmed = false;
+            hookDashAttempt = false;
+            ClearRebound();
         }
 
         /// <summary>One frame of the pull. Allocation-free; one <c>cc.Move</c>, no casts.</summary>
@@ -2133,6 +2254,19 @@ namespace VibeGame1
             return false;
         }
 
+        /// <summary>Seconds until the next release predictable from the current run state. With forward
+        /// held the shipped top-up prevents decay, so the clock is the honest anchor; released input may
+        /// decay first. Contact loss is intentionally unknowable to this law.</summary>
+        public static float NaturalReleaseIn(float elapsed, float tangentialSpeed, bool holdingForward, Params pr)
+        {
+            float untilClock = Mathf.Max(0f, pr.maxDuration - elapsed);
+            if (holdingForward || pr.speedDecay <= 0f) return untilClock;
+            if (tangentialSpeed <= pr.minSustainSpeed) return 0f;
+
+            float untilDecay = Mathf.Log(tangentialSpeed / pr.minSustainSpeed) / pr.speedDecay;
+            return Mathf.Min(untilClock, Mathf.Max(0f, untilDecay));
+        }
+
         /// <summary>
         /// The exit impulse. COMPOSED with the ordinary wall jump rather than replacing it: same shape -
         /// keep what runs ALONG the face, add out along the normal, set a fixed rise - but a run has
@@ -2158,6 +2292,15 @@ namespace VibeGame1
             if (speedClamp > 0f && sp > speedClamp) { float k = speedClamp / sp; hx *= k; hz *= k; }
 
             return new Vector3(hx, pr.exitUpSpeed, hz);
+        }
+
+        /// <summary>The perfect wall exit is the ordinary capped exit with half its authored tangent boost
+        /// again. At the shipped +4 m/s this is a small, noticeable +2 m/s reward without another tuning
+        /// source or a raw velocity path.</summary>
+        public static Vector3 PerfectExit(Vector3 vel, Vector3 wallNormal, Vector3 runDir, Params pr, float speedClamp)
+        {
+            pr.exitTangentBoost *= 1.5f;
+            return Exit(vel, wallNormal, runDir, pr, speedClamp);
         }
 
 

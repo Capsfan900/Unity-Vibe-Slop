@@ -247,18 +247,18 @@ namespace VibeGame1.EditorTools
             // Deliberately the very first thing you can touch, so the headline item is testable
             // immediately instead of only appearing deep in the course.
             ItemAt("Pickup_Hook_Spawn", new Vector3(2f, 1.2f, 0f), "Grapple", pickupRoot);
-            ItemAt("Pickup_Surge_Spawn", new Vector3(-2f, 1.2f, 0f), "WallSurge", pickupRoot);
+            ItemAt("Pickup_Rebound_Spawn", new Vector3(-2f, 1.2f, 0f), "Rebound", pickupRoot);
             // Walkway far end (top 3.5) — pays for the pillar hop that follows.
             ItemAt("Pickup_Hook_1", new Vector3(-2f, 4.7f, 64f), "Grapple", pickupRoot);
             // Checkpoint 1 platform (top 9.0). Moved off (3,*,92) which is inside Torch_CP1_R,
             // and kept away from the checkpoint's respawn point at (0, 9.2, 90).
-            ItemAt("Pickup_Surge_1", new Vector3(-3.5f, 10.2f, 95f), "WallSurge", pickupRoot);
+            ItemAt("Pickup_Sigil_1", new Vector3(-3.5f, 10.2f, 95f), "DeflectSigil", pickupRoot);
             // Landing (top 18.0) — the headline item, right before the Heavy + 2 Grunts.
             // Nudged off (-6,*,124) which sat 1.4 m from Torch_Land_SW.
             ItemAt("Pickup_Hook_2", new Vector3(-4f, 19.2f, 126f), "Grapple", pickupRoot);
             // Checkpoint 2 platform (top 18.0). Moved off (-2.5,*,146) which overlapped Torch_CP2_L,
             // and clear of the checkpoint trigger box (z 144.5..147.5).
-            ItemAt("Pickup_Surge_2", new Vector3(0f, 19.2f, 148.5f), "WallSurge", pickupRoot);
+            ItemAt("Pickup_Rebound_2", new Vector3(0f, 19.2f, 148.5f), "Rebound", pickupRoot);
             // Boss arena near the entrance (top 18.0) — lets the player open with a stagger.
             ItemAt("Pickup_Hook_3", new Vector3(-7f, 19.2f, 160f), "Grapple", pickupRoot);
 

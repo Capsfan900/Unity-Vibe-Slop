@@ -18,6 +18,8 @@ MonoBehaviour:
   postureRegen: 5
   postureRegenDelay: 3
   staggerSeconds: 3.5
+  usesPosture: 1
+  isTurret: 0
   moveSpeed: 3.9
   turnSpeed: 260
   aggroRange: 16
@@ -55,6 +57,10 @@ MonoBehaviour:
   parriedProjectileDamage: 45
   parriedProjectilePosture: 50
   parrySpeedGain: 9
+  projectileVisualScale: 1
+  projectileTrailScale: 1
+  projectileCueScale: 1
+  perfectBurstParriesToDestroy: 0
   parrySurgeStep: 0
   parrySurgeMaxStacks: 0
   parrySurgeSeconds: 2

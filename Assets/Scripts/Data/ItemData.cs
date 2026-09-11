@@ -3,16 +3,20 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// The two item kinds. Both are TRAVERSAL tools, Neon White style: the level is built around
-    /// them, and each one is a way to move that the base kit does not have.
+    /// Single-use traversal/combat-tech tools. Explicit numeric values protect old serialized
+    /// WallSurge assets from silently becoming a different item while the factory migrates them out.
     /// </summary>
     public enum ItemEffect
     {
         /// <summary>Hook an enemy in view and get pulled to it; arrive with a deathblow. The
         /// Sekiro grapple-kill: a kill IS the move.</summary>
-        Grapple,
-        /// <summary>For a few seconds every wall run is free, faster, and attaches from any speed.</summary>
-        WallSurge,
+        Grapple = 0,
+        /// <summary>Retired. Kept only as a serialization tombstone; factories no longer ship it.</summary>
+        WallSurge = 1,
+        /// <summary>Arms the next legal airborne dash or wall jump for a stronger, refreshed exit.</summary>
+        Rebound = 2,
+        /// <summary>Waits for the next Perfect, then adds speed stacks and a forward impulse.</summary>
+        DeflectSigil = 3,
     }
 
     /// <summary>
@@ -47,8 +51,24 @@ namespace VibeGame1
                  "fraction of its max posture instead, and the player lands at stand-off.")]
         public float grappleBigPostureFraction = 0.35f;
 
-        [Header("Wall surge")]
-        [Tooltip("Seconds of free, faster, attach-from-anything wall running.")]
+        [Tooltip("Seconds before real contact that using HOOK may count as the projectile's Perfect timing. " +
+                 "The pull itself never manufactures a hit or a deflect.")]
+        public float grapplePerfectWindow = 0.13f;
+
+        [Header("Rebound")]
+        [Tooltip("Horizontal exit-strength multiplier on the next legal airborne dash or wall jump.")]
+        public float reboundExitMultiplier = 1.18f;
+        [Tooltip("Extra forward metres/second composed into that successful exit, under the motor's caps.")]
+        public float reboundBonusSpeed = 3f;
+
+        [Header("Deflect sigil")]
+        [Tooltip("Additional speed-surge stacks paid by the next Perfect after the sigil is armed.")]
+        [Min(1)] public int deflectSigilBonusStacks = 2;
+        [Tooltip("Extra forward metres/second paid with the qualifying Perfect.")]
+        public float deflectSigilImpulse = 5f;
+
+        [Header("Retired serialized data")]
+        [Tooltip("Legacy Wall Surge duration. Kept only so old serialized assets remain readable; no shipped item uses it.")]
         public float surgeSeconds = 8f;
     }
 }

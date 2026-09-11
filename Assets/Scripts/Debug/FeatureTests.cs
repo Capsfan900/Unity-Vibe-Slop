@@ -265,6 +265,7 @@ namespace VibeGame1
             if (motor != null) { motor.SpeedMultiplier = 1f; motor.CanMove = true; motor.wallSurgeUntil = -99f; motor.CancelPull(); }
             if (motor != null) { var st = motor.GetComponent<PlayerStamina>(); if (st != null) st.ResetFull(); }
             if (parry != null) parry.Cancel();
+            if (parry != null) parry.ReleaseGuardOverride();
             if (weapons != null) weapons.CancelAttack();
             if (items != null) ClearItems();
             yield return SettleTimeScale();
@@ -280,6 +281,9 @@ namespace VibeGame1
                 list.Clear();
                 GameEvents.RaiseItemsChanged(Array.Empty<ItemData>());
             }
+            var clear = typeof(PlayerItems).GetMethod("ClearArmedEffects",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            if (clear != null && items != null) clear.Invoke(items, null);
         }
 
         /// <summary>A throwaway item with the class-default tuning (28 m / 12 deg / 0.35 s hook, 8 s surge).</summary>
@@ -345,8 +349,9 @@ namespace VibeGame1
 
         static bool NeedsQuietWorld(string testName)
         {
-            return testName == "Guard" || testName == "LockOn" || testName == "Deathblow" ||
-                   testName == "Items" || testName == "Flask" || testName == "WandReadability";
+            return testName == "ParryLive" || testName == "Guard" || testName == "PlayerPosture" ||
+                   testName == "LockOn" || testName == "Deathblow" || testName == "Items" ||
+                   testName == "Flask" || testName == "WandReadability";
         }
 
         // ---------------------------------------------------------------- suite driver
@@ -1341,6 +1346,10 @@ namespace VibeGame1
 
         IEnumerator TestParryLive()
         {
+            // This test owns its input and damage preconditions. A manual held guard or F8 state
+            // must not turn the no-parry control case into a guard/ignored hit when run alone.
+            health.Invulnerable = false;
+            parry.GuardHeld = false;
             EnemyController dummy = null;
             Vector3 pos = combat.transform.position + combat.transform.forward * 3f;
             yield return SpawnDummy(pos, e => dummy = e);
@@ -1450,6 +1459,7 @@ namespace VibeGame1
 
             yield return SettleTimeScale();
             if (dummy != null) Destroy(dummy.gameObject);
+            parry.ReleaseGuardOverride();
             yield return null;
         }
 
@@ -3110,7 +3120,10 @@ namespace VibeGame1
             Check("Arms_BonesStretchNotClamp", vm.arm.maxStretch >= 1.2f && vm.arm.upperLength > 0.2f && vm.arm.foreLength > 0.2f,
                 "upper=" + vm.arm.upperLength + " fore=" + vm.arm.foreLength + " maxStretch=" + vm.arm.maxStretch);
 
-            yield return null;
+            // ViewmodelArm solves after viewmodel posing in LateUpdate. Sampling from this coroutine's
+            // Update phase sees a hand written this frame against bones from the previous frame, a gap
+            // that cannot appear in the rendered image.
+            yield return new WaitForEndOfFrame();
             Check("Arms_Solved", vm.arm.Solved, "ViewmodelArm.LateUpdate must run every frame");
 
             // The forearm has to END at the wrist. Anything else is a floating hand.
@@ -3535,10 +3548,10 @@ namespace VibeGame1
             yield return null;
 
             // ---- capacity + FIFO --------------------------------------------------------------
-            var a = MakeItem(ItemEffect.WallSurge);
-            var b = MakeItem(ItemEffect.WallSurge);
-            var c = MakeItem(ItemEffect.WallSurge);
-            var d = MakeItem(ItemEffect.WallSurge);
+            var a = MakeItem(ItemEffect.Rebound);
+            var b = MakeItem(ItemEffect.Rebound);
+            var c = MakeItem(ItemEffect.Rebound);
+            var d = MakeItem(ItemEffect.Rebound);
             a.displayName = "A"; b.displayName = "B"; c.displayName = "C"; d.displayName = "D";
 
             Check("Items_Pickup1", items.TryPickup(a));
@@ -3552,7 +3565,6 @@ namespace VibeGame1
             yield return null;
             Check("Items_UseConsumesFront", items.Current == b, "current=" + (items.Current != null ? items.Current.displayName : "null"));
             Check("Items_UseReducesCount", items.Held.Count == 2, "held=" + items.Held.Count);
-            motor.wallSurgeUntil = -99f;   // the spent WallSurge started a real surge; end it here
             ClearItems();
             yield return null;
 
@@ -3670,7 +3682,7 @@ namespace VibeGame1
                     // Count deltas, not absolutes: a real pickup sits AT the spawn point and the harness
                     // teleports here between tests, so the player can legitimately be carrying one already.
                     int heldBefore = items.Held.Count;
-                    var probe = MakeItem(ItemEffect.WallSurge);
+                    var probe = MakeItem(ItemEffect.Rebound);
                     items.TryPickup(probe);
                     yield return null;
                     Check("Items_PickupDoesNotChangeWand", wandCtrl.Current == wandBefore && wandCtrl.Index == indexBefore,
@@ -3679,7 +3691,6 @@ namespace VibeGame1
                     Check("Items_HeldAfterPickup", items.Held.Count == heldBefore + 1, $"held {heldBefore} -> {items.Held.Count}");
 
                     // Usable directly, with no swap step.
-                    motor.wallSurgeUntil = -99f;
                     // UseCurrent() refuses while posture-broken. A previous section can leave the player
                     // staggered, which would look like "items don't work" when the gate is what fired.
                     if (posture != null) posture.ResetFull();
@@ -3691,8 +3702,7 @@ namespace VibeGame1
                     yield return null;
                     Check("Items_UsableDirectly", items.Held.Count == beforeUse - 1,
                         $"held {beforeUse} -> {items.Held.Count} (E must spend one with no swap step)");
-                    Check("Items_EffectApplied", motor.IsWallSurging, "surging=" + motor.IsWallSurging);
-                    motor.wallSurgeUntil = -99f;
+                    Check("Items_EffectApplied", motor.IsReboundArmed, "rebound=" + motor.IsReboundArmed);
                     Check("Wands_StillEquippedAfterItemUse", wandCtrl.Current == wandBefore,
                         "wand=" + (wandCtrl.Current != null ? wandCtrl.Current.displayName : "null"));
 
@@ -3804,48 +3814,41 @@ namespace VibeGame1
             Check("Items_GrappleNoTargetNoPull", !motor.IsPulling);
             ClearItems();
 
-            // ---- Wall Surge -----------------------------------------------------------------------
+            // ---- Rebound + Deflect Sigil ---------------------------------------------------------
             yield return ResetPlayerState();
-            var st = motor.GetComponent<PlayerStamina>();
-            float topBefore = motor.WallRunSettings.topSpeed;
-            float accelBefore = motor.WallRunSettings.accel;
-            float minEntryBefore = motor.WallRunSettings.minEntrySpeed;
-            var surge = MakeItem(ItemEffect.WallSurge);
-            items.TryPickup(surge);
+            var rebound = MakeItem(ItemEffect.Rebound);
+            rebound.reboundExitMultiplier = 1.18f;
+            rebound.reboundBonusSpeed = 3f;
+            items.TryPickup(rebound);
             items.UseCurrent();
             yield return null;
-            Check("Items_SurgeConsumed", items.Held.Count == 0, "held=" + items.Held.Count);
-            Check("Items_SurgeActive", motor.IsWallSurging);
-            Check("Items_SurgeLastsEightSeconds", motor.WallSurgeRemaining > 7.5f && motor.WallSurgeRemaining <= surge.surgeSeconds + 0.01f,
-                "remaining=" + motor.WallSurgeRemaining.ToString("0.00"));
-            CheckApprox("Items_SurgeScalesTopSpeed", motor.WallRunSettings.topSpeed, topBefore * FirstPersonMotor.WallSurgeSpeedScale, 0.01f);
-            CheckApprox("Items_SurgeScalesAccel", motor.WallRunSettings.accel, accelBefore * FirstPersonMotor.WallSurgeSpeedScale, 0.01f);
-            CheckApprox("Items_SurgeZeroesMinEntry", motor.WallRunSettings.minEntrySpeed, 0f, 0.001f);
-            // State, not a tuning mutation: the Inspector field itself must not have moved.
-            Check("Items_SurgeLeavesInspectorFields", motor.wallRunMinEntrySpeed > 0f
-                                                      && Mathf.Approximately(motor.wallRunTopSpeed * motor.SpeedMultiplier, topBefore),
-                "field minEntry=" + motor.wallRunMinEntrySpeed.ToString("0.0") + " top=" + motor.wallRunTopSpeed.ToString("0.00"));
-            if (st != null)
-            {
-                // An empty bar is no obstacle while surging: the gate that reads stamina says yes.
-                st.Drain(st.max * 10f, 1f);
-                Check("Items_SurgeIgnoresStamina", motor.CanWallRunNow, "stamina=" + st.Current.ToString("0") + " canWallRun=" + motor.CanWallRunNow);
-                st.ResetFull();
-            }
-            // Expiry: end the long one by hand, then watch a short one run out on the motor clock.
-            motor.wallSurgeUntil = -99f;
+            Check("Items_ReboundConsumedToArm", items.Held.Count == 0 && motor.IsReboundArmed,
+                "held=" + items.Held.Count + " armed=" + motor.IsReboundArmed);
+
+            // A duplicate activation is refused and retained until the first armed effect is spent.
+            var duplicate = MakeItem(ItemEffect.Rebound);
+            items.TryPickup(duplicate);
+            items.UseCurrent();
+            Check("Items_ReboundDuplicateKept", items.Held.Count == 1 && motor.IsReboundArmed,
+                "held=" + items.Held.Count + " armed=" + motor.IsReboundArmed);
+            ClearItems();
             yield return null;
-            Check("Items_SurgeEndsClean", !motor.IsWallSurging && Mathf.Approximately(motor.WallRunSettings.topSpeed, topBefore)
-                                          && Mathf.Approximately(motor.WallRunSettings.minEntrySpeed, minEntryBefore),
-                "top=" + motor.WallRunSettings.topSpeed.ToString("0.00") + " minEntry=" + motor.WallRunSettings.minEntrySpeed.ToString("0.0"));
-            var surgeShort = MakeItem(ItemEffect.WallSurge);
-            surgeShort.surgeSeconds = 0.5f;
-            items.TryPickup(surgeShort);
+
+            var sigil = MakeItem(ItemEffect.DeflectSigil);
+            sigil.deflectSigilBonusStacks = 2;
+            sigil.deflectSigilImpulse = 5f;
+            items.TryPickup(sigil);
             items.UseCurrent();
             yield return null;
-            Check("Items_SurgeShortActive", motor.IsWallSurging);
-            yield return WaitUntilOrTimeout(() => !motor.IsWallSurging, 3f);
-            Check("Items_SurgeExpires", !waitTimedOut, "remaining=" + motor.WallSurgeRemaining.ToString("0.00"));
+            Check("Items_SigilConsumedToArm", items.Held.Count == 0 && items.DeflectSigilArmed,
+                "held=" + items.Held.Count + " armed=" + items.DeflectSigilArmed);
+            GameEvents.RaiseParryResolved(ParryResult.Blocked);
+            Check("Items_SigilSurvivesBlock", items.DeflectSigilArmed);
+            GameEvents.RaiseParryResolved(ParryResult.Hit);
+            Check("Items_SigilSurvivesMiss", items.DeflectSigilArmed);
+            GameEvents.RaiseParryResolved(ParryResult.Perfect);
+            yield return null;
+            Check("Items_SigilSpendsOnPerfect", !items.DeflectSigilArmed);
             ClearItems();
         }
 
@@ -4356,7 +4359,7 @@ namespace VibeGame1
             if (strip != null)
             {
                 ClearItems();
-                motor.wallSurgeUntil = -99f;
+                motor.ClearItemMovementBonuses();
                 motor.SpeedMultiplier = 1f;
                 bool godWas = health.Invulnerable;
                 health.Invulnerable = false;
@@ -4371,8 +4374,8 @@ namespace VibeGame1
 
                 var hook = MakeItem(ItemEffect.Grapple);
                 hook.displayName = "Test Hook";
-                var surge = MakeItem(ItemEffect.WallSurge);
-                surge.displayName = "Test Surge";
+                var surge = MakeItem(ItemEffect.Rebound);
+                surge.displayName = "Test Rebound";
                 items.TryPickup(hook);
                 items.TryPickup(surge);
                 yield return null;
@@ -4380,20 +4383,20 @@ namespace VibeGame1
                 Check("HUD_StatusStripOneRowPerItem", strip.RowCount == persistentRows + 2, "rows=" + strip.RowCount);
                 Check("HUD_StatusStripMarksCurrentFirst",
                     strip.Text.IndexOf("> TEST HOOK", StringComparison.Ordinal) >= 0
-                    && strip.Text.IndexOf("TEST HOOK", StringComparison.Ordinal) < strip.Text.IndexOf("TEST SURGE", StringComparison.Ordinal),
+                    && strip.Text.IndexOf("TEST HOOK", StringComparison.Ordinal) < strip.Text.IndexOf("TEST REBOUND", StringComparison.Ordinal),
                     "text='" + strip.Text + "'");
 
-                // Spend the surge (the hook is in front, so pull it out of the way first).
+                // Spend Rebound (the hook is in front, so pull it out of the way first).
                 ClearItems();
                 items.TryPickup(surge);
                 if (posture != null) posture.ResetFull();
                 items.UseCurrent();
                 yield return null;
                 yield return null;
-                Check("HUD_StatusStripShowsSurgeCountdown",
-                    motor.IsWallSurging && strip.Text.Contains("WALL SURGE") && strip.Text.Contains("s"),
-                    "surging=" + motor.IsWallSurging + " remaining=" + motor.WallSurgeRemaining.ToString("0.0") + " text='" + strip.Text + "'");
-                Check("HUD_StatusStripSurgeRowNotAnItemRow", !strip.Text.Contains("TEST SURGE"), "text='" + strip.Text + "'");
+                Check("HUD_StatusStripShowsReboundArmed",
+                    motor.IsReboundArmed && strip.Text.Contains("REBOUND ARMED"),
+                    "armed=" + motor.IsReboundArmed + " text='" + strip.Text + "'");
+                Check("HUD_StatusStripReboundRowNotAnItemRow", !strip.Text.Contains("TEST REBOUND"), "text='" + strip.Text + "'");
 
                 var testMenu = hud.GetComponent<TestMenu>();
                 if (testMenu != null && testMenu.statusEffectsButton != null)
@@ -4402,19 +4405,19 @@ namespace VibeGame1
                     testMenu.statusEffectsButton.onClick.Invoke();
                     yield return null;
                     Check("HUD_StatusToggleHidesOnlyEffects",
-                        !strip.Text.Contains("WALL SURGE") && (!hasRunContract || strip.Text.Contains("RUN ")),
+                        !strip.Text.Contains("REBOUND ARMED") && (!hasRunContract || strip.Text.Contains("RUN ")),
                         "text='" + strip.Text + "'");
                     testMenu.statusEffectsButton.onClick.Invoke();
                     yield return null;
-                    Check("HUD_StatusToggleRestoresLiveEffect", strip.Text.Contains("WALL SURGE"),
+                    Check("HUD_StatusToggleRestoresLiveEffect", strip.Text.Contains("REBOUND ARMED"),
                         "text='" + strip.Text + "'");
                 }
                 else Check("HUD_StatusToggleButtonWired", false, "generated HUD has no live status toggle button");
 
-                motor.wallSurgeUntil = -99f;
+                motor.ClearItemMovementBonuses();
                 yield return null;
                 yield return null;
-                Check("HUD_StatusStripClearsWhenSurgeEnds", !strip.Text.Contains("WALL SURGE") && strip.RowCount == persistentRows,
+                Check("HUD_StatusStripClearsWhenReboundEnds", !strip.Text.Contains("REBOUND ARMED") && strip.RowCount == persistentRows,
                     "rows=" + strip.RowCount + " text='" + strip.Text + "'");
 
                 health.Invulnerable = true;
@@ -4839,10 +4842,10 @@ namespace VibeGame1
             }
 
             // ---- REACHABILITY -------------------------------------------------------------------
-            // Every hop the course actually asks for, measured off the BUILT geometry rather than off
-            // the numbers in the definition, and checked against the envelope of the moveset it is meant
-            // to need. Adding slide and wall jump must not quietly make a base-moveset gap unclearable:
-            // a player who has not learned the tech has to be able to finish the level.
+            // Every ordinary hop the course asks for, measured off the BUILT geometry rather than off
+            // the numbers in the definition, and checked against the documented base envelope. The first
+            // three portal approaches are deliberately different: projectile parries are the run's core
+            // verb, and the no-parry line must lose there. Those gaps are proved separately below.
             //
             // Envelopes are the documented contract in docs/AUTHORING.md, which is deliberately well
             // inside the measured capability (a held run-jump covers 8.8 m; the contract says 6).
@@ -4872,75 +4875,46 @@ namespace VibeGame1
             CheckHop("Base", "T3_Step_1", "T3_Step_2", 6f, 1.5f);
             // T3_Step_2 launches into the third portal; its return lands on supported T4_Entry.
 
-            // The optional fast lines. Each is checked to be INSIDE the tech envelope AND, where it is
-            // meant to be tech-gated, OUTSIDE the base one - a "shortcut" a base moveset can also take
-            // is not a reward for learning anything, and it silently kills the route it bypasses.
-            CheckHop("SlideJump", "T1_Stone_1", "T1_Fast_1", 8.5f, 1f);
-            CheckHopIsGated("T1_Stone_1", "T1_Fast_1", 6f);
-            CheckHop("Base", "T1_Fast_1", "T1_Stone_4", 4.5f, 1.5f);      // the exit is NOT a second gate
+            // The water shoulder is an expressive feeder, not the route's mandatory skill gate. Both
+            // joins stay inside the base envelope; carrying water speed is what makes it faster.
+            CheckHop("Base", "T1_Stone_1", "T1_Fast_1", 6f, 1f);
+            CheckHop("Base", "T1_Fast_1", "T1_Stone_4", 6f, 1f);
 
-            // The fallen obelisk across the causeway. It must be low enough that a standing player is
-            // stopped, high enough that a slide passes, and — the part that keeps it honest — LOW enough
-            // on top that it can simply be jumped over. It costs time, it does not cost access.
-            var fallen = GameObject.Find("Level/T1_Fallen_Obelisk");
-            var causeway = GameObject.Find("Level/T1_Causeway");
-            if (fallen == null || causeway == null) Check("Reach_T1FallenObeliskExists", false);
-            else
+            // The actual skill gates are the first three portal approaches. Each stops beyond even the
+            // documented 8.5 m slide-jump envelope and inside the audited two-deflect carry band.
+            CheckParryPortalGap("T1", "SolarCyan", "T1_Causeway", solarPortals);
+            CheckParryPortalGap("T2", "SolarGold", "T2_L11", solarPortals);
+            CheckParryPortalGap("T3", "SolarAzure", "T3_Step_2", solarPortals);
+
+            // Prove the built scene received the open-course data, rather than merely deleting the old
+            // fixtures from this test. These are the widest steering/breathing decks in each section.
+            CheckOpenDeck("T1_Causeway", 13.9f, 12.7f);
+            CheckOpenDeck("T2_L6", 17.9f, 9.9f);
+            CheckOpenDeck("T3_Span", 15.9f, 13.9f);
+
+            // Every portal run has two real projectile sources. The no-parry line loses at the gap, so
+            // deleting or rebuilding either source as a melee-only enemy would make the level impossible.
+            CheckProjectileRoute("T1", new[] { "Spawn_T1_GruntA", "Spawn_T1_GruntB" });
+            CheckProjectileRoute("T2", new[] { "Spawn_T2_GruntB", "Spawn_T2_GruntA" });
+            CheckProjectileRoute("T3", new[] { "Spawn_T3_Grunt", "Spawn_T3_Heavy" });
+
+            // The open route deliberately removes the old gates, tower core, wall lanes and recovery
+            // pylons. Their absence is a shipped geometry promise: restoring any one re-cramps a line.
+            string[] removedClutter =
             {
-                float deckTop = causeway.GetComponent<Renderer>().bounds.max.y;
-                var fb = fallen.GetComponent<Renderer>().bounds;
-                float clearance = fb.min.y - deckTop;
-                float overTop = fb.max.y - deckTop;
-                float slideH = motor.slideHeight, standH = motor.StandHeight;
-                Check("Reach_T1FallenObelisk_SlideFitsButStandingDoesNot",
-                    clearance > slideH + 0.05f && clearance < standH,
-                    $"clearance={clearance:0.00}m slideCapsule={slideH:0.00} standing={standH:0.00}");
-                Check("Reach_T1FallenObelisk_CanStillBeJumpedOver", overTop < motor.jumpHeight - 0.2f,
-                    $"topAboveDeck={overTop:0.00}m jumpHeight={motor.jumpHeight:0.00} - if this ever " +
-                    "exceeds the jump, the causeway becomes slide-gated and a player without the tech is walled in");
-                Check("Reach_T1FallenObelisk_SpansTheCauseway",
-                    fb.min.x <= causeway.GetComponent<Renderer>().bounds.min.x &&
-                    fb.max.x >= causeway.GetComponent<Renderer>().bounds.max.x,
-                    "it has to block the whole width, or the decision is not a decision");
-            }
-
-            // T2 ships NO added wall-jump geometry. A pair of slabs on the entry pad was built, shot
-            // from the player's own approach, and cut: from the angle you actually arrive at it read as
-            // one undifferentiated black wall a metre from your face, not as a slot. The tower itself is
-            // the wall-jump surface in The Ascent - already there, already the thing you are circling -
-            // and this asserts it is still a surface the scan can find. See BACKLOG for the buttress
-            // design that was drawn up and not shipped.
-            var tower = GameObject.Find("Level/T2_Tower");
-            Check("Reach_T2TowerIsAWallJumpSurface",
-                tower != null && tower.GetComponent<Collider>() != null && tower.layer == 0,
-                tower == null ? "T2_Tower missing"
-                    : $"layer={tower.layer} collider={tower.GetComponent<Collider>() != null} " +
-                      $"height={tower.GetComponent<Renderer>().bounds.size.y:0.0}m");
-
-            // The T3 recovery pylons: beside the span, BELOW its walking surface (so they never obstruct
-            // a run) and inside the wall check's reach of the edge you fall off.
-            var span = GameObject.Find("Level/T3_Span");
-            if (span != null)
-            {
-                var sb2 = span.GetComponent<Renderer>().bounds;
-                int pylons = 0;
-                float worstReach = 0f, highest = 0f;
-                foreach (var n2 in new[] { "T3_Recovery_W1", "T3_Recovery_E1", "T3_Recovery_W2", "T3_Recovery_E2" })
-                {
-                    var g2 = GameObject.Find("Level/" + n2);
-                    if (g2 == null) continue;
-                    pylons++;
-                    var b2 = g2.GetComponent<Renderer>().bounds;
-                    float reach = b2.center.x < 0f ? sb2.min.x - b2.max.x : b2.min.x - sb2.max.x;
-                    worstReach = Mathf.Max(worstReach, reach);
-                    highest = Mathf.Max(highest, b2.max.y);
-                }
-                Check("Reach_T3RecoveryPylons_Exist", pylons == 4, "found=" + pylons);
-                Check("Reach_T3RecoveryPylons_WithinWallCheck", pylons == 4 && worstReach < 1.2f,
-                    $"furthest={worstReach:0.00}m from the span edge, wallCheckDistance={motor.wallCheckDistance:0.00}");
-                Check("Reach_T3RecoveryPylons_DoNotBlockTheRun", pylons == 4 && highest < sb2.max.y,
-                    $"tallest={highest:0.0} spanTop={sb2.max.y:0.0} - a pylon above the deck is an obstacle, not a rescue");
-            }
+                "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W", "T1_Fallen_Obelisk",
+                "T1_Wall_Start", "T1_Wall_Causeway", "T1_Wall_Landing",
+                "T2_Tower", "T2_Buttress", "T2_Wall_East", "T2_Wall_Landing_East",
+                "T2_Wall_West", "T2_Wall_Landing_West",
+                "T3_Fallen_Lintel", "T3_Obelisk_W1", "T3_Obelisk_W2", "T3_Obelisk_E1", "T3_Obelisk_E2",
+                "T3_Recovery_W1", "T3_Recovery_W2", "T3_Recovery_E1", "T3_Recovery_E2",
+                "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Wall_Span",
+            };
+            var restoredClutter = new List<string>();
+            foreach (string n2 in removedClutter)
+                if (GameObject.Find("Level/" + n2) != null) restoredClutter.Add(n2);
+            Check("Reach_OpenCourseClutterStaysRemoved", restoredClutter.Count == 0,
+                "restored=" + string.Join(",", restoredClutter.ToArray()));
 
             // Leave the run where the rest of the suite expects it.
             if (checkpoints.ContainsKey("Checkpoint_1")) LevelManager.I.Warp("Checkpoint_1");
@@ -4981,6 +4955,58 @@ namespace VibeGame1
             }
             Check($"Reach_{moveset}_{fromName}_to_{toName}", gap <= maxGap && rise <= maxRise,
                 $"gap={gap:0.00}m (max {maxGap:0.0})  rise={rise:0.00}m (max {maxRise:0.0})");
+        }
+
+        void CheckParryPortalGap(string section, string theme, string approachName,
+                                 SolarArenaPortal[] portals)
+        {
+            var approach = GameObject.Find("Level/" + approachName);
+            var renderer = approach != null ? approach.GetComponent<Renderer>() : null;
+            SolarArenaPortal portal = null;
+            foreach (var candidate in portals)
+                if (candidate != null && candidate.ThemeKey == theme) { portal = candidate; break; }
+            var sphere = portal != null ? portal.GetComponent<SphereCollider>() : null;
+            if (renderer == null || sphere == null)
+            {
+                Check("Reach_ParryGap_" + section, false,
+                    "approach=" + (renderer != null) + " portal=" + (portal != null) + " sphere=" + (sphere != null));
+                return;
+            }
+
+            Bounds deck = renderer.bounds;
+            Vector3 center = sphere.bounds.center;
+            float radius = sphere.bounds.extents.z;
+            float playerCenterY = deck.max.y + motor.StandHeight * 0.5f;
+            float dy = Mathf.Abs(playerCenterY - center.y);
+            float chord = dy < radius ? Mathf.Sqrt(radius * radius - dy * dy) : 0f;
+            float gap = center.z - chord - deck.max.z;
+            Check("Reach_ParryGap_" + section,
+                dy < radius && gap > 8.5f && gap >= 13.25f && gap <= 15.75f,
+                $"gap={gap:0.00}m slideMax=8.50 twoDeflectBand=13.25..15.75 dy={dy:0.00} radius={radius:0.00}");
+        }
+
+        void CheckOpenDeck(string name, float minWidth, float minDepth)
+        {
+            var go = GameObject.Find("Level/" + name);
+            var renderer = go != null ? go.GetComponent<Renderer>() : null;
+            Vector3 size = renderer != null ? renderer.bounds.size : Vector3.zero;
+            Check("Reach_OpenDeck_" + name,
+                renderer != null && size.x >= minWidth && size.z >= minDepth,
+                $"size={size} required>={minWidth:0.0}x{minDepth:0.0}");
+        }
+
+        void CheckProjectileRoute(string section, string[] spawnerNames)
+        {
+            var missing = new List<string>();
+            foreach (string spawnerName in spawnerNames)
+            {
+                var spawner = FindSpawner(spawnerName);
+                if (spawner == null || spawner.prefab == null ||
+                    spawner.prefab.GetComponentInChildren<ProjectileShooter>(true) == null)
+                    missing.Add(spawnerName);
+            }
+            Check("Reach_ProjectileRoute_" + section, missing.Count == 0,
+                "missingOrNotProjectile=" + string.Join(",", missing.ToArray()));
         }
 
         /// <summary>

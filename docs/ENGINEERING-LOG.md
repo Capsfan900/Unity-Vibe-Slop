@@ -1,5 +1,20 @@
 # Engineering log
 
+## 2026-09-10 — A water sheet on two coplanar decks needs one unambiguous owner
+
+**Symptom.** `T1_Water_Fast` was fully contained by its shoulder deck, but the traversal audit reported it
+on `T1_Stone_2` and outside that deck.
+
+**Root cause.** The widened shoulder overlaps the main landing at the same surface height. The sheet centre
+sat exactly on the main landing's east edge, so the deterministic first supporting-box lookup selected that
+smaller deck before reaching the shoulder that contains the full sheet.
+
+**Fix.** Move only the sheet centre 0.1 m east. It remains inset on all four edges of `T1_Fast_1`, while its
+centre now belongs to that deck alone. The level test pins both the owning deck and full containment.
+
+**Invariant.** Where coplanar traversal decks overlap, a surface effect's centre must lie strictly inside
+one intended owner; do not depend on platform-array order to decide which support an audit or builder finds.
+
 ## Adding an opening must not skip the original level (2026-09-07)
 
 **Symptom.** Level 1 spawned at the new descent immediately before the boss, bypassing the original
@@ -3875,3 +3890,81 @@ seven-member coordinator. A live moving probe resolved 3/3 + 3/3 with no cancell
 **Invariant.** Once a readable multi-contact phrase begins, transient re-planning may delay its next contact
 but never silently erase it. Every emitted follow-up still passes range, LOS, facing, cue/contact and solid-
 flight validation. Fix an unanswerable predicted bearing with placement before widening the parry cone.
+
+## 2026-09-10 — A Heavy burst is an incoming-answer transaction, not reflected damage
+
+**Symptom.** A Heavy could emit three bolts yet die from old reflected-damage arithmetic, carry partial
+progress between phrases, or start its next cooldown at the final launch while the player was still answering
+that bolt. Sequence-owned Heavies and autonomous Heavies consequently disagreed about when another burst was legal.
+
+**Root cause.** `phraseActive` described emission only. Projectiles had no immutable phrase/ordinal identity
+and no exactly-once incoming outcome, so the shooter could not distinguish three ordered Perfects from stale
+returns, expiry or cancellation. `projectileInterval` was scheduled from emission time.
+
+**Fix.** Every emitted bolt receives `(phraseId, ordinal)` and reports its incoming result once. A strict
+Heavy phrase accepts ordered Perfect 0/1/2; any other outcome invalidates it, and Perfect 2 kills through the
+ordinary `Health` path. Heavy returns do zero health/posture damage. Its 0.90 s rest begins at the final incoming
+resolution and is enforced by both autonomous and sequence paths. `usesPosture=false` makes posture calls inert
+and generated Heavy/Surge prefabs omit duel UI; melee health damage remains legal.
+
+**Invariant.** A multi-shot requirement is scored from immutable incoming obligations. Never infer it from
+return damage, never let a stale callback mutate a newer phrase, and never start its rest before the player has
+answered the final shot.
+
+## 2026-09-10 — A mathematically valid Perfect is still a black box without an actionable cue
+
+**Symptom.** Perfect jumps worked in tests but players could not tell what action or moment produced them.
+The wall check used a hidden maximum-duration threshold, and dash-jump accepted nearly the whole dash without
+ever announcing when to press Space.
+
+**Root cause.** The reward was documented after the fact (`PERFECT`) instead of taught before the input. A
+wall can release early through decay, stamina or lost contact, so a fixed elapsed time was not its real moment.
+
+**Fix.** The motor predicts clock/decay/stamina wall release and opens a 0.20 s pre/post hybrid window with
+`WALL EXIT [SPACE]`; unexpected contact loss retains only post-release forgiveness. Dash-jump now exposes a
+0.10 s window from 0.06–0.16 s and raises `DASH JUMP [SPACE]` at its opening. Successful wall timing adds a
+capped +2 m/s tangent and refunds stamina; misses remain ordinary moves.
+
+**Invariant.** A precision movement reward needs a cue naming the existing input at the real physical moment.
+Do not widen an invisible timer to compensate for missing communication.
+
+## 2026-09-10 — A final-ramp shooter must actually be beside the ramp
+
+**Symptom.** The three last-ramp Surge turrets fired inconsistently and their projectiles were difficult to
+read while descending. One appeared valid in the broad encounter record but rarely participated in the slope.
+
+**Root cause.** `Spawn_T4_Surge_3` was eight metres beyond the 48 m ramp on the run-out, while all three sat on
+the same side. The route contract audited a broad start/end corridor and did not pin physical ramp progress.
+
+**Fix.** The three single-shot turrets now alternate sides at ramp progress 16/32/44 m, with 0.5 m between each
+pad and the ramp edge. Their shared type receives presentation-only 1.35× core, 1.30× trail and 1.25× cue scale;
+logical hit radius, timing and flight are unchanged. A dedicated placement test pins progress and clearance.
+
+**Invariant.** Audit a ramp encounter in ramp-local coordinates. A broad route window cannot prove that a
+perch is on the slope, and visual enlargement must never enlarge the advertised collision contract.
+
+## 2026-09-10 — A fast chained ramp needs one firing-order owner
+
+**Symptom.** All three final-ramp Surge Turrets were individually valid and correctly placed, but live
+descent probes still saw runs such as 1/1/0 shots. The later turret could report `FacingAway` after the runner
+had already passed its useful intercept window.
+
+**Root cause.** Static encounter auditing proved that each turret had a safe contact somewhere in its route
+window, but sequence advancement transferred turret A's personal 1.1-second refire cooldown to turret B.
+After the first speed payout that delay cost about 27 metres, so the second source became eligible only after
+the player had passed it. A separate predictor inconsistency could also re-derive facing from a cue-slowed
+speed with the old two-step lead instead of the accepted 120 Hz contact path.
+
+**Fix.** `T4_SurgeRoute` remains data-authored from the same three globally configured single-shot Surge
+Turrets, but now owns ordered ramp-progress gates at 0/14/28 m through one `ProjectileVolleySequence`.
+Each member still performs the normal range, LOS, facing, obstruction and cue-safe flight checks before it
+fires; the sequence changes ownership and order, not projectile combat mechanics. Ramp-local perches at
+24/36/48 m stay ahead of their respective contact windows, so the normal forward parry cone remains honest.
+Only the 0.11-second inter-member recovery transfers; each shooter's rest is enforced when that same shooter
+is selected again. T4's authored first-member arm-up is zero because the approach already exposes the row;
+the opening tutorial retains its enemy-authored 0.7-second breath. Facing now consumes the terminal direction
+from the already accepted flight forecast.
+
+**Invariant.** Per-member geometry proof is not temporal proof for a chained high-speed encounter. When
+several one-shot sources form one required rhythm, author one explicit order in level data, never transfer
+one member's personal refire clock to another, and validate facing from the same path that will actually fly.

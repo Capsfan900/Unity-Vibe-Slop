@@ -16,10 +16,12 @@ namespace VibeGame1
         [SerializeField, Min(0f)] float recoveryGap = 0.11f;
         [SerializeField, Min(0.1f)] float readinessTimeout = 1.1f;
         [SerializeField, Min(0f)] float shotResolutionTimeout;
+        [SerializeField] float firstMemberAcquireDelay = -1f;
         [SerializeField] Vector3 progressOrigin;
         [SerializeField] Vector3 progressDirection;
         [SerializeField] float[] memberProgressGates = new float[0];
         [SerializeField] ProjectileEngagementWindowDef[] engagementWindows = new ProjectileEngagementWindowDef[0];
+        [SerializeField] int repeatFromIndex = -1;
 
         GameObject[] boundInstances = new GameObject[0];
         ProjectileShooter[] shooters = new ProjectileShooter[0];
@@ -41,6 +43,8 @@ namespace VibeGame1
         public float RecoveryGap { get { return recoveryGap; } }
         public float ReadinessTimeout { get { return readinessTimeout; } }
         public float ShotResolutionTimeout { get { return shotResolutionTimeout; } }
+        public float FirstMemberAcquireDelay { get { return firstMemberAcquireDelay; } }
+        public int RepeatFromIndex { get { return repeatFromIndex; } }
         public Vector3 ProgressOrigin { get { return progressOrigin; } }
         public Vector3 ProgressDirection { get { return progressDirection; } }
         public float[] MemberProgressGates
@@ -91,6 +95,16 @@ namespace VibeGame1
                               float resolutionTimeout, Vector3 gateOrigin, Vector3 gateDirection,
                               float[] progressGates, ProjectileEngagementWindowDef[] windows)
         {
+            Configure(orderedMembers, gap, readyTimeout, resolutionTimeout, gateOrigin, gateDirection,
+                      progressGates, windows, -1);
+        }
+
+        /// <summary>Configures an ordered volley; -1 retains the authored one-pass default.</summary>
+        public void Configure(EnemySpawner[] orderedMembers, float gap, float readyTimeout,
+                              float resolutionTimeout, Vector3 gateOrigin, Vector3 gateDirection,
+                              float[] progressGates, ProjectileEngagementWindowDef[] windows,
+                              int repeatIndex, float firstAcquireDelay = -1f)
+        {
             // Release the OLD controlled instances before replacing members or resizing caches. Doing this
             // afterwards can index the new array while leaving an old shooter permanently sequence-owned.
             RetireActiveIncoming(ProjectilePhraseCancellation.SequenceReconfigured);
@@ -99,10 +113,12 @@ namespace VibeGame1
             recoveryGap = Mathf.Max(0f, gap);
             readinessTimeout = Mathf.Max(0.1f, readyTimeout);
             shotResolutionTimeout = Mathf.Max(0f, resolutionTimeout);
+            firstMemberAcquireDelay = firstAcquireDelay < 0f ? -1f : firstAcquireDelay;
             progressOrigin = gateOrigin;
             progressDirection = gateDirection.sqrMagnitude > 0.0001f ? gateDirection.normalized : Vector3.zero;
             memberProgressGates = progressGates != null ? (float[])progressGates.Clone() : new float[0];
             engagementWindows = CloneWindows(windows);
+            repeatFromIndex = repeatIndex;
             AllocateCaches();
             ResetState();
         }
@@ -207,8 +223,18 @@ namespace VibeGame1
             var shooter = shooters[current];
             if (shooter == null)
             {
-                if (!bandSeen) { bandSeen = true; enteredBandAt = Time.time; }
-                if (Time.time - enteredBandAt >= readinessTimeout) Advance();
+                // A destroyed or dormant member cannot satisfy readiness later. Skipping it keeps a
+                // looping group alive and preserves the remaining live members' ordered cadence.
+                Advance();
+                return;
+            }
+
+            // The owner's quiet begins at its final incoming resolution, not its final emission.
+            // Do not consume this member's readiness budget while waiting for that contract gate.
+            if (shooter.IsPhraseResting)
+            {
+                nextLaunchAt = Mathf.Max(nextLaunchAt, shooter.NextPhraseAllowedAt);
+                if (bandSeen) enteredBandAt = Time.time;
                 return;
             }
 
@@ -221,7 +247,10 @@ namespace VibeGame1
             if (current == 0 && shotReady && !firstMemberArmed)
             {
                 firstMemberArmed = true;
-                nextLaunchAt = Time.time + shooter.SequenceAcquireDelay;
+                float armUp = firstMemberAcquireDelay >= 0f
+                    ? firstMemberAcquireDelay
+                    : shooter.SequenceAcquireDelay;
+                nextLaunchAt = Time.time + armUp;
                 if (!bandSeen) { bandSeen = true; enteredBandAt = Time.time; }
                 return;
             }
@@ -244,10 +273,26 @@ namespace VibeGame1
         void Advance()
         {
             current++;
+            if (current >= Count && repeatFromIndex >= 0 && repeatFromIndex < Count)
+            {
+                bool anyLive = false;
+                for (int i = repeatFromIndex; i < Count; i++)
+                    if (shooters != null && i < shooters.Length && shooters[i] != null)
+                    {
+                        anyLive = true;
+                        break;
+                    }
+                current = anyLive ? repeatFromIndex : Count;
+            }
             activeBolt = null;
             activePhraseShooter = null;
             shotLaunched = false;
-            firstMemberArmed = current > 0;
+            // A repeating sequence has already paid the first member's arm-up. The owning shooter still
+            // enforces its resolution-based rest before it can emit again.
+            firstMemberArmed = current > 0 || (repeatFromIndex == 0 && current == 0);
+            // A shooter's rest belongs to THAT shooter. Carrying A's personal refire clock into B delayed
+            // a fast sequence by an entire interval per member; Update already checks IsPhraseResting when
+            // the loop eventually returns to A. Different members owe only the authored recovery gap.
             nextLaunchAt = Time.time + recoveryGap;
             // An ungated later member starts its finite readiness window immediately. A gated member waits
             // passively until the player crosses its authored position, then receives that same deadline.

@@ -27,7 +27,7 @@ MonoBehaviour:
   parryMinRecovery: 0.05
   generalParrySurgeStep: 0.12
   generalParrySurgeMaxStacks: 5
-  generalParrySurgeSeconds: 2
+  generalParrySurgeSeconds: 3.2
   basePosture: 100
   posturePerVitality: 4
   postureRegenPerSecond: 22

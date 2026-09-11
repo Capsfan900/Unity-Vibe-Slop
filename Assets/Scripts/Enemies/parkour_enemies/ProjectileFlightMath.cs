@@ -19,6 +19,7 @@ namespace VibeGame1
         public ProjectileFlightReadiness readiness;
         public Vector3 launchPosition;
         public Vector3 direction;
+        public Vector3 contactDirection;
         public float speed;
         public float contactSeconds;
 
@@ -100,6 +101,18 @@ namespace VibeGame1
                                               float homingDegPerSecond, float contactRadius,
                                               float maxSeconds, out float contactSeconds)
         {
+            Vector3 ignored;
+            return TryForecastContact(launchPosition, initialDirection, speed, targetPosition, targetVelocity,
+                homingDegPerSecond, contactRadius, maxSeconds, out contactSeconds, out ignored);
+        }
+
+        /// <summary>Also returns the bolt's travel tangent on the accepted contact segment.</summary>
+        public static bool TryForecastContact(Vector3 launchPosition, Vector3 initialDirection, float speed,
+                                              Vector3 targetPosition, Vector3 targetVelocity,
+                                              float homingDegPerSecond, float contactRadius,
+                                              float maxSeconds, out float contactSeconds,
+                                              out Vector3 contactDirection)
+        {
             float horizon = Mathf.Max(0f, maxSeconds);
             float radius = Mathf.Max(0f, contactRadius);
             Vector3 projectile = launchPosition;
@@ -112,6 +125,7 @@ namespace VibeGame1
             if ((projectile - target).sqrMagnitude <= radius * radius)
             {
                 contactSeconds = 0f;
+                contactDirection = direction;
                 return true;
             }
 
@@ -127,6 +141,7 @@ namespace VibeGame1
                                                        radius, out fraction))
                 {
                     contactSeconds = elapsed + fraction * dt;
+                    contactDirection = direction;
                     return true;
                 }
                 projectile = nextProjectile;
@@ -135,6 +150,7 @@ namespace VibeGame1
             }
 
             contactSeconds = float.PositiveInfinity;
+            contactDirection = Vector3.zero;
             return false;
         }
 
@@ -172,6 +188,7 @@ namespace VibeGame1
                 readiness = ProjectileFlightReadiness.UnsafeFlight,
                 launchPosition = desired.launchPosition,
                 direction = desired.direction,
+                contactDirection = desired.contactDirection,
                 speed = desired.speed,
                 contactSeconds = desired.contactSeconds
             };
@@ -219,13 +236,15 @@ namespace VibeGame1
             }
 
             float contact;
+            Vector3 contactDirection;
             bool reaches = TryForecastContact(launch, direction, speed, targetPosition, targetVelocity,
-                homingDegPerSecond, contactRadius, maxSeconds, out contact);
+                homingDegPerSecond, contactRadius, maxSeconds, out contact, out contactDirection);
             return new ProjectileFlightPlan
             {
                 readiness = reaches ? ProjectileFlightReadiness.Ready : ProjectileFlightReadiness.NoContact,
                 launchPosition = launch,
                 direction = direction,
+                contactDirection = contactDirection,
                 speed = speed,
                 contactSeconds = contact
             };

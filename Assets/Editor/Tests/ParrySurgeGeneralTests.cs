@@ -21,16 +21,16 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void GeneralPerfectLadderShipsAtOnePointTwelveFiveTimesWithTwoSecondDecay()
+        public void GeneralPerfectLadderShipsAtOnePointTwelveFiveTimesWithRouteSizedDecay()
         {
             var stats = Stats();
             Assert.That(stats.generalParrySurgeStep, Is.EqualTo(0.12f).Within(Eps));
             Assert.AreEqual(5, stats.generalParrySurgeMaxStacks);
-            Assert.That(stats.generalParrySurgeSeconds, Is.EqualTo(2f).Within(Eps));
+            Assert.That(stats.generalParrySurgeSeconds, Is.EqualTo(3.2f).Within(Eps));
             Assert.That(SurgeMath.MaxMultiplier(stats.generalParrySurgeMaxStacks, stats.generalParrySurgeStep),
                         Is.EqualTo(1.6f).Within(Eps));
             Assert.That(SurgeMath.FullDecaySeconds(stats.generalParrySurgeMaxStacks, stats.generalParrySurgeSeconds),
-                        Is.EqualTo(10f).Within(Eps));
+                        Is.EqualTo(16f).Within(Eps));
         }
 
         [Test]
@@ -41,7 +41,8 @@ namespace VibeGame1.Tests
             if (blue == null) Assert.Ignore("run VibeGame1/3. Create Data");
             Assert.Greater(stats.generalParrySurgeSeconds, blue.projectileInterval,
                 "the 1.6 second ordinary blue-sentry beat must refresh, not consume, a clean stack");
-            Assert.That(stats.generalParrySurgeSeconds - blue.projectileInterval, Is.EqualTo(0.4f).Within(Eps));
+            Assert.That(stats.generalParrySurgeSeconds - blue.projectileInterval, Is.EqualTo(1.6f).Within(Eps),
+                "the opened connective course needs enough clean carry to reach the next parry beat");
         }
 
         [Test]
@@ -74,7 +75,7 @@ namespace VibeGame1.Tests
             Assert.That(turret.parrySurgeStep, Is.EqualTo(0.12f).Within(Eps));
             Assert.AreEqual(5, turret.parrySurgeMaxStacks);
             Assert.That(turret.parrySurgeSeconds, Is.EqualTo(1.4f).Within(Eps),
-                "the tuned ramp turret run-out must not inherit the general two-second decay");
+                "the tuned ramp turret run-out must not inherit the general route-sized decay");
         }
     }
 }

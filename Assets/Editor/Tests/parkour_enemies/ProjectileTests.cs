@@ -69,6 +69,41 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void CueSlowedClosingShotUsesItsForecastContactTangentForFacing()
+        {
+            Vector3 muzzle = new Vector3(0f, 1.2f, 15f);
+            Vector3 chest = new Vector3(0f, 1.2f, 0f);
+            Vector3 velocity = Vector3.forward * 25f;
+            ProjectileFlightPlan plan = ProjectileFlightMath.Plan(muzzle, chest, velocity,
+                36f, 1f, 240f, 0.6f, 1f, 0.44f, Projectile.DefaultMaxLife);
+
+            Assert.AreEqual(ProjectileFlightReadiness.Ready, plan.readiness);
+            Assert.Less(plan.speed, velocity.magnitude,
+                "the cue budget intentionally slows this closing shot below runner speed");
+            Assert.Less(plan.contactDirection.z, -0.9f,
+                "the accepted forecast reaches the runner from ahead even when a second lead estimate would overshoot");
+            Vector3 predictedChest = chest + velocity * plan.contactSeconds;
+            Assert.IsTrue(ProjectileMath.ArrivesInsideFacing(plan.contactDirection, muzzle, predictedChest,
+                Vector3.forward, 75f));
+            Assert.IsFalse(ProjectileMath.ArrivesInsideFacing(plan.contactDirection, muzzle, predictedChest,
+                Vector3.back, 75f), "turning away must still veto the same real contact");
+        }
+
+        [Test]
+        public void StraightForecastReportsItsInitialDirectionAndNoContactReportsZero()
+        {
+            float contact;
+            Vector3 terminal;
+            Assert.IsTrue(ProjectileFlightMath.TryForecastContact(Vector3.zero, Vector3.forward, 20f,
+                Vector3.forward * 10f, Vector3.zero, 0f, 1f, 2f, out contact, out terminal));
+            Assert.That(terminal, Is.EqualTo(Vector3.forward));
+
+            Assert.IsFalse(ProjectileFlightMath.TryForecastContact(Vector3.zero, Vector3.forward, 5f,
+                Vector3.forward * 10f, Vector3.forward * 20f, 0f, 1f, 1f, out contact, out terminal));
+            Assert.That(terminal, Is.EqualTo(Vector3.zero));
+        }
+
+        [Test]
         public void ShippedMotionCasesStayContactSafe_AndAnUnsafeNearClosingShotIsRefused()
         {
             float minimum = Projectile.CueLead + ProjectileShooter.CueMargin;
@@ -103,6 +138,7 @@ namespace VibeGame1.Tests
                 minimum, Projectile.DefaultMaxLife);
             Assert.AreEqual(ProjectileFlightReadiness.NoContact, noContact.readiness,
                 "a straight bolt slower than a fleeing target has no honest bounded arrival to cue");
+            Assert.That(noContact.contactDirection, Is.EqualTo(Vector3.zero));
         }
 
         [Test]
@@ -145,6 +181,180 @@ namespace VibeGame1.Tests
             Assert.IsTrue(ProjectileFlightMath.ContactSlotOpen(second, second));
             Assert.AreEqual(101.52f, ProjectileFlightMath.NextContactTime(101.10f, 0.42f), Eps,
                 "a late actual forecast starts the next spacing from itself, never from stale phrase debt");
+        }
+
+        [Test]
+        public void PhraseIdentityIsImmutable_AndIncomingOutcomeReportsExactlyOnce()
+        {
+            var root = new GameObject("PhraseIdentityBolt");
+            try
+            {
+                var bolt = root.AddComponent<Projectile>();
+                int callbacks = 0;
+                ParryResult received = ParryResult.None;
+                bolt.IncomingResolved += (shot, outcome) => { callbacks++; received = outcome; };
+
+                bolt.AssignPhrase(41, 2);
+                bolt.AssignPhrase(99, 7);
+                InvokeProjectileIncomingResolution(bolt, ParryResult.Perfect);
+                InvokeProjectileIncomingResolution(bolt, ParryResult.Hit);
+
+                Assert.AreEqual(41, bolt.PhraseId);
+                Assert.AreEqual(2, bolt.PhraseOrdinal);
+                Assert.AreEqual(1, callbacks, "an expiry/destroy follow-up may not re-adjudicate a clean answer");
+                Assert.AreEqual(ParryResult.Perfect, received);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
+        public void DisabledPostureIgnoresEveryMutationEntryPoint()
+        {
+            var root = new GameObject("NoPostureTurret");
+            try
+            {
+                var posture = root.AddComponent<Posture>();
+                posture.Configure(50f, 10f, 1f, 2f, false);
+                posture.Add(50f);
+                posture.Break();
+                posture.HoldStagger(10f);
+
+                Assert.IsFalse(posture.Enabled);
+                Assert.IsFalse(posture.IsBroken);
+                Assert.AreEqual(0f, posture.Current, Eps);
+
+                posture.Configure(50f, 10f, 1f, 2f, true);
+                posture.Add(50f);
+                Assert.IsTrue(posture.IsBroken, "the data policy disables this instance only; melee defaults still break");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
+        public void VolleyRepeatLoopsOnlyAfterTheFinalIncomingMember_AndMinusOneStaysOnePass()
+        {
+            var root = new GameObject("VolleyRepeat");
+            try
+            {
+                var first = new GameObject("First").AddComponent<EnemySpawner>();
+                var second = new GameObject("Second").AddComponent<EnemySpawner>();
+                first.transform.SetParent(root.transform);
+                second.transform.SetParent(root.transform);
+                var firstShooter = first.gameObject.AddComponent<ProjectileShooter>();
+                var secondShooter = second.gameObject.AddComponent<ProjectileShooter>();
+                var sequence = root.AddComponent<ProjectileVolleySequence>();
+
+                sequence.Configure(new[] { first, second }, 0f, 0.1f, 0f,
+                    Vector3.zero, Vector3.zero, null, null, 0);
+                VolleyField("shooters").SetValue(sequence,
+                    new[] { firstShooter, secondShooter });
+                InvokeVolleyAdvance(sequence);
+                InvokeVolleyAdvance(sequence);
+                Assert.AreEqual(0, sequence.CurrentIndex,
+                    "the loop resumes only after index 1 has completely resolved");
+
+                sequence.Configure(new[] { first, second }, 0f, 0.1f, 0f,
+                    Vector3.zero, Vector3.zero, null, null, -1);
+                InvokeVolleyAdvance(sequence);
+                InvokeVolleyAdvance(sequence);
+                Assert.AreEqual(2, sequence.CurrentIndex, "-1 preserves the one-pass default");
+
+                sequence.Configure(new[] { first, second }, 0f, 0.1f, 0f,
+                    Vector3.zero, Vector3.zero, null, null, 0);
+                // The preceding passes deliberately injected live shooters to prove a true loop. This
+                // pass proves the complementary runtime safety path: a repeat tail with no spawned
+                // members becomes dormant rather than re-scanning missing members each Update.
+                VolleyField("shooters").SetValue(sequence, new ProjectileShooter[2]);
+                InvokeVolleyAdvance(sequence);
+                InvokeVolleyAdvance(sequence);
+                Assert.AreEqual(2, sequence.CurrentIndex,
+                    "a repeat with no live shooters becomes truly dormant instead of scanning null members every frame");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
+        public void RepeatOnlyDefinitionsStillRequestARuntimeCoordinator()
+        {
+            Assert.IsFalse(new ProjectileSequenceDef().CoordinatesRuntime,
+                "the default remains a route-audit record until it has gates or a loop");
+            Assert.IsTrue(new ProjectileSequenceDef { repeatFromIndex = 0 }.CoordinatesRuntime,
+                "a repeat has runtime state even when it needs no spatial progress gate");
+        }
+
+        [Test]
+        public void SequenceDoesNotTransferOneShootersPersonalRestToTheNextMember()
+        {
+            var root = new GameObject("VolleyResolutionRest");
+            try
+            {
+                var first = new GameObject("First").AddComponent<EnemySpawner>();
+                var second = new GameObject("Second").AddComponent<EnemySpawner>();
+                first.transform.SetParent(root.transform);
+                second.transform.SetParent(root.transform);
+                var source = root.AddComponent<ProjectileShooter>();
+                var sequence = root.AddComponent<ProjectileVolleySequence>();
+                sequence.Configure(new[] { first, second }, 0.11f, 0.1f);
+                float expectedGate = Time.time + 0.90f;
+                ShooterField("nextPhraseAllowedAt").SetValue(source, expectedGate);
+                typeof(ProjectileVolleySequence).GetField("activePhraseShooter",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .SetValue(sequence, source);
+
+                InvokeVolleyAdvance(sequence);
+                float nextLaunch = (float)typeof(ProjectileVolleySequence).GetField("nextLaunchAt",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .GetValue(sequence);
+                Assert.That(nextLaunch, Is.EqualTo(Time.time + sequence.RecoveryGap).Within(0.02f),
+                    "A's personal refire rest must not silence B; the loop checks A's rest when it returns to A");
+                Assert.Less(nextLaunch, expectedGate);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
+        public void HeavyDiesOnlyAfterItsOrderedPerfectPhraseThroughHealth()
+        {
+            var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
+            if (heavy == null) Assert.Ignore("run 3. Create Data");
+            if (heavy.perfectBurstParriesToDestroy < 1) Assert.Ignore("run 3. Create Data");
+
+            GameObject enemy = null;
+            GameObject player = null;
+            ProjectileShooter shooter = null;
+            try
+            {
+                BuildRuntimeShooter(heavy, out enemy, out player, out shooter);
+                var controller = enemy.GetComponent<EnemyController>();
+                var health = enemy.GetComponent<Health>();
+                Assert.IsNotNull(health, "EnemyController requires Health even in this isolated fixture");
+                health.SetMax(100f, false);
+                health.ResetFull();
+                typeof(EnemyController).GetField("<Health>k__BackingField",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .SetValue(controller, health);
+
+                shooter.SetSequenceControlled(true);
+                bool enteredBand;
+                bool ready;
+                Assert.IsNotNull(shooter.TryFireSequenceShot(true, out enteredBand, out ready));
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                InvokeShooter(shooter, "UpdatePhrase");
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                InvokeShooter(shooter, "UpdatePhrase");
+                Assert.AreEqual(heavy.perfectBurstParriesToDestroy, shooter.PhraseShotsEmitted);
+                Assert.IsFalse(health.IsDead, "the final incoming answer has not happened yet");
+
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                Assert.IsTrue(health.IsDead,
+                    "the Nth ordered Perfect is ordinary Health damage; no reflected damage asset participates");
+            }
+            finally
+            {
+                DestroyOwnedBolts(shooter);
+                if (enemy != null) Object.DestroyImmediate(enemy);
+                if (player != null) Object.DestroyImmediate(player);
+            }
         }
 
         [Test]
@@ -412,7 +622,16 @@ namespace VibeGame1.Tests
                 float launch = ProjectileMath.LaunchSpeed(e.projectileMinRange, e.projectileSpeed, Projectile.CueLead, ProjectileShooter.CueMargin);
                 Assert.Greater(ProjectileMath.TimeToImpact(e.projectileMinRange, launch), Projectile.CueLead,
                     e.name + ": the nearest bolt would arrive before its cue could fire");
-                Assert.Greater(e.parriedProjectileDamage, 0f); Assert.Greater(e.parrySpeedGain, 0f);
+                if (e.perfectBurstParriesToDestroy > 0)
+                {
+                    Assert.AreEqual(0f, e.parriedProjectileDamage, Eps,
+                        e.name + ": strict phrases score incoming Perfects, never reflected return damage");
+                    Assert.AreEqual(e.projectileBurstCount, e.perfectBurstParriesToDestroy,
+                        e.name + ": every emitted Heavy contact belongs to its all-Perfect kill phrase");
+                }
+                else Assert.Greater(e.parriedProjectileDamage, 0f,
+                    e.name + ": an ordinary sentry is killed by its reflected bolt");
+                Assert.Greater(e.parrySpeedGain, 0f);
                 float farCeiling = e == heavy ? 48f : e.aggroRange + 20f;
                 Assert.LessOrEqual(e.projectileMaxRange, farCeiling,
                     e.name + ": range may announce the route but must stay inside its authored ceiling");
@@ -443,15 +662,26 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void ReflectedBoltsKillAParkourEnemy_InThreeOrFewer()
+        public void ParkourProjectileKillContractsStayShortAndExplicit()
         {
-            // 2026-09-06 (user): parkour enemies are finished by PARRYING their bolts, never by a grapple. The
-            // flare on death is optional traversal. So the reflects to kill must be few enough to be a rhythm.
+            // The ordinary blue sentry dies from its returned bolts. The Heavy instead scores an ordered
+            // three-Perfect incoming phrase and deliberately receives zero reflected damage, so a partial
+            // phrase can never leak health into a later one.
             foreach (var path in new[] { EnemyPaths.Data("pshooter_enemy01"), EnemyPaths.Data("pshooter_enemy02") })
             {
                 var e = AssetDatabase.LoadAssetAtPath<EnemyData>(path);
                 if (e == null) Assert.Ignore("run 3. Create Data");
                 if (!e.rangedOnly) continue;
+                if (e.perfectBurstParriesToDestroy > 0)
+                {
+                    Assert.AreEqual(3, e.perfectBurstParriesToDestroy,
+                        e.name + ": the Heavy is the compact three-answer rhythm");
+                    Assert.AreEqual(e.projectileBurstCount, e.perfectBurstParriesToDestroy,
+                        e.name + ": no phrase contact is optional");
+                    Assert.AreEqual(0f, e.parriedProjectileDamage, Eps,
+                        e.name + ": a strict phrase cannot be killed by reflected-bolt arithmetic");
+                    continue;
+                }
                 int reflectsToKill = Mathf.CeilToInt(e.maxHP / Mathf.Max(1f, e.parriedProjectileDamage));
                 Assert.LessOrEqual(reflectsToKill, 3, e.name + ": " + reflectsToKill + " reflects to kill is a chore, not a rhythm");
                 Assert.GreaterOrEqual(reflectsToKill, 2, e.name + ": one reflect killing it makes the bolt a free kill, not a duel");
@@ -545,27 +775,21 @@ namespace VibeGame1.Tests
                 "the Heavy keeps its broad sweep but may leave the exact perch beneath its muzzle");
             Assert.IsFalse(turret.projectileIgnoreDepartureSupport,
                 "the tuned ramp Surge Turret must not inherit the Heavy's departure-only policy");
-            Assert.AreEqual(0.42f, heavy.projectileBurstInterval, Eps,
-                "0.28 cue + 0.08 perfect recovery + 0.06 honest slack");
-            Assert.AreEqual(2.4f, heavy.projectileInterval, Eps,
-                "the old interval is now the quiet cooldown after the third emission");
+            Assert.AreEqual(0.40f, heavy.projectileBurstInterval, Eps,
+                "0.28 cue + 0.08 perfect recovery + 0.04 honest slack");
+            Assert.AreEqual(0.90f, heavy.projectileInterval, Eps,
+                "the rapid loop rests from the final incoming answer, not final emission");
             Assert.AreEqual(48f, heavy.projectileMaxRange, Eps,
                 "a 27.5 m/s runner needs enough approach for the entire three-contact phrase");
-            Assert.AreEqual(330f, heavy.maxPosture, Eps,
-                "330 is the round ceiling above all three DevBlade parries plus two completed returns");
+            Assert.IsFalse(heavy.usesPosture, "a mechanical turret has no duel posture economy");
+            Assert.IsTrue(heavy.isTurret);
+            Assert.AreEqual(3, heavy.perfectBurstParriesToDestroy,
+                "all three ordered Perfects in one phrase are the destruction contract");
+            Assert.AreEqual(0f, heavy.parriedProjectileDamage, Eps,
+                "the first two returns cannot accidentally chip a strict phrase turret to death");
+            Assert.AreEqual(0f, heavy.parriedProjectilePosture, Eps);
             Assert.LessOrEqual(heavy.projectileBurstCount, ProjectileShooter.MaxBurstShots,
                 "the runtime owns a fixed allocation-free phrase buffer");
-
-            var dev = AssetDatabase.LoadAssetAtPath<WeaponData>("Assets/Data/Weapons/DevBlade.asset");
-            if (dev == null) Assert.Ignore("run 3. Create Data");
-            float immediateParry = dev.parryPostureDamage * heavy.projectileAttack.parryPostureMultiplier;
-            float afterTwoReturns = 2f * (immediateParry + heavy.parriedProjectilePosture);
-            float beforeThirdReturn = 3f * immediateParry + 2f * heavy.parriedProjectilePosture;
-            Assert.Less(afterTwoReturns, heavy.maxPosture, "two complete answers cannot end a three-read phrase");
-            Assert.Less(beforeThirdReturn, heavy.maxPosture,
-                "the third cue must remain a projectile parry, not be replaced by a deathblow prompt");
-            Assert.GreaterOrEqual(heavy.parriedProjectileDamage * 3f, heavy.maxHP,
-                "the third reflected return still finishes the enemy");
         }
 
         [Test]
@@ -766,9 +990,12 @@ namespace VibeGame1.Tests
                 Assert.IsTrue(shooter.PhraseEmissionsComplete);
                 Assert.AreEqual(ProjectilePhraseCancellation.None, shooter.LastPhraseCancellation);
 
-                float nextFire = (float)ShooterField("nextFireAt").GetValue(shooter);
-                Assert.That(nextFire - Time.time, Is.EqualTo(heavy.projectileInterval).Within(0.05f),
-                    "the 2.4 s quiet starts after the third emission, not at phrase start");
+                Assert.Less(shooter.NextPhraseAllowedAt, 0f,
+                    "emitting the final bolt does not start a cooldown before its incoming answer exists");
+                ResolveOwnedIncomingAndOpenSlot(shooter);
+                Assert.That(shooter.NextPhraseAllowedAt - shooter.LastIncomingResolvedAt,
+                    Is.EqualTo(heavy.projectileInterval).Within(0.05f),
+                    "the 0.90 s quiet starts from the final incoming resolution, never its emission");
                 shooter.SetSequenceControlled(false);
                 InvokeShooter(shooter, "Update");
                 Assert.AreEqual(3, shooter.Fired, "there is no fourth shot before the post-phrase cooldown");
@@ -1015,11 +1242,31 @@ namespace VibeGame1.Tests
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         }
 
+        static System.Reflection.FieldInfo VolleyField(string name)
+        {
+            return typeof(ProjectileVolleySequence).GetField(name,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        }
+
         static void InvokeShooter(ProjectileShooter shooter, string method)
         {
             typeof(ProjectileShooter).GetMethod(method,
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(shooter, null);
+        }
+
+        static void InvokeProjectileIncomingResolution(Projectile bolt, ParryResult outcome)
+        {
+            typeof(Projectile).GetMethod("ResolveIncoming",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(bolt, new object[] { outcome });
+        }
+
+        static void InvokeVolleyAdvance(ProjectileVolleySequence sequence)
+        {
+            typeof(ProjectileVolleySequence).GetMethod("Advance",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(sequence, null);
         }
 
         static void ResolveOwnedIncomingAndOpenSlot(ProjectileShooter shooter)
@@ -1028,7 +1275,11 @@ namespace VibeGame1.Tests
             var reflected = typeof(Projectile).GetField("reflected",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             for (int i = 0; i < shooter.PhraseShotsEmitted; i++)
-                if (bolts[i] != null) reflected.SetValue(bolts[i], true);
+                if (bolts[i] != null)
+                {
+                    InvokeProjectileIncomingResolution(bolts[i], ParryResult.Perfect);
+                    reflected.SetValue(bolts[i], true);
+                }
             ShooterField("nextPhraseContactAt").SetValue(shooter, Time.time);
             ShooterField("followupDeadlineAt").SetValue(shooter, Time.time + 1f);
         }

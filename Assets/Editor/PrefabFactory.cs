@@ -407,6 +407,7 @@ namespace VibeGame1.EditorTools
         /// </summary>
         static void BuildItemViewmodels()
         {
+            AssetDatabase.DeleteAsset($"{ItemDir}/VM_Item_WallSurge.prefab");
             Material core = Mat("M_WeaponCore") != null ? Mat("M_WeaponCore") : Mat("M_Ground");
             Material energy = Mat("M_Energy") != null ? Mat("M_Energy") : Mat("M_Item");
 
@@ -439,9 +440,9 @@ namespace VibeGame1.EditorTools
                 Energise(root, Color.white, 1.6f, 2.2f, 0.12f, 2.6f, 70f);
                 AssignItem("Grapple", Save(root, $"{ItemDir}/VM_Item_Grapple.prefab"));
             }
-            // Wall Surge — a small blade-fan on a hub that spins, neon yellow. Speed, held in the hand.
+            // Rebound — a small blade-fan on a hub that spins, green and already carrying motion.
             {
-                var root = new GameObject("VM_Item_WallSurge");
+                var root = new GameObject("VM_Item_Rebound");
                 Prim(PrimitiveType.Cube, "Stem", root.transform, new Vector3(0f, 0.06f, 0f), new Vector3(0.02f, 0.12f, 0.02f), core);
                 // Hub: the bright centre the blades spin about, named Tip so the tip light sits on it.
                 Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.16f, 0f), new Vector3(0.045f, 0.045f, 0.045f), energy);
@@ -463,7 +464,22 @@ namespace VibeGame1.EditorTools
                 Prim(PrimitiveType.Cube, "FloatSparkB", root.transform, new Vector3(-0.06f, 0.11f, 0.02f), new Vector3(0.014f, 0.014f, 0.014f), energy);
                 // Fast, tight: the fan is spinning before you have used it.
                 Energise(root, Color.white, 2.8f, 3.0f, 0.10f, 2.4f, 140f);
-                AssignItem("WallSurge", Save(root, $"{ItemDir}/VM_Item_WallSurge.prefab"));
+                AssignItem("Rebound", Save(root, $"{ItemDir}/VM_Item_Rebound.prefab"));
+            }
+            // Deflect Sigil: a diamond seal whose centre waits for a real Perfect.
+            {
+                var root = new GameObject("VM_Item_DeflectSigil");
+                Prim(PrimitiveType.Cube, "Stem", root.transform, new Vector3(0f, 0.05f, 0f), new Vector3(0.018f, 0.10f, 0.018f), core);
+                for (int i = 0; i < 4; i++)
+                {
+                    float a = 45f + i * 90f;
+                    var edge = Prim(PrimitiveType.Cube, $"Seg{i}", root.transform, new Vector3(0f, 0.18f, 0f), new Vector3(0.09f, 0.014f, 0.018f), energy);
+                    edge.transform.localRotation = Quaternion.Euler(0f, 0f, a);
+                    edge.transform.localPosition += edge.transform.localRotation * new Vector3(0.055f, 0f, 0f);
+                }
+                Prim(PrimitiveType.Cube, "Tip", root.transform, new Vector3(0f, 0.18f, 0f), new Vector3(0.04f, 0.04f, 0.025f), energy);
+                Energise(root, Color.white, 1.9f, 2.8f, 0.13f, 2.7f, 80f);
+                AssignItem("DeflectSigil", Save(root, $"{ItemDir}/VM_Item_DeflectSigil.prefab"));
             }
         }
 
@@ -692,10 +708,10 @@ namespace VibeGame1.EditorTools
             // 0.14 -> 0.26 (2026-09-07), sized to the same ~0.20 s reaction so the perfect is
             // REACHABLE BY REACTION rather than only by pre-timing. Stays <= wallRunExitGrace (0.30) or
             // part of it could never fire; PerfectTimingTests holds both edges.
-            motor.perfectWallJumpWindow = 0.26f;
+            motor.perfectWallJumpWindow = 0.20f;
             motor.perfectWallJumpRefund = 20f;
-            motor.perfectDashJumpMinDelay = 0.04f;
-            motor.perfectDashJumpWindow = 0.12f;
+            motor.perfectDashJumpMinDelay = 0.06f;
+            motor.perfectDashJumpWindow = 0.10f;
             motor.perfectDashJumpRefund = 30f;
             motor.perfectBurstWindow = 0.12f;
             motor.perfectBurstBonus = 30f;
@@ -1167,7 +1183,7 @@ namespace VibeGame1.EditorTools
                     // NOT the turret: it is a target, not a duel. Its posture is out of reach and it dies in
                     // one hit, so a flare would be a grapple reward for something you were going to kill by
                     // touching it — and a row of five floating flares down one ramp is clutter, not traversal.
-                    if (body != EnemyBody.Turret)
+                    if (body != EnemyBody.Turret && body != EnemyBody.HeavySentry)
                     {
                         var burst = root.AddComponent<SentryBurst>();
                         burst.flareUpSpeed = 9f; burst.flareOutSpeed = 3f; burst.flareGravity = 4f; burst.flareLife = 4.5f;
@@ -1197,7 +1213,9 @@ namespace VibeGame1.EditorTools
             visuals.armPivot = parts.armPivot;
             visuals.weaponPivot = parts.weaponPivot;
             visuals.alertMarker = alert;
-            visuals.deathblowMarker = BuildDeathblowMarker(visual.transform);
+            visuals.deathblowMarker = ctrl.data != null && ctrl.data.usesPosture
+                ? BuildDeathblowMarker(visual.transform)
+                : null;
             flash.renderers = parts.weapon != null
                 ? new[] { parts.body, parts.weapon }
                 : new[] { parts.body };
@@ -1222,7 +1240,7 @@ namespace VibeGame1.EditorTools
             }
 
             // ---- posture bar: small enemies only; the boss has the HUD bar -------------------------
-            if (!isBoss) BuildPostureBar(visual.transform);
+            if (!isBoss && ctrl.data != null && ctrl.data.usesPosture) BuildPostureBar(visual.transform);
 
             Save(root, $"{PrefabDir}/{name}.prefab");
         }

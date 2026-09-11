@@ -22,7 +22,7 @@ namespace VibeGame1
             D + "WASD" + DE + "  move      " + D + "Mouse" + DE + "  look      " + D + "Space" + DE + "  jump (release early for a short hop)\n" +
             D + "Left Shift" + DE + "  dash      " + D + "Left Ctrl" + DE + "  Slide (needs speed; jump out of it to keep it)\n" +
             D + "Space" + DE + " again near a wall: wall jump      " + D + "no key" + DE + ": arrive airborne along a wall at a jog to wall run\n" +
-            D + "Perfect timing" + DE + ": a wall jump on the wall's last breath, a jump 0.04-0.16 s out of a dash, or a grapple burst on the landing refunds the move's stamina\n" +
+            D + "Perfect timing" + DE + ": press Space at WALL EXIT or DASH JUMP; the cue marks the real window. A grapple burst fired on landing also refunds stamina\n" +
             "\n" +
             H + "COMBAT" + HE + "\n" +
             D + "LMB" + DE + "  attack      " + D + "RMB tap" + DE + "  parry      " + D + "RMB hold" + DE + "  guard      " + D + "MMB" + DE + "  lock on / switch / release\n" +

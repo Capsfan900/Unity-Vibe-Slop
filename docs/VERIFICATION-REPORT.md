@@ -11,6 +11,35 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Open projectile route, strict Heavy phrases, Hook/items and final-ramp repair — 2026-09-10
+
+- **Final full EditMode: 935/935 passed**, zero failures/skips, 45.8 s. This includes the shipped data,
+  open Level 1 route, Hook projectile identity/timing, Rebound, Deflect Sigil, Perfect Jump cues, strict
+  Heavy phrase scoring, sequence cooldown ownership and terminal-direction projectile facing.
+- **Full FeatureTests: 801/801 passed**, zero failures/skips, 62.7 s, from a fresh unpaused Level_01
+  session after explicitly proving `GameManager.I != null` and `Time.timeScale == 1`.
+- **Final-ramp live integration: PASS.** The real motor descended the shipped 48 m ramp while all three
+  single-shot Surge Turrets fired in order and all three projectiles resolved Perfect. The probe recorded
+  3/3 emissions, 3/3 Surge grants, no cancellations, a 1.36x ladder and the full 36.5 m/s capped impulse peak.
+- **Opening live integration: PASS.** The five one-shot Surge beats and both alternating Heavy Reliquaries
+  resolved with 11 Perfects / 11 emissions. Each Heavy fired its rapid 3/3 phrase, both ended `Ready/None`,
+  and the speed ladder reached 1.60x.
+- **The final-ramp root cause is closed.** Sequence advancement had transferred turret A's personal 1.1 s
+  refire cooldown to turret B, costing roughly 27 m after the first speed payout. Different members now
+  observe only the 0.11 s recovery gap; a shooter's rest is checked when that same shooter is selected again.
+  T4 explicitly owns a zero first-member arm-up because its visible approach already supplies the read.
+- **Projectile facing consumes the accepted flight.** Cue-slowed closing shots now carry the terminal travel
+  direction out of the shared 120 Hz forecast instead of running a second lead estimate that could invent a
+  behind-the-player arrival. The forward/back-facing regression is pinned by a pure test.
+- **Reports/build state:** Health Check PASS; Projectile Encounter Report PASS at 11/17.6/27.5 m/s; Level
+  Arc Report PASS; runtime/editor compile with zero errors (18 known editor warnings). The final added
+  level-export persistence guard also passed 1/1 after the full suite.
+
+**Still human-only:** judge the final-ramp three-beat rhythm, Heavy 0.40 s triple-parry phrase, Hook-to-bolt
+timing, Perfect Jump cue clarity, item desirability, expanded route spacing, HUD hierarchy and split/soul
+economy in a complete player-controlled run. Automated probes have frame-perfect timing and prove the
+systems, not subjective feel.
+
 ### Heavy Reliquary root cause and opening-ramp pair — 2026-09-10
 
 - **Final full EditMode: 1028/1028 passed**, zero failures/skips, 152.1 s. A preceding run found one stale

@@ -230,6 +230,19 @@ namespace VibeGame1
             return ParryMath.IsFacing(v, ParryMath.SourceDirection(travel, muzzle, arrival), coneDeg);
         }
 
+        /// <summary>The conservative movement-facing policy using the accepted flight's real contact tangent.</summary>
+        public static bool ArrivesInFront(Vector3 muzzle, Vector3 chest, Vector3 playerVelocity,
+                                          Vector3 contactDirection, Vector3 predictedChest, float coneDeg)
+        {
+            Vector3 v = new Vector3(playerVelocity.x, 0f, playerVelocity.z);
+            if (v.magnitude < RecedeSpeed) return true;
+            Vector3 away = new Vector3(chest.x - muzzle.x, 0f, chest.z - muzzle.z);
+            if (away.sqrMagnitude < 1e-6f) return true;
+            if (Vector3.Dot(v.normalized, away.normalized) < RecedeCos) return true;
+            return ParryMath.IsFacing(v,
+                ParryMath.SourceDirection(contactDirection, muzzle, predictedChest), coneDeg);
+        }
+
         /// <summary>
         /// Actual-look variant used by ordinary blue traversal sentries. Movement is not facing: a player
         /// can backpedal while deliberately watching a squid, or sprint past while looking elsewhere.
@@ -242,6 +255,14 @@ namespace VibeGame1
             Vector3 travel = arrival - muzzle;
             return ParryMath.IsFacing(playerForward,
                                       ParryMath.SourceDirection(travel, muzzle, arrival), coneDeg);
+        }
+
+        /// <summary>The actual-look policy using the accepted flight's real contact tangent.</summary>
+        public static bool ArrivesInsideFacing(Vector3 contactDirection, Vector3 muzzle,
+                                               Vector3 predictedChest, Vector3 playerForward, float coneDeg)
+        {
+            return ParryMath.IsFacing(playerForward,
+                ParryMath.SourceDirection(contactDirection, muzzle, predictedChest), coneDeg);
         }
 
         /// <summary>

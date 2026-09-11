@@ -74,6 +74,7 @@ namespace VibeGame1
         /// </summary>
         Vector3 lastFeedbackSource;
         bool haveFeedbackSource;
+        bool hookPerfectFeedback;
 
         PlayerStatsData d;
         WeaponController weapons;
@@ -244,6 +245,18 @@ namespace VibeGame1
             bool guarding = IsGuarding;
             float elapsed = Current == State.Active ? Time.time - pressTime : float.MaxValue;
             var r = ParryMath.Evaluate(elapsed, PerfectWindow, LateWindow, facing, a.unblockable, guarding);
+            // HOOK is a narrowly scoped second timing source: it may upgrade only the matching turret's
+            // real projectile contact, during the pull, inside the item's authored E-to-contact window.
+            // It never opens a general parry window and therefore cannot deflect any other attack.
+            if (r == ParryResult.Hit && facing && !a.unblockable && a.projectile != null)
+            {
+                var items = GetComponent<PlayerItems>();
+                if (items != null && items.TryResolveHookParry(a.projectile, a.attacker))
+                {
+                    r = ParryResult.Perfect;
+                    hookPerfectFeedback = true;
+                }
+            }
             LastResolveWasGuard = r == ParryResult.Blocked &&
                                   (Current != State.Active || elapsed > PerfectWindow + LateWindow + 1e-4f);
             if (r != ParryResult.Hit && Current == State.Active && !LastResolveWasGuard) consumed = true;
@@ -275,9 +288,14 @@ namespace VibeGame1
         /// </summary>
         public void NotifyDeflected()
         {
-            if (Current != State.Active) return;
-            consumed = true;
-            EnterRecovery();
+            bool normalWindow = Current == State.Active;
+            if (!normalWindow && !hookPerfectFeedback) return;
+            if (normalWindow)
+            {
+                consumed = true;
+                EnterRecovery();
+            }
+            hookPerfectFeedback = false;
 
             // AFTER EnterRecovery, never before. EnterRecovery calls EndParry, which re-asserts the
             // stance when the button is still down; kicking the blade first and then re-raising the

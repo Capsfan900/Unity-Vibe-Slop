@@ -34,6 +34,8 @@ namespace VibeGame1.EditorTools
         static int recordedGrants, recordedPerfects, startingPerfects;
         static ProjectileVolleySequence openingSequence;
         static bool sequenceWasEnabled;
+        static ProjectileShotReadiness[] lastReadiness = new ProjectileShotReadiness[0];
+        static int lastSequenceIndex;
 
         /// <summary>The authored opening sequence must resolve five Surge deflects and both 3-shot Heavies.</summary>
         public static string StartOpening(bool automaticParries)
@@ -53,10 +55,9 @@ namespace VibeGame1.EditorTools
             peakMultiplier = 1f;
             recordedGrants = 0;
             recordedPerfects = 0;
-            openingSequence = opening
-                ? UnityEngine.Object.FindObjectsByType<ProjectileVolleySequence>()
-                    .FirstOrDefault(s => s.name == "T0_SurgeVolley")
-                : null;
+            string sequenceName = opening ? "T0_SurgeVolley" : "T4_SurgeRoute";
+            openingSequence = UnityEngine.Object.FindObjectsByType<ProjectileVolleySequence>()
+                .FirstOrDefault(s => s.name == sequenceName);
             sequenceWasEnabled = openingSequence != null && openingSequence.enabled;
             if (openingSequence != null) openingSequence.enabled = automaticParries;
             ramp = def.ramps.Single(r => r.name == (opening ? "T0_Ramp_Descent" : "T4_Ramp_Descent"));
@@ -97,6 +98,8 @@ namespace VibeGame1.EditorTools
             endSlideZ = float.NaN; lastFrame = -1; airborneFrames = 0;
             withParries = automaticParries; result = "Running"; log.Clear();
             recordedCueContacts.Clear();
+            lastReadiness = Enumerable.Repeat(ProjectileShotReadiness.None, shooters.Count).ToArray();
+            lastSequenceIndex = openingSequence != null ? openingSequence.CurrentIndex : -1;
             log.AppendLine("Real motor descent; automaticParries=" + withParries + "; entry impulse applied ONCE.");
             running = true; EditorApplication.update += Tick;
             return result;
@@ -134,6 +137,19 @@ namespace VibeGame1.EditorTools
                 }
                 float t = Time.unscaledTime - launchTime;
                 float along = Vector3.Dot(motor.transform.position - ramp.basePosition, ramp.Heading);
+                if (openingSequence != null && openingSequence.CurrentIndex != lastSequenceIndex)
+                {
+                    lastSequenceIndex = openingSequence.CurrentIndex;
+                    log.AppendLine(string.Format("Sequence -> {0}: t={1:0.000}, progress={2:0.00}",
+                        lastSequenceIndex, t, along));
+                }
+                for (int i = 0; i < shooters.Count && i < lastReadiness.Length; i++)
+                {
+                    if (shooters[i] == null || shooters[i].LastReadiness == lastReadiness[i]) continue;
+                    lastReadiness[i] = shooters[i].LastReadiness;
+                    log.AppendLine(string.Format("Shooter {0} -> {1}: t={2:0.000}, progress={3:0.00}",
+                        i + 1, lastReadiness[i], t, along));
+                }
                 reached |= along >= ramp.run;
                 maxSpeed = Mathf.Max(maxSpeed, motor.HorizontalSpeed);
                 peakMultiplier = Mathf.Max(peakMultiplier, motor.SpeedMultiplier);
@@ -225,6 +241,9 @@ namespace VibeGame1.EditorTools
                 verdict, maxSpeed, worstDelta, airborneFrames, endSlideZ, fired, grants));
             log.AppendLine("Surges by turret: " + string.Join(",", turrets.Select(t => ReferenceEquals(t, null) ? "missing" : t.SurgesGranted.ToString()).ToArray()));
             log.AppendLine("Shots by turret: " + string.Join(",", shooters.Select(t => ReferenceEquals(t, null) ? "missing" : t.Fired.ToString()).ToArray()));
+            log.AppendLine("Turret readiness/cancellation: " + string.Join(",", shooters.Select(t =>
+                ReferenceEquals(t, null) ? "missing" : t.LastReadiness + "/" + t.LastPhraseCancellation +
+                "/active=" + t.PhraseActive).ToArray()));
             log.AppendLine("Shots by Heavy: " + string.Join(",", heavyShooters.Select(t => ReferenceEquals(t, null) ? "missing" : t.Fired.ToString()).ToArray()));
             log.AppendLine("Heavy readiness/cancellation: " + string.Join(",", heavyShooters.Select(t =>
                 ReferenceEquals(t, null) ? "missing" : t.LastReadiness + "/" + t.LastPhraseCancellation +

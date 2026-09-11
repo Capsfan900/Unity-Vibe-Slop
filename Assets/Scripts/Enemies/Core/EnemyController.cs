@@ -254,7 +254,8 @@ namespace VibeGame1
             if (data == null) { Debug.LogError($"[Enemy] {name} has no EnemyData", this); return; }
             Health.SetMax(data.maxHP, false);
             Health.ResetFull();
-            Posture.Configure(data.maxPosture, data.postureRegen, data.postureRegenDelay, data.staggerSeconds);
+            Posture.Configure(data.maxPosture, data.postureRegen, data.postureRegenDelay, data.staggerSeconds,
+                              data.usesPosture);
             Posture.RegenMultiplier = () => Mathf.Lerp(0.25f, 1f, Health.Ratio);
             // Stand off at preferredRange, NOT at a fraction of attackRange. The old value
             // (attackRange * 0.7) parked a 2.2x-scale boss ~2m away, where its wind-up filled the screen

@@ -761,34 +761,46 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
                                 inside 12° with Physics.Raycast(motor.WorldMask) clear
              none → prompt "NO TARGET" (0.6 s), Sfx.Click, return false (NOT consumed)
            → ItemVfx.GrappleLine(offhand tip → e.DeathblowPoint), OffhandViewmodel.PlayUse, FOV kick
-           → FirstPersonMotor.BeginPull(StandoffPoint(e), 0.35 s)
+           → FirstPersonMotor.BeginPull(StandoffPoint(e), 0.35 s, rewardArrival = !e.data.isTurret)
                 StandoffPoint = enemy feet + (player side, flat) × ExecuteInteractor.stabStandoff × data.scale
                 motor.Update: `if (pulling) { AdvancePull(dt); return; }` — the item OWNS velocity:
                   position curve start→target, sine arc (0.35..2.2 m), ease-out, on the motor clock;
                   one cc.Move per frame; ends on arrival, on a Sides/Above collision, or CancelPull
                   (Teleport calls it). ⇢ OnPullEnded(arrived). Slide/wall run/dash cancelled on entry.
-           → on arrival (e alive):
+           → turret path, DURING the pull:
+                a real matching Projectile reaches PlayerCombat.ReceiveAttack
+                → ParryController may upgrade Hit → Perfect only when E-to-contact ≤ grapplePerfectWindow 0.13
+                  and projectile.shooter == GrappleTarget; no global RMB window is opened
+                → Projectile pays its normal deflect speed first
+                → PlayerItems.CompleteHookPerfect kills through Health and PrimeHookDashJump()
+                → the next legal airborne dash may be jumped out of once; that jump gets capped horizontal
+                  carry + 1.12× rise. Pull arrival, early/late E, or another shooter's bolt pays nothing.
+           → non-turret path, only after a successful arrival (e alive):
                 PlayerItems.IsBig(e)  = BossController, or name / data.name starts "Legendary"
                 big && !IsStaggered   → e.Posture.Add(0.35 × Posture.Max); flare + sparks; DONE
                 otherwise             → if (!IsStaggered) e.Posture.Break()   → HandleBroken → State.Staggered (sync)
                                         → ExecuteInteractor.ExecuteNow(e)     → the SAME ExecuteCo as a pressed
                                           deathblow: wand riposte (WandController raises RiposteLanded) or
                                           melee execute (interactor raises it), isExecute damage, hitstop
-  WallSurge → FirstPersonMotor.StartWallSurge(8 s)   wallSurgeUntil on the motor clock `now`
-              IsWallSurging → WallRunSettings: topSpeed ×1.5, accel ×1.5, minEntrySpeed 0
-                            → TryWallRun: TooSlow gate and stamina.TrySpend skipped
-                            → AdvanceWallRun: stamina.Drain skipped
-                            → CanWallRunNow ignores stamina
-            → ItemVfx.Surge (feet ring + SurgeTrail: arcs off the wall while surging AND running)
-            → prompt "SURGE Ns" once a second (SurgePromptCo), "" on expiry
-            → StatusStripView reads IsWallSurging / WallSurgeRemaining per frame → "WALL SURGE  N.Ns" row
+  Rebound → ArmRebound(1.18×, +3 m/s); duplicate activation refuses and keeps the pickup
+          → next successful AIRBORNE dash or wall jump consumes it
+          → horizontal exit is strengthened under maxHorizontalSpeed, air dash is refreshed
+          → failed input and ground dash retain it; death / respawn / teleport clears it
+  DeflectSigil → armed until the next ParryResolved(Perfect); duplicate activation refuses and keeps it
+               → Block / Hit retain it
+               → Perfect consumes it, adds two EXTRA general ParrySurge stacks and +5 m/s look impulse
+               → death / respawn / disable clears it
+
+  `ItemEffect.WallSurge = 1` remains a retired serialization tombstone. The factory deletes its asset and
+  level authoring migrates every old pickup key to Rebound or DeflectSigil; value 1 is never reinterpreted.
 
 THE PROMPT LINE — two channels (2026-09-06)
   GameEvents.PromptChanged (owner, string) → PromptView.standing : a cue true while a condition holds
-        "DEATHBLOW  [ATTACK]" (ExecuteInteractor), "GRAPPLE  [DASH]" (FlareGrapple), "SURGE N.Ns" (PlayerItems),
+        "DEATHBLOW  [ATTACK]" (ExecuteInteractor), "GRAPPLE  [DASH]" (FlareGrapple),
         the level editor's PLAYING line. Every writer is EDGE-TRIGGERED (raises only when its own string changes).
   GameEvents.PromptFlash (string, seconds) → PromptView.flash : momentary, drawn OVER the standing cue and then
-        gone — "PERFECT" (PlayerFeedback, 0.9 s), "NO TARGET" (PlayerItems, 0.6 s).
+        gone — "PERFECT", "WALL EXIT [SPACE]", "DASH JUMP [SPACE]" (PlayerFeedback),
+        "REBOUND ARMED" / "SIGIL AWAITS A PERFECT" (PlayerItems), "NO TARGET" (PlayerItems).
   PromptView.Current = flash while unexpired, else standing. Unscaled time. Before the split there was one
   channel, so a PERFECT erased a live GRAPPLE cue permanently (nothing re-raised it). FeatureTests: Prompt_*.
   THE OWNER KEY (2026-09-06, the user's call, closing the residual the split left): every standing write
@@ -796,7 +808,7 @@ THE PROMPT LINE — two channels (2026-09-06)
   unowned. PromptView.AcceptsStandingWrite(currentOwner, writer, text) is the whole rule and is PURE:
         non-empty text  → always accepted (last speaker wins, exactly as before)
         empty text      → accepted only if the writer still HOLDS the line, or nobody does
-  so a SURGE expiring can no longer blank a live "GRAPPLE  [DASH]" that will never re-raise itself. Clearing
+  so an old timed owner expiring can no longer blank a live "GRAPPLE  [DASH]" that will never re-raise itself. Clearing
   releases the line back to unowned. PromptView.StandingOwner exposes the holder. Pinned by PromptOwnerTests
   (the pure rule, EditMode) and FeatureTests Prompt_OwnerTakesTheLine / _AnotherOwnersClearIsIgnored /
   _AnonymousClearIsIgnoredWhileOwned / _TheHolderMayClear (the view obeying it, play mode).
@@ -807,8 +819,8 @@ THE SENTRY FLARE (2026-09-06; parkour_enemies)
   Posture.OnBroken on a pshooter_* → SentryBurst.HandleBroken → pendingBurst, resolved NEXT frame in Update:
       still alive and not Executed → Detonate() (kills through Health.TakeDamage: souls, EnemyKilled, mist) + the flare.
       A parkour enemy NEVER waits to be finished (user, 2026-09-06).
-  Health.OnDied on a pshooter_* → SentryBurst.HandleDied: not Executed / DiedExecuted → Detonate() (the flare).
-      The reflected bolts kill it (parriedProjectileDamage 30 on 60 HP = 2 deflects; 45 on 130 HP = 3).
+  Health.OnDied on the blue pshooter_enemy01 → SentryBurst.HandleDied: not Executed / DiedExecuted
+      → Detonate() (the flare). Mechanical Heavy/Surge turrets carry neither SentryBurst nor posture UI.
   THE EXCEPTION: the grapple hook (PlayerItems.PullCo: Break + ExecuteNow in one frame, State.Executed, then the
       killing blow) -- EnemyController.DiedExecuted -- throws NO flare. The finish is the reward, not a lift.
   Detonate(): SentryFlare.Spawn(chest, forward, up 9, out 3, gravity 4, life 4.5) + the burst (2.4 m flash,
@@ -876,17 +888,22 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
       -> a record without progress gates remains audit-only; ordinary sentries stay autonomous and repeat
          their normal range/LOS/facing beat instead of firing once inside a narrow corridor
       -> the first member keeps its existing projectileAcquireDelay after band, LOS and frontal readiness
+         unless level data explicitly sets firstMemberAcquireDelay (T4 uses 0 because its visible approach
+         already supplies the read and the first contact must remain on the ramp)
       -> ProjectileVolleySequence asks exactly one member to TryFireSequencePhrase
           -> ProjectileShooter validates life, band, LOS, facing, swept blocker path and cue-safe flight
              before EVERY emission
          -> one-shot data emits one bolt; Heavy data owns a three-shot phrase whose CONTACTS, not launch
-            frames, are reserved 0.42 s apart. A transient LOS/facing/flight rejection re-plans inside the
+            frames, are reserved 0.40 s apart. A transient LOS/facing/flight rejection re-plans inside the
             finite follow-up deadline; death, missing target or leaving range cancels immediately, and an
             expired phrase never creates catch-up debt
       -> a real SurgeTurret grant advances immediately; block/hit/expiry advances when that phrase is done
       -> recoveryGap 0.11 s follows resolution, just beyond shipped parrySuccessRecovery 0.08 s
+      -> a member's projectileInterval rest belongs only to that same shooter; moving A -> B never transfers
+         A's refire clock, while looping back to A still waits on A.IsPhraseResting
       -> optional progressOrigin / progressDirection / memberProgressGates hold each member until the
-         runner crosses its authored route distance; the opening gates are 0/18/40/64/87/90/112 m
+         runner crosses its authored route distance; the opening gates are 0/18/40/64/87/90/112 m and
+         the final-ramp gates are 0/14/28 m
       -> after that gate and the recovery gap, a 1.1 s readiness deadline skips unavailable members;
          ungated sequences retain their previous deadline behavior, and resets clear the gate latch
       -> PlayerRespawned or wholesale EnemySpawner instance replacement restarts and rebinds the row
@@ -894,15 +911,20 @@ THE SURGE TURRET -- pshooter_enemy03 (2026-09-06; parkour_enemies)
          shot; retire only that sequence's incoming bolt, then resume normal recovery and order
       -> reset/death/rebind or timeout clears owned incoming shots; reflected return shots keep their payoff
 
-    SHIPPED RUNTIME SEQUENCE: T0_SurgeVolley (7 members: five one-shot Surge Turrets followed by two
-      three-contact Heavy Reliquaries at the opening run-out). T1_ParryRoute, T2_ParryRoute, T3_ParryRoute and
-      T4_SurgeRoute are audit-only route groups whose enemies fire autonomously. `Projectile Encounter
-      Report` accepts any LevelDefinition and proves ownership, valid windows and at least one safe contact
-      per window at 11 / 17.6 / 27.5 m/s.
+    SHIPPED RUNTIME SEQUENCES:
+      - T0_SurgeVolley: five one-shot Surge Turrets followed by two repeating, alternating three-contact
+        Heavy Reliquaries at the opening run-out.
+      - T4_SurgeRoute: three one-shot Surge Turrets, ordered by ramp progress so a fast descent cannot make
+        three independent acquire clocks skip a later beat.
+      T1_ParryRoute, T2_ParryRoute and T3_ParryRoute remain audit-only route groups whose enemies fire
+      autonomously. `Projectile Encounter Report` accepts any LevelDefinition and proves ownership, valid
+      windows and at least one safe contact per window at 11 / 17.6 / 27.5 m/s.
 
   PROJECTILE CONTACT AND CUE RELIABILITY
     ProjectileFlightMath.Plan starts at the REAL projectile root, solves a constant-velocity intercept,
       and integrates the same capped moving-target homing law used by Projectile.Update at 120 Hz
+      -> the accepted sweep carries its terminal contactDirection into facing validation; no second
+         muzzle-distance lead estimate may reinterpret a cue-slowed shot as arriving from behind
       -> sweep relative bolt/target motion for the first hit-radius contact, incoming and reflected
       -> if full speed would contact before CueLead 0.28 + CueMargin 0.16, bounded search finds the fastest
          safe slower flight; a flight with no safe contact is refused rather than launched
@@ -1343,9 +1365,12 @@ ProjectileShooter.Update()   (on every Enemy_* prefab; fires only when EnemyData
      → autonomous arrival reservation occupied: ordinary blue sentry retries at the first safe predicted
        contact slot; it does not advance one full beat and preserve a same-phase tie forever. Heavy uses the
        same responsive hand-off; Surge retains its existing beat behavior.
-     → burstCount 3: reserve the next predicted CONTACT at +0.42 s, re-plan and revalidate before each follow-up;
-             after emission three the Heavy rests for projectileInterval 2.4 s
-     a 0.55 m Bolt core at the chest --
+     → burstCount 3: reserve the next predicted CONTACT at +0.40 s, re-plan and revalidate before each follow-up
+     → every bolt owns immutable (phraseId, ordinal) identity and reports its incoming result exactly once
+     → ordered Perfect 1/2 retain the phrase; any Block/Hit/expiry/cancel invalidates it; Perfect 3 kills
+       through ordinary Health. Reflected Heavy bolts do zero health/posture damage, so stale returns cannot
+       accidentally finish the contract. The next phrase rests 0.90 s from the FINAL incoming resolution.
+     a 0.55 m Bolt core at the chest, multiplied only for presentation by EnemyData projectileVisualScale --
      SlashFx additive ember with Projectile.HotCore (peak 1.6) written OVER the normalised colour: THE ONE
      GLOW IN TRAVERSAL, because the bolt is the tell -- plus a 7-point additive trail 0.16 s long,
      Projectile.Fire(shooter, data, dir/speed from the shared flight plan)
@@ -1367,15 +1392,15 @@ Projectile.Update()  (scaled time: hitstop freezes it)
      parryWhiffRecovery 0.5 s mash tax, and ParryController.ClampRecoveryToNextCue works on a span
      ProjectileThreatView reads only AnyCuedImpactBefore(now + 0.28): four quiet brackets reinforce an
      already-fired cue at the crosshair, never reveal an uncued shot or become a second targeting system
-   → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×2.3 (CueFlareScale) and its core goes white-hot (CueCore)
+   → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×2.3 × projectileCueScale and its core goes white-hot
                                                                         (the same lead every attack gives)
    → within hitRadius of the chest → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
-        Perfect → the bolt REFLECTS at ×1.4 toward the shooter's chest,
+        Perfect → report the phrase outcome exactly once, then the bolt REFLECTS at ×1.4 toward a living shooter,
                   motor.AddImpulse(ProjectileMath.SpeedGain(look.AimForward, parrySpeedGain 9))   (rule 10: motor entry point;
                   a run at 11 becomes 20 and bleeds toward the 17.6 air soft cap -- a boost, not a new cruise)
                   CameraFX.FovKick(4); ReceiveAttack already did the deflect sparks / hitstop / OnParried
         Blocked / Hit / None → spent (the chip / damage / posture landed in ReceiveAttack as usual)
-   reflected bolt reaches the shooter → Health.TakeDamage(parriedProjectileDamage) + Posture.Add(parriedProjectilePosture),
+   reflected ordinary bolt reaches the shooter → Health.TakeDamage(parriedProjectileDamage) + Posture.Add(parriedProjectilePosture),
                                         sparks, Sfx.Hit, spent
 ```
 
@@ -1392,6 +1417,9 @@ Projectile.Update()  (scaled time: hitstop freezes it)
   in launch planning and both runtime projectile forecasts. Do not flatten a ramp or an airborne fall.
 - **A ranged-only recovery holds its perch.** `EnemyController.Recover` stops locomotion for `rangedOnly`
   enemies; only melee enemies run `Reposition`. A deflected sentry must resume shooting from the same pad.
+- **A mechanical turret has no posture fiction.** `EnemyData.usesPosture=false` makes `Posture.Add`, `Break`
+  and `HoldStagger` inert; generated Heavy/Surge prefabs omit posture bars and deathblow marks. Health and
+  ordinary melee damage stay live.
 - **Tight-route permission narrows only the clearance shape.** `EnemyData.projectileAllowTightRouteShots`
   makes the ordinary blue traversal sentry use a thin exact path, not a world-collision exemption; solid
   walls, LOS, arrival contact, frontal readability and cue safety remain gates. Heavy Sentries and already-
@@ -1613,7 +1641,7 @@ FirstPersonMotor (dash, wall run entry, wall jump)
   → PlayerStamina.TrySpend(cost, StaminaAction)   whole or nothing; never partial
        dash 30 | wall-run entry 12 | wall jump 12          (a run exit / exit-grace jump is FREE)
   → PlayerStamina.Drain(22/s, used)  every wall-run step → false at 0 → EndWallRun(Exhausted)
-  (both wall-run calls are skipped while FirstPersonMotor.IsWallSurging — the Wall Surge item)
+  (`IsWallSurging` remains only as dormant legacy motor compatibility; no shipped item activates it)
   PlayerStamina.Update   dt = PlayerDelta (rule 1); regenDelay 0.45 s after any spend, then
                          +45/s grounded, +18/s airborne, to max 100. Infinite (F8 god mode) never spends.
   ⇢ GameEvents.StaminaChanged(cur, max)  → StaminaView.bar (BarView, 3 ticks at 30/60/90)
@@ -1661,15 +1689,16 @@ FirstPersonMotor.Update, the final cc.Move                       (laws: Forgiven
 
 ```
 FirstPersonMotor                                      (laws: PerfectMath, pure; windows on the motor clock)
-  TryWallJump, run in progress
-     → PerfectMath.WallJumpFromRunIsPerfect(wallRunElapsed, wallRunMaxDuration 1.75, perfectWallJumpWindow 0.14)
-       the loan has ≤ 0.14 s left: the wall is about to give up            → Perfect(WallJump, 20)
-  TryWallJump, exit grace (the run ended on its own: Expired / Decayed / LostWall / Exhausted)
-     → PerfectMath.GraceJumpIsPerfect(now − wallRunLeftAt, 0.14)           → Perfect(WallJump, 20)
+  UpdateWallRunPerfectWindow predicts the earliest clock / speed-decay / stamina release
+     → PerfectMath.WallJumpHybridIsPerfect(secondsToRelease, secondsSinceRelease, 0.20)
+       ≤ 0.20 s BEFORE a predictable release → PlayerFeedback "WALL EXIT [SPACE]"
+       ≤ 0.20 s AFTER any natural release     → the same forgiveness half
+     → TryWallJump inside either half → capped +2 m/s tangent and Perfect(WallJump, 20)
   ground jump fires while IsDashing && !LastDashWasBurst   (a grounded dash is jump-eligible for its whole
      length -- dashFromGround -- and the jump ENDS the dash so vel.y survives; see ENGINEERING-LOG)
-     → PerfectMath.DashJumpIsPerfect(now − dashStartedAt, minDelay 0.04, window 0.12)
-       [0.04, 0.16] s after the dash fired — never the same frame           → Perfect(DashJump, 30 = the dash)
+     → PerfectMath.DashJumpIsPerfect(now − dashStartedAt, minDelay 0.06, window 0.10)
+       [0.06, 0.16] s after the dash fired — never the same frame
+       → PlayerFeedback "DASH JUMP [SPACE]" while open → Perfect(DashJump, 30 = the dash)
   the grapple burst fires
      → PerfectMath.BurstIsPerfect(now − pullBurstOpenedAt, 0.12)  first 0.12 s of the 0.30 s window
                                                                             → Perfect(GrappleBurst, +30)
@@ -1688,8 +1717,9 @@ FirstPersonMotor                                      (laws: PerfectMath, pure; 
 
 **Invariants**
 - **A perfect is anchored to a physical moment, never a frame** (MOVEMENT-PRINCIPLES rule 4): the wall
-  letting go, the dash's launch, the pull landing. Windows are seconds on the motor clock, 0.12–0.14 s —
-  inside the learnable band between Celeste's 0.08 s coyote and Sekiro's 0.20 s deflect — and
+  letting go, the dash's launch, the pull landing. Windows are seconds on the motor clock: 0.20 s per
+  wall-release side, 0.10 s for dash-jump, 0.12 s for burst. Wall and dash announce the exact [SPACE]
+  action, and
   `PerfectTimingTests.EveryWindowIsTheSameWidthAt20_60_240Fps` holds their width to one frame at each rate (rule 8).
 - **A miss is the ordinary move.** No penalty, no message, no branch. The dash-jump's minimum delay is what
   keeps a mashed dash+jump from being the perfect.
@@ -1985,6 +2015,17 @@ DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
   `Ramp` is 9 and every earlier value keeps its index, which is why a level saved before ramps existed
   still loads (`RampPieceTests`). A missing `ramps` list comes back null from `JsonUtility` and
   `LevelDocument.FromJson` fills it, the same rule every other list follows.
+- **Current open projectile course (2026-09-10; supersedes the older T1–T3 shape notes below).**
+  `ApplyOpenProjectileCourse` writes five T1 landings at 12–14 m wide, eleven T2 terraces at 10–18 m,
+  and T3's four 14–16 m landings plus 16 m-wide water/exit decks. It removes the historical rails,
+  chimney/tower, lintel/obelisks, connector ramps and balloon bypass that pinched the route. Sparse edge
+  beacons leave the central fourteen metres clear. T1/T2/T3 stop 14.55/14.42/15.17 m before their portal
+  triggers: ordinary slide-jump carry fails, while two projectile-deflect impulses succeed, so ignoring
+  parries loses. The six existing autonomous blue/Heavy spawners are re-perched across early/late decks
+  and may fire repeatedly through their normal range/LOS/facing loop; the engagement windows audit those
+  useful crossings but never gate them at runtime. The final 48 m ramp's three single-shot Surge spawns are
+  at progress 16/32/44 m on alternating x = -7/+7/-7 pads; the old third spawn was eight metres beyond the
+  slope. `LevelFinalRampTurretPlacementTests` pins pad clearance, alternation and on-ramp progress.
 - **Level_01's parkour-first layout is CODE that writes the asset** (`LevelDefinitionAuthoring.Apply`, menu
   `8a`): perches + spawn moves + the balloon arc + the water lines, idempotent. `LevelTraversalAnalyzer`
   flies the arc (pop = carry trimmed to `launchCarryCap`, `launchFloatSeconds` at `launchGravityScale`, the
@@ -2081,7 +2122,9 @@ DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
   the five-stack 1.60x surge is felt before the run-out hands the player to `Ground_Start`.
   Two `pshooter_enemy02` Heavy Reliquaries then sit on 3 m cyan-trimmed pads at **(-10,0.1,6)** and
   **(10,0.1,6)**, outside `Ground_Start`'s +/-8 m edge. They are members 6/7 of the same coordinator and
-  each resolves its full three-contact phrase before the next member advances.
+  each resolves its full three-contact phrase before the next member advances. After the five Surge beats
+  run once, `repeatFromIndex = 5` loops the two surviving Heavy sources A→B→A. A dead member is skipped;
+  if both are gone the coordinator is dormant until respawn.
 - **The T0 volley's gate coordinate, and why `memberProgressGates[0]` is 0 (2026-09-07).**
   `T0_SurgeVolley.progressOrigin` sits **on the ramp's top edge** (0,0,-159.8) with
   `progressDirection = forward`, so a gate value and a perch's slope progress are the same kind of number.
@@ -2495,7 +2538,8 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
                                                                "RUN souls/required" in mint, then quieter
                                                                "FOES n/required   SPLITS n/total"
                   + per-frame read of the player (the StaminaView idiom, not an event):
-                    motor.IsWallSurging   → "WALL SURGE  6.4s"  (WallSurgeRemaining, tenths)
+                    PlayerItems.ReboundArmed      → "REBOUND ARMED"
+                    PlayerItems.DeflectSigilArmed → "SIGIL ARMED"
                     ParrySurge.Stacks     → "SPEED SURGE xN"    when N > 0
                     motor.SpeedMultiplier → "SPEED x1.5"        only for a non-ParrySurge speed source
                     Health.Invulnerable   → "GOD MODE"
@@ -2595,7 +2639,7 @@ FluidBar.shader (fragment)   bar-space x = uv.x × _Fill; surface = level + wave
   are lines, not child objects, so there is nothing to pool and nothing serialized beyond the label.
 - **The projectile bracket reinforces action, not surveillance.** It reads the existing bolt registry only
   after the world-space/audio cue has fired. It cannot aim, select, reveal an uncued attack or influence combat.
-- **The developer effect toggle is effect-only and session-only.** It controls WALL SURGE / SPEED SURGE /
+- **The developer effect toggle is effect-only and session-only.** It controls armed item / SPEED SURGE /
   generic speed / GOD MODE rows, never held inventory or the level's persistent run contract. Live views
   rebuild immediately so the F1 menu cannot leave stale text on screen.
 

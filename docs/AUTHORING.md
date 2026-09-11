@@ -230,8 +230,9 @@ To add one:
 `Projectile_Bolt` ships), `projectileInterval`, `projectileSpeed`, `projectileMinRange` / `MaxRange`,
 `parriedProjectileDamage` / `Posture`, `parrySpeedGain`. Every `Enemy_*` prefab carries a
 `ProjectileShooter`; it only fires when the data says so. Keep `minRange / speed > 0.28 s` so the cue can
-fire (shipped: Grunt 32 m/s from 10–30 m every 1.6 s, Heavy 28 m/s every 2.4 s, gain 9 m/s — a mid-band
-bolt arrives in under half a second and is answered at a run; the 2026-09-05 retune from play). A perfect deflect reflects the bolt onto the shooter and buys the player speed along their look —
+fire. The shipped parkour set is: Sentry, 40 m/s from 6–32 m every 1.6 s; Heavy Sentry, 36 m/s from
+6–48 m in a three-contact phrase (0.40 s cadence, 0.90 s rest from the final answer); Surge Turret,
+36 m/s from 2.5–36 m every 1.1 s. A perfect deflect reflects the bolt onto the shooter and buys the player speed along their look —
 the reason a span enemy exists. See DATAFLOW → *Projectiles*.
 
 ### Shipped enemies
@@ -539,20 +540,20 @@ dagger's is nine small stabs in a narrow cone. A super that could belong to any 
 **Every wand carries a `cooldown`.** It gates the riposte *blast* only — while it runs the deathblow
 still lands as the melee execute — so a heavy wand can safely wait 9 s. Written in `WandFactory`.
 
-**Items: exactly two, both moves.** `ItemEffect` is `{ Grapple, WallSurge }` and the level is authored
-around them (kill to move, wall to move) — do not add a heal or a shield here. Each is a `DataFactory`
-block plus an offhand viewmodel in `PrefabFactory.BuildItemViewmodels`, and a level places one by
-`PickupDef.itemKey` (`"Grapple"` / `"WallSurge"`, the asset name). Rule 9 applies: every tunable below
-is written in `DataFactory`.
+**Items: exactly three live moves.** `ItemEffect` appends `{ Grapple = 0, WallSurge = 1 (retired),
+Rebound = 2, DeflectSigil = 3 }`; never reuse value 1 because old serialized assets must not silently
+become another item. Each live item is a `DataFactory` block plus an offhand viewmodel in
+`PrefabFactory.BuildItemViewmodels`, and a level places one by `PickupDef.itemKey`. Rule 9 applies:
+every tunable below is written in `DataFactory`.
 
 | Item | Asset | Tunables on `ItemData` | What it does |
 |---|---|---|---|
-| **Grapple** (HOOK, cyan) | `Assets/Data/Items/Grapple.asset` | `grappleRange` 28 m, `grappleConeDeg` 12°, `grappleSeconds` 0.35, `grappleBigPostureFraction` 0.35 | Hooks the lock-on target, else the enemy nearest the crosshair with world line of sight; `FirstPersonMotor.BeginPull` to the deathblow stand-off; a normal enemy is executed through `ExecuteInteractor.ExecuteNow`, a `Legendary_*` / boss that is not staggered takes 35% posture instead. Nothing to hook → refused and **kept**. |
-| **Wall Surge** (SURGE, yellow) | `Assets/Data/Items/WallSurge.asset` | `surgeSeconds` 8 | `FirstPersonMotor.StartWallSurge`: wall runs cost no stamina, top speed and accel ×1.5, any airborne touch attaches. |
+| **Grapple** (HOOK, cyan) | `Assets/Data/Items/Grapple.asset` | existing range/cone/pull fields; `grapplePerfectWindow` 0.13 | Normal foes keep the arrival execute. A turret requires its matching real projectile to contact inside the E timing window; success Perfect-deflects, kills it and primes one bonus airborne dash-jump. |
+| **Rebound** (green) | `Assets/Data/Items/Rebound.asset` | `reboundExitMultiplier` 1.18, `reboundBonusSpeed` 3 | Arms the next successful airborne dash or wall jump, strengthens the capped exit and refreshes air dash. |
+| **Deflect Sigil** (violet) | `Assets/Data/Items/DeflectSigil.asset` | `deflectSigilBonusStacks` 2, `deflectSigilImpulse` 5 | Waits through Block/Hit; the next Perfect consumes it for two extra general speed stacks and forward impulse. |
 
 The viewmodels follow the wand rules: `Seg*` parts carry the flow band, `Tip*` is where the tip light
-and the hook line originate, `Float*` parts orbit (a `Float*` node ON the axis simply spins — the
-surge's fan). No `Grip*`: items are held in the middle of the palm.
+and the hook line originate, and `Float*` parts orbit. No `Grip*`: items are held in the middle of the palm.
 
 ---
 

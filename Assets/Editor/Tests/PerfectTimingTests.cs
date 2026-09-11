@@ -6,7 +6,7 @@ using VibeGame1;
 namespace VibeGame1.Tests
 {
     /// <summary>
-    /// PERFECT timing — a wall jump on the wall's last breath, a jump thrown out of a dash, a grapple
+    /// PERFECT timing — a wall exit in its taught pre/post-release window, a jump out of a dash, a grapple
     /// burst on the landing — gives stamina back. The laws live in <see cref="PerfectMath"/> as pure
     /// functions so they can be driven here without a scene, and the shipped numbers live on
     /// <c>Player.prefab</c> / <c>GameFeel.asset</c> (hard rule 9), read back below.
@@ -24,27 +24,16 @@ namespace VibeGame1.Tests
         // ---------------------------------------------------------------- wall jump
 
         [Test]
-        public void WallJumpFromRun_IsPerfectOnlyInTheLastBreathOfTheLoan()
+        public void WallJumpHybrid_IsPerfectBeforeAndAfterTheNaturalRelease()
         {
-            const float loan = 1.75f, window = 0.14f;
-            Assert.IsFalse(PerfectMath.WallJumpFromRunIsPerfect(0.05f, loan, window), "the instant you attach is ordinary");
-            Assert.IsFalse(PerfectMath.WallJumpFromRunIsPerfect(1.0f, loan, window), "the middle of the run is ordinary");
-            Assert.IsFalse(PerfectMath.WallJumpFromRunIsPerfect(loan - window - 0.001f, loan, window), "just before the window");
-            Assert.IsTrue(PerfectMath.WallJumpFromRunIsPerfect(loan - window, loan, window), "the window's opening edge");
-            Assert.IsTrue(PerfectMath.WallJumpFromRunIsPerfect(loan - 0.01f, loan, window), "the last frame of the run");
-            Assert.IsTrue(PerfectMath.WallJumpFromRunIsPerfect(loan, loan, window), "the loan's own end");
-            Assert.IsFalse(PerfectMath.WallJumpFromRunIsPerfect(1.0f, 0f, window), "a zero loan can never be perfect");
-            Assert.IsFalse(PerfectMath.WallJumpFromRunIsPerfect(1.7f, loan, 0f), "a zero window can never be perfect");
-        }
-
-        [Test]
-        public void GraceJump_IsPerfectInsideTheWindowAfterTheLetGo()
-        {
-            const float window = 0.14f;
-            Assert.IsTrue(PerfectMath.GraceJumpIsPerfect(0f, window), "the very frame the wall let go");
-            Assert.IsTrue(PerfectMath.GraceJumpIsPerfect(window, window), "the closing edge");
-            Assert.IsFalse(PerfectMath.GraceJumpIsPerfect(window + 0.001f, window), "past the window");
-            Assert.IsFalse(PerfectMath.GraceJumpIsPerfect(-0.01f, window), "a negative time is a stale clock, never a perfect");
+            const float window = 0.20f;
+            Assert.IsFalse(PerfectMath.WallJumpHybridIsPerfect(window + 0.001f, -1f, window), "before the anticipatory cue");
+            Assert.IsTrue(PerfectMath.WallJumpHybridIsPerfect(window, -1f, window), "the cue/window opening edge");
+            Assert.IsTrue(PerfectMath.WallJumpHybridIsPerfect(0.01f, -1f, window), "still on the wall");
+            Assert.IsTrue(PerfectMath.WallJumpHybridIsPerfect(0f, 0f, window), "the release itself");
+            Assert.IsTrue(PerfectMath.WallJumpHybridIsPerfect(-1f, window, window), "the forgiveness closing edge");
+            Assert.IsFalse(PerfectMath.WallJumpHybridIsPerfect(-1f, window + 0.001f, window), "past forgiveness");
+            Assert.IsFalse(PerfectMath.WallJumpHybridIsPerfect(0f, 0f, 0f), "a zero window can never be perfect");
         }
 
         // ---------------------------------------------------------------- dash-jump
@@ -52,7 +41,7 @@ namespace VibeGame1.Tests
         [Test]
         public void DashJump_NeverCountsOnTheSameFrameAsTheDash()
         {
-            const float min = 0.04f, window = 0.12f;
+            const float min = 0.06f, window = 0.10f;
             Assert.IsFalse(PerfectMath.DashJumpIsPerfect(0f, min, window), "mashing dash+jump together is not a timing");
             Assert.IsFalse(PerfectMath.DashJumpIsPerfect(min - 0.001f, min, window), "just under the minimum delay");
             Assert.IsTrue(PerfectMath.DashJumpIsPerfect(min, min, window), "the minimum delay itself");
@@ -118,20 +107,18 @@ namespace VibeGame1.Tests
             // accepted span must equal the authored window to within one frame of that clock — a
             // window that grew or shrank with the frame rate would be a different mechanic on a
             // different machine (docs/MOVEMENT-PRINCIPLES.md rule 8).
-            const float loan = 1.75f, wallWindow = 0.14f, minDelay = 0.04f, dashWindow = 0.12f, burstWindow = 0.12f;
+            const float wallWindow = 0.20f, minDelay = 0.06f, dashWindow = 0.10f, burstWindow = 0.12f;
             foreach (float fps in new[] { 20f, 60f, 240f })
             {
                 float dt = 1f / fps;
-                float wall = 0f, grace = 0f, dash = 0f, burst = 0f;
-                for (float t = 0f; t <= 2.5f; t += dt)
+                float wall = 0f, dash = 0f, burst = 0f;
+                for (float t = -0.5f; t <= 0.5f; t += dt)
                 {
-                    if (PerfectMath.WallJumpFromRunIsPerfect(t, loan, wallWindow)) wall += dt;
-                    if (PerfectMath.GraceJumpIsPerfect(t, wallWindow)) grace += dt;
+                    if (PerfectMath.WallJumpHybridIsPerfect(-t, t, wallWindow)) wall += dt;
                     if (PerfectMath.DashJumpIsPerfect(t, minDelay, dashWindow)) dash += dt;
                     if (PerfectMath.BurstIsPerfect(t, burstWindow)) burst += dt;
                 }
-                Assert.AreEqual(wallWindow, wall, dt + 1e-3f, "wall-jump window at " + fps + " fps");
-                Assert.AreEqual(wallWindow, grace, dt + 1e-3f, "grace window at " + fps + " fps");
+                Assert.AreEqual(wallWindow * 2f, wall, dt + 1e-3f, "hybrid wall-jump window at " + fps + " fps");
                 Assert.AreEqual(dashWindow, dash, dt + 1e-3f, "dash-jump window at " + fps + " fps");
                 Assert.AreEqual(burstWindow, burst, dt + 1e-3f, "burst window at " + fps + " fps");
             }
@@ -148,23 +135,21 @@ namespace VibeGame1.Tests
             if (!yaml.Contains("perfectWallJumpWindow:"))
                 Assert.Ignore("Player.prefab predates the perfect-timing fields — run VibeGame1/4. Build Prefabs " +
                               "(a missing YAML key deserialises to the field initialiser, which is not proof).");
-            Assert.AreEqual(0.26f, m.perfectWallJumpWindow, 1e-4f, "perfectWallJumpWindow");
+            Assert.AreEqual(0.20f, m.perfectWallJumpWindow, 1e-4f, "perfectWallJumpWindow");
             Assert.AreEqual(20f, m.perfectWallJumpRefund, 1e-4f, "perfectWallJumpRefund");
-            Assert.AreEqual(0.04f, m.perfectDashJumpMinDelay, 1e-4f, "perfectDashJumpMinDelay");
-            Assert.AreEqual(0.12f, m.perfectDashJumpWindow, 1e-4f, "perfectDashJumpWindow");
+            Assert.AreEqual(0.06f, m.perfectDashJumpMinDelay, 1e-4f, "perfectDashJumpMinDelay");
+            Assert.AreEqual(0.10f, m.perfectDashJumpWindow, 1e-4f, "perfectDashJumpWindow");
             Assert.AreEqual(30f, m.perfectDashJumpRefund, 1e-4f, "perfectDashJumpRefund");
             Assert.AreEqual(0.12f, m.perfectBurstWindow, 1e-4f, "perfectBurstWindow");
             Assert.AreEqual(30f, m.perfectBurstBonus, 1e-4f, "perfectBurstBonus");
 
-            // The learnable band: under ~0.08 s (Celeste's coyote) is a reflex nobody can practise; over
-            // ~0.20 s (Sekiro's un-spammed deflect) is free. Every window the player PRE-TIMES sits
-            // between. The wall jump is deliberately outside it and is asserted separately below: it is
-            // the one perfect the player REACTS to rather than anticipates, so it is sized to reaction
-            // time, not to the pre-timing band. Widening any of the others to match would be a mistake.
+            // Dash and burst remain compact timing windows. The wall exit is deliberately wider:
+            // its cue opens 0.20 s before a predictable release and the same 0.20 s is forgiveness
+            // after the release, matching the project's measured reaction floor without becoming automatic.
             foreach (var w in new[] { m.perfectDashJumpWindow, m.perfectBurstWindow })
                 Assert.That(w, Is.InRange(0.08f, 0.20f), "window " + w + "s is outside the learnable band");
             Assert.LessOrEqual(m.perfectWallJumpWindow, m.wallRunExitGrace,
-                "the perfect grace window is wider than the exit grace itself, so part of it can never fire.");
+                "the post-release half is wider than exit grace, so part of its forgiveness cannot fire.");
 
             var st = Player().GetComponent<PlayerStamina>();
             Assert.IsNotNull(st);
@@ -186,26 +171,20 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0.6f, feel.perfectPromptSeconds, 1e-4f, "perfectPromptSeconds");
         }
 
-        // ---------------------------------------------------------------- reachable by reaction
+        // ---------------------------------------------------------------- taught reaction window
 
         /// <summary>
-        /// THE TEST WHOSE ABSENCE LET A BUG SHIP. A perfect the player must PRE-TIME is a skill; a
-        /// perfect they are told about too late to hit is a lottery that punishes the correct response.
+        /// The wall cue opens with the hybrid's pre-release half, then the same duration remains after
+        /// release as forgiveness. The asserted lead must cover the project's measured reaction time.
         ///
-        /// <para>Until 2026-09-07 the wall-jump perfect was judged against <c>wallRunMaxDuration</c>
-        /// expiring, with the only cue (the let-go sag and <c>Sfx.Land</c>) firing AT the drop and an
-        /// exit grace of 0.15 s. This project's own measured human reaction is ~0.20 s
-        /// (ENGINEERING-LOG, "a cue that fires too close to the impact"), so a player who reacted to the
-        /// cue pressed after the grace had shut, fell through to the ordinary wall-jump path and PAID
-        /// 12 stamina. Reacting was strictly worse than not reacting.</para>
+        /// <para>The cue is anchored to the next predictable natural release (clock, decay or stamina),
+        /// rather than an old black-box maximum-duration threshold. An unexpected lost face retains only
+        /// the post-release forgiveness because a false early cue would teach the wrong moment.</para>
         ///
-        /// <para>The parry already had this bug and already fixed it, with the invariant
-        /// <c>cueLead ~= 0.20 + perfectWindow / 2</c>. This asserts the movement side of the same rule:
-        /// where the cue arrives at the moment the window opens, the window itself must outlast a
-        /// reaction. Read off the shipped prefab, never a field initialiser (rule 9).</para>
+        /// <para>Read the lead from the shipped prefab, never a field initialiser (rule 9).</para>
         /// </summary>
         [Test]
-        public void TheWallJumpPerfect_IsReachableByReaction()
+        public void TheWallJumpPerfectLeadAndForgiveness_AreReachableByReaction()
         {
             var m = Motor();
             if (m == null) Assert.Ignore("Player.prefab not built yet - run VibeGame1/4. Build Prefabs.");
@@ -214,16 +193,14 @@ namespace VibeGame1.Tests
 
             Assert.GreaterOrEqual(m.wallRunExitGrace, Reaction,
                 "the exit grace (" + m.wallRunExitGrace + " s) is shorter than a human reaction (" +
-                Reaction + " s), so a player who reacts to the wall dropping them misses the grace " +
-                "entirely, falls through to the FindWall path and is CHARGED stamina for reacting " +
-                "correctly. This is exactly the bug the parry's cueLead fixed.");
+                Reaction + " s), so the post-release forgiveness cannot answer a normal reaction.");
 
             Assert.GreaterOrEqual(m.perfectWallJumpWindow, Reaction,
                 "the perfect window (" + m.perfectWallJumpWindow + " s) closes before a " + Reaction +
-                " s reaction lands. The cue fires AT the drop, so the window IS the reaction budget.");
+                " s reaction lands. The cue opens at this window's pre-release edge.");
 
             Assert.LessOrEqual(m.perfectWallJumpWindow, m.wallRunExitGrace,
-                "the perfect window outlasts the exit grace, so part of it can never fire.");
+                "the post-release half outlasts exit grace, so part of it can never fire.");
         }
 
     }

@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.EnemyData
   displayName: Surge Turret
   maxHP: 1
-  maxPosture: 200
+  maxPosture: 1
   postureRegen: 0
   postureRegenDelay: 99
   staggerSeconds: 0.1
+  usesPosture: 0
+  isTurret: 1
   moveSpeed: 0
   turnSpeed: 300
   aggroRange: 36
@@ -55,6 +57,10 @@ MonoBehaviour:
   parriedProjectileDamage: 30
   parriedProjectilePosture: 40
   parrySpeedGain: 9
+  projectileVisualScale: 1.35
+  projectileTrailScale: 1.3
+  projectileCueScale: 1.25
+  perfectBurstParriesToDestroy: 0
   parrySurgeStep: 0.12
   parrySurgeMaxStacks: 5
   parrySurgeSeconds: 1.4

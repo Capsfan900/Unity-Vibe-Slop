@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NeonMortis.EnemyData
   displayName: Heavy Sentry
   maxHP: 130
-  maxPosture: 330
-  postureRegen: 5
+  maxPosture: 1
+  postureRegen: 0
   postureRegenDelay: 3
   staggerSeconds: 3.5
+  usesPosture: 0
+  isTurret: 1
   moveSpeed: 3.9
   turnSpeed: 260
   aggroRange: 16
@@ -41,9 +43,9 @@ MonoBehaviour:
   shootsProjectiles: 1
   rangedOnly: 1
   projectileAttack: {fileID: 11400000, guid: f1fbde8b4cdfeb749a8f9571c53ff975, type: 2}
-  projectileInterval: 2.4
+  projectileInterval: 0.9
   projectileBurstCount: 3
-  projectileBurstInterval: 0.42
+  projectileBurstInterval: 0.4
   projectileAcquireDelay: 0.7
   projectileSpeed: 36
   projectileMinRange: 6
@@ -52,9 +54,13 @@ MonoBehaviour:
   projectileHomingDegPerSec: 150
   projectileAllowTightRouteShots: 0
   projectileIgnoreDepartureSupport: 1
-  parriedProjectileDamage: 45
-  parriedProjectilePosture: 50
+  parriedProjectileDamage: 0
+  parriedProjectilePosture: 0
   parrySpeedGain: 9
+  projectileVisualScale: 1.2
+  projectileTrailScale: 1.2
+  projectileCueScale: 1.15
+  perfectBurstParriesToDestroy: 3
   parrySurgeStep: 0
   parrySurgeMaxStacks: 0
   parrySurgeSeconds: 2

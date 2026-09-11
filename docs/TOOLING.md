@@ -353,7 +353,7 @@ only. Pauses via `TimeScaleController` and unlocks the cursor.
 | Column | Buttons |
 |---|---|
 | **WARP** | Start · Checkpoint 1 · Checkpoint 2 · Boss Arena |
-| **GIVE ITEM** | Grapple · WallSurge |
+| **GIVE ITEM** | Grapple · Rebound · Deflect Sigil |
 | **WEAPON** | Slot 1–4 |
 | **PLAYER** | Full restore · Toggle god mode · +1000 souls · Break my posture · **Wand pedestal: OFF/ON** (shows / hides the spawn altar — `WandPedestal.DevMenuEnabled`, off by default; without it the player keeps the prefab loadout, Emberlance equipped) |
 | **ENEMIES** | Kill nearby · Stagger nearby · Reset enemies |

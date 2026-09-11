@@ -282,7 +282,7 @@ namespace VibeGame1
     {
         public string name = "Pickup";
 
-        [Tooltip("Item asset name in Assets/Data/Items, without the extension — 'Grapple' or 'WallSurge'. " +
+        [Tooltip("Item asset name in Assets/Data/Items, without the extension — 'Grapple', 'Rebound' or 'DeflectSigil'. " +
                  "A key rather than a reference so DataFactory can recreate items freely.")]
         public string itemKey = "Grapple";
 
@@ -495,6 +495,13 @@ namespace VibeGame1
                  "continue the sequence. Zero preserves the legacy wait-for-projectile-lifetime behavior.")]
         public float shotResolutionTimeout = 0f;
 
+        [Tooltip("Optional first-member arm-up override in seconds. -1 uses that enemy type's acquire delay; " +
+                 "zero is appropriate when the level's approach already supplies the visual read.")]
+        public float firstMemberAcquireDelay = -1f;
+
+        [Tooltip("Index to resume after the final member's incoming phrase resolves. -1 runs once; valid indices loop after the normal recovery gap.")]
+        public int repeatFromIndex = -1;
+
         [Tooltip("World-space origin for optional per-member progress gates.")]
         public Vector3 progressOrigin;
 
@@ -516,7 +523,11 @@ namespace VibeGame1
         /// </summary>
         public bool CoordinatesRuntime
         {
-            get { return memberProgressGates != null && memberProgressGates.Length > 0; }
+            get
+            {
+                return (memberProgressGates != null && memberProgressGates.Length > 0) ||
+                       repeatFromIndex >= 0;
+            }
         }
     }
 

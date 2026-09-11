@@ -345,6 +345,10 @@ namespace VibeGame1.EditorTools
             // silence; the runtime bolt itself has never collided with world geometry.
             sentryGrunt.projectileAllowTightRouteShots = true;
             sentryGrunt.projectileIgnoreDepartureSupport = false;
+            sentryGrunt.projectileVisualScale = 1.10f; sentryGrunt.projectileTrailScale = 1.10f;
+            sentryGrunt.projectileCueScale = 1.10f;
+            sentryGrunt.usesPosture = true; sentryGrunt.isTurret = false;
+            sentryGrunt.perfectBurstParriesToDestroy = 0;
             // THE GHOST (2026-09-06, user-directed body redesign; see PrefabFactory.BuildGhostBody).
             // bodyColor is written into the SHELL's _BaseColor by EnemyVisuals, so it must be the same
             // value as M_SentryGhost's albedo or the shell and the hem would be two different colours.
@@ -360,10 +364,13 @@ namespace VibeGame1.EditorTools
             sentryHeavy.name = "pshooter_enemy02";
             sentryHeavy.displayName = "Heavy Sentry";
             sentryHeavy.shootsProjectiles = true; sentryHeavy.rangedOnly = true; sentryHeavy.flaskPunishChance = 0f;
-            // The dark reliquary asks for a rapid THREE-PARRY phrase. 0.42 is contact cadence, not launch
-            // cadence: cue 0.28 + perfect recovery 0.08 + 0.06 s of honest slack. projectileInterval 2.4
-            // stays the quiet cooldown and starts only after the third emission.
-            sentryHeavy.projectileBurstCount = 3; sentryHeavy.projectileBurstInterval = 0.42f;
+            // The dark reliquary asks for a rapid THREE-PARRY phrase. 0.40 is contact cadence, not launch
+            // cadence: cue 0.28 + perfect recovery 0.08 + 0.04 s of honest slack. projectileInterval 0.90
+            // is the quiet cooldown and starts from the final incoming answer, not the third emission.
+            sentryHeavy.projectileBurstCount = 3; sentryHeavy.projectileBurstInterval = 0.40f;
+            sentryHeavy.projectileInterval = 0.90f;
+            sentryHeavy.perfectBurstParriesToDestroy = 3;
+            sentryHeavy.usesPosture = false; sentryHeavy.isTurret = true;
             sentryHeavy.projectileAllowTightRouteShots = false;
             // A full phrase needs two follow-up contacts while a 27.5 m/s runner is still crossing its
             // answerable approach. The inherited 32 m band was barely one second of route coverage and
@@ -374,11 +381,14 @@ namespace VibeGame1.EditorTools
             // permanently silencing the Heavy. Ignore only that detected standing support during departure;
             // every other broad obstruction remains conservative.
             sentryHeavy.projectileIgnoreDepartureSupport = true;
+            sentryHeavy.projectileVisualScale = 1.20f; sentryHeavy.projectileTrailScale = 1.20f;
+            sentryHeavy.projectileCueScale = 1.15f;
             // The shipped DevBlade is the upper bound: 60 * 1.2 = 72 immediate posture, plus 50 on
             // each reflected return. Two complete exchanges are 244; the third parry reaches 316.
             // At 330 the deathblow prompt therefore cannot replace the third projectile answer, while
             // the third 45-damage return still kills its 130 HP body. This is sequencing safety.
-            sentryHeavy.maxPosture = 330f;
+            sentryHeavy.maxPosture = 1f; sentryHeavy.postureRegen = 0f;
+            sentryHeavy.parriedProjectileDamage = 0f; sentryHeavy.parriedProjectilePosture = 0f;
             // The Heavy Sentry's dedicated reliquary body is a different creature from the pale ghost;
             // its dark cold slate also keeps the body out of the flare's tell hue. It remains the darkest
             // thing on a perch, so the pale ghost and broad heavy separate by shape and value at a glance.
@@ -404,6 +414,12 @@ namespace VibeGame1.EditorTools
             // tuned correctly and keeps the conservative broad clearance forecast unchanged.
             turret.projectileAllowTightRouteShots = false;
             turret.projectileIgnoreDepartureSupport = false;
+            // The final descent is read at maximum lateral/vertical screen motion. Make this enemy type's
+            // existing warm attack larger and broader without changing its collision, path or timing.
+            turret.projectileVisualScale = 1.35f; turret.projectileTrailScale = 1.30f;
+            turret.projectileCueScale = 1.25f;
+            turret.usesPosture = false; turret.isTurret = true;
+            turret.perfectBurstParriesToDestroy = 0;
 
             // ONE HIT, FROM ANYTHING. 1 HP: a swing, a reflected bolt, a wand, a riposte -- every damage
             // source in the game does at least 1. Not 0 (Health treats a zero-max body as a divide it has
@@ -414,7 +430,7 @@ namespace VibeGame1.EditorTools
             // one deflect. Without this the turret would stagger and raise a DEATHBLOW glyph for the ~0.3 s
             // the reflected bolt is in the air -- a duel prompt on a body that is already dead. It also
             // means no posture break, so SentryBurst's flare never fires; the prefab does not carry one.
-            turret.maxPosture = 200f; turret.postureRegen = 0f; turret.postureRegenDelay = 99f;
+            turret.maxPosture = 1f; turret.postureRegen = 0f; turret.postureRegenDelay = 99f;
             turret.staggerSeconds = 0.1f;
             // It never moves. moveSpeed is dead weight on a rangedOnly body (EnemyController.Chase stops the
             // locomotion outright) but is written small so nothing that reads it draws a walking turret.
@@ -2061,8 +2077,7 @@ namespace VibeGame1.EditorTools
             EditorUtility.SetDirty(dev);
 
             // ---------------- Items (Neon White style single-use pickups) ----------------
-            // Exactly two, and both are MOVES. The level is built around them (kill to move, wall to
-            // move); nothing in this slot heals or protects. Rule 9: every tunable is written here.
+            // Wall Surge is retired: it paid out on use and flattened wall skill expression.
             Item("Grapple", i =>
             {
                 i.displayName = "Grapple"; i.shortLabel = "HOOK";
@@ -2072,18 +2087,31 @@ namespace VibeGame1.EditorTools
                 i.grappleConeDeg = 12f;
                 i.grappleSeconds = 0.35f;
                 i.grappleBigPostureFraction = 0.35f;
-                i.description = "Hook a foe in your sights and arrive with the blade. Lesser things die on the hook; " +
-                                "great ones are shaken, and you land at their feet.";
+                i.grapplePerfectWindow = 0.13f;
+                i.description = "Hook a foe. Against a turret, cross its incoming bolt on the Hook timing: " +
+                                "the bolt deflects, the turret breaks, and your next airborne dash-jump is empowered.";
             });
-            Item("WallSurge", i =>
+            Item("Rebound", i =>
             {
-                i.displayName = "Wall Surge"; i.shortLabel = "SURGE";
-                i.effect = ItemEffect.WallSurge;
-                i.color = Hdr("#FFE24A", 5f);   // neon yellow: the fan, the wall arcs, the HUD slot
-                i.surgeSeconds = 8f;
-                i.description = "For eight seconds every wall is a road: free to run, faster than the floor, " +
-                                "and it catches you at any speed.";
+                i.displayName = "Rebound"; i.shortLabel = "REBOUND";
+                i.effect = ItemEffect.Rebound;
+                i.color = Hdr("#7BFFB2", 4f);
+                i.reboundExitMultiplier = 1.18f;
+                i.reboundBonusSpeed = 3f;
+                i.description = "Arm your next successful airborne dash or wall jump. That exit refreshes " +
+                                "your air dash and carries a stronger, capped burst.";
             });
+            Item("DeflectSigil", i =>
+            {
+                i.displayName = "Deflect Sigil"; i.shortLabel = "SIGIL";
+                i.effect = ItemEffect.DeflectSigil;
+                i.color = Hdr("#D6A2FF", 4.5f);
+                i.deflectSigilBonusStacks = 2;
+                i.deflectSigilImpulse = 5f;
+                i.description = "Arm until your next Perfect. Blocks and misses do not spend it; the Perfect " +
+                                "adds two speed stacks and a stronger forward impulse.";
+            });
+            AssetDatabase.DeleteAsset(ItemsDir + "/WallSurge.asset");
 
             // ---------------- Singletons ----------------
             var stats = GetOrCreate<PlayerStatsData>(DataRoot + "/PlayerStats.asset");
@@ -2110,7 +2138,7 @@ namespace VibeGame1.EditorTools
             // permanent traversal speed.
             stats.generalParrySurgeStep = 0.12f;
             stats.generalParrySurgeMaxStacks = 5;
-            stats.generalParrySurgeSeconds = 2f;
+            stats.generalParrySurgeSeconds = 3.2f;
             stats.blockDamageMultiplier = 0.3f;
             stats.facingConeDeg = 75f;
             stats.basePosture = 100f;

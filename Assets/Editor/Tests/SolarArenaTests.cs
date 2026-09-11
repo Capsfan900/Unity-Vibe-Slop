@@ -104,22 +104,22 @@ namespace VibeGame1.Tests
         [Test]
         public void RigidSectionSpacingCarriesEveryAuthoredContentType()
         {
-            Assert.That(def.platforms.Single(p => p.name == "T2_Tower").center.z, Is.EqualTo(162f).Within(Eps));
-            Assert.That(def.ramps.Single(r => r.name == "T2_Ramp_L2_L3").basePosition.z, Is.EqualTo(163.8f).Within(Eps));
-            Assert.That(def.spawns.Single(s => s.name == "Spawn_T2_GruntA").position.z, Is.EqualTo(172f).Within(Eps));
+            Assert.That(def.platforms.Single(p => p.name == "T2_L1").center.z, Is.EqualTo(151.375f).Within(Eps));
+            Assert.That(def.platforms.Single(p => p.name == "T2_L11").center.z, Is.EqualTo(183.5f).Within(Eps));
+            Assert.That(def.spawns.Single(s => s.name == "Spawn_T2_GruntA").position.z, Is.EqualTo(179f).Within(Eps));
             Assert.That(def.pickups.Single(p => p.name == "Pickup_T2_Hook").position.z, Is.EqualTo(151.375f).Within(Eps));
             Assert.That(def.checkpoints.Single(c => c.name == "Checkpoint_2").position.z, Is.EqualTo(151.375f).Within(Eps));
-            Assert.That(def.torches.Single(t => t.name == "Torch_T2_Mid").basePosition.z, Is.EqualTo(145.425f).Within(Eps));
+            Assert.That(def.torches.Single(t => t.name == "Torch_T2_Mid").basePosition.z, Is.EqualTo(142f).Within(Eps));
 
-            Assert.That(def.platforms.Single(p => p.name == "T3_Pillar_1").center.z, Is.EqualTo(268f).Within(Eps));
-            Assert.That(def.spawns.Single(s => s.name == "Spawn_T3_Grunt").position.z, Is.EqualTo(291.8f).Within(Eps));
+            Assert.That(def.platforms.Single(p => p.name == "T3_Pillar_1").center.z, Is.EqualTo(266f).Within(Eps));
+            Assert.That(def.spawns.Single(s => s.name == "Spawn_T3_Grunt").position.z, Is.EqualTo(289f).Within(Eps));
             Assert.That(def.pickups.Single(p => p.name == "Pickup_T3_Surge").position.z, Is.EqualTo(268f).Within(Eps));
             Assert.That(def.checkpoints.Single(c => c.name == "Checkpoint_3").position.z, Is.EqualTo(268f).Within(Eps));
-            Assert.That(def.torches.Single(t => t.name == "Torch_T3_Span_S").basePosition.z, Is.EqualTo(291.3f).Within(Eps));
-            Assert.That(def.balloons.Single(b => b.name == "T3_Arc_1").position.z, Is.EqualTo(267f).Within(Eps));
-            Assert.That(def.waters.Single(w => w.name == "T3_Water_Span").center.z, Is.EqualTo(306.75f).Within(Eps));
+            Assert.That(def.torches.Single(t => t.name == "Torch_T3_Span_S").basePosition.z, Is.EqualTo(301f).Within(Eps));
+            Assert.AreEqual(0, def.balloons.Length);
+            Assert.That(def.waters.Single(w => w.name == "T3_Water_Span").center.z, Is.EqualTo(305f).Within(Eps));
             Assert.That(def.ramps.Single(r => r.name == "T4_Ramp_Descent").basePosition.z, Is.EqualTo(394.8f).Within(Eps));
-            Assert.That(def.spawns.Single(s => s.name == "Spawn_T4_Surge_1").position.z, Is.EqualTo(420f).Within(Eps));
+            Assert.That(def.spawns.Single(s => s.name == "Spawn_T4_Surge_1").position.z, Is.EqualTo(418.8f).Within(Eps));
             Assert.That(def.platforms.Single(p => p.name == "Boss_Approach").center.z, Is.EqualTo(448.3f).Within(Eps));
 
             // Realm migration identity is separate from course geometry: these anchors never move.
@@ -189,8 +189,7 @@ namespace VibeGame1.Tests
         static bool IsApproachPlatform(string gate, string name)
         {
             if (gate == "T1_Gate")
-                return name == "T1_Causeway" || name == "T1_Rail_L" || name == "T1_Rail_R" ||
-                       name == "T1_Wall_Causeway" || name == "T1_Wall_Landing";
+                return name == "T1_Causeway";
             if (gate == "T2_Gate") return name == "T2_L11";
             if (gate == "T3_Gate") return name == "T3_Step_1" || name == "T3_Step_2";
             if (gate == "Boss_Gate")
@@ -201,9 +200,9 @@ namespace VibeGame1.Tests
         static bool IsApproachTorch(string gate, string name)
         {
             if (gate == "T1_Gate")
-                return name == "Torch_T1_Causeway_N" || name == "Torch_Beacon_Alt_T1_Landing" ||
-                       name == "Torch_Beacon_T1_Causeway_2";
-            return gate == "T2_Gate" && name == "Torch_T2_Top";
+                return name == "Torch_T1_Causeway_N" || name == "Torch_Beacon_T1_Causeway_2";
+            return gate == "T2_Gate" &&
+                   (name == "Torch_T2_Top" || name == "Torch_Beacon_T2_L11");
         }
 
         static float DistanceToBox(Vector3 point, Vector3 boxCenter, Vector3 boxSize)
@@ -243,8 +242,12 @@ namespace VibeGame1.Tests
                 float nearTriggerZ = realm.exteriorCenter.z -
                     Mathf.Sqrt(realm.exteriorRadius * realm.exteriorRadius - dy * dy);
                 float gap = nearTriggerZ - (deck.center.z + deck.size.z * 0.5f);
-                Assert.That(gap, Is.GreaterThan(1f).And.LessThanOrEqualTo(8.5f),
-                    gates[i] + " transition must be an open but contract-reachable slide-jump; gap=" + gap);
+                if (i < 3)
+                    Assert.That(gap, Is.InRange(13.5f, 15.5f),
+                        gates[i] + " must require projectile-earned carry; gap=" + gap);
+                else
+                    Assert.That(gap, Is.GreaterThan(1f).And.LessThanOrEqualTo(8.5f),
+                        gates[i] + " boss transition remains an ordinary open jump; gap=" + gap);
             }
         }
 

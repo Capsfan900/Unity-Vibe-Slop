@@ -7,10 +7,9 @@ namespace VibeGame1
     /// <summary>
     /// Carries single-use pickups and spends them. FIFO: the leftmost HUD slot is the one that fires.
     ///
-    /// <para>Two items exist and both are TRAVERSAL: the Grapple hooks an enemy, pulls you to it and
-    /// deathblows it on arrival (Sekiro's grapple-kill, Neon White's kill-to-move), and the Wall Surge
-    /// makes every wall run free, faster and attachable from any speed for a few seconds. The level is
-    /// built around those two moves; nothing here heals or protects.</para>
+    /// <para>HOOK converts a matching turret bolt into a movement kill, REBOUND strengthens the next
+    /// legal airborne exit, and DEFLECT SIGIL waits for a real Perfect before paying out. Nothing here
+    /// heals or protects, and no item synthesises a combat contact.</para>
     /// </summary>
     public class PlayerItems : MonoBehaviour
     {
@@ -23,6 +22,8 @@ namespace VibeGame1
 
         /// <summary>The enemy a Grapple pull is flying toward, or null. Read by tests and the HUD.</summary>
         public EnemyController GrappleTarget { get; private set; }
+        public bool DeflectSigilArmed { get; private set; }
+        public bool ReboundArmed { get { return motor != null && motor.IsReboundArmed; } }
 
         PlayerCombat combat;
         FirstPersonMotor motor;
@@ -32,7 +33,10 @@ namespace VibeGame1
         OffhandViewmodel offhand;
         CharacterController cc;
         readonly Collider[] buf = new Collider[48];
-        Coroutine surgePrompt;
+        ItemData activeHookItem;
+        Projectile qualifiedHookProjectile;
+        float hookPressedAt = -99f;
+        ItemData armedSigil;
 
         /// <summary>Hook cyan, for the line and the commit flare when the item's own colour is unset.</summary>
         static readonly Color HookFallback = new Color(0.35f, 0.95f, 1f);
@@ -51,11 +55,16 @@ namespace VibeGame1
         void OnEnable()
         {
             GameEvents.PlayerRespawned += ClearAll;
+            GameEvents.PlayerDied += ClearArmedEffects;
+            GameEvents.ParryResolved += OnParryResolved;
         }
 
         void OnDisable()
         {
             GameEvents.PlayerRespawned -= ClearAll;
+            GameEvents.PlayerDied -= ClearArmedEffects;
+            GameEvents.ParryResolved -= OnParryResolved;
+            ClearArmedEffects();
         }
 
         void Start() { Broadcast(); }
@@ -117,10 +126,23 @@ namespace VibeGame1
         {
             held.Clear();
             GrappleTarget = null;
+            activeHookItem = null;
+            qualifiedHookProjectile = null;
+            ClearArmedEffects();
             Broadcast();
         }
 
-        void Broadcast() => GameEvents.RaiseItemsChanged(held.ToArray());
+        void Broadcast()
+        {
+            GameEvents.RaiseItemsChanged(held.ToArray());
+            if (offhand == null) return;
+            if (Current != null) offhand.ShowItem(Current);
+            else
+            {
+                var wands = GetComponent<WandController>();
+                offhand.ShowWand(wands != null ? wands.Current : null);
+            }
+        }
 
         // ---- effects ---------------------------------------------------------------------------
 
@@ -130,7 +152,9 @@ namespace VibeGame1
             switch (item.effect)
             {
                 case ItemEffect.Grapple: return TryGrapple(item);
-                case ItemEffect.WallSurge: DoWallSurge(item); return true;
+                case ItemEffect.Rebound: return TryArmRebound(item);
+                case ItemEffect.DeflectSigil: return TryArmSigil(item);
+                case ItemEffect.WallSurge: return false; // retired serialized value; never reinterpret it
             }
             return false;
         }
@@ -214,8 +238,50 @@ namespace VibeGame1
                 AudioManager.Play(Sfx.Click, 0.5f, 0.7f);
                 return false;
             }
+            hookPressedAt = Time.time;
+            activeHookItem = item;
+            qualifiedHookProjectile = null;
             StartCoroutine(PullCo(target, item.grappleSeconds, item.color, Sfx.Dash, 0.75f, item.grappleBigPostureFraction));
             return true;
+        }
+
+        /// <summary>
+        /// Called only from ParryController while resolving a real projectile contact. A Hook timing
+        /// source is valid for the matching turret during the active pull and only for its authored
+        /// E-to-contact window. It cannot parry melee or another shooter's bolt.
+        /// </summary>
+        public bool TryResolveHookParry(Projectile projectile, EnemyController shooter)
+        {
+            if (projectile == null || !projectile.IsIncoming || shooter == null ||
+                shooter != GrappleTarget || activeHookItem == null)
+                return false;
+            if (motor == null || !motor.IsPulling || shooter.data == null || !shooter.data.isTurret)
+                return false;
+            float elapsed = Time.time - hookPressedAt;
+            if (elapsed < 0f || elapsed > Mathf.Max(0.01f, activeHookItem.grapplePerfectWindow)) return false;
+            qualifiedHookProjectile = projectile;
+            return true;
+        }
+
+        /// <summary>Completes the already-judged Hook Perfect after Projectile has paid its movement
+        /// impulse. The ordinary Health path owns death, souls, respawn and all listeners.</summary>
+        public void CompleteHookPerfect(Projectile projectile, EnemyController shooter)
+        {
+            if (projectile == null || projectile != qualifiedHookProjectile || shooter == null ||
+                shooter != GrappleTarget || !shooter.IsAlive) return;
+            qualifiedHookProjectile = null;
+            if (motor != null) motor.PrimeHookDashJump();
+            if (shooter.Health != null)
+            {
+                shooter.Health.TakeDamage(new DamageInfo
+                {
+                    damage = shooter.Health.Current + 1f,
+                    point = projectile.transform.position,
+                    direction = shooter.transform.position - transform.position,
+                    source = gameObject,
+                    isExecute = false
+                });
+            }
         }
 
         /// <summary>The transform position that puts the player at deathblow stand-off from
@@ -241,6 +307,7 @@ namespace VibeGame1
         IEnumerator PullCo(EnemyController e, float seconds, Color colour, Sfx sound, float pitch, float bigPostureFraction)
         {
             GrappleTarget = e;
+            bool turretHook = e != null && e.data != null && e.data.isTurret;
             Color hue = colour.maxColorComponent > 0.01f ? colour : HookFallback;
             Vector3 eye = look != null && look.Cam != null ? look.Cam.position : transform.position;
 
@@ -253,14 +320,17 @@ namespace VibeGame1
             if (CameraFX.I != null) CameraFX.I.FovKick(10f);
             AudioManager.Play(sound, 0.8f, pitch);
 
-            motor.BeginPull(StandoffPoint(e), seconds);
+            motor.BeginPull(StandoffPoint(e), seconds, !turretHook);
 
             // Ride the pull. If the victim dies or vanishes under us (a friend's super, a pit) the arc
             // still finishes: the motor owns it and the player still arrives somewhere sensible.
             while (motor.IsPulling) yield return null;
+            bool arrived = motor.LastPullArrived;
             GrappleTarget = null;
+            activeHookItem = null;
+            qualifiedHookProjectile = null;
 
-            if (e == null || !e.IsAlive) yield break;
+            if (!arrived || turretHook || e == null || !e.IsAlive) yield break;
 
             if (CameraShake.I != null) CameraShake.I.Small();
 
@@ -290,33 +360,46 @@ namespace VibeGame1
             }
         }
 
-        // ---- Wall surge ------------------------------------------------------------------------
+        // ---- Armed items -----------------------------------------------------------------------
 
-        void DoWallSurge(ItemData item)
+        bool TryArmRebound(ItemData item)
         {
-            float seconds = Mathf.Max(0.1f, item.surgeSeconds);
-            if (motor != null) motor.StartWallSurge(seconds);
-            Color hue = item.color.maxColorComponent > 0.01f ? item.color : Color.yellow;
-            ItemVfx.Surge(transform, motor, hue, seconds);
-            if (CameraFX.I != null) CameraFX.I.FovKick(6f);
-            if (ScreenFlash.I != null) ScreenFlash.I.Flash(hue, 0.08f, 0.25f);
-            if (surgePrompt != null) StopCoroutine(surgePrompt);
-            surgePrompt = StartCoroutine(SurgePromptCo());
+            if (motor == null || motor.IsReboundArmed) return false;
+            motor.ArmRebound(item.reboundExitMultiplier, item.reboundBonusSpeed);
+            GameEvents.RaisePromptFlash("REBOUND ARMED", 0.8f);
+            return true;
         }
 
-        /// <summary>"SURGE 8s" counting down on the HUD prompt, once a second. Shares the prompt line
-        /// with the deathblow prompt; a deathblow overwrite is re-asserted on the next tick.</summary>
-        IEnumerator SurgePromptCo()
+        bool TryArmSigil(ItemData item)
         {
-            int last = -1;
-            while (motor != null && motor.IsWallSurging)
-            {
-                int s = Mathf.CeilToInt(motor.WallSurgeRemaining);
-                if (s != last) { last = s; GameEvents.RaisePromptChanged(PromptOwner.Surge, "SURGE " + s + "s"); }
-                yield return null;
-            }
-            GameEvents.RaisePromptChanged(PromptOwner.Surge, "");
-            surgePrompt = null;
+            if (DeflectSigilArmed) return false;
+            DeflectSigilArmed = true;
+            armedSigil = item;
+            GameEvents.RaisePromptFlash("SIGIL AWAITS A PERFECT", 0.9f);
+            return true;
+        }
+
+        void OnParryResolved(ParryResult result)
+        {
+            if (result != ParryResult.Perfect || !DeflectSigilArmed || armedSigil == null || motor == null) return;
+            ItemData sigil = armedSigil;
+            DeflectSigilArmed = false;
+            armedSigil = null;
+            var stats = GameManager.I != null ? GameManager.I.statsData : null;
+            if (stats != null)
+                ParrySurge.GrantBonus(motor, Mathf.Max(1, sigil.deflectSigilBonusStacks),
+                    stats.generalParrySurgeStep, stats.generalParrySurgeMaxStacks,
+                    stats.generalParrySurgeSeconds);
+            Vector3 aim = look != null ? look.AimForward : transform.forward;
+            motor.AddImpulse(ProjectileMath.SpeedGain(aim, sigil.deflectSigilImpulse));
+            GameEvents.RaisePromptFlash("SIGIL RELEASED", 0.7f);
+        }
+
+        void ClearArmedEffects()
+        {
+            DeflectSigilArmed = false;
+            armedSigil = null;
+            if (motor != null) motor.ClearItemMovementBonuses();
         }
     }
 }

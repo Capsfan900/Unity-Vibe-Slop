@@ -39,33 +39,20 @@ namespace VibeGame1
     public static class PerfectMath
     {
         /// <summary>
-        /// A wall jump pressed while still RUNNING is perfect when the run's loan has
-        /// <paramref name="windowBefore"/> seconds or less left — the wall is about to give up and you
-        /// left it on its last breath. Jumping the instant you attach is ordinary.
+        /// The hybrid wall-jump perfect starts in the final window before a predictable release;
+        /// it is not judged against an unseen fixed duration and remains open for the same brief
+        /// forgiveness after that release.
         /// </summary>
         /// <remarks>
-        /// NO LONGER CALLED BY THE MOTOR (2026-09-07). Kept as a pure law with its test because it
-        /// documents a shape that was tried and rejected: judging a perfect against a duration the
-        /// player cannot perceive and did not start. A run can end early by speed decay or by an empty
-        /// bar, so <paramref name="maxDuration"/> is not where the run actually ends -- and no cue
-        /// preceded it either way. <see cref="GraceJumpIsPerfect"/> is the only wall-jump perfect now.
-        /// Do not wire this back in without a cue that leads the moment by ~0.20 s.
+        /// The motor predicts clock, decay and stamina releases from the live run and opens the cue when
+        /// this law opens. A lost face has no honest lead, so it uses only the post-release half.
         /// </remarks>
-        public static bool WallJumpFromRunIsPerfect(float elapsed, float maxDuration, float windowBefore)
+        public static bool WallJumpHybridIsPerfect(float secondsToRelease, float secondsSinceRelease, float window)
         {
-            if (maxDuration <= 0f || windowBefore <= 0f) return false;
-            return elapsed >= maxDuration - windowBefore && elapsed <= maxDuration + 1e-4f;
-        }
-
-        /// <summary>
-        /// A wall jump pressed in the EXIT GRACE — the run ended on its own (expired, decayed, lost the
-        /// face, exhausted) and the press came within <paramref name="windowAfter"/> of the let-go. The
-        /// grace exists as forgiveness; the perfect is the same press read as skill, because reaching
-        /// it means you rode the wall until it let you go instead of bailing early.
-        /// </summary>
-        public static bool GraceJumpIsPerfect(float sinceLetGo, float windowAfter)
-        {
-            return windowAfter > 0f && sinceLetGo >= 0f && sinceLetGo <= windowAfter;
+            if (window <= 0f) return false;
+            bool before = secondsToRelease >= 0f && secondsToRelease <= window;
+            bool after = secondsSinceRelease >= 0f && secondsSinceRelease <= window;
+            return before || after;
         }
 
         /// <summary>

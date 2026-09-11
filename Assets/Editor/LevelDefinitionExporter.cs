@@ -149,10 +149,12 @@ namespace VibeGame1.EditorTools
                     recoveryGap = volley.RecoveryGap,
                     readinessTimeout = volley.ReadinessTimeout,
                     shotResolutionTimeout = volley.ShotResolutionTimeout,
+                    firstMemberAcquireDelay = volley.FirstMemberAcquireDelay,
                     progressOrigin = volley.ProgressOrigin,
                     progressDirection = volley.ProgressDirection,
                     memberProgressGates = volley.MemberProgressGates,
-                    engagementWindows = volley.EngagementWindows
+                    engagementWindows = volley.EngagementWindows,
+                    repeatFromIndex = volley.RepeatFromIndex
                 });
                 skipNames.Add(volley.name);
             }

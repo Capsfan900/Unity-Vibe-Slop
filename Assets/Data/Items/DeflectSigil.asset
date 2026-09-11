@@ -10,18 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e21a596daad07f7498bdd915254f0c9d, type: 3}
-  m_Name: WallSurge
+  m_Name: DeflectSigil
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ItemData
-  displayName: Wall Surge
-  shortLabel: SURGE
-  description: 'For eight seconds every wall is a road: free to run, faster than
-    the floor, and it catches you at any speed.'
-  effect: 1
-  color: {r: 5, g: 4.4313726, b: 1.4509804, a: 1}
-  viewmodelPrefab: {fileID: 4466756855791403990, guid: e078eb782a4a922448b16e2b026ff9f7, type: 3}
+  displayName: Deflect Sigil
+  shortLabel: SIGIL
+  description: Arm until your next Perfect. Blocks and misses do not spend it; the
+    Perfect adds two speed stacks and a stronger forward impulse.
+  effect: 3
+  color: {r: 3.7764707, g: 2.8588235, b: 4.5, a: 1}
+  viewmodelPrefab: {fileID: 839634465420938441, guid: 90282e9c91b83d248964138cac96e85d, type: 3}
   viewmodelScale: 0.5
   grappleRange: 28
   grappleConeDeg: 12
   grappleSeconds: 0.35
   grappleBigPostureFraction: 0.35
+  grapplePerfectWindow: 0.13
+  reboundExitMultiplier: 1.18
+  reboundBonusSpeed: 3
+  deflectSigilBonusStacks: 2
+  deflectSigilImpulse: 5
   surgeSeconds: 8

@@ -1,158 +1,61 @@
-# Handoff — spawn leaderboard, projectile AI, run scoring, status stacks and parry feel
+# Handoff — open parry route, Heavy/Hook/items and final-ramp reliability
 
-## Latest continuation — 2026-09-10
+## Current state — 2026-09-10
 
-The Heavy Reliquary follow-up is complete. The actual remaining failure was phrase-level: a single transient
-LOS/facing/flight rejection on contact two or three immediately erased the rest of the three-shot promise and
-started the 2.4 s cooldown. Heavy planning now preserves paid acquisition, uses the player's real look-facing,
-retries transient initial plans after 0.08 s, and re-plans active follow-ups only inside their existing finite
-deadline. Terminal life/target/range failures still cancel immediately, and persistent failures still time out
-without catch-up. The Heavy's generated range is 48 m so a full-speed runner receives the whole phrase.
+The interrupted Astra pass is complete and verified. No agent work remains in flight.
 
-Level 1 now has two requested `pshooter_enemy02` Heavy Reliquaries on cyan-trimmed flanking pads at
-`(-10,0.1,6)` and `(10,0.1,6)`, visually at the first ramp's bottom run-out and outside the route. They append
-to the existing progress-gated opening coordinator after the five unchanged Surge Turrets. The final live
-real-motor probe recorded 11 perfects / 11 shots: five one-shot Surge beats, Heavy 1 at 3/3, and Heavy 2 at
-3/3, with both ending `Ready/None` and no cancellation. Earlier seam placements reproduced the bug at 2/3
-and 0/3 because the final predicted arrival crossed just outside the 75-degree parry cone; moving the pads,
-not widening combat rules, fixed it. Both original T2 blue sentries also emitted repeatedly in fresh live
-route probes (6 lower / 8 upper).
+Level 1 is opened across the post-opening spaces so movement and projectile parries have room. T1–T3 retain
+autonomous blue sentries; the blue type was not retuned in this final repair. T0 remains an authored runtime
+sequence: five Surge Turrets once, then the two Heavy Reliquaries alternate repeatedly. T4 is now an authored
+three-member runtime sequence because its high-speed single-shot rhythm needs deterministic ordering.
 
-Final verification for this continuation: EditMode **1028/1028** (152.1 s), FeatureTests **804/804**
-(58.3 s), Level Arc and Projectile Encounter reports PASS, runtime/editor compiles have zero errors, and
-Health Check has no error section. The rollback tag is `pre-heavy-turret-root-cause-2026-09-10`. The user-owned
-music replacement, `.claude/settings.local.json`, `Portraits/`, and unrelated `RouteShots/` remain untouched.
+The Heavy Reliquary globally fires a rapid three-contact phrase at 0.40 s contact cadence, then rests 0.90 s
+from the final incoming answer. All three ordered projectiles from the same phrase must be Perfect to destroy
+it; any block, hit, expiry or cancellation invalidates that phrase. Its reflected bolts do zero damage on the
+first two answers, it has no posture/deathblow contract, and normal melee health damage still kills it.
 
-The previously interrupted session is now closed cleanly. Level 1 has a large cyan-glowing physical
-leaderboard behind the spawn, generated from `LevelDefinition.worldLeaderboard` and bound to the existing
-local `Leaderboard` model. It truthfully says `LOCAL BEST RUNS` / `SAVED ON THIS DEVICE`, supports eight
-rank/time/death rows, and leaves the removed screen-space GhostHud board disabled. Astra's final review found
-that the original populated typography could overlap the footer; the shipped 26-point row layout is now
-guarded by a preferred-height test using eight longest-form VERIFIED entries. The display is entirely on
-the Sky layer, has no colliders, and round-trips through the level exporter without becoming platforms.
+The final-ramp failure had two real timing causes. `ProjectileVolleySequence.Advance` transferred one
+shooter's personal refire cooldown to the next member, delaying later shots until they were behind the player.
+Now different members observe only the sequence's 0.11 s recovery gap, while each shooter enforces its own
+rest when selected again. T4 also uses an explicit zero first-member arm-up because its visible approach
+already teaches the row. Its three Surge perches sit at ramp progress 24/36/48 m and fire at gates 0/14/28 m.
+Projectile facing now uses the terminal incoming direction from the same accepted 120 Hz flight forecast.
 
-The lone end-of-level turret is `Spawn_T3_Heavy`, using `pshooter_enemy02` (the Heavy Reliquary). Its motor
-target was grounded but still carried the motor's deliberate negative-Y ground-stick, which made the flight
-planner forecast the player through the deck and reject later shots as `BlockedFlight`. Planning, runtime
-steering and runtime cue/contact prediction now share `GroundAwareTargetVelocity`: negative Y is cleared
-only on near-flat grounded support. Real falls, upward launches and slopes remain untouched. Ranged-only
-Recover also stops locomotion instead of running melee Reposition, so a parried Heavy stays on its perch.
+Hook is retained and reworked: E hooks a turret, and only the matching real incoming projectile colliding
+during the tight authored Hook timing can become a Perfect. That destroys the matching turret and primes one
+airborne bonus dash-jump. Wrong, reflected, late or unrelated projectiles cannot satisfy it. Non-turret Hook
+movement remains available. Wall Surge is retired without reusing its serialized enum value; Rebound and
+Deflect Sigil are shipped data items. Perfect dash-jump and wall-exit timing now have actionable HUD cues.
 
-Verification on the final tree: full EditMode **1025/1025** (160.1 s), focused board/projectile **44/44**,
-full FeatureTests **804/804** (58.9 s), Level Arc Report PASS, Projectile Encounter Report PASS, runtime
-compile clean, editor compile clean except the same 18 known warnings, and Health Check with no errors / the
-same 1932 broad warnings. The live Heavy fired repeated full phrases to nine shots with zero cancellations
-and did not move after a real parry. The opening ramp probe independently passed all five slope shots and
-parries with a full 1.60x boost, proving the existing ramp-turret behavior survived.
-
-Rollback tag: `pre-spawn-leaderboard-2026-09-09`. The implementation landed as the single
-revertible commit `[Astra] Add spawn leaderboard and repair Heavy turret bursts`. User-owned music changes,
-`.claude/settings.local.json`, `Portraits/`, and unrelated `RouteShots/` remain outside that commit.
-
-## What happened
-
-2026-09-09 continuation. Astra led the architecture and final safety review while cheaper agents audited
-offline compilation, UI hierarchy, documentation and requirement coverage. The ordinary blue
-`pshooter_enemy01` traversal sentries are autonomous and fire repeatedly through tight parkour whenever
-their exact predicted bolt line is clear. Brief rail/ledge occlusion no longer charges their 0.7 s acquire
-delay again, transient rejected plans retry after 0.08 s, and backpedalling uses the player's actual look
-direction rather than movement as a facing proxy. Every emission still passes range, LOS, frontal-arrival,
-solid-obstruction, contact and cue-safety gates.
-The T3 Heavy retains its conservative 1 m forecast but may leave only the exact support collider detected
-beneath it; solid lines, buried muzzles, siblings and later obstructions still fail closed. Surge/ramp
-turrets retain their already-correct tuning and do not inherit any of these tight-route exceptions.
-
-Runtime steering, contact prediction and cue timing now share `ProjectileMath.ForecastTargetVelocity`:
-motor velocity is authoritative and the fallback uses `TimeScaleController.PlayerDelta`, so world hitstop
-cannot manufacture a huge target velocity and suppress the warning. F8 god mode now remains damage immunity
-without muting a valid Perfect parry, reflection or speed reward; deathblow execution invulnerability still
-rejects attacks before parry resolution.
-
-The top-left HUD now presents the run requirement as two levels: primary `RUN earned/required`, then quieter
-FOES/SPLITS context. Its 184 px panel is sized for the maximum eight shipped rows and still supports optional live
-status-effect rows. Four restrained marks around the crosshair reinforce only an already-cued projectile
-inside the existing 0.28 s action window; they do not aim, select or reveal attacks early. A
-successful non-turret Perfect grants a +0.12 speed stack, capped at five, with one-stack 2.0 s decay; the
-F1 developer toggle hides only effects. Level_01 now has authored D–S split bonuses and a 3560-soul
-baseline equal to all three sub-bosses, the Warden and four 40-soul regulars, with all encounter gates
-required. Parry presentation uses the same source direction as combat, the rendered camera eye, a sharper
-viewmodel kick, and a shorter 0.35/0.12 s chromatic contact.
-
-2026-09-09. The Astra-led level, projectile, presentation and release-readiness pass is implemented and
-fully integrated. The post-first-miniboss route is no longer a rigidly translated cramped block: T2 is a
-broad local helix, T3 is a wider true wall-run span with a four-balloon alternate arc, and the later realm
-and boss move farther down-route. All four solar arenas have larger visual shells and measured empty space
-around their physical membranes, with obsolete interior court geometry removed.
-
-Projectile enemies now share one reusable contact-planning contract. `ProjectileFlightMath` provides
-allocation-free moving-target interception, capped homing and swept contact prediction. Authored
-`ProjectileEngagementWindowDef` corridors audit whether each encounter has legal route contacts; they are
-not runtime trigger volumes. Only the explicitly progress-gated T0 opening builds a volley coordinator.
-Ordinary T1-T4 sentries are autonomous again and repeat their normal range/LOS/facing/cue-safe firing loop.
-`VibeGame1/Projectile Encounter Report` audits any `LevelDefinition` at base, surge and maximum designed
-speed. The former pill-shaped Heavy Sentry is a broad three-aperture stone reliquary and fires a rapid
-three-shot, 0.42-second parry phrase followed by 2.4 seconds of quiet.
-
-The requested enemy-AI follow-up found one lifecycle hole: `EnemyController` acquired the player only once
-in `Start`, so a missing/replaced player or in-play domain reload could strand a valid enemy in Idle. It now
-reacquires only while its target references are absent or inconsistent. No combat timing, moveset, state,
-movement or perception mechanic was retuned.
-
-The same integrated tree also contains the completed release console/F10 gate, native resolution and arm
-settings, viewmodel and weapon/impact VFX pass, solar crossing time-warp sound, fog/lighting/horizon pass,
-finished architectural materials, and agent-agnostic project dashboard updates requested in this workstream.
-
-## State of the tree
-
-- Current rollback tag: `pre-spawn-leaderboard-2026-09-09`; the earlier projectile/UI rollback tag remains
-  historical context.
-- Recovery note: the original session completed implementation and verification but stopped before its
-  documented commit was created. The resumed Astra integration audited and recovered that intact worktree.
-- All required material/data/prefab/HUD/main-menu/level generators were run in the open Unity editor. The
-  canonical `Level_01` scene and shipped data/prefab values are current. Two consecutive level reworks
-  produced SHA-256 `7EE7FBB72B497D551673AC1C42E86C2DB90C31DE3142080FD19A9DCF925D4B89`.
-- The prior recovery is commit `7be071a` (`[Astra] Restore projectile AI, run scoring and parry feedback`).
-  The current spawn-board/Heavy continuation is one revertible Astra integration containing code,
-  generated scene, tests and system maps together.
-  The user's local `.claude/settings.local.json`, `Portraits/`, music changes and unrelated `RouteShots/`
-  capture output remain intentionally uncommitted. Only `RouteShots/spawn-leaderboard/` belongs to this pass.
-- No subagent work remains in flight.
+The top-left status strip includes toggleable effects, carried/armed item state and the run soul contract.
+Level 1 ships D–S split bonuses and requires the three sub-bosses, main boss and four regular-enemy soul
+values. Generated data, prefabs, HUD, main menu, level scene and NavMesh are current.
 
 ## Verification
 
-- Full EditMode: **1025/1025 passed**, zero failures/skips, **160.1 s**, on the final code and asset tree.
-  Focused leaderboard/projectile surface: **44/44**, including the eight-row rendered-height assertion.
-- Full FeatureTests: **804/804 passed**, zero failures/skips, **58.9 s**, from a fresh unpaused `Level_01`
-  session after checking `GameManager.I != null` and `Time.timeScale == 1`.
-- Live Level_01 probes: all five shipped ordinary placements emitted while the player moved through T1,
-  both T2 layers and T3; the lower T2 also fired during the look-back/backpedal case. A real blue bolt
-  Perfect reflected and paid one 1.12x stack. The T3 Heavy now emitted repeated full phrases to nine shots,
-  zero cancellations and no post-parry perch drift. Ramp turrets were not retuned; the opening descent probe
-  separately passed five slope shots/five parries with the full 1.60x boost.
-- Spawn leaderboard readback: one 10 x 5 m board at `(0, 39, -170.6)`, eight rows, all descendants on Sky,
-  zero colliders, local-only wording, and the legacy screen board still hidden.
-- Whole-fight `DebugHarness` runs passed for `parry`, `boss` and `death`: Spellsword/Knight completed with
-  8/8 perfect deflects and executions, all boss phases completed, and respawn rebuilt the enemy instance.
-- Health Check reports no error section / **1932 warnings**. Offline runtime and editor assemblies compile with zero
-  errors. The editor assembly retains 18 known
-  warnings: eight obsolete `FindObjectsByType` calls in `LevelDescentProbe` and ten JSON-populated Forge DTO
-  fields. These are unrelated to this pass.
-- Heavy portraits and updated T2/T3 player-eye route captures were reviewed. They prove composition, not
-  feel. T2 intentionally remains vertically layered despite its wider terraces.
+- Offline editor build: zero errors; 18 known warnings from probe API deprecations and Forge DTO fields.
+- Health Check: PASS.
+- Projectile Encounter Report: PASS at 11 / 17.6 / 27.5 m/s.
+- Level Arc Report: PASS.
+- Full EditMode: **935/935 passed**, zero failures/skips, 45.8 s.
+- Final targeted level-export persistence guard: **1/1 passed**.
+- Fresh unpaused FeatureTests: **801/801 passed**, zero failures/skips, 62.7 s.
+- T4 live real-motor probe: 3/3 shots, 3/3 Perfects/Surge grants, no cancellations, run-out reached.
+- T0 live real-motor probe: five Surge Perfects plus both Heavy 3/3 phrases, 11/11 total, 1.60x ladder.
 
-Automated checks prove geometry legality, data ownership, projectile contact arithmetic, generated values,
-state machines and effect budgets. They cannot prove player feel or visual comfort in motion.
+Rollback tag: `pre-open-parry-route-2026-09-10`.
 
-## Do first next session
+## Human playtest next
 
-1. Human-play the tight T1–T3 parkour at normal and surge speed. Confirm the frequent blue shots produce
-   useful movement choices rather than noise, and judge the Heavy's 0.42-second three-parry rhythm while moving.
-2. Complete a scored run and judge the two-level top-left status/run display, subtle crosshair projectile
-   bracket, D–S split payouts and 3560-soul gate.
-3. Judge the tighter parry recoil/chromatic contact and projectile cue/audio with real human timing.
-4. Turn around at the Level 1 spawn and judge the physical leaderboard's reading distance and glow with
-   both an empty board and several saved runs.
+1. Play the final ramp normally and judge the readability/cadence of its three large Surge projectiles.
+2. Judge the two opening Heavy 0.40 s triple-parry phrases with human timing and confirm a failed answer
+   clearly resets the three-Perfect requirement.
+3. Test Hook by pressing E on a turret and meeting its actual bolt; confirm the successful bonus airborne
+   dash-jump is understandable, while an early/late Hook still performs movement without the reward.
+4. Compare Rebound and Deflect Sigil, Perfect Jump cues, the opened post-opening route, status strip and
+   D–S split/soul economy in a complete run.
 
-## Open questions for the user
+## Preserved user-owned files
 
-Only human feel/appearance acceptance remains. No implementation or architecture decision is blocked.
+The music replacement under `Assets/Resources/Audio/Radio/`, `.claude/settings.local.json`, `Portraits/`
+and unrelated `RouteShots/` were not staged or modified by this pass.

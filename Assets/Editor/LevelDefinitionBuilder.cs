@@ -220,7 +220,7 @@ namespace VibeGame1.EditorTools
                         ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout,
                         sequence.shotResolutionTimeout,
                         sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates,
-                        null);
+                        null, sequence.repeatFromIndex, sequence.firstMemberAcquireDelay);
                 }
             }
 

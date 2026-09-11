@@ -10,16 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e21a596daad07f7498bdd915254f0c9d, type: 3}
-  m_Name: Grapple
+  m_Name: Rebound
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.ItemData
-  displayName: Grapple
-  shortLabel: HOOK
-  description: 'Hook a foe. Against a turret, cross its incoming bolt on the Hook
-    timing: the bolt deflects, the turret breaks, and your next airborne dash-jump
-    is empowered.'
-  effect: 0
-  color: {r: 1.7647059, g: 4.745098, b: 5, a: 1}
-  viewmodelPrefab: {fileID: 5387924563961540692, guid: e637fe0a881c1514dbfbf7c11212cdb9, type: 3}
+  displayName: Rebound
+  shortLabel: REBOUND
+  description: Arm your next successful airborne dash or wall jump. That exit refreshes
+    your air dash and carries a stronger, capped burst.
+  effect: 2
+  color: {r: 1.9294118, g: 4, b: 2.792157, a: 1}
+  viewmodelPrefab: {fileID: 8327378223746838329, guid: e1bea2d331b67db489710743d4265bf7, type: 3}
   viewmodelScale: 0.5
   grappleRange: 28
   grappleConeDeg: 12

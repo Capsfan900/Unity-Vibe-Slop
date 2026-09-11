@@ -124,11 +124,9 @@ namespace VibeGame1.Tests
             Assert.Greater(d.maxHP, 0f, "a zero-HP body is a divide Health has never been asked to do");
             Assert.GreaterOrEqual(d.parriedProjectileDamage, d.maxHP,
                 "its own reflected bolt must finish it: the parry IS the kill");
-            // Posture out of reach. The biggest single parry in the game is the dev blade's 60 x a 1.5
-            // parryPostureMultiplier = 90. If posture could break, the turret would raise a DEATHBLOW glyph
-            // for the ~0.3 s its own bolt is flying home -- a duel prompt on a body that is already dead.
-            Assert.Greater(d.maxPosture, 90f * 1.5f,
-                "posture must stay unreachable: this is a target, not a duel");
+            Assert.IsFalse(d.usesPosture,
+                "a mechanical target has no posture bar, stagger or deathblow prompt");
+            Assert.IsTrue(d.isTurret);
             Assert.IsTrue(d.rangedOnly, "it never melees");
             Assert.AreEqual(0f, d.flaskPunishChance, Eps, "a route, not a duel: it does not read the flask");
         }

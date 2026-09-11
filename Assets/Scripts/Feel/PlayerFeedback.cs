@@ -71,6 +71,8 @@ namespace VibeGame1
         WallRunFx wallRunFx;
         WaterFx waterFx;
         bool wasInWater;
+        bool wasWallPerfectWindowOpen;
+        bool wasDashJumpPerfectWindowOpen;
         Transform pivot;
         Vector3 pivotBase;
         float dip, dipVel;
@@ -507,6 +509,31 @@ namespace VibeGame1
             if (waterFx != null)
                 waterFx.Tick(feelNow != null ? feelNow.waterSprayRate : 26f,
                              feelNow != null ? feelNow.waterHissVolume : 0.14f);
+
+            // The wall exit is taught BEFORE it happens. This is deliberately traversal language, not
+            // Sfx.ParryCue / "PERFECT": the soft Jump chirp, small lens pulse and explicit [SPACE]
+            // flash say "leave the wall now" without competing with an enemy's parry read. The motor
+            // holds the state through the post-let-go forgiveness half, so this fires once per window.
+            bool wallPerfectOpen = motor != null && motor.WallRunPerfectWindowOpen;
+            if (wallPerfectOpen && !wasWallPerfectWindowOpen)
+            {
+                AudioManager.Play(Sfx.Jump, 0.35f, 0.82f, 0.05f);
+                if (CameraFX.I != null) CameraFX.I.FovKick(0.75f);
+                GameEvents.RaisePromptFlash("WALL EXIT  [SPACE]", feelNow != null ? feelNow.perfectPromptSeconds : 0.6f);
+            }
+            wasWallPerfectWindowOpen = wallPerfectOpen;
+
+            // Dash-jump used to be mathematically valid but visually opaque. The cue opens at the
+            // authored edge and closes with the dash, so [SPACE] teaches the exact action without
+            // widening the timing law or exposing a hidden timer.
+            bool dashJumpPerfectOpen = motor != null && motor.DashJumpPerfectWindowOpen;
+            if (dashJumpPerfectOpen && !wasDashJumpPerfectWindowOpen)
+            {
+                AudioManager.Play(Sfx.Jump, 0.32f, 1.08f, 0.04f);
+                if (CameraFX.I != null) CameraFX.I.FovKick(0.65f);
+                GameEvents.RaisePromptFlash("DASH JUMP  [SPACE]", feelNow != null ? feelNow.perfectPromptSeconds : 0.6f);
+            }
+            wasDashJumpPerfectWindowOpen = dashJumpPerfectOpen;
 
             // The wall run's sustained layers. ORDER MATTERS: SlideFx.Tick above writes CameraFX.FovHold
             // every frame (0 when not sliding), and the hold has one writer at a time. WallRunFx ticks

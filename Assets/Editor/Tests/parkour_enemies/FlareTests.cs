@@ -177,7 +177,7 @@ namespace VibeGame1.Tests
         [Test]
         public void TheSentriesBurstAndThePlayerGrapples()
         {
-            foreach (var n in new[] { "pshooter_enemy01", "pshooter_enemy02" })
+            foreach (var n in new[] { "pshooter_enemy01" })
             {
                 var p = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + n + ".prefab");
                 if (p == null) Assert.Ignore("run 4. Build Prefabs");
@@ -186,6 +186,10 @@ namespace VibeGame1.Tests
                 Assert.Greater(b.flareLife, 3f, n + ": a flare must live long enough to be used creatively");
                 Assert.Greater(b.flareUpSpeed / Mathf.Max(0.01f, b.flareGravity), 1.5f, n + ": it must hang, not pop");
             }
+            var reliquary = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/pshooter_enemy02.prefab");
+            if (reliquary != null)
+                Assert.IsNull(reliquary.GetComponent<SentryBurst>(),
+                    "the strict Heavy phrase ends through Health; it does not mint a grapple flare");
             foreach (var n in new[] { "Enemy_Grunt", "Enemy_Heavy" })
             {
                 var p = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/" + n + ".prefab");

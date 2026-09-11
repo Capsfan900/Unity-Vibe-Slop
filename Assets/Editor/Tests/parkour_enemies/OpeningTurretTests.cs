@@ -88,8 +88,10 @@ namespace VibeGame1.Tests
                 "T0_SurgeVolley", "T1_ParryRoute", "T2_ParryRoute", "T3_ParryRoute", "T4_SurgeRoute"
             }));
             Assert.IsTrue(def.projectileSequences.Single(s => s.name == "T0_SurgeVolley").CoordinatesRuntime,
-                "the authored opening ladder is the one progress-gated runtime volley");
-            Assert.IsTrue(def.projectileSequences.Where(s => s.name != "T0_SurgeVolley")
+                "the authored opening ladder is a progress-gated runtime volley");
+            Assert.IsTrue(def.projectileSequences.Single(s => s.name == "T4_SurgeRoute").CoordinatesRuntime,
+                "the fast final descent serializes its three single-shot turrets so none is skipped");
+            Assert.IsTrue(def.projectileSequences.Where(s => s.name != "T0_SurgeVolley" && s.name != "T4_SurgeRoute")
                 .All(s => !s.CoordinatesRuntime),
                 "route-audit records must not turn ordinary sentries into one-shot corridor triggers");
             foreach (var sequence in def.projectileSequences)
@@ -117,7 +119,11 @@ namespace VibeGame1.Tests
             var heavy = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy02"));
             Assert.IsNotNull(heavy, "shipped Heavy Reliquary data missing");
             Assert.AreEqual(3, heavy.projectileBurstCount);
-            Assert.AreEqual(0.42f, heavy.projectileBurstInterval, 0.0001f);
+            Assert.AreEqual(0.40f, heavy.projectileBurstInterval, 0.0001f);
+            Assert.AreEqual(0.90f, heavy.projectileInterval, 0.0001f,
+                "the next phrase rests from the final incoming answer, not its emission");
+            Assert.AreEqual(3, heavy.perfectBurstParriesToDestroy);
+            Assert.IsFalse(heavy.usesPosture);
             Assert.AreEqual(48f, heavy.projectileMaxRange, 0.0001f,
                 "the pair must announce before the runner reaches their shared bottom run-out");
 
@@ -351,7 +357,7 @@ namespace VibeGame1.Tests
                 };
                 host.AddComponent<ProjectileVolleySequence>().Configure(
                     members, 0.11f, 1.1f, 1.25f, new Vector3(0f, 0f, -159.8f), Vector3.forward,
-                    new[] { 0f, 18f, 40f, 64f, 87f }, windows);
+                    new[] { 0f, 18f, 40f, 64f, 87f }, windows, -1, 0.25f);
 
                 LevelDefinitionExporter.ExportInto(root, fresh);
 
@@ -361,6 +367,7 @@ namespace VibeGame1.Tests
                 Assert.That(saved.recoveryGap, Is.EqualTo(0.11f).Within(0.0001f));
                 Assert.That(saved.readinessTimeout, Is.EqualTo(1.1f).Within(0.0001f));
                 Assert.That(saved.shotResolutionTimeout, Is.EqualTo(1.25f).Within(0.0001f));
+                Assert.That(saved.firstMemberAcquireDelay, Is.EqualTo(0.25f).Within(0.0001f));
                 Assert.That(saved.progressOrigin, Is.EqualTo(new Vector3(0f, 0f, -159.8f)));
                 Assert.That(saved.progressDirection, Is.EqualTo(Vector3.forward));
                 Assert.That(saved.memberProgressGates, Is.EqualTo(new[] { 0f, 18f, 40f, 64f, 87f }));
@@ -418,15 +425,22 @@ namespace VibeGame1.Tests
             try
             {
                 var members = new EnemySpawner[2];
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
                 for (int i = 0; i < members.Length; i++)
                 {
                     markers[i] = new GameObject("GatedMember_" + i);
                     members[i] = markers[i].AddComponent<EnemySpawner>();
+                    // Update binds its current live member before considering the position gate. These
+                    // fixtures are markers rather than spawned prefabs, so make each marker the spawner's
+                    // live instance and give it a shooter. Otherwise Update correctly retires the empty
+                    // member before this test can exercise the gate.
+                    markers[i].AddComponent<ProjectileShooter>();
+                    typeof(EnemySpawner).GetField("<Instance>k__BackingField", flags)
+                        .SetValue(members[i], markers[i]);
                 }
                 var sequence = host.AddComponent<ProjectileVolleySequence>();
                 sequence.Configure(members, 0.11f, 1.1f, Vector3.zero, Vector3.forward, new[] { 0f, 10f });
 
-                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
                 var type = typeof(ProjectileVolleySequence);
                 type.GetMethod("Advance", flags).Invoke(sequence, null);
                 type.GetField("player", flags).SetValue(sequence, player.transform);

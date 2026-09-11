@@ -300,7 +300,13 @@ The asset uses 12 renderers and three shared generated materials (`M_Architectur
 no per-instance material, light or particle allocation. Its capsule, NavMeshAgent, ProjectileShooter and
 timing remain the shared sentry contract. `HeavySentryVisualTests` holds the no-blade silhouette, named
 recesses and renderer/material budget. Human playtest still owns the final question: whether the three
-apertures and 0.42 s phrase are readable together at full route speed.
+apertures and 0.40 s phrase are readable together at full route speed.
+
+Projectile readability is now authored per enemy type without changing the collision path: the blue ghost
+ships 1.10× core/trail/cue, the Heavy 1.20× core/trail and 1.15× cue, and the single-shot Surge turret
+1.35× core, 1.30× trail and 1.25× cue. `ProjectileShooter` applies core scale at construction; `Projectile`
+applies trail width and cue flare scale. Logical `hitRadius`, homing, timing and the pre-cue 0.34 m weave
+remain unchanged, so the larger final-ramp read never advertises a larger hitbox.
 
 ### 3.7a Projectile cue — quiet reticle reinforcement ✅ 2026-09-09
 

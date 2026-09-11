@@ -69,7 +69,8 @@ namespace VibeGame1.Tests
         static void SetRows(StatusStripView strip, ItemData[] held, int parrySurgeStacks)
         {
             Set(strip, "held", held);
-            Set(strip, "shownSurgeTenths", -1);
+            Set(strip, "shownReboundArmed", false);
+            Set(strip, "shownSigilArmed", false);
             Set(strip, "shownParrySurgeStacks", parrySurgeStacks);
             Set(strip, "shownSpeedPct", 100);
             Set(strip, "shownGod", false);
@@ -180,7 +181,7 @@ namespace VibeGame1.Tests
 
             var strip = hud.transform.Find("StatusStrip");
             Assert.IsNotNull(strip, "generated HUD has no top-left status strip");
-            Assert.GreaterOrEqual(strip.GetComponent<RectTransform>().sizeDelta.y, 184f,
+            Assert.GreaterOrEqual(strip.GetComponent<RectTransform>().sizeDelta.y, 204f,
                 "three items, two run rows and all three dev effects would clip");
 
             var threat = hud.GetComponentInChildren<ProjectileThreatView>(true);

@@ -92,10 +92,12 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATAFLOW.md](DATAFLOW.md) · [EN
 
 ## How this changes what we build next
 
-- **Perfect-timing refunds** (in progress): windows anchored to physical moments, 0.10–0.16 s, miss =
-  ordinary, reward felt on the body and the bar. Rules 4, 5, 6.
+- **Perfect-timing refunds** (built): windows are anchored to physical moments, not frames. The predictable
+  wall release is cued for 0.20 s before/after; dash-jump is cued for the final 0.10 s of its dash; burst
+  remains the first 0.12 s after landing. Miss = ordinary, reward is felt on the body and the bar.
 - **Balloons / water / burst** (built, unplayed): the balloon chooses its outcome from what you were
   doing (rule 1); water changes the carry, not the response (rule 3); both draw shapes (rule 7).
-- **Level rework** (next): compose the spans from shapes; keep the reach contract under momentum; add
-  corner correction and near-miss forgiveness before making any gap tighter (rules 4, 7, 8).
+- **Level rework** (built, human feel pending): T1–T3 are 10–18 m-wide landing-to-landing spaces with
+  sparse edge markers and projectile-crossing perches. Their first three realm approaches require
+  projectile-earned carry; the no-parry line deliberately loses. Rules 4, 7, 8.
 - **Level editor** (after): expose the pieces that draw shapes, not raw numbers (rule 7).

@@ -7,13 +7,13 @@ namespace VibeGame1
 {
     /// <summary>
     /// The top-left status strip: one line per HELD item (FIFO order, the front one marked as the one
-    /// [E] fires) and one line per ACTIVE EFFECT with a countdown — "WALL SURGE  6.4s", "GOD MODE",
+    /// [E] fires) and one line per ACTIVE EFFECT — "REBOUND ARMED", "SIGIL ARMED", "GOD MODE",
     /// "SPEED SURGE x3", plus the level's persistent run-soul / encounter requirement when configured.
     ///
     /// <para>Built by <c>HudBuilder</c>, referenced from <see cref="HUDController.statusStrip"/>.
     /// The item list arrives on <c>GameEvents.ItemsChanged</c>; the effects are read per frame from the
-    /// player (the <see cref="StaminaView"/> idiom — only the motor knows how long a surge has left,
-    /// and the countdown has to tick). One multi-line TMP label rather than a pool of row objects:
+    /// player (the <see cref="StaminaView"/> idiom — the motor/items own armed state). One multi-line TMP label
+    /// rather than a pool of row objects:
     /// the text is rebuilt only when what it would SHOW changes (tenths of a second, not the raw
     /// float), the same gate the speedrun timer uses, so an idle strip costs nothing per frame.</para>
     ///
@@ -53,6 +53,7 @@ namespace VibeGame1
         readonly StringBuilder sb = new StringBuilder(160);
         ItemData[] held = System.Array.Empty<ItemData>();
         FirstPersonMotor motor;
+        PlayerItems items;
         ParrySurge parrySurge;
         LevelRunScorer runScorer;
         Health health;
@@ -60,7 +61,8 @@ namespace VibeGame1
         int rows;
 
         // What the label last showed, quantised the way it is printed.
-        int shownSurgeTenths = -1;
+        bool shownReboundArmed;
+        bool shownSigilArmed;
         int shownParrySurgeStacks;
         bool shownGod;
         int shownSpeedPct = 100;
@@ -133,6 +135,7 @@ namespace VibeGame1
                 if (motor != null)
                 {
                     health = motor.GetComponent<Health>();
+                    items = motor.GetComponent<PlayerItems>();
                     parrySurge = motor.GetComponent<ParrySurge>();
                 }
             }
@@ -141,7 +144,8 @@ namespace VibeGame1
             // is absent. The strip observes its stack count; it never writes speed or surge state.
             if (motor != null && parrySurge == null) parrySurge = motor.GetComponent<ParrySurge>();
 
-            int surgeTenths = motor != null && motor.IsWallSurging ? Mathf.CeilToInt(motor.WallSurgeRemaining * 10f) : -1;
+            bool reboundArmed = items != null && items.ReboundArmed;
+            bool sigilArmed = items != null && items.DeflectSigilArmed;
             int parrySurgeStacks = parrySurge != null ? parrySurge.Stacks : 0;
             bool god = health != null && health.Invulnerable;
             int speedPct = motor != null ? Mathf.RoundToInt(motor.SpeedMultiplier * 100f) : 100;
@@ -150,10 +154,11 @@ namespace VibeGame1
             int oldCompletedSplits = shownCompletedSplits;
             ObserveRunScore();
 
-            if (!itemsDirty && surgeTenths == shownSurgeTenths && parrySurgeStacks == shownParrySurgeStacks
+            if (!itemsDirty && reboundArmed == shownReboundArmed && sigilArmed == shownSigilArmed && parrySurgeStacks == shownParrySurgeStacks
                 && god == shownGod && speedPct == shownSpeedPct && oldRunSouls == shownRunSouls
                 && oldRegularKills == shownRegularKills && oldCompletedSplits == shownCompletedSplits) return;
-            shownSurgeTenths = surgeTenths;
+            shownReboundArmed = reboundArmed;
+            shownSigilArmed = sigilArmed;
             shownParrySurgeStacks = parrySurgeStacks;
             shownGod = god;
             shownSpeedPct = speedPct;
@@ -200,11 +205,17 @@ namespace VibeGame1
                 return;
             }
 
-            if (shownSurgeTenths >= 0)
+            if (shownReboundArmed)
             {
                 if (rows > 0) sb.Append('\n');
-                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(EffectColor)).Append(">WALL SURGE  ")
-                  .Append(shownSurgeTenths / 10).Append('.').Append(shownSurgeTenths % 10).Append("s</color>");
+                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(EffectColor)).Append(">REBOUND ARMED</color>");
+                rows++;
+            }
+
+            if (shownSigilArmed)
+            {
+                if (rows > 0) sb.Append('\n');
+                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(EffectColor)).Append(">SIGIL ARMED</color>");
                 rows++;
             }
 
