@@ -52,12 +52,29 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void TowerChimneyAndWallClutterAreGone()
+        public void TowerChimneyAndOuterWallLinesAreRestored()
         {
-            string[] removed = { "T2_Tower", "T2_Buttress", "T2_Wall_East", "T2_Wall_Landing_East",
-                                 "T2_Wall_West", "T2_Wall_Landing_West" };
-            foreach (string name in removed) Assert.IsFalse(def.platforms.Any(p => p.name == name), name);
-            Assert.IsFalse(def.ramps.Any(r => r.name.StartsWith("T2_")));
+            string[] restored = { "T2_Tower", "T2_Buttress", "T2_Wall_East", "T2_Wall_Landing_East",
+                                  "T2_Wall_West", "T2_Wall_Landing_West" };
+            var canonicalEntry = LevelDefinitionAuthoring.OpenCourseDecks.Single(p => p.name == "T2_L1");
+            var appliedEntry = def.platforms.Single(p => p.name == "T2_L1");
+            Vector3 sectionOffset = appliedEntry.center - canonicalEntry.center;
+            foreach (string name in restored)
+            {
+                var want = LevelDefinitionAuthoring.HybridCourseStructures.Single(s => s.name == name);
+                var got = def.platforms.Single(p => p.name == name);
+                Assert.That(Vector3.Distance(got.center, want.center + sectionOffset), Is.LessThan(0.001f), name + " center");
+                Assert.That(Vector3.Distance(got.size, want.size), Is.LessThan(0.001f), name + " size");
+            }
+
+            foreach (string name in new[] { "T2_Wall_East", "T2_Wall_Landing_East",
+                                             "T2_Wall_West", "T2_Wall_Landing_West" })
+            {
+                var p = def.platforms.Single(x => x.name == name);
+                float nearestX = Mathf.Abs(p.center.x) - p.size.x * 0.5f;
+                Assert.GreaterOrEqual(nearestX, 7f,
+                    name + " reaches into the spiral's broad central crossover instead of staying outside it");
+            }
         }
 
         [Test]

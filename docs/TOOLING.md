@@ -25,7 +25,7 @@ wiped scene is a rebuild, not a data-loss event.
 | `6. Build Level` | `Editor/LevelGreyboxBuilder.cs` | Rebuilds the `Level` root in the open scene, bakes NavMesh, places Player/Managers/HUD. Never touches a `Level_Manual` sibling root. |
 | `7. Build Sandbox Scene` | `Editor/SandboxBuilder.cs` | Builds `Assets/Scenes/Sandbox.unity`. Preserves a `Sandbox_Manual` root. See [README_Sandbox](../Assets/Scenes/README_Sandbox.md). |
 | `9. Build Main Menu` | `Editor/MainMenuBuilder.cs` | `Assets/Prefabs/MainMenu.prefab` + `Assets/Scenes/MainMenu.unity`, and puts that scene at **build index 0**. One level-select row per `LevelRegistry` entry plus a `SANDBOX` row. Preserves a `MainMenu_Manual` root. NOT part of `0. Rebuild Everything` — re-run it after adding a level to the registry. |
-| `8a. Rework Level_01 (parkour first)` | `Editor/LevelDefinitionAuthoring.cs` | Rewrites `Level_01_Level.asset` deterministically: expanded T2/T3 route topology, four-balloon T3 arc, water, isolated solar approaches, all shooter perches, five bounded projectile route-audit groups, and the explicitly progress-gated T0 opening volley. Idempotent; run it, then `8`, `Level Arc Report`, `Projectile Encounter Report` and both suites. `LevelTraversalTests` proves the same on a copy. |
+| `8a. Rework Level_01 (parkour first)` | `Editor/LevelDefinitionAuthoring.cs` | Rewrites `Level_01_Level.asset` deterministically: broad T1–T3 decks plus restored shoulder walls/tower/lintels/obstacles, five connector ramps, the four-balloon T3 arc, water, Insight hand/flare-route data, isolated solar approaches, all shooter perches, five bounded projectile route-audit groups, and the explicitly progress-gated T0 opening volley. Idempotent; run it, then `8`, `Level Arc Report`, `Projectile Encounter Report` and both suites. `LevelTraversalTests` proves the same on a copy. |
 | `8. Build Level From Definition` + the in-game editor | `Editor/LevelDefinitionBuilder.cs`, `Scripts/Level/LevelPieceFactory.cs`, `Scripts/Level/LevelEditor.cs` | Menu 8 builds every piece through `LevelPieceFactory.BuildDocument`, the SAME factory the runtime editor (F10) uses; the editor saves `LevelDocument` JSON under `persistentDataPath/levels/`, PLAY rebuilds + bakes a runtime NavMesh, EXPORT ASSET writes `Assets/Data/Levels/Custom/<name>_Level.asset`. See [LEVEL-EDITOR.md](LEVEL-EDITOR.md). |
 | `Health Check` | `Editor/ProjectHealthCheck.cs` | Read-only validator. |
 | `Run Feature Tests` | `Editor/FeatureTestRunner.cs` | Starts the play-mode suite (must already be in play mode). |
@@ -379,6 +379,15 @@ boss segment/phase/HP/posture/state, and `Time.timeScale` vs `WorldScale`/`Playe
 | `E` | Use current item |
 | `R` | Cycle riposte wand (Emberlance → Gravecall → Stormneedle → Voidspine) |
 | `F` | At a wand pedestal (aim at it, prompt showing): open the wand selection menu. Otherwise drinks a flask. The pedestal only exists once **WAND PEDESTAL: ON** is set in the F1 test menu. |
+
+### Player timing capture
+
+In editor play mode or a development build, open the Backquote console and use `timing start`, play the
+ramp/encounter normally, then use `timing stop` and `timing export`. Export prints the absolute path to a
+local JSON file under `Application.persistentDataPath/timing-captures/`. The trace contains player position,
+velocity, grounded/slide/wall-run/dash/pull state, raw parry presses, and projectile emission/cue/arrival/
+resolution timestamps with bolt, phrase and enemy-data identity. `timing status` reports the bounded buffer;
+`timing discard` erases it. No file is created until export, nothing uploads, and release builds reject capture.
 
 ---
 

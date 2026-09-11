@@ -451,7 +451,9 @@ namespace VibeGame1.EditorTools
             // 75-degree answer cone on the causeway, cover Stone 4 inside the 32 m band, and clear the cyan
             // sun by its full 12 m silhouette budget. Their different band-entry points separate the beats.
             new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-23f, 3.5f, 58.5f), 90f, "T1_Stone_4,T1_Causeway"),
-            new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(25f, 3.5f, 60f), 270f, "T1_Stone_4,T1_Causeway"),
+            // The restored east walls block the former far-flank shot. This perch sits ahead of the
+            // causeway, west of its wall landing, so both incoming lines stay forward and unobstructed.
+            new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(4f, 3.5f, 62f), 180f, "T1_Causeway"),
             // T2: the spiral. LevelSpan2Tests pins Spawn_T2_GruntB BESIDE the west wall, inside it (x > the
             // wall's east face -10.6), between the landing pad (z 106.5) and the mount L4 (z 122), so a run
             // along the wall passes it: a low perch at z 109-112, under the L6/L5 hops (10-12 m up). GruntA
@@ -459,13 +461,17 @@ namespace VibeGame1.EditorTools
             // Covers L1 (15.5 m) and L2 (19.8 m): after the band's near edge moved to 10 m (2026-09-05), Entry at
             // 9.3 m and L5 at 5.5 m are inside the muzzle's dead zone, so they are no longer claimed. The
             // perch itself stays where LevelSpan2Tests pins the grunt.
-            new Perch("T2_Perch_W", "Spawn_T2_GruntB", new Vector3(-24f, 10f, 120f), 90f, "T2_L3,T2_L4"),
+            // High over the open centre south of the restored wall: its downward crossing aligns with
+            // the L5 turn toward L6. Its flare turns that high-risk answer into the expert shortcut.
+            new Perch("T2_Perch_W", "Spawn_T2_GruntB", new Vector3(0f, 24f, 98f), 0f, "T2_L5"),
             new Perch("T2_Perch_E", "Spawn_T2_GruntA", new Vector3(-12f, 19f, 141f), 90f, "T2_L10,T2_L11"),
             // T3: LevelSpan3Tests pins BOTH spawns beside T3_Wall_Span (z 214.5-234.5). West perch beside the
             // span's start (z 216-219, x -9..-6: clear of T3_Obelisk_W1 at x -5.6 / z 221.4 in plan), off the
             // arc's landing (x -1.3) and the pillar hops, covering the last three pillars
             // from behind; east perch OUTSIDE and ABOVE the span wall (top 30), covering the three steps.
-            new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(10f, 23f, 219f), 240f, "T3_Pillar_1,T3_Pillar_2"),
+            // Above the west shoulder after pillar three, where its lines skim outside the intervening
+            // terraces. This is the red Insight carrier: its flare feeds the balloon branch.
+            new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(-18f, 23f, 220f), 140f, "T3_Pillar_1,T3_Pillar_2"),
             // Half a metre farther west preserves all three Heavy shot lines while keeping its support
             // outside the red portal sun's full unrelated-silhouette clearance budget.
             new Perch("T3_Perch_E", "Spawn_T3_Heavy", new Vector3(-15.5f, 27f, 254f), 60f, "T3_Span,T3_Step_1,T3_Step_2"),
@@ -479,9 +485,15 @@ namespace VibeGame1.EditorTools
         // pop sails 2 m over it). Flown in LevelTraversalTests: entry-jump into orb 1 (4 m out, 3 m up),
         // three pops, and the fall from orb 4 lands on the span, short of the fallen lintel.
         public const float BalloonLaunch = 11f, BalloonRadius = 1.1f, BalloonRespawn = 2.5f;
-        // The open-course pass deliberately removes the old balloon bypass. Its movement sentence is the
-        // projectile line itself; a second airborne route beside it was visual and decision clutter.
-        public static readonly Vector3[] T3Arc = new Vector3[0];
+        // Optional west-side aerial line. The broad pillar landings remain the readable normal route;
+        // this arc restores the old vertical skill line at the larger scale and rejoins on T3_Span.
+        public static readonly Vector3[] T3Arc =
+        {
+            new Vector3(-8f, 24f, 199f),
+            new Vector3(-12f, 27f, 205f),
+            new Vector3(-14f, 30f, 212f),
+            new Vector3(-11f, 33f, 220f),
+        };
 
         // ---------------------------------------------------------------- the ramps (2026-09-07)
         //
@@ -529,9 +541,21 @@ namespace VibeGame1.EditorTools
                             Mathf.Atan2(horizontal.x, horizontal.z) * Mathf.Rad2Deg, why);
         }
 
-        // T1-T3 now use open landing-to-landing motion. Only the preserved opening and final descents are
-        // ramps; they are authored by ApplyOpeningDescent / ApplyDescent after this table is applied.
-        public static readonly Ramp[] Ramps = new Ramp[0];
+        // Five short connectors restore grounded flow between selected landings without narrowing the
+        // expanded decks. Each endpoint sits on a walkable top; the derived angles remain below 35 degrees.
+        public static readonly Ramp[] Ramps =
+        {
+            RampBetween("T1_Ramp_Stone12", new Vector3(3f, 0f, 16.5f), new Vector3(3f, 0.5f, 18f), 4f,
+                        "a full-width first grade preserves momentum into the east landing"),
+            RampBetween("T1_Ramp_Stone34", new Vector3(-2f, 1f, 34.8f), new Vector3(-2f, 1.5f, 36.2f), 4f,
+                        "a compact grade keeps the west-to-centre switch grounded"),
+            RampBetween("T1_Ramp_Causeway", new Vector3(-5f, 1.5f, 43.5f), new Vector3(-5f, 2f, 46f), 3f,
+                        "a diagonal shoulder grade feeds the widened causeway while leaving its middle open"),
+            RampBetween("T2_Ramp_L2_L3", new Vector3(14f, 6.5f, 127f), new Vector3(10f, 8f, 130f), 3f,
+                        "the lower spiral grade turns the east balcony into the broad north traverse"),
+            RampBetween("T2_Ramp_L8_L9", new Vector3(14f, 15.5f, 127f), new Vector3(11f, 17f, 130f), 3f,
+                        "the upper spiral repeats the readable diagonal at greater height"),
+        };
 
         // ---------------------------------------------------------------- the water lines
         public struct Water
@@ -553,10 +577,9 @@ namespace VibeGame1.EditorTools
         };
 
         // The connective course is authored as broad landing-to-landing motion, in canonical coordinates
-        // before solar spacing translates T2 +38 m and T3 +70 m. The three final decks deliberately stop
-        // about fifteen metres short of their portal trigger volumes. That distance is beyond the shipped
-        // slide-jump carry but inside the carry earned from two projectile deflects; the sentries are thus
-        // part of the main line, not an optional side route.
+        // before solar spacing translates T2 +38 m and T3 +70 m. These generous decks are the normal line;
+        // restored walls, vertical props and the hand-marked flare line sit beside or above them as faster,
+        // harder skill-expression routes rather than gates on basic completion.
         public static readonly Reshape[] OpenCourseDecks =
         {
             new Reshape("T1_Stone_1", new Vector3(0f, -0.5f, 13f), new Vector3(12f, 1f, 8f), "open launch plaza"),
@@ -587,15 +610,49 @@ namespace VibeGame1.EditorTools
             new Reshape("T3_Step_2", new Vector3(-3f, 26.5f, 253f), new Vector3(16f, 1f, 6f), "azure portal launch deck"),
         };
 
-        static readonly string[] OpenCourseClutter =
+        public struct HybridStructure
         {
-            "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W", "T1_Fallen_Obelisk",
-            "T1_Wall_Start", "T1_Wall_Causeway", "T1_Wall_Landing",
-            "T2_Tower", "T2_Buttress", "T2_Wall_East", "T2_Wall_Landing_East",
-            "T2_Wall_West", "T2_Wall_Landing_West",
-            "T3_Fallen_Lintel", "T3_Obelisk_W1", "T3_Obelisk_W2", "T3_Obelisk_E1", "T3_Obelisk_E2",
-            "T3_Recovery_W1", "T3_Recovery_W2", "T3_Recovery_E1", "T3_Recovery_E2",
-            "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Wall_Span",
+            public string name; public Vector3 center, size; public string materialKey, trimMaterialKey, why;
+            public bool trim;
+            public HybridStructure(string n, Vector3 c, Vector3 s, string material, bool hasTrim,
+                                   string trimMaterial, string reason)
+            {
+                name = n; center = c; size = s; materialKey = material; trim = hasTrim;
+                trimMaterialKey = trimMaterial; why = reason;
+            }
+        }
+
+        // The 2026-09-10 hybrid pass restores the course's silhouettes and secondary movement lines at
+        // the scale of OpenCourseDecks. Main landings stay broad; walls and posts live on their shoulders.
+        public static readonly HybridStructure[] HybridCourseStructures =
+        {
+            new HybridStructure("T1_Rail_L", new Vector3(-7.1f, 2.325f, 51.6f), new Vector3(.2f, .65f, 12.8f), "Stone", false, "", "low outer rail keeps the wider bridge silhouette without hiding a sliding view"),
+            new HybridStructure("T1_Rail_R", new Vector3(7.1f, 2.325f, 51.6f), new Vector3(.2f, .65f, 12.8f), "Stone", false, "", "matching low outer rail"),
+            new HybridStructure("T1_Obelisk_W", new Vector3(-9.5f, 4.5f, 50f), new Vector3(1.4f, 9f, 1.4f), "Stone", true, "NeonCyan", "a tall waypoint outside the fourteen-metre runway"),
+            new HybridStructure("T1_Fallen_Obelisk", new Vector3(0f, 3.7f, 48f), new Vector3(15f, .8f, 1.2f), "Stone", true, "NeonCyan", "a readable slide-under gate across the expanded causeway"),
+            new HybridStructure("T1_Wall_Start", new Vector3(15.5f, 4f, 25f), new Vector3(1.2f, 10f, 24f), "Stone", true, "NeonCyan", "an optional wall line beside the water shoulder"),
+            new HybridStructure("T1_Wall_Causeway", new Vector3(10f, 4f, 51.5f), new Vector3(1.2f, 10f, 20f), "Stone", true, "NeonCyan", "a second wall line outside the open causeway"),
+            new HybridStructure("T1_Wall_Landing", new Vector3(10f, 2.5f, 60.5f), new Vector3(8f, 1f, 8f), "Platform", true, "NeonCyan", "a generous wall-run rejoin shelf outside the cyan sun"),
+
+            new HybridStructure("T2_Tower", new Vector3(8f, 12f, 124f), new Vector3(6f, 22f, 6f), "Stone", true, "NeonYellow", "the spiral regains a readable vertical core without filling the terraces"),
+            new HybridStructure("T2_Buttress", new Vector3(13.6f, 10.5f, 124f), new Vector3(.8f, 9f, 4f), "Stone", true, "NeonYellow", "the tower chimney provides a tight optional wall-jump ascent"),
+            new HybridStructure("T2_Wall_East", new Vector3(24.5f, 10f, 126f), new Vector3(1.2f, 14f, 30f), "Stone", true, "NeonYellow", "an outer east wall-run line leaves the broad balcony untouched"),
+            new HybridStructure("T2_Wall_Landing_East", new Vector3(18f, 18f, 142.5f), new Vector3(10f, 1f, 8f), "Platform", true, "NeonYellow", "east expert line rejoins on the upper terrace with clear solar silhouette margin"),
+            new HybridStructure("T2_Wall_West", new Vector3(-22.5f, 13f, 116f), new Vector3(1.2f, 14f, 30f), "Stone", true, "NeonYellow", "an outer west wall-run line frames the second lap"),
+            new HybridStructure("T2_Wall_Landing_West", new Vector3(-14.5f, 12f, 99f), new Vector3(13f, 1f, 8f), "Platform", true, "NeonYellow", "west wall-run rejoin overlaps the wide south crossover"),
+
+            new HybridStructure("T3_Fallen_Lintel", new Vector3(0f, 26.15f, 231f), new Vector3(17f, .8f, 1.2f), "Stone", true, "NeonRed", "a full-span slide gate restores the red runway's vertical rhythm"),
+            new HybridStructure("T3_Obelisk_W1", new Vector3(-11f, 23f, 231f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
+            new HybridStructure("T3_Obelisk_W2", new Vector3(-11f, 23f, 239f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
+            new HybridStructure("T3_Obelisk_E1", new Vector3(11f, 23f, 231f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
+            new HybridStructure("T3_Obelisk_E2", new Vector3(11f, 23f, 239f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
+            new HybridStructure("T3_Recovery_W1", new Vector3(-9f, 21f, 230f), new Vector3(1.2f, 9f, 1.2f), "Stone", false, "", "low recovery post outside the eight-metre deck edge"),
+            new HybridStructure("T3_Recovery_W2", new Vector3(-9f, 21f, 238f), new Vector3(1.2f, 9f, 1.2f), "Stone", false, "", "low recovery post outside the eight-metre deck edge"),
+            new HybridStructure("T3_Recovery_E1", new Vector3(9f, 21f, 230f), new Vector3(1.2f, 9f, 1.2f), "Stone", false, "", "low recovery post outside the eight-metre deck edge"),
+            new HybridStructure("T3_Recovery_E2", new Vector3(9f, 21f, 238f), new Vector3(1.2f, 9f, 1.2f), "Stone", false, "", "low recovery post outside the eight-metre deck edge"),
+            new HybridStructure("T3_Wall_Pillars", new Vector3(13.5f, 24f, 205f), new Vector3(1.2f, 10f, 30f), "Stone", true, "NeonRed", "an east wall-run bypass beside the four broad pillars"),
+            new HybridStructure("T3_Wall_Landing_S", new Vector3(10.5f, 24.5f, 222f), new Vector3(9f, 1f, 8f), "Platform", true, "NeonRed", "wall line rejoins at the red span approach"),
+            new HybridStructure("T3_Wall_Span", new Vector3(11f, 29f, 235f), new Vector3(1.2f, 10f, 26f), "Stone", true, "NeonRed", "a high line runs beside the water span and its lintel"),
         };
 
         static int ApplyOpenProjectileCourse(LevelDefinition def)
@@ -611,7 +668,17 @@ namespace VibeGame1.EditorTools
                 platform.size = shape.size;
                 written++;
             }
-            platforms.RemoveAll(p => p != null && System.Array.IndexOf(OpenCourseClutter, p.name) >= 0);
+            foreach (var structure in HybridCourseStructures)
+            {
+                platforms.RemoveAll(p => p != null && p.name == structure.name);
+                platforms.Add(new PlatformDef
+                {
+                    name = structure.name, center = structure.center, size = structure.size,
+                    materialKey = structure.materialKey, trim = structure.trim,
+                    trimMaterialKey = structure.trimMaterialKey, isStatic = true,
+                });
+                written++;
+            }
             def.platforms = platforms.ToArray();
             return written;
         }
@@ -747,6 +814,7 @@ namespace VibeGame1.EditorTools
             ApplySolarRealms(def);
             ApplyProjectileEncounterSequences(def);
             ApplyRunScoring(def);
+            ApplyInsightRoutes(def);
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
@@ -770,6 +838,58 @@ namespace VibeGame1.EditorTools
                 Split("Knight", "Spawn_Legendary_Knight", 60f),
                 Split("Spellsword", "Spawn_Legendary_Spellsword", 70f),
                 Split("Warden", "Spawn_Boss", 40f),
+            };
+        }
+
+        /// <summary>
+        /// Signposts the optional flare shortcuts with a world-space hand marker and gives developer
+        /// timing capture one shared entry/rejoin interval per section. Crossing these boxes changes no
+        /// gameplay; taking an attributed flare is what selects the expert branch inside the interval.
+        /// Positions are final world coordinates because this runs after <see cref="ApplySolarRealms"/>.
+        /// </summary>
+        static void ApplyInsightRoutes(LevelDefinition def)
+        {
+            def.insightRoutes = new[]
+            {
+                new InsightRouteDef
+                {
+                    routeId = "T1_Insight_Flare",
+                    sourceSpawnerNames = new[] { "Spawn_T1_GruntA", "Spawn_T1_GruntB" },
+                    markerPosition = new Vector3(9f, 4.5f, 38f),
+                    markerEulerAngles = new Vector3(0f, 180f, 0f),
+                    markerScale = Vector3.one * 1.5f,
+                    markerMaterialKey = "NeonCyan",
+                    entryCenter = new Vector3(0f, 5f, 37f),
+                    entrySize = new Vector3(42f, 16f, 10f),
+                    rejoinCenter = new Vector3(0f, 7f, 70f),
+                    rejoinSize = new Vector3(30f, 20f, 10f),
+                },
+                new InsightRouteDef
+                {
+                    routeId = "T2_Insight_Flare",
+                    sourceSpawnerNames = new[] { "Spawn_T2_GruntB", "Spawn_T2_GruntA" },
+                    markerPosition = new Vector3(-18f, 13f, 150f),
+                    markerEulerAngles = new Vector3(0f, 180f, 0f),
+                    markerScale = Vector3.one * 1.5f,
+                    markerMaterialKey = "NeonYellow",
+                    entryCenter = new Vector3(0f, 13f, 149f),
+                    entrySize = new Vector3(52f, 32f, 12f),
+                    rejoinCenter = new Vector3(0f, 22f, 198f),
+                    rejoinSize = new Vector3(32f, 24f, 12f),
+                },
+                new InsightRouteDef
+                {
+                    routeId = "T3_Insight_Flare",
+                    sourceSpawnerNames = new[] { "Spawn_T3_Grunt" },
+                    markerPosition = new Vector3(-9f, 25f, 274f),
+                    markerEulerAngles = new Vector3(0f, 180f, 0f),
+                    markerScale = Vector3.one * 1.5f,
+                    markerMaterialKey = "NeonRed",
+                    entryCenter = new Vector3(0f, 25f, 276f),
+                    entrySize = new Vector3(42f, 28f, 12f),
+                    rejoinCenter = new Vector3(0f, 30f, 339f),
+                    rejoinSize = new Vector3(32f, 24f, 12f),
+                },
             };
         }
 

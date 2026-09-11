@@ -56,6 +56,11 @@ namespace VibeGame1.Tests
         public void TheAssetCarriesEveryAuthoredRamp()
         {
             Assert.IsNotNull(def.ramps, "Level_01 has no ramps array; run VibeGame1/8a");
+            string[] connectors = { "T1_Ramp_Stone12", "T1_Ramp_Stone34", "T1_Ramp_Causeway",
+                                    "T2_Ramp_L2_L3", "T2_Ramp_L8_L9" };
+            CollectionAssert.AreEquivalent(connectors,
+                System.Array.ConvertAll(LevelDefinitionAuthoring.Ramps, r => r.name),
+                "the hybrid course must keep its five public connector ramps explicit");
             foreach (var want in LevelDefinitionAuthoring.Ramps)
             {
                 RampDef got = null;

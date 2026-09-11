@@ -85,6 +85,14 @@ namespace VibeGame1
         /// <summary>Immutable phrase identity assigned by the firing shooter; -1 for ordinary bolts.</summary>
         public int PhraseId { get { return phraseId; } }
         public int PhraseOrdinal { get { return phraseOrdinal; } }
+        /// <summary>Stable registry identity for this flight. Read-only observability for developer capture.</summary>
+        public int BoltId { get { return boltId; } }
+        /// <summary>Enemy that emitted this bolt, when one is available. Read-only observability.</summary>
+        public EnemyController Shooter { get { return shooter; } }
+        /// <summary>Authored enemy data used for this flight, when one is available. Read-only observability.</summary>
+        public EnemyData Data { get { return data; } }
+        /// <summary>Scaled world time at emission, or -1 before <see cref="Fire"/> initializes this bolt.</summary>
+        public float FiredAt { get; private set; } = -1f;
         /// <summary>Raised exactly once when this bolt stops being an incoming player obligation.</summary>
         public event Action<Projectile, ParryResult> IncomingResolved;
         Vector3 previousTargetChest;
@@ -131,6 +139,7 @@ namespace VibeGame1
             dir = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
             speed = speedMetresPerSecond;
             age = 0f;
+            FiredAt = Time.time;
             cued = false;
             reflected = false;
             spent = false;

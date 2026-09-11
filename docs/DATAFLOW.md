@@ -1991,10 +1991,17 @@ LevelEditor.Update  (GameState.Editing; InputReader is the only input reader —
 MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json → LevelEditor.PendingLoadPath → load Sandbox → Play
 
 DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
-   `help` | `clear` | `editor unlock`; no generic reflection/cheat execution
+   `help` | `clear` | `editor unlock` | `timing start/stop/status/export/discard`;
+   no generic reflection/cheat execution
    Open → TimeScaleController.Request(0), GameState.Paused, free cursor, focus TMP_InputField
    Close → release its own time handle and restore prior state/cursor
 ```
+
+`PlayerTimingCapture` is an editor/development-build, explicitly opt-in, local-only diagnostic. `timing
+start` records bounded in-memory movement samples plus projectile emission/cue/arrival/result events;
+`timing stop` freezes the trace without writing a file; `timing export` writes JSON under
+`Application.persistentDataPath/timing-captures/`. It observes `InputReader`, `FirstPersonMotor` and
+`Projectile` read-only state and never drives input, combat or velocity.
 
 **Invariants**
 - **A ramp is authored as a RISE over a RUN, never as an angle** (`RampDef`, 2026-09-07 — the game's only
@@ -2015,17 +2022,25 @@ DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
   `Ramp` is 9 and every earlier value keeps its index, which is why a level saved before ramps existed
   still loads (`RampPieceTests`). A missing `ramps` list comes back null from `JsonUtility` and
   `LevelDocument.FromJson` fills it, the same rule every other list follows.
-- **Current open projectile course (2026-09-10; supersedes the older T1–T3 shape notes below).**
+- **Current hybrid projectile course (2026-09-10; supersedes the removal-only openness pass).**
   `ApplyOpenProjectileCourse` writes five T1 landings at 12–14 m wide, eleven T2 terraces at 10–18 m,
-  and T3's four 14–16 m landings plus 16 m-wide water/exit decks. It removes the historical rails,
-  chimney/tower, lintel/obelisks, connector ramps and balloon bypass that pinched the route. Sparse edge
-  beacons leave the central fourteen metres clear. T1/T2/T3 stop 14.55/14.42/15.17 m before their portal
+  and T3's four 14–16 m landings plus 16 m-wide water/exit decks. `HybridCourseStructures` then regenerates
+  the low rails, tower/chimney, lintels, obelisks, recovery posts, wall-run faces and rejoin landings on the
+  expanded shoulders. Five connector ramps and the four-balloon T3 arc are restored as secondary movement
+  lines; sparse edge beacons leave the broad centre readable. T1/T2/T3 stop 14.55/14.42/15.17 m before their portal
   triggers: ordinary slide-jump carry fails, while two projectile-deflect impulses succeed, so ignoring
   parries loses. The six existing autonomous blue/Heavy spawners are re-perched across early/late decks
   and may fire repeatedly through their normal range/LOS/facing loop; the engagement windows audit those
   useful crossings but never gate them at runtime. The final 48 m ramp's three single-shot Surge spawns are
   at progress 16/32/44 m on alternating x = -7/+7/-7 pads; the old third spawn was eight metres beyond the
   slope. `LevelFinalRampTurretPlacementTests` pins pad clearance, alternation and on-ramp progress.
+- **Insight flare shortcuts are level data, not a hidden enemy special case.**
+  `LevelDefinition.insightRoutes[]` stores a stable route id, the existing blue-sentry spawner names that
+  can offer the flare, a world-space hand pose/material, and shared entry/rejoin boxes. The builder creates
+  only a colliderless Sky-layer hand plus `INSIGHT`; the boxes are telemetry anchors and have no trigger or
+  gameplay effect. A normal run still answers the projectile line for speed. Destroying a blue sentry and
+  taking its flare selects the faster, harder optional line, which rejoins before its solar arena. The
+  exporter round-trips the marker component and skips every hand mesh as generic platform geometry.
 - **Level_01's parkour-first layout is CODE that writes the asset** (`LevelDefinitionAuthoring.Apply`, menu
   `8a`): perches + spawn moves + the balloon arc + the water lines, idempotent. `LevelTraversalAnalyzer`
   flies the arc (pop = carry trimmed to `launchCarryCap`, `launchFloatSeconds` at `launchGravityScale`, the

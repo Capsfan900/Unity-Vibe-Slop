@@ -91,6 +91,11 @@ namespace VibeGame1
                  "only decides which authored spawner may shoot next.")]
         public ProjectileSequenceDef[] projectileSequences = new ProjectileSequenceDef[0];
 
+        [Header("Insight Routes")]
+        [Tooltip("Presentation-only hand markers and shared timing anchors for optional Insight routes. " +
+                 "They do not create triggers, alter traversal, or change enemy behaviour.")]
+        public InsightRouteDef[] insightRoutes = new InsightRouteDef[0];
+
         [Header("World Displays")]
         [Tooltip("Optional physical local-records board. It is generated with the level and never restores the removed screen-space BEST RUNS HUD.")]
         public WorldLeaderboardDef worldLeaderboard = new WorldLeaderboardDef();
@@ -529,6 +534,33 @@ namespace VibeGame1
                        repeatFromIndex >= 0;
             }
         }
+    }
+
+    /// <summary>
+    /// One optional, flare-assisted route. The marker is scenery; the two boxes are authored timing
+    /// anchors for developer capture and deliberately have no generated colliders or gameplay behaviour.
+    /// </summary>
+    [Serializable]
+    public class InsightRouteDef
+    {
+        [Tooltip("Stable telemetry key for this optional route. Keep it unique within a level.")]
+        public string routeId = "InsightRoute";
+
+        [Tooltip("Spawner object names whose sentry flares can offer this route.")]
+        public string[] sourceSpawnerNames = new string[0];
+
+        [Header("World marker")]
+        public Vector3 markerPosition;
+        public Vector3 markerEulerAngles;
+        public Vector3 markerScale = Vector3.one;
+        [Tooltip("Material key for the generated hand silhouette. 'NeonCyan' resolves to M_NeonCyan.mat.")]
+        public string markerMaterialKey = "NeonCyan";
+
+        [Header("Developer timing anchors (no generated colliders)")]
+        public Vector3 entryCenter;
+        public Vector3 entrySize = new Vector3(4f, 3f, 4f);
+        public Vector3 rejoinCenter;
+        public Vector3 rejoinSize = new Vector3(4f, 3f, 4f);
     }
 
     /// <summary>

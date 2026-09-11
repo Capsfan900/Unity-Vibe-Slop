@@ -28,7 +28,7 @@ namespace VibeGame1
         readonly List<string> lines = new List<string>();
 
         const int MaxLines = 12;
-        public const string HelpText = "help  |  clear  |  editor unlock";
+        public const string HelpText = "help  |  clear  |  editor unlock  |  timing start/stop/status/export/discard";
 
         public struct CommandResult
         {
@@ -161,6 +161,20 @@ namespace VibeGame1
                 case "editor unlock":
                     InputReader.UnlockLevelEditorForSession();
                     return new CommandResult(false, "LEVEL EDITOR UNLOCKED FOR THIS SESSION");
+                case "timing start":
+                {
+                    string message;
+                    PlayerTimingCapture.StartCapture(out message);
+                    return new CommandResult(false, message);
+                }
+                case "timing stop":
+                    return new CommandResult(false, PlayerTimingCapture.StopCapture());
+                case "timing status":
+                    return new CommandResult(false, PlayerTimingCapture.Status());
+                case "timing export":
+                    return new CommandResult(false, PlayerTimingCapture.Export());
+                case "timing discard":
+                    return new CommandResult(false, PlayerTimingCapture.Discard());
                 default:
                     return new CommandResult(false, "UNKNOWN COMMAND   type help");
             }

@@ -142,7 +142,7 @@ concepts and would need de-singletoning first — see the design doc.
 | `ScreenFlash` | Full-screen flashes |
 | `SettingsApplier` | Pushes `SettingsStore.Current` onto `PlayerLook`, `CameraFX`, `QualitySettings`, the URP volume clone. `DontDestroyOnLoad`, bootstrapped by `RuntimeInitializeOnLoadMethod` — nothing to place |
 | `SettingsMenu` | The settings panel, one instance per scene (title screen and pause path share the class) |
-| `DeveloperConsole` | Minimal gameplay HUD console (`help`, `clear`, `editor unlock`); owns only its pause/cursor overlay state, while `InputReader` owns its keys and the session-only F10 grant |
+| `DeveloperConsole` | Minimal gameplay HUD console (`help`, `clear`, `editor unlock`, opt-in local `timing ...` capture); owns only its pause/cursor overlay state, while `InputReader` owns its keys and the session-only F10 grant |
 
 ---
 

@@ -11,6 +11,35 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Restored vertical course, blue-sentry Insight routes and player timing capture — 2026-09-10
+
+- **Full EditMode: 943/943 passed**, zero failures/skips, 44.49 s. This includes the restored span
+  geometry, five connector ramps, T3 balloon chain, shipped Insight-route data/build/export contracts and
+  the bounded player-timing recorder.
+- **Full FeatureTests: 806/806 passed**, zero failures/skips, 58.4 s, from a fresh Level_01 play session
+  after explicitly proving `GameManager.I != null` and `Time.timeScale == 1`.
+- **The widened route keeps its movement vocabulary.** The generator now restores the T1 rails, walls,
+  obelisks and lintel; the T2 tower, buttress and wall-run landings; the T3 lintel, recovery posts, walls
+  and four-balloon vertical chain. The level arc report passes every authored base traversal, turret perch
+  coverage and the balloon climb; the projectile encounter report passes at 11 / 17.6 / 27.5 m/s.
+- **Three optional blue-sentry flare shortcuts are explicitly authored as Insight routes.** Each section
+  has a bright colliderless hand/`INSIGHT` marker, source-spawner identities and non-gameplay entry/rejoin
+  timing anchors. These are presentation and telemetry data; they do not weaken or silently replace the
+  mandatory projectile-parry route.
+- **Human timing can now be measured without an automated parry driver.** The development console records
+  a bounded 30 Hz trace plus exact parry presses, projectile emission/cue/contact/result, slide state,
+  player velocity and originating spawner. `timing stop` stays in memory; only explicit `timing export`
+  writes local JSON. A live smoke capture exported 229 samples over 8.77 s with no dropped data. It had
+  zero projectile events because the stationary smoke run never entered enemy range.
+- **Build/health:** runtime build has zero warnings/errors; editor build has zero errors and 18 known
+  warnings from the existing descent probe and Forge manifest DTOs. Health Check result is PASS with the
+  existing 1942 serialized-null/audio fallback warnings. `git diff --check` is clean.
+
+**Still human-only:** confirm each marked flare branch is visibly understandable, meaningfully faster and
+harder than the standard line; judge restored wall-run/vertical geometry at real speed; and capture several
+actual ramp attempts before retuning remaining turret timing. Automated checks prove the authored paths and
+state flow, not route desirability or manual parry feel.
+
 ### Open projectile route, strict Heavy phrases, Hook/items and final-ramp repair — 2026-09-10
 
 - **Final full EditMode: 935/935 passed**, zero failures/skips, 45.8 s. This includes the shipped data,

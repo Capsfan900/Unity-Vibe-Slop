@@ -112,11 +112,12 @@ namespace VibeGame1.Tests
             Assert.That(def.torches.Single(t => t.name == "Torch_T2_Mid").basePosition.z, Is.EqualTo(142f).Within(Eps));
 
             Assert.That(def.platforms.Single(p => p.name == "T3_Pillar_1").center.z, Is.EqualTo(266f).Within(Eps));
-            Assert.That(def.spawns.Single(s => s.name == "Spawn_T3_Grunt").position.z, Is.EqualTo(289f).Within(Eps));
+            float t3GruntZ = LevelDefinitionAuthoring.Perches.Single(p => p.spawn == "Spawn_T3_Grunt").center.z + 70f;
+            Assert.That(def.spawns.Single(s => s.name == "Spawn_T3_Grunt").position.z, Is.EqualTo(t3GruntZ).Within(Eps));
             Assert.That(def.pickups.Single(p => p.name == "Pickup_T3_Surge").position.z, Is.EqualTo(268f).Within(Eps));
             Assert.That(def.checkpoints.Single(c => c.name == "Checkpoint_3").position.z, Is.EqualTo(268f).Within(Eps));
             Assert.That(def.torches.Single(t => t.name == "Torch_T3_Span_S").basePosition.z, Is.EqualTo(301f).Within(Eps));
-            Assert.AreEqual(0, def.balloons.Length);
+            Assert.AreEqual(4, def.balloons.Length, "the expanded red section keeps its optional aerial line");
             Assert.That(def.waters.Single(w => w.name == "T3_Water_Span").center.z, Is.EqualTo(305f).Within(Eps));
             Assert.That(def.ramps.Single(r => r.name == "T4_Ramp_Descent").basePosition.z, Is.EqualTo(394.8f).Within(Eps));
             Assert.That(def.spawns.Single(s => s.name == "Spawn_T4_Surge_1").position.z, Is.EqualTo(418.8f).Within(Eps));
@@ -189,7 +190,8 @@ namespace VibeGame1.Tests
         static bool IsApproachPlatform(string gate, string name)
         {
             if (gate == "T1_Gate")
-                return name == "T1_Causeway";
+                return name == "T1_Causeway" || name == "T1_Rail_L" || name == "T1_Rail_R" ||
+                       name == "T1_Wall_Causeway" || name == "T1_Wall_Landing" || name == "T1_Perch_E";
             if (gate == "T2_Gate") return name == "T2_L11";
             if (gate == "T3_Gate") return name == "T3_Step_1" || name == "T3_Step_2";
             if (gate == "Boss_Gate")

@@ -1,5 +1,26 @@
 # Engineering log
 
+## 2026-09-10 — An openness pass must not erase the movement vocabulary
+
+**Symptom.** Level 1 had more steering room, but the wall runs, wall jumps, tower/chimney, slide lintels,
+recovery posts, connector ramps and T3 balloon arc had vanished. The course read flatter and offered fewer
+ways to express the movement kit.
+
+**Root cause.** `ApplyOpenProjectileCourse` did not merely widen the named decks. It carried an explicit
+`OpenCourseClutter` deletion list containing every one of those traversal pieces, while `T3Arc` and `Ramps`
+were replaced with empty arrays. Re-running `8a` therefore deterministically removed them from shipped data.
+
+**Fix.** Keep the broad `OpenCourseDecks`, but regenerate the removed pieces from the public,
+idempotent `HybridCourseStructures` table on the expanded outer shoulders. Restore four measured balloons
+and five supported connector ramps. Author three colliderless, glowing `INSIGHT` hand markers as
+`LevelDefinition.insightRoutes`; their source sentries and entry/rejoin boxes identify optional flare
+shortcuts without adding triggers or changing combat. Add opt-in local player/projectile timing capture so
+future cadence adjustments can use the player's real slide/parry trace.
+
+**Invariant.** “Open” means preserving a wide readable base lane, not deleting alternate movement. A
+secondary wall/balloon/flare line stays outside that lane and rejoins before the arena. Geometry, marker,
+route anchors and shipped assets must all be regenerated from data and asserted after the build.
+
 ## 2026-09-10 — A water sheet on two coplanar decks needs one unambiguous owner
 
 **Symptom.** `T1_Water_Fast` was fully contained by its shoulder deck, but the traversal audit reported it

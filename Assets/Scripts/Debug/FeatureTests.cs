@@ -4886,8 +4886,8 @@ namespace VibeGame1
             CheckParryPortalGap("T2", "SolarGold", "T2_L11", solarPortals);
             CheckParryPortalGap("T3", "SolarAzure", "T3_Step_2", solarPortals);
 
-            // Prove the built scene received the open-course data, rather than merely deleting the old
-            // fixtures from this test. These are the widest steering/breathing decks in each section.
+            // Prove the built scene retained the widened base route under the restored vertical layer.
+            // These are the widest steering/breathing decks in each section.
             CheckOpenDeck("T1_Causeway", 13.9f, 12.7f);
             CheckOpenDeck("T2_L6", 17.9f, 9.9f);
             CheckOpenDeck("T3_Span", 15.9f, 13.9f);
@@ -4898,9 +4898,9 @@ namespace VibeGame1
             CheckProjectileRoute("T2", new[] { "Spawn_T2_GruntB", "Spawn_T2_GruntA" });
             CheckProjectileRoute("T3", new[] { "Spawn_T3_Grunt", "Spawn_T3_Heavy" });
 
-            // The open route deliberately removes the old gates, tower core, wall lanes and recovery
-            // pylons. Their absence is a shipped geometry promise: restoring any one re-cramps a line.
-            string[] removedClutter =
+            // The hybrid pass keeps the wide steering decks and restores the silhouettes and secondary
+            // movement lines around them. Missing one here means a rebuild silently flattened the route.
+            string[] restoredTraversal =
             {
                 "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W", "T1_Fallen_Obelisk",
                 "T1_Wall_Start", "T1_Wall_Causeway", "T1_Wall_Landing",
@@ -4910,11 +4910,25 @@ namespace VibeGame1
                 "T3_Recovery_W1", "T3_Recovery_W2", "T3_Recovery_E1", "T3_Recovery_E2",
                 "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Wall_Span",
             };
-            var restoredClutter = new List<string>();
-            foreach (string n2 in removedClutter)
-                if (GameObject.Find("Level/" + n2) != null) restoredClutter.Add(n2);
-            Check("Reach_OpenCourseClutterStaysRemoved", restoredClutter.Count == 0,
-                "restored=" + string.Join(",", restoredClutter.ToArray()));
+            var missingTraversal = new List<string>();
+            foreach (string n2 in restoredTraversal)
+                if (GameObject.Find("Level/" + n2) == null) missingTraversal.Add(n2);
+            Check("Reach_HybridTraversalIsRestored", missingTraversal.Count == 0,
+                "missing=" + string.Join(",", missingTraversal.ToArray()));
+
+            var insightMarkers = FindObjectsByType<InsightRouteMarker>(FindObjectsInactive.Include);
+            Check("Reach_ThreeInsightHandsExist", insightMarkers.Length == 3,
+                "count=" + insightMarkers.Length);
+            foreach (var marker in insightMarkers)
+                Check("Reach_Insight_" + marker.RouteId + "_IsColliderless",
+                    marker.GetComponentInChildren<Collider>(true) == null,
+                    "an Insight sign must never become gameplay geometry");
+
+            int arcBalloons = 0;
+            foreach (var balloon in FindObjectsByType<Balloon>(FindObjectsInactive.Include))
+                if (balloon.name.StartsWith("T3_Arc_")) arcBalloons++;
+            Check("Reach_T3OptionalBalloonArcRestored", arcBalloons == 4,
+                "count=" + arcBalloons);
 
             // Leave the run where the rest of the suite expects it.
             if (checkpoints.ContainsKey("Checkpoint_1")) LevelManager.I.Warp("Checkpoint_1");

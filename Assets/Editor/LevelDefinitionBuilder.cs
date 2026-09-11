@@ -296,6 +296,11 @@ namespace VibeGame1.EditorTools
             // of GhostHud: it is world scenery the player turns around to inspect, never mid-run HUD.
             BuildWorldLeaderboard(def, root, ctx);
 
+            // Optional Insight-route hands are presentation only. Their entry/rejoin boxes stay as data
+            // on InsightRouteMarker for capture tooling; generating trigger volumes here would turn a
+            // developer timing anchor into gameplay geometry.
+            BuildInsightRoutes(def, root, ctx);
+
             // ---- kill zone --------------------------------------------------------------------------
             if (def.killZone != null)
             {
@@ -502,6 +507,69 @@ namespace VibeGame1.EditorTools
 
             view.Configure(level.displayName, data, heading, rows, footer);
             SetLayerRecursively(root, Starfield.SkyLayer);
+        }
+
+        static void BuildInsightRoutes(LevelDefinition level, Transform parent, LevelPieceContext ctx)
+        {
+            if (level.insightRoutes == null) return;
+            foreach (var data in level.insightRoutes)
+            {
+                if (data == null) continue;
+
+                var root = new GameObject(InsightRouteMarker.NameFor(data.routeId));
+                root.transform.SetParent(parent, false);
+                root.AddComponent<InsightRouteMarker>().Configure(data);
+                Material material = ctx.Material(data.markerMaterialKey);
+
+                // A simple open palm: enough silhouette to read as a hand from the route, without
+                // pretending to be gameplay geometry. Every primitive is colliderless below.
+                InsightVisualBox("Palm", new Vector3(0f, 0f, 0f), new Vector3(0.82f, 0.94f, 0.13f), material, root.transform);
+                InsightVisualBox("Wrist", new Vector3(0f, -0.72f, 0f), new Vector3(0.42f, 0.58f, 0.12f), material, root.transform);
+                InsightVisualBox("Thumb", new Vector3(-0.53f, -0.18f, 0f), new Vector3(0.46f, 0.20f, 0.12f), material,
+                                 root.transform, new Vector3(0f, 0f, -32f));
+                InsightVisualBox("Finger_0", new Vector3(-0.30f, 0.98f, 0f), new Vector3(0.15f, 0.72f, 0.12f), material, root.transform);
+                InsightVisualBox("Finger_1", new Vector3(-0.10f, 1.12f, 0f), new Vector3(0.15f, 0.92f, 0.12f), material, root.transform);
+                InsightVisualBox("Finger_2", new Vector3(0.10f, 1.12f, 0f), new Vector3(0.15f, 0.92f, 0.12f), material, root.transform);
+                InsightVisualBox("Finger_3", new Vector3(0.30f, 0.98f, 0f), new Vector3(0.15f, 0.72f, 0.12f), material, root.transform);
+
+                var labelGo = new GameObject("Label");
+                labelGo.transform.SetParent(root.transform, false);
+                labelGo.transform.localPosition = new Vector3(0f, 1.75f, 0f);
+                var label = labelGo.AddComponent<TextMeshPro>();
+                if (TMP_Settings.defaultFontAsset != null) label.font = TMP_Settings.defaultFontAsset;
+                label.text = "INSIGHT";
+                label.fontSize = 2.4f;
+                label.fontStyle = FontStyles.Bold;
+                label.alignment = TextAlignmentOptions.Center;
+                label.color = new Color(0.70f, 1f, 0.96f, 1f);
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.raycastTarget = false;
+
+                SetLayerRecursively(root, Starfield.SkyLayer);
+            }
+        }
+
+        static GameObject InsightVisualBox(string name, Vector3 localPosition, Vector3 localScale,
+                                           Material material, Transform parent)
+        {
+            return InsightVisualBox(name, localPosition, localScale, material, parent, Vector3.zero);
+        }
+
+        static GameObject InsightVisualBox(string name, Vector3 localPosition, Vector3 localScale,
+                                           Material material, Transform parent, Vector3 localEulerAngles)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.transform.localRotation = Quaternion.Euler(localEulerAngles);
+            go.transform.localScale = localScale;
+            var renderer = go.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return go;
         }
 
         static GameObject LeaderboardVisualBox(string name, Vector3 localPosition, Vector3 localScale,
