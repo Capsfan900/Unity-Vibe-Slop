@@ -3,7 +3,8 @@
 ## Current state — 2026-09-11
 
 Work is on `unity-cli-pilot`; `master` remains the pre-CLI baseline at `17f81f0`, protected by
-`pre-unity-cli-pilot-2026-09-11`. The working branch still needs its final commit and push.
+`pre-unity-cli-pilot-2026-09-11`. The implementation is pushed in `4ad0151`; deterministic WebGL platform
+settings are pushed in `79dc3f7`. Rollback tag `pre-v18-souls-prototype-2026-09-11` is also on the remote.
 
 The V18 Flurry Brawler is implemented as a completely separate test Souls-enemy lineage. It uses ordinary
 melee `EnemyController` and `PlayerCombat.ReceiveAttack`, with its own data, nine attacks, moveset, prefab,
@@ -24,6 +25,10 @@ HUD/Main Menu and the official Unity CLI/Pipeline pilot. Preserve the user-owned
   once with one ring, Shoulder shows Run→contact with one 4.12 m lunge, and Combo2 has one contact plus tail.
 - Runtime/editor offline builds: zero errors; editor retains 18 existing warnings.
 - Health Check: no error section; 1942 existing broad serialized-null/audio warnings.
+- WebGL build: **success**, 30.6 MB, three scenes, High stripping. The live
+  `build-info.txt` identifies `79dc3f7`, `unity-cli-pilot` and `build_inputs_dirty=no`.
+- GitHub Pages: published and returning HTTP 200 at
+  `https://capsfan900.github.io/Unity-Vibe-Slop/`.
 
 Human review remains required for the animation feel: Dash-as-rising-clap readability, shoulder/body contact,
 Clap weight, and fair manual parry tells.
@@ -48,14 +53,12 @@ stale during that delay.
 
 ## Exact resume order
 
-1. Review/stage only intended project changes. Exclude `.claude/settings.local.json`, `Portraits/`, unrelated
-   `RouteShots/`, and the unlicensed replacement Radio track.
-2. Create/push the rollback tag for this worker batch, commit the branch as one revertible worker-prefixed
-   integration, and push `unity-cli-pilot` with upstream.
-3. For a public WebGL playtest, temporarily move the unlicensed replacement song and `.meta` outside
-   `Assets/`, build from the exact clean commit, verify `build-info.txt` says `build_inputs_dirty=no`, publish
-   `gh-pages`, then restore the local files.
-4. Human-play the V18 Sandbox pad and report feel/tell issues before promoting it from a test enemy.
+1. Human-play the V18 Sandbox pad and report feel/tell issues before promoting it from a test enemy.
+2. For the next public WebGL playtest, temporarily move the unlicensed replacement song and `.meta` outside
+   `Assets/`, build from the exact clean implementation commit, verify `build_inputs_dirty=no`, publish
+   `gh-pages`, then restore both local files.
+3. Keep `master` on the pre-CLI baseline until the CLI/Pipeline pilot has earned promotion; continue ordinary
+   work on `unity-cli-pilot` as requested.
 
 ## Preserved user-owned files
 

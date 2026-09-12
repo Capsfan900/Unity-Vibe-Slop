@@ -34,6 +34,10 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
   five-second response window while Unity still completed the write, and Pipeline reachability briefly
   disappeared around reloads. Short CLI evals remain useful; MCP plus generated-asset readback owns long
   operations and verification.
+- **Shareable build:** WebGL built successfully at 30.6 MB from `unity-cli-pilot@79dc3f7` with three scenes,
+  High stripping and `build_inputs_dirty=no`. The `gh-pages` publish succeeded; the public page and its
+  provenance file both returned HTTP 200. The local unlicensed replacement song was moved outside `Assets`
+  for the build, excluded from publication, and restored afterward.
 
 **Still human-only:** judge whether Dash convincingly reads as the requested rising clap strike, whether
 Shoulder Charge visibly meets the player, whether the levitate/Clap slam has enough weight, and whether the
