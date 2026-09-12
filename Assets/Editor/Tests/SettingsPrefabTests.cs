@@ -173,8 +173,11 @@ namespace VibeGame1.Tests
             Assert.IsFalse(string.IsNullOrWhiteSpace(hud.text), "HUD: the INFO text is empty");
             Assert.AreEqual(hud.text, menu.text, "the two INFO tabs differ — SettingsPanelKit is the one emitter; both must come from ControlsInfo");
             string lower = hud.text.ToLowerInvariant();
-            foreach (var must in new[] { "f10", "slide", "dash", "parry", "f1", "level editor" })
+            foreach (var must in new[] { "slide", "dash", "parry", "command console" })
                 StringAssert.Contains(must, lower, "the INFO text does not mention " + must);
+            foreach (var privileged in new[] { "f10", "test menu", "level editor", "warp to boss", "+1000 souls" })
+                StringAssert.DoesNotContain(privileged, lower,
+                    "the locked shipped INFO text exposes a developer-only instruction: " + privileged);
         }
 
         [Test]

@@ -257,6 +257,7 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Legendary_Marionette` — *The Pale Marionette* | `Legendary_Marionette` | `Legendary_Marionette_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only — deliberately not in `Level_01`.** The whirl: deflect every pass on a 0.69 s beat (the parry contract's floor), nine passes to a phrase, six clean deflects break it. **Imported ANIMATED body** (`Assets/Enemies/PaleMarionette.fbx`), driven by `PuppetVisuals` + an `Animator`. See §2b. |
 | `Legendary_Halberdier` — *The Argent Halberdier* | `Legendary_Halberdier` | `Legendary_Halberdier_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x 0.75, between the Heavy pad and the Warden's).** REACH: it holds at `preferredRange 4.0`, the furthest of the roster, with wide sweeps and a thrust at that distance, an unblockable shoulder charge that closes the far band, an unblockable kick for a player who turtles inside it, and a heavy whose recovery is the punish. **Imported ANIMATED body with GENERATED clips** (`Assets/Enemies/ArgentHalberdier.fbx`, from `ai_skelly_tool`): nine attacks, nine clips, each attack naming its own via `EnemyAttackData.clip`, and the travelling clips' distance shipped as `lungeDistance`. See §2b. |
 | `Legendary_FlurryBrawler` — *The Flurry Brawler* | `Legendary_FlurryBrawler` | `Legendary_FlurryBrawler_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x −22, z −26, the second row).** The roster's first FLURRY enemy: UNARMED, and where the Halberdier is REACH and the Revenant is a READ, this one is a **LADDER** — strings of two punches, then four, then eight (`Burst2` → `Burst4` → `Burst8`), all on the same 0.73 s beat, each rung telling longer and paying a bigger punish window, and the top rung deflected clean **breaks the bar outright**. A 1.05 s rising `LOAD` announces the top rung; the hammerfist is the tempo break, the 150° clap is the answer to circling, the kick is the anti-turtle and a 1.55 m leap-in is the anti-kiter. Twelve attacks, twelve clips, every one named on the attack. **Imported ANIMATED body with GENERATED clips** (`Assets/Enemies/FlurryBrawler.fbx`, **v15, 32 clips**). See §2b. |
+| `Legendary_FlurryBrawlerV18` — *The Flurry Brawler V18 (TEST)* | `Legendary_FlurryBrawlerV18` | `Legendary_FlurryBrawlerV18_Moveset` | `EnemyController` + `FlurryBrawlerV18Visuals` | **ADDITIVE TEST, sandbox only; it does not replace v15.** A separate Souls melee enemy (`shootsProjectiles = false`, `rangedOnly = false`) with no boss or parkour-projectile components. Its filtered `FlurryBrawlerV18.fbx` library contains exactly 18 approved clips; Shoulder, Clap, Combo2, Jump and Block use V18-only presentation staging while every attack remains one data-scheduled `PlayerCombat.ReceiveAttack`. Separate pad/spawner/wake switch at `(112, 20)`. See §2b and DATAFLOW → *Flurry Brawler V18*. |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
 
 ### 2a. Importing a forge model — and the one source-art exception
@@ -267,8 +268,8 @@ exception.** An FBX exported from `enemy-forge` is *authored art*, like the CC0 
 `MiniBossFactory` references it **by path and fails loudly** if it is missing: a clear `Debug.LogError`
 naming the file and how to restore it, and the prefab is abandoned. There is deliberately **no silent
 fallback to primitives**, because a boxy stand-in in a shipped build reads as a bug rather than as a
-missing file. That folder holds `AshenChorister.fbx` and `IronPenitent.fbx` plus the `*_source.png`
-drawing each was generated from, kept alongside for provenance.
+missing file. Each imported body keeps its `*_source.png` beside the FBX; the V18 test also keeps a
+`FlurryBrawlerV18.provenance.txt` recording the exact source hashes and filtered-manifest boundary.
 
 To bring in a new one:
 
@@ -277,12 +278,12 @@ To bring in a new one:
    as-is under its `EnemyForge.Editor` namespace) applies metre scale and sane mesh defaults to
    anything matching that path. Copy the source drawing in beside it.
 2. **Check the rig type is Generic.** The postprocessor asks for Humanoid, which is wrong here and
-   often does not run at all — see ENGINEERING-LOG. Nothing in this project is animated by an
-   `Animator`; `EnemyVisuals` drives plain transforms, so a Humanoid avatar buys nothing and a legless
-   silhouette cannot produce a valid one.
+   often does not run at all — see ENGINEERING-LOG. Animated forge bodies use their own Generic rig
+   through `PuppetVisuals`; retargeting buys nothing and a legless silhouette cannot produce a valid
+   Humanoid avatar. Static imported bodies still use `EnemyVisuals`' plain transforms.
 3. **Verify the facing by rendering it**, from ±X and ±Z, and looking. Forge output is "Unity axes",
-   which fixes the scale and the ground plane but says nothing about which way the figure looks. Both
-   shipped models face **+Z**; do not assume the next one does.
+   which fixes the scale and the ground plane but says nothing about which way the figure looks. Record
+   the result per body: V18 faces **+Z**, but that says nothing about the next import.
 4. **Add a `ModelSpec` to `MiniBossFactory.ModelFor`**: the file name, the hover lift, a yaw correction
    if needed, and the local positions of the glowing slot, the shoulder, the hand and the weapon-FX
    marker. Two optional fields: `zShift`, a forward shift of the mesh under the collider (the forge
@@ -337,8 +338,9 @@ To add another animated model:
    y 1.96 while its head bone sits at 1.20 — the top 0.76 m is spikes and hood with no bones in it — so a
    bounds-derived eye or deathblow glyph floats in mid-air, silently. The probe also prints per-clip hand
    separation, which is how the spin/pose clip gets picked by measurement instead of by name.
-2. Run **4a. Split Forge Animation Clips**. Confirm in the console that it reports the clip count you
-   expect, then check the FBX's sub-assets: fifteen named clips, none of them `empty`.
+2. Run **4a. Split Forge Animation Clips**. Confirm in the console that it reports the manifest's exact
+   clip count, then check the FBX sub-assets: every named clip exists and none is `empty`. V18 must be
+   exactly its approved 18-state allowlist, not the larger source export.
 3. Add a `ModelSpec` to `MiniBossFactory.ModelFor` with `animated = true` plus `idleClip`,
    `attackClip`, `heavyClip` and (if it whirls) `spinClip` and `spinPrefix`.
 4. Run **4b. Build Mini-Bosses**. It calls `PuppetAnimatorFactory.Build`, which generates
@@ -418,9 +420,31 @@ Four things that are settled and should not be re-litigated per model:
   the arms to a 0.76 m span, while `Roar` holds 2.0 m for its whole length. `Roar` is the spin clip.
   See ENGINEERING-LOG.
 
+#### V18 Flurry Brawler test profile
+
+`Legendary_FlurryBrawlerV18` deliberately demonstrates the exceptional case where one imported body
+needs a small presentation subclass without becoming a new gameplay family. Its source of truth is:
+
+- `DataFactory`: `Legendary_FlurryBrawlerV18`, its separate moveset, and uniquely prefixed
+  `BrawlerV18_*` attacks. Do not edit or alias the v15 assets.
+- `FlurryBrawlerV18.clips.json`: exactly `Idle`, `Walk`, `Run`, `Jump`, `AttackSwing`,
+  `AttackOverhead`, `AttackStab`, `AttackKick`, `Hit`, `Stagger`, `Roar`, `Block`, `Death`, `Jab2`,
+  `Dash`, `Clap`, `ShoulderCharge`, `Combo2`. Extra source takes are intentionally excluded.
+- `MiniBossFactory`: the exact geometry/profile and `FlurryBrawlerV18Visuals` component; the generated
+  controller must contain the same 18 nonempty states and no AnimationEvents.
+- `SandboxBuilder`: an appended roster entry and its own pad/spawner/wake switch at `(112, 20)`, with a
+  clear 4.12 m charge lane. The v15 fixture stays in place.
+
+Regenerate in this order, out of play mode: **4a Split Forge Animation Clips → 3 Create Data → 4b Build
+Mini-Bosses → 7 Build Sandbox**. This remains a Souls duel: ordinary `EnemyController`, melee data,
+posture/deathblow, no `BossController` and none of the parkour shooter components. Jump and Block are
+presentation-only; Dash and Shoulder move through data `lungeDistance`; Clap and Combo2 still schedule
+one combat contact each. See DATAFLOW for the V18-only staging clock.
+
 ---
 
-The four mini-bosses are prefabs built by **VibeGame1 → 4b. Build Mini-Bosses**
+The campaign mini-bosses and sandbox `Legendary_*` prototypes are prefabs built by
+**VibeGame1 → 4b. Build Mini-Bosses**
 (`Editor/MiniBossFactory.cs`), *not* by `4. Build Prefabs` — so re-tuning them never rebuilds the player
 rig. They use `EnemyController` on purpose: `BossController` raises `BossDefeated`, which stops the
 speedrun timer and clears the level. See ARCHITECTURE.md → *Legendary mini-bosses*.
@@ -547,8 +571,8 @@ still lands as the melee execute — so a heavy wand can safely wait 9 s. Writte
 
 **Items: exactly three live moves.** `ItemEffect` appends `{ Grapple = 0, WallSurge = 1 (retired),
 Rebound = 2, DeflectSigil = 3 }`; never reuse value 1 because old serialized assets must not silently
-become another item. Each live item is a `DataFactory` block plus an offhand viewmodel in
-`PrefabFactory.BuildItemViewmodels`, and a level places one by `PickupDef.itemKey`. Rule 9 applies:
+become another item. Each live item is a `DataFactory` block, and a level places one by
+`PickupDef.itemKey`. Rule 9 applies:
 every tunable below is written in `DataFactory`.
 
 | Item | Asset | Tunables on `ItemData` | What it does |
@@ -557,8 +581,9 @@ every tunable below is written in `DataFactory`.
 | **Rebound** (green) | `Assets/Data/Items/Rebound.asset` | `reboundExitMultiplier` 1.18, `reboundBonusSpeed` 3 | Arms the next successful airborne dash or wall jump, strengthens the capped exit and refreshes air dash. |
 | **Deflect Sigil** (violet) | `Assets/Data/Items/DeflectSigil.asset` | `deflectSigilBonusStacks` 2, `deflectSigilImpulse` 5 | Waits through Block/Hit; the next Perfect consumes it for two extra general speed stacks and forward impulse. |
 
-The viewmodels follow the wand rules: `Seg*` parts carry the flow band, `Tip*` is where the tip light
-and the hook line originate, and `Float*` parts orbit. No `Grip*`: items are held in the middle of the palm.
+The equipped wand remains the persistent offhand model while an item is carried or spent. Item effects may
+animate that wand and originate at its live `TipWorldPosition`; the legacy item-model assets remain serialized
+only for compatibility and are not a required authoring step.
 
 ---
 

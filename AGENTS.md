@@ -130,12 +130,14 @@ They prove the state machine, **never** that the game feels good or is fair.
 ## Additional player controls
 
 `F11` weapon flourish (rebindable in Settings) · `E` use item · Backquote command console (all builds;
-`editor unlock` grants release-build F10 for this process only and is never persisted)
+the private passphrase grants the shared developer capability for this process only and is never persisted)
 
-## Dev keys — editor / development builds only
+## Dev keys — private process-local access only
 
-`4` dev blade · `F1` test menu · `F5` warp to boss · `F6` full restore · `F7` +1000 souls ·
-`F8` god mode · `F10` level editor
+Open the Backquote console and enter the private passphrase first. The grant resets when the game process
+ends and is never saved. Then: `4` dev blade · `R` cycle wand · `F1` test menu · `F5` warp to boss ·
+`F6` full restore · `F7` +1000 souls · `F8` god mode · `F9` wall-run diagnostic · `F10` level editor.
+The console, Sandbox/custom rows and timing capture consume the same `DeveloperAccess` capability in every build.
 
 ## Driving the Unity editor
 

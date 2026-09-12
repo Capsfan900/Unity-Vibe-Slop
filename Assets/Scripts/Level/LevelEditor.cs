@@ -245,6 +245,7 @@ namespace VibeGame1
         /// <summary>Toggle from a key or the F1 menu.</summary>
         public void Toggle()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             if (CurrentMode == Mode.Off) Enter();
             else if (CurrentMode == Mode.Playing) BackToEditing();
             else Exit();
@@ -253,6 +254,7 @@ namespace VibeGame1
         /// <summary>Enter EDITING over the current scene. Returns false when there is no player to fly.</summary>
         public bool Enter()
         {
+            if (!DeveloperAccess.IsUnlocked) return false;
             if (CurrentMode != Mode.Off) return true;
             motor = FindAnyObjectByType<FirstPersonMotor>();
             if (motor == null) { Debug.LogWarning("[LevelEditor] No FirstPersonMotor in the scene; nothing to fly."); return false; }

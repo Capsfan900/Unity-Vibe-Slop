@@ -34,10 +34,11 @@ namespace VibeGame1.EditorTools
     /// output gets a <c>build-info.txt</c> stamped with the git SHA, branch, UTC build time, Unity version
     /// and the exact scene list, so a playtest bug report traces back to one build.</para>
     ///
-    /// <para>Playtest configuration, deliberately: <see cref="BuildOptions.None"/>, no development build, so
-    /// the dev keys gated <c>#if UNITY_EDITOR || DEVELOPMENT_BUILD</c> in <c>DebugKeys.cs</c> compile out.
-    /// The F10 in-game level editor is NOT gated that way and remains reachable — a gameplay-gating
-    /// decision, not build plumbing, so this script does not change it. See <c>docs/BACKLOG.md</c>.</para>
+    /// <para>Playtest configuration, deliberately: <see cref="BuildOptions.None"/>, no development build.
+    /// Player-reachable tooling remains compiled for trusted release-build diagnosis, but
+    /// <c>DeveloperAccess</c> makes F1/F5-F10, slot 4, Sandbox/custom rows and timing capture inert until
+    /// the private process-local console passphrase is accepted.
+    /// The capability resets on process start and is never written to settings or build metadata.</para>
     /// </summary>
     public static class BuildRunner
     {
@@ -159,8 +160,17 @@ namespace VibeGame1.EditorTools
 
                 AssetDatabase.SaveAssets();
 
-                if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
-                Directory.CreateDirectory(outDir);
+                // Build beside the known-good output. A failed build must not erase the last copy a
+                // tester can launch; only a fully successful, traceable staging build is promoted.
+                string stagingDir = outDir + ".staging";
+                TryDeleteDirectory(stagingDir);
+                if (Directory.Exists(stagingDir))
+                    return Emit("BUILD REFUSED (" + target + "): stale staging output could not be removed at " +
+                                stagingDir + ". Close anything using that folder and re-run; the previous build was preserved.");
+                Directory.CreateDirectory(stagingDir);
+                string stagingLocation = isWebGL
+                    ? stagingDir
+                    : Path.Combine(stagingDir, Path.GetFileName(locationPathName));
 
                 // ---- config enforced here, so a build does not depend on what someone last clicked ---
                 PlayerSettings.SetManagedStrippingLevel(named, PlaytestStripping);
@@ -179,7 +189,7 @@ namespace VibeGame1.EditorTools
                 var options = new BuildPlayerOptions
                 {
                     scenes = scenes,
-                    locationPathName = locationPathName,
+                    locationPathName = stagingLocation,
                     target = target,
                     options = BuildOptions.None, // playtest config: not a development build
                 };
@@ -192,15 +202,26 @@ namespace VibeGame1.EditorTools
 
                 BuildSummary summary = report.summary;
                 if (summary.result != BuildResult.Succeeded)
+                {
+                    TryDeleteDirectory(stagingDir);
                     return Emit("BUILD FAILED (" + target + "): result=" + summary.result +
                                 " errors=" + summary.totalErrors + "\n" + FirstErrors(report));
+                }
 
-                string cleanupNote = StripDoNotShip(outDir);
-                string infoError = null;
-                try { WriteBuildInfo(outDir, scenes, named, sw.Elapsed); }
-                catch (Exception e) { infoError = e.Message; }
+                string cleanupNote = StripDoNotShip(stagingDir);
+                try { WriteBuildInfo(stagingDir, scenes, named, sw.Elapsed); }
+                catch (Exception e)
+                {
+                    TryDeleteDirectory(stagingDir);
+                    return Emit("BUILD FAILED (" + target + "): build-info.txt could not be written: " + e.Message +
+                                ". The previous build was preserved.");
+                }
 
-                long sizeBytes = SafeDirectorySize(outDir);
+                long sizeBytes = SafeDirectorySize(stagingDir);
+                string promotionError = PromoteBuildOutput(stagingDir, outDir);
+                if (promotionError != null)
+                    return Emit("BUILD FAILED (" + target + "): completed staging output could not replace the " +
+                                "previous build: " + promotionError);
                 var result = new StringBuilder();
                 result.Append("BUILD OK target=").Append(target)
                       .Append(" outputPath=").Append(locationPathName)
@@ -212,7 +233,6 @@ namespace VibeGame1.EditorTools
                 if (drift != null) result.Append("\nSCENE LIST REPAIRED: ").Append(drift);
                 if (dirtyNote != null) result.Append("\n").Append(dirtyNote);
                 if (cleanupNote != null) result.Append("\n").Append(cleanupNote);
-                if (infoError != null) result.Append("\nbuild-info.txt FAILED: ").Append(infoError);
                 return Emit(result.ToString());
             }
             catch (Exception e)
@@ -353,10 +373,14 @@ namespace VibeGame1.EditorTools
 
         static void WriteBuildInfo(string outDir, string[] scenes, NamedBuildTarget named, TimeSpan duration)
         {
+            string repositoryStatus = RunGit("status --porcelain --untracked-files=all");
+            string buildInputStatus = RunGit(
+                "status --porcelain --untracked-files=all -- Assets Packages ProjectSettings");
             string text =
                 "git_sha=" + RunGit("rev-parse --short HEAD") + "\n" +
                 "git_branch=" + RunGit("rev-parse --abbrev-ref HEAD") + "\n" +
-                "git_dirty=" + (string.IsNullOrEmpty(RunGit("status --porcelain")) ? "no" : "YES") + "\n" +
+                "git_dirty=" + DirtyValue(repositoryStatus) + "\n" +
+                "build_inputs_dirty=" + DirtyValue(buildInputStatus) + "\n" +
                 "built_utc=" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\n" +
                 "build_seconds=" + ((int)duration.TotalSeconds) + "\n" +
                 "unity_version=" + Application.unityVersion + "\n" +
@@ -375,13 +399,23 @@ namespace VibeGame1.EditorTools
                 {
                     WorkingDirectory = RepoRoot,
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 };
                 using (var p = Process.Start(psi))
                 {
+                    if (p == null) return "unknown(git did not start)";
                     string stdout = p.StandardOutput.ReadToEnd().Trim();
-                    p.WaitForExit(5000);
+                    string stderr = p.StandardError.ReadToEnd().Trim();
+                    if (!p.WaitForExit(5000))
+                    {
+                        try { p.Kill(); } catch { }
+                        return "unknown(git timed out)";
+                    }
+                    if (p.ExitCode != 0)
+                        return "unknown(git exit " + p.ExitCode +
+                               (string.IsNullOrEmpty(stderr) ? "" : ": " + stderr) + ")";
                     return stdout;
                 }
             }
@@ -389,6 +423,12 @@ namespace VibeGame1.EditorTools
             {
                 return "unknown(" + e.Message + ")";
             }
+        }
+
+        static string DirtyValue(string status)
+        {
+            if (status != null && status.StartsWith("unknown(", StringComparison.Ordinal)) return "unknown";
+            return string.IsNullOrEmpty(status) ? "no" : "YES";
         }
 
         static long SafeDirectorySize(string dir)
@@ -407,6 +447,48 @@ namespace VibeGame1.EditorTools
             {
                 return 0;
             }
+        }
+
+        /// <summary>
+        /// Park the previous output, promote the completed staging directory, then discard the backup.
+        /// If promotion fails, restore the old output before reporting the failure.
+        /// </summary>
+        static string PromoteBuildOutput(string stagingDir, string outDir)
+        {
+            string backupDir = outDir + ".previous";
+            try
+            {
+                TryDeleteDirectory(backupDir);
+                if (Directory.Exists(backupDir))
+                    return "stale backup could not be removed at " + backupDir +
+                           "; the previous build was left untouched";
+                if (Directory.Exists(outDir)) Directory.Move(outDir, backupDir);
+                try
+                {
+                    Directory.Move(stagingDir, outDir);
+                }
+                catch
+                {
+                    TryDeleteDirectory(outDir);
+                    if (Directory.Exists(outDir))
+                        throw new IOException("partial promoted output could not be removed; previous build remains at " +
+                                              backupDir);
+                    if (Directory.Exists(backupDir)) Directory.Move(backupDir, outDir);
+                    throw;
+                }
+                TryDeleteDirectory(backupDir);
+                return null;
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        static void TryDeleteDirectory(string path)
+        {
+            try { if (Directory.Exists(path)) Directory.Delete(path, true); }
+            catch { /* a later create/move reports the concrete failure without risking the old output */ }
         }
     }
 }

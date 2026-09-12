@@ -91,8 +91,8 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// Spend a specific carried item (the offhand slot picks which one). Returns false — and keeps
-        /// the item — when the effect refuses to fire: a Grapple with nothing to hook is not spent.
+        /// Spend a specific carried item. Returns false — and keeps the item — when the effect refuses
+        /// to fire: a Grapple with nothing to hook is not spent.
         /// </summary>
         public bool Use(ItemData item)
         {
@@ -134,14 +134,11 @@ namespace VibeGame1
 
         void Broadcast()
         {
+            // Item inventory and the equipped wand are independent systems. WandController is the
+            // only writer of the persistent offhand model; replacing it here with an item's much
+            // smaller pickup mesh makes every wand collapse into a "toothpick" after pickup/use and
+            // leaves that tiny model visible through the death delay until respawn rebuilds the wand.
             GameEvents.RaiseItemsChanged(held.ToArray());
-            if (offhand == null) return;
-            if (Current != null) offhand.ShowItem(Current);
-            else
-            {
-                var wands = GetComponent<WandController>();
-                offhand.ShowWand(wands != null ? wands.Current : null);
-            }
         }
 
         // ---- effects ---------------------------------------------------------------------------

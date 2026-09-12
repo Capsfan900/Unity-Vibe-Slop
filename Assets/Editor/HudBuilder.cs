@@ -627,7 +627,7 @@ namespace VibeGame1.EditorTools
 
             // ---------------- Command console (`) ------------------------------------------------
             // Built after every other overlay so it is always the front-most panel. It is intentionally
-            // compact: help / clear / editor unlock, not a second debug-menu hierarchy.
+            // compact: help / clear / a bare private passphrase, not a second debug-menu hierarchy.
             BuildDeveloperConsole(console, t);
 
             // ---------------- EventSystem (new Input System) ----------------

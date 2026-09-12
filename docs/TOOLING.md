@@ -347,8 +347,9 @@ garbage is what eventually produces the collection hitch that loses a run.
 
 ## 5. In-game test menu — **F1**
 
-`Assets/Scripts/Debug/TestMenu.cs`, built by `HudBuilder.BuildTestMenu`. Editor and development builds
-only. Pauses via `TimeScaleController` and unlocks the cursor.
+`Assets/Scripts/Debug/TestMenu.cs`, built by `HudBuilder.BuildTestMenu`. Present for trusted diagnosis in
+every build, but `DeveloperAccess` keeps it inert until the private Backquote-console passphrase is accepted.
+Pauses via `TimeScaleController` and unlocks the cursor.
 
 | Column | Buttons |
 |---|---|
@@ -365,7 +366,7 @@ boss segment/phase/HP/posture/state, and `Time.timeScale` vs `WorldScale`/`Playe
 
 ## 6. Debug hotkeys
 
-`Assets/Scripts/Debug/DebugKeys.cs`, editor and development builds only.
+`Assets/Scripts/Debug/DebugKeys.cs`, gated in every build by the same process-local developer capability.
 
 | Key | Action |
 |---|---|
@@ -382,12 +383,12 @@ boss segment/phase/HP/posture/state, and `Time.timeScale` vs `WorldScale`/`Playe
 
 ### Player timing capture
 
-In editor play mode or a development build, open the Backquote console and use `timing start`, play the
+After granting developer access in any build, open the Backquote console and use `timing start`, play the
 ramp/encounter normally, then use `timing stop` and `timing export`. Export prints the absolute path to a
 local JSON file under `Application.persistentDataPath/timing-captures/`. The trace contains player position,
 velocity, grounded/slide/wall-run/dash/pull state, raw parry presses, and projectile emission/cue/arrival/
 resolution timestamps with bolt, phrase and enemy-data identity. `timing status` reports the bounded buffer;
-`timing discard` erases it. No file is created until export, nothing uploads, and release builds reject capture.
+`timing discard` erases it. No file is created until export and nothing uploads.
 
 ---
 
@@ -434,7 +435,51 @@ to tell "the window is wrong" from "the player is early".
 | `.claude/settings.json` | Permission allowlist for routine Unity MCP + read-only Bash. `execute_code` and `manage_asset` are deliberately **excluded** — both can destroy work. |
 | `CREDITS.md` | CC0 audio sources and licences. |
 
-## 10. Playtest builds
+## 10. Unity CLI / Pipeline pilot
+
+The Unity Hub-installed CLI is `1.0.0-beta.8`; this project pins experimental
+`com.unity.pipeline` `0.7.0-exp.1`. Roll back both project-side changes with tag
+`pre-unity-cli-pilot-2026-09-11`. The CLI talks to the already-open editor—it must never be confused with
+`unity test`, `unity build` or `unity run`, which may launch a second/batch Editor against this working copy.
+
+`Tools/unity-cli/Invoke-VibeGame.ps1` finds `unity` on PATH or Unity Hub's bundled executable and keeps the
+project path explicit. Common calls:
+
+```powershell
+./Tools/unity-cli/Invoke-VibeGame.ps1 status
+./Tools/unity-cli/Invoke-VibeGame.ps1 commands
+./Tools/unity-cli/Invoke-VibeGame.ps1 state
+./Tools/unity-cli/Invoke-VibeGame.ps1 preflight
+./Tools/unity-cli/Invoke-VibeGame.ps1 health
+./Tools/unity-cli/Invoke-VibeGame.ps1 build-webgl
+./Tools/unity-cli/Invoke-VibeGame.ps1 build-windows
+```
+
+Direct `unity command ... eval` is the preferred terminal path once Pipeline reports `isReachable: true`:
+Roslyn evaluates against the live editor without changing source or causing a domain reload. The existing
+third-party MCP bridge remains installed and is the fallback while this experimental package proves itself.
+If Pipeline is absent, unreachable or changes behavior, do not start another Editor—use MCP against the open
+one or revert the pilot tag.
+
+Treat Pipeline reachability as ephemeral across domain reloads. In the 2026-09-11 pilot, `state`, preflight,
+clip splitting, data generation, mini-boss generation and Sandbox generation all succeeded through the CLI,
+but a later long mini-boss generation exceeded Pipeline's five-second main-thread response window. Unity
+continued and wrote the prefab/controller after the client had returned HTTP 400. A subsequent `state` call
+found port 7801, while the immediately following `preflight` temporarily reported no Pipeline instance.
+Therefore use CLI for short state/preflight/eval calls; after any long generator, domain reload or timeout,
+read the generated asset back and fall back to MCP. Neither a CLI timeout nor a transient missing descriptor
+proves that Unity stopped the requested work.
+
+The CLI's Hub account database and `Library/Pipeline/.unity-pipeline-port` descriptor are user-scoped. A
+restricted automation sandbox can therefore return `LOCAL_STORE_UNWRITABLE`, fail to read the descriptor, or
+claim the server is unreachable even while the editor and Pipeline are healthy. Confirm `status` from the
+normal signed-in user context before treating that as a project failure. A healthy result names this exact
+project, the pinned package version, and `pipelineServer.isReachable: true`. Raw direct
+`Unity.exe -batchmode ... -createProject` probes are not a fallback: without Hub launch/bootstrap context they
+can lose the Licensing Client pipe, register zero built-in packages and fail on engine modules that are in
+fact installed.
+
+## 11. Playtest builds
 
 `Assets/Editor/BuildRunner.cs` cuts a non-dev playtest build (`BuildOptions.None`, development build OFF)
 to `Builds/Windows/` and `Builds/WebGL/` at the repo root (gitignored). Call the static methods directly
@@ -443,6 +488,9 @@ the `VibeGame1/Build/…` menu items over MCP, they only log. Publish with `Tool
 (GitHub Pages via a `gh-pages` worktree) and `Tools/publish/Publish-WindowsRelease.ps1` (zipped GitHub
 Release). Full runbook, one-time GitHub settings and how to trace a bug report to a build SHA:
 [docs/DISTRIBUTION.md](DISTRIBUTION.md).
+Both publishers reject stale SHA metadata and dirty/unknown `Assets`, `Packages` or `ProjectSettings`
+inputs. Full-repository dirtiness is recorded separately, so preserved local screenshots and personal
+tool settings do not falsely make an otherwise reproducible player build unpublishable.
 
 ## Final-descent verification (2026-09-07)
 

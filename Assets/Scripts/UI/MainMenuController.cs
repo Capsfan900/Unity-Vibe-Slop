@@ -188,6 +188,13 @@ namespace VibeGame1
             }
 
             VisibleRowCount = visible;
+
+            bool developer = DeveloperAccess.IsUnlocked;
+            if (sandboxRow != null)
+            {
+                if (sandboxRow.root != null) sandboxRow.root.SetActive(developer);
+                if (sandboxRow.button != null) sandboxRow.button.interactable = developer;
+            }
             RefreshCustomRows();
 
             if (playSubtitle != null)
@@ -275,6 +282,7 @@ namespace VibeGame1
             customRows.Clear();
             CustomRowCount = 0;
             if (customTemplate == null || customTemplate.root == null) return;
+            if (!DeveloperAccess.IsUnlocked) return;
             var names = LevelEditor.ListSaved();
             var parent = customTemplate.root.transform.parent;
             var templateRt = customTemplate.root.GetComponent<RectTransform>();
@@ -295,8 +303,8 @@ namespace VibeGame1
                 };
                 string name = names[i];
                 if (row.title != null) row.title.text = "CUSTOM   " + name.ToUpperInvariant();
-                // The custom level PLAYS in every build; only the F10 fly-cam entry is development-only
-                // (InputReader.LevelEditorPressed), so a shipped player must not be told to press it.
+                // Custom rows exist only after the shared developer capability is granted. F10 consumes
+                // the same capability, so an unlocked trusted tester may edit the loaded document.
                 if (row.meta != null) row.meta.text =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     "made in the level editor  -  F10 in play to edit it";
@@ -330,7 +338,15 @@ namespace VibeGame1
             LoadScene(PlayTargetSceneName);
         }
 
-        public void LoadSandbox() { LoadScene(sandboxSceneName); }
+        public void LoadSandbox()
+        {
+            if (!DeveloperAccess.IsUnlocked)
+            {
+                Debug.LogWarning("[MainMenu] Sandbox rejected: developer access is locked.");
+                return;
+            }
+            LoadScene(sandboxSceneName);
+        }
 
         /// <summary>
         /// Load a gameplay scene. Nothing is carried across: the level scene brings its own

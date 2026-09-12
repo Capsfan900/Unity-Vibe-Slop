@@ -1,5 +1,71 @@
 # Engineering log
 
+## 2026-09-11 — Raw batch probes can lose the Hub licensing context while the live editor is healthy
+
+**Symptom.** A disposable `Unity.exe -batchmode -nographics -quit -createProject` probe repeatedly
+reported `Connection to channel LicenseClient-tyler refused`, waited for licensing initialization, then
+registered zero built-in packages. Compilation subsequently failed on `UnityEngine.AnimationModule` /
+`Animator`, which made the failure look like a missing engine module rather than an authentication-path
+failure.
+
+**Root cause.** The raw process was launched directly and did not carry the Hub bootstrap used by a
+Hub-authenticated editor (`-useHub`, Hub/licensing IPC channels and Hub-issued session credentials). Updating
+Hub aligned the installed Licensing Client version and refreshed entitlements, but did not make this raw
+launch path reliable. A later guarded probe through a Hub-authenticated live editor executed Unity normally;
+the official CLI likewise reported this project's Pipeline server reachable when run with access to the
+user-scoped Hub credential store and Pipeline token. A restricted automation sandbox can falsely report the
+CLI unavailable because those two stores are intentionally readable only by the signed-in user.
+
+**Invariant.** Do not diagnose `Registered 0 packages` followed by a missing built-in module as an asset or
+package defect until licensing initialization is proven. Do not retry the raw `-createProject` probe, copy
+licensing binaries or edit token/license files. Drive the already-open Hub-authenticated editor through
+`Tools/unity-cli/Invoke-VibeGame.ps1` / `unity command eval`, with MCP as fallback. Run the CLI from the normal
+user context when checking reachability; the Pipeline descriptor is deliberately protected by a user-only
+ACL.
+
+## 2026-09-11 — Player-reachable diagnostics need one capability, not scattered build symbols
+
+**Symptom.** Release builds compiled some debug keys out, left F10 behind a public `editor unlock` phrase,
+shipped a visible Sandbox row, and exposed the fourth test weapon through ordinary slot input. Each surface
+answered a different question, so “the public build has no cheats” could not be proven as one policy.
+
+**Fix.** `DeveloperAccess` owns one process-local grant derived from a normalized console passphrase and a
+committed SHA-256 digest. `InputReader` gates F1/F5-F10, slot 4 and R; the console gates timing commands;
+`TestMenu` gates opening and public toggles; the main menu hides and rejects Sandbox/custom rows; and a
+locked `SandboxController` disables itself. Level-editor entry, Sandbox controller/wake-switch,
+wand-pedestal and scripted-diagnostic entry points also re-check the gate, so direct component calls do not
+bypass the input policy. The
+diagnostic code remains in release builds so a trusted tester can unlock it, while locked help and the
+settings INFO card do not advertise privileged commands; locked console input and echoes are masked.
+
+**Invariant.** The Backquote console is the only player-reachable door. Adding a diagnostic input, menu,
+scene row, capture or mutation requires `DeveloperAccess.IsUnlocked`; build symbols alone are not the
+authority. The grant is never persisted. A digest inside a client is deterrence, not authentication.
+
+The sandbox pad wake switches and timing recorder enforce the capability at their own public entry points.
+Hiding a menu row, disabling only the root controller, or gating only the console dispatcher is not enough:
+a separately attached player-reachable component or direct capture/export call must remain inert too.
+
+## 2026-09-11 — Unity CLI drives the existing editor; it does not license a second editor
+
+The project pins `com.unity.pipeline` `0.7.0-exp.1` behind tag `pre-unity-cli-pilot-2026-09-11` and keeps
+the third-party MCP bridge as fallback. `Tools/unity-cli/Invoke-VibeGame.ps1` uses `unity command eval`
+against the explicit project path. `unity test`, `unity build` and `unity run` may start another Editor and
+remain prohibited against the active working copy. Experimental tooling is retained only after direct
+state/preflight/test/build checks agree with the established MCP evidence.
+
+The pilot also established a narrower reliability boundary. Short CLI evaluations are fast and useful, but
+Pipeline's current package can drop its port descriptor around domain reloads and applies a five-second
+main-thread response window even when the outer CLI timeout is much larger. One mini-boss generator returned
+HTTP 400 for that reason and nevertheless finished writing its prefab and Animator controller; `state` then
+briefly alternated between reachable and "No Pipeline instance found." Always verify the asset or returned
+state, and use MCP for completion/readback when an operation crosses a reload or performs substantial asset
+generation. A transport timeout is not evidence that the editor rolled the operation back.
+
+Build output is transactional: Unity writes beside the deliverable under `.staging`, metadata is stamped
+there, and only a successful traceable build replaces the old directory. A failed build preserves the last
+known-good copy instead of deleting it before `BuildPipeline.BuildPlayer` starts.
+
 ## 2026-09-10 — An openness pass must not erase the movement vocabulary
 
 **Symptom.** Level 1 had more steering room, but the wall runs, wall jumps, tower/chimney, slide lintels,
@@ -3989,3 +4055,23 @@ from the already accepted flight forecast.
 **Invariant.** Per-member geometry proof is not temporal proof for a chained high-speed encounter. When
 several one-shot sources form one required rhythm, author one explicit order in level data, never transfer
 one member's personal refire clock to another, and validate facing from the same path that will actually fly.
+
+## 2026-09-11 — Item inventory must never replace the persistent wand model
+
+**Symptom.** After picking up or spending an item, and around the death/respawn flow, the equipped wand could
+collapse into what looked like a tiny toothpick even though the equipped wand name and index were unchanged.
+
+**Root cause.** `WandController` correctly treated the offhand as a persistent wand and documented itself as
+its sole visual owner, but `PlayerItems.Broadcast` still contained an older shared-slot implementation. Every
+inventory broadcast destroyed the correctly scaled wand and spawned the current item's much smaller pickup
+model in its place. That tiny model remained visible through the death delay; respawn itself correctly rebuilt
+the wand. The existing independence test asserted only the wand data and missed the rendered object entirely.
+
+**Fix.** `PlayerItems.Broadcast` now publishes inventory state only. It retains the `OffhandViewmodel`
+reference solely to animate item use and originate effects from the visible wand tip. `WandController` is the
+only code allowed to replace the held model. Feature verification pins the actual instance reference and local
+scale across pickup, successful use, death and respawn.
+
+**Invariant.** Data independence is not visual independence. If a system claims exclusive ownership of a
+persistent viewmodel, test the rendered instance across every unrelated lifecycle event—not just its selected
+data asset.

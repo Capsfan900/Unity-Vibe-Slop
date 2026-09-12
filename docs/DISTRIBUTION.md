@@ -21,6 +21,18 @@ Nothing else to click. Releases need no settings — anyone with the repo URL ca
 
 ## Cutting a build (the lead runs this in the open editor)
 
+With the Unity Pipeline package connected, prefer the repository wrapper—the direct CLI path returns
+structured output and still invokes the same `BuildRunner` inside the already-open editor:
+
+```powershell
+./Tools/unity-cli/Invoke-VibeGame.ps1 preflight
+./Tools/unity-cli/Invoke-VibeGame.ps1 build-webgl
+./Tools/unity-cli/Invoke-VibeGame.ps1 build-windows
+```
+
+The existing MCP path remains a supported fallback. Never substitute `unity build`, `unity test` or
+`unity run` against this working copy while the editor is open; those commands may spawn another Editor.
+
 From `execute_code` (or the `VibeGame1/Build/…` menu, which does the same thing but only logs — don't rely
 on `execute_menu_item` over MCP, it can report success without building):
 
@@ -65,19 +77,23 @@ and every custom-level row load it by name, so a build without it has a main men
 
 Set in `BuildRunner`, not in the Inspector, so a build never depends on what someone last clicked:
 
-- **`BuildOptions.None`** — a playtest build, not a development build. The `F5`–`F9` dev keys are gated
-  `#if UNITY_EDITOR || DEVELOPMENT_BUILD` in `Assets/Scripts/Debug/DebugKeys.cs`, so they compile out
-  entirely. **The `F10` in-game level editor is not gated that way** — only its EXPORT button is
-  (`#if !UNITY_EDITOR` in `Assets/Scripts/Level/LevelEditor.cs`), so a playtester can still open F10 and
-  roam in fly-cam. A gameplay decision this script does not make — see `docs/BACKLOG.md`.
+- **`BuildOptions.None`** — a playtest build, not a development build. Trusted diagnostics remain compiled,
+  but `DeveloperAccess` rejects F1/F5-F10, slot 4, timing capture, Sandbox and custom-level rows in every
+  build until the private Backquote-console passphrase is accepted. The grant is process-local and never
+  saved; only a SHA-256 digest ships. This is deterrence inside a client binary, not authentication.
 - **Managed stripping: `High`** on both Standalone and WebGL. This is worth ~26 MB (see below) and is the
   one setting here that can break the game at runtime rather than at build time, because the linker cannot
   see reflection. **Any change to it must be re-proved by launching the build**, not by a test suite —
   nothing in either suite runs the player.
 - `*_BurstDebugInformation_DoNotShip` folders are deleted from the output after every build. Obey the name.
 
-`build-info.txt` records the SHA, branch, **whether the tree was dirty**, UTC time, build duration, Unity
-version, scripting backend, stripping level and the exact scene list.
+`build-info.txt` records the SHA, branch, full-repository dirtiness, **build-input dirtiness** for
+`Assets/`, `Packages/` and `ProjectSettings/`, UTC time, build duration, Unity version, scripting backend,
+stripping level and the exact scene list. Git failures are stamped `unknown`, never mistaken for clean.
+
+Unity first writes each build to a sibling `.staging` directory. The previous playable output remains
+untouched until the new build succeeds and its `build-info.txt` is written; only then is staging promoted.
+A compile, player-build or metadata failure therefore preserves the last known-good local deliverable.
 
 ### Size, and where it goes
 
@@ -129,6 +145,9 @@ Hub would cut the managed side further at the cost of much slower builds.
 Mirrors `Builds/WebGL` into a throwaway git worktree at `.worktrees/gh-pages` (gitignored, never touches
 `master`), checked out to the `gh-pages` branch (created as an orphan on first run), commits and pushes.
 Pages republishes automatically within a minute or two of the push, per the one-time setting above.
+The publisher refuses a stale SHA, a missing `build-info.txt`, or anything except
+`build_inputs_dirty=no`; a public link must map back to reproducible game inputs. Local-only root files
+such as screenshots may make `git_dirty=YES` without poisoning a build, and remain visible in the metadata.
 
 ### Windows → GitHub Release (zip, download-and-run)
 
@@ -140,12 +159,13 @@ Zips `Builds/Windows` to `Builds/vibegame1-windows-<tag>.zip`. If the `gh` CLI i
 the tag and creates the release with the zip attached. **`gh` was confirmed absent from both Git Bash and
 PowerShell on this machine** — the script detects that and instead prints the exact manual steps: tag,
 push the tag, then open `https://github.com/Capsfan900/Unity-Vibe-Slop/releases/new?tag=<tag>` and drag
-the zip in by hand.
+the zip in by hand. The same clean-SHA/build-info guard runs before the zip is created.
 
 ## Tracing a playtest bug report
 
 Every build carries `build-info.txt` next to the executable (Windows) or at the site root (WebGL):
-`git_sha`, `git_branch`, `built_utc`, `unity_version`, `product_version`. Ask a playtester reporting a bug
+`git_sha`, `git_branch`, `git_dirty`, `build_inputs_dirty`, `built_utc`, `unity_version`, `product_version`.
+Ask a playtester reporting a bug
 for that SHA (Windows: the file next to the .exe; WebGL: view-source on the Pages URL won't show it since
 it's not linked from `index.html` — tell playtesters to check the browser's Network tab for
 `build-info.txt`, or just tag each Pages publish with the commit message the publish script already writes,
@@ -155,5 +175,5 @@ exact tree the report was against.
 ## What this deliberately does not do
 
 - No Unity build inside GitHub Actions (licence secret not provided — see above).
-- No change to the F10 dev-key gating question — reported, not decided here (see "Cutting a build").
+- No secret distribution. Share the passphrase only with trusted testers who need diagnostic access.
 - No auto-versioning/auto-tagging beyond what the two publish scripts do when the lead runs them by hand.

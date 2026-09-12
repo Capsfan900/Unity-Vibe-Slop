@@ -4,7 +4,8 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// Developer hotkeys (editor / development builds only). Lives on the Managers prefab.
+    /// Developer hotkeys. Lives on the Managers prefab and remains inert in every build until the
+    /// command console grants <see cref="DeveloperAccess"/> for the current process.
     ///   F5  warp to the boss arena entrance and equip the test blade (slot 4)
     ///   F6  full heal, refill flasks, fill the Pyre meter
     ///   F7  +1000 souls
@@ -17,7 +18,6 @@ namespace VibeGame1
     /// </summary>
     public class DebugKeys : MonoBehaviour
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
         static readonly Vector3 LegacyArenaEntrance = new Vector3(0f, 18.2f, 375f);
         const int TestWeaponSlot = 3;
 
@@ -25,7 +25,7 @@ namespace VibeGame1
 
         void Update()
         {
-            if (!GameManager.IsPlaying || InputReader.I == null) return;
+            if (!DeveloperAccess.IsUnlocked || !GameManager.IsPlaying || InputReader.I == null) return;
             var input = InputReader.I;
 
             if (input.DebugWarpBossPressed) WarpToBoss();
@@ -215,6 +215,5 @@ namespace VibeGame1
             GameEvents.RaisePromptChanged(PromptOwner.Debug, "");
             promptRoutine = null;
         }
-#endif
     }
 }

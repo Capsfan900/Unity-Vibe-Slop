@@ -1,56 +1,63 @@
-# Handoff — restored vertical course, Insight flare routes and timing capture
+# Handoff — Unity CLI pilot and V18 Souls-enemy prototype
 
-## Current state — 2026-09-10
+## Current state — 2026-09-11
 
-The interrupted Astra pass is complete and verified. No agent work remains in flight.
+Work is on `unity-cli-pilot`; `master` remains the pre-CLI baseline at `17f81f0`, protected by
+`pre-unity-cli-pilot-2026-09-11`. The working branch still needs its final commit and push.
 
-The previous openness pass explicitly deleted almost every named T1–T3 rail, wall, tower, lintel, recovery
-post and connector ramp. That was the root cause of the level feeling flat. The same wide decks remain, but
-the generator now rebuilds those authored structures idempotently: T1 has its rails/obelisks/lintel and
-wall-run landing; T2 has its tower, buttress and east/west wall lines; T3 has its lintel, recovery posts,
-walls, landing and four-balloon vertical chain. Turret perches were moved only where a restored structure
-would obstruct the actual running line; every claimed shot corridor now passes the arc report.
+The V18 Flurry Brawler is implemented as a completely separate test Souls-enemy lineage. It uses ordinary
+melee `EnemyController` and `PlayerCombat.ReceiveAttack`, with its own data, nine attacks, moveset, prefab,
+Generic FBX clip library, Animator controller and `FlurryBrawlerV18Visuals` presentation layer. It has no
+parkour projectile, surge or boss components and does not replace V15. Its independent Sandbox pad is at
+`(112, FloorTop, 20)`.
 
-The blue sentries remain mechanically unchanged. Their flare-assisted branches are now three authored
-`InsightRouteDef` entries, one per parkour section, using explicit source spawners and entry/rejoin anchors.
-The builder produces a large cyan hand silhouette with an `INSIGHT` label. Every marker is on the Sky layer,
-has no collider/trigger and cannot affect traversal or NavMesh. These are optional faster/harder skill lines,
-while the standard route still expects projectile parries to preserve speed.
+The earlier in-flight release pass is also present: centralized process-local `DeveloperAccess`, locked
+release diagnostics, transactional build/publish scripts, the persistent-wand toothpick repair, regenerated
+HUD/Main Menu and the official Unity CLI/Pipeline pilot. Preserve the user-owned files listed below.
 
-Player-controlled projectile timing is no longer a black box. In editor/development builds, the backquote
-console supports `timing start`, `timing stop`, `timing status`, `timing export` and `timing discard`.
-`PlayerTimingCapture` keeps a bounded 30 Hz trace in memory, records exact parry presses and projectile
-emission/cue/contact/result events, and includes player position/velocity/speed/slide state plus the firing
-enemy data and spawner when available. It never drives input, combat or enemy decisions. Export is explicit
-and local under `Application.persistentDataPath/timing-captures/`.
+## Verification completed
 
-## Verification
+- Full EditMode: **963/963 passed**, zero failures/skips, 49.34 s.
+- Fresh Level_01 FeatureTests: **813 passed, 0 failed, 1 intentional V18/Sandbox skip**, 60.4 s.
+- Focused Sandbox `V18Smoke`: **21/21 passed**, zero failures/skips, 9.6 s.
+- V18 smoke proves committed Clap survives ordinary damage, blocked/perfect Clap each resolves and grounds
+  once with one ring, Shoulder shows Run→contact with one 4.12 m lunge, and Combo2 has one contact plus tail.
+- Runtime/editor offline builds: zero errors; editor retains 18 existing warnings.
+- Health Check: no error section; 1942 existing broad serialized-null/audio warnings.
 
-- Runtime build: zero warnings/errors; editor build: zero errors and 18 known warnings from the existing
-  descent probe and Forge DTO fields.
-- Health Check: PASS with 1942 existing broad serialized-null/audio fallback warnings.
-- Projectile Encounter Report: PASS at 11 / 17.6 / 27.5 m/s.
-- Level Arc Report: PASS.
-- Full EditMode: **943/943 passed**, zero failures/skips, 44.49 s.
-- Fresh unpaused FeatureTests: **806/806 passed**, zero failures/skips, 58.4 s.
-- Live timing-recorder smoke test: valid JSON, 229 samples over 8.77 s, zero dropped samples/events.
-  Projectile events remain deliberately unproven by that stationary spawn test.
+Human review remains required for the animation feel: Dash-as-rising-clap readability, shoulder/body contact,
+Clap weight, and fair manual parry tells.
 
-Rollback tag: `pre-restored-vertical-route-2026-09-10`.
+## Unity licensing and tool result
 
-## Human playtest next
+The failed disposable probe is not caused by too many projects or a missing AnimationModule. Raw
+`Unity.exe -batchmode -createProject` bypassed Hub bootstrap/authentication, lost the Licensing Client pipe,
+registered zero built-in packages, and only then failed to resolve `Animator`. Hub-authenticated live-editor
+execution works.
 
-1. Run every restored T1–T3 wall-run, wall-jump and vertical branch at speed; confirm the wider spaces still
-   feel open and none of the restored silhouettes recreates the old cramped line.
-2. Check that each cyan hand reads as a Neon White-style secret/Insight invitation and that its blue-sentry
-   flare line is actually faster and harder than the standard route.
-3. For remaining turret feel, capture three ordinary and three fast attempts: open the console, run
-   `timing start`, close it and play; afterward run `timing stop` then `timing export`. Give the printed JSON
-   path to the next session so shot gates can be tuned against player motion instead of automation.
-4. Judge projectile visibility and parry rhythm at human timing. Do not retune the final-ramp turrets the
-   user already approved unless a capture demonstrates a regression.
+Unity CLI `1.0.0-beta.8` with `com.unity.pipeline 0.7.0-exp.1` helped with short state/preflight/eval calls and
+successfully drove several generators. It is not yet a replacement for MCP: Pipeline can disappear around a
+domain reload, and a long generator can exceed the package's five-second main-thread response window even
+while Unity finishes writing assets. Use CLI for short live-editor queries; use MCP and asset readback for
+long generators/tests. Never run `unity test/build/run` against this active working copy.
+
+Unity's `com.unity.ai.assistant` package also waits roughly 30 seconds for its Account API on Play Mode domain
+reload, temporarily logging zero matching entitlements before licensing resolves successfully. Confirm
+`Time.frameCount` advances, `GameManager.I != null` and `Time.timeScale == 1`; the editor-state phase can remain
+stale during that delay.
+
+## Exact resume order
+
+1. Review/stage only intended project changes. Exclude `.claude/settings.local.json`, `Portraits/`, unrelated
+   `RouteShots/`, and the unlicensed replacement Radio track.
+2. Create/push the rollback tag for this worker batch, commit the branch as one revertible worker-prefixed
+   integration, and push `unity-cli-pilot` with upstream.
+3. For a public WebGL playtest, temporarily move the unlicensed replacement song and `.meta` outside
+   `Assets/`, build from the exact clean commit, verify `build-info.txt` says `build_inputs_dirty=no`, publish
+   `gh-pages`, then restore the local files.
+4. Human-play the V18 Sandbox pad and report feel/tell issues before promoting it from a test enemy.
 
 ## Preserved user-owned files
 
-The music replacement under `Assets/Resources/Audio/Radio/`, `.claude/settings.local.json`, `Portraits/`
-and unrelated `RouteShots/` were not staged or modified by this pass.
+Do not stage, remove or overwrite `.claude/settings.local.json`, `Portraits/`, unrelated `RouteShots/`, or
+`Assets/Resources/Audio/Radio/Level_01/FineArt & jazza's dance party - Eyes Wide Shut.mp3` and its `.meta`.

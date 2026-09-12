@@ -7,10 +7,10 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// A deliberately small in-game command console. It is a HUD overlay, not a cheat framework: the
-    /// only commands are <c>help</c>, <c>clear</c>, and <c>editor unlock</c>. The latter grants F10 for
-    /// this process only; it is an intentional playtester switch, not authentication or security.
-    /// Input comes exclusively from <see cref="InputReader"/>.
+    /// A deliberately small in-game command console. It is the only player-reachable door into
+    /// <see cref="DeveloperAccess"/>: help and clear work while locked, while entering the secret
+    /// passphrase grants all developer tools for this process only. Input comes exclusively from
+    /// <see cref="InputReader"/>.
     /// </summary>
     public class DeveloperConsole : MonoBehaviour
     {
@@ -28,16 +28,20 @@ namespace VibeGame1
         readonly List<string> lines = new List<string>();
 
         const int MaxLines = 12;
-        public const string HelpText = "help  |  clear  |  editor unlock  |  timing start/stop/status/export/discard";
+        public const string LockedHelpText = "help  |  clear  |  enter developer passphrase";
+        public const string UnlockedHelpText = "help  |  clear  |  timing start/stop/status/export/discard  |  F1/F5-F10/4/R enabled";
+        public static string HelpText { get { return DeveloperAccess.IsUnlocked ? UnlockedHelpText : LockedHelpText; } }
 
         public struct CommandResult
         {
             public bool clear;
+            public bool redactInput;
             public string message;
 
-            public CommandResult(bool clearOutput, string response)
+            public CommandResult(bool clearOutput, string response, bool redact = false)
             {
                 clear = clearOutput;
+                redactInput = redact;
                 message = response ?? "";
             }
         }
@@ -45,6 +49,7 @@ namespace VibeGame1
         void Start()
         {
             if (panel != null) panel.SetActive(false);
+            ApplyInputMode();
         }
 
         void Update()
@@ -84,6 +89,7 @@ namespace VibeGame1
             if (panel != null) panel.SetActive(true);
             if (lines.Count == 0) Append("COMMAND CONSOLE   ` closes   type help");
             if (input != null) input.text = "";
+            ApplyInputMode();
             StartCoroutine(FocusNextFrame());
         }
 
@@ -134,6 +140,7 @@ namespace VibeGame1
             }
 
             CommandResult result = ExecuteCommand(command);
+            ApplyInputMode();
             if (result.clear)
             {
                 lines.Clear();
@@ -141,7 +148,7 @@ namespace VibeGame1
             }
             else
             {
-                Append("> " + command.Trim());
+                Append("> " + (result.redactInput ? "********" : command.Trim()));
                 if (result.message.Length > 0) Append(result.message);
             }
             input.ActivateInputField();
@@ -152,15 +159,18 @@ namespace VibeGame1
         public static CommandResult ExecuteCommand(string raw)
         {
             string normalized = Normalize(raw);
+            if (normalized == "help") return new CommandResult(false, HelpText);
+            if (normalized == "clear") return new CommandResult(true, "");
+
+            if (!DeveloperAccess.IsUnlocked)
+            {
+                if (DeveloperAccess.TryUnlock(raw))
+                    return new CommandResult(false, "DEVELOPER ACCESS UNLOCKED FOR THIS SESSION", true);
+                return new CommandResult(false, "DEVELOPER ACCESS LOCKED", true);
+            }
+
             switch (normalized)
             {
-                case "help":
-                    return new CommandResult(false, HelpText);
-                case "clear":
-                    return new CommandResult(true, "");
-                case "editor unlock":
-                    InputReader.UnlockLevelEditorForSession();
-                    return new CommandResult(false, "LEVEL EDITOR UNLOCKED FOR THIS SESSION");
                 case "timing start":
                 {
                     string message;
@@ -185,6 +195,15 @@ namespace VibeGame1
             if (string.IsNullOrWhiteSpace(raw)) return "";
             string[] words = raw.Trim().Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             return string.Join(" ", words).ToLowerInvariant();
+        }
+
+        void ApplyInputMode()
+        {
+            if (input == null) return;
+            input.contentType = DeveloperAccess.IsUnlocked
+                ? TMP_InputField.ContentType.Standard
+                : TMP_InputField.ContentType.Password;
+            input.ForceLabelUpdate();
         }
 
         void Append(string line)

@@ -407,6 +407,7 @@ namespace VibeGame1
                 Test("LevelFlow",       TestLevelFlow),
                 Test("LevelStructure",  TestLevelStructure),
                 Test("Legendaries",     TestLegendaries),
+                Test("V18Smoke",        TestV18Smoke),
                 Test("GateLoop",        TestGateLoop),
                 Test("Boss",            TestBoss),
                 Test("HUD",             TestHud),
@@ -781,6 +782,7 @@ namespace VibeGame1
             bool hid = ed.hideSceneRootsWhileEditing;
             ed.hideSceneRootsWhileEditing = false;
             Vector3 before = motor.transform.position;
+            DeveloperAccess.UnlockForTests();
             try
             {
                 bool entered = ed.Enter();
@@ -828,6 +830,7 @@ namespace VibeGame1
             {
                 ed.Exit();
                 ed.hideSceneRootsWhileEditing = hid;
+                DeveloperAccess.LockForTests();
                 try { System.IO.File.Delete(LevelEditor.PathFor("~featuretest")); } catch (System.Exception) { }
             }
             yield return null;
@@ -2707,12 +2710,18 @@ namespace VibeGame1
         IEnumerator TestWandPedestal()
         {
             bool devMenuWas = WandPedestal.DevMenuEnabled;
+            DeveloperAccess.UnlockForTests();
             var ts = TimeScaleController.I;
             var pedestal = FindAnyObjectByType<WandPedestal>();
             var menu = FindAnyObjectByType<WandSelectMenu>();
 
             Check("WandPedestal_InLevel", pedestal != null, "built by LevelGreyboxBuilder / SandboxBuilder");
-            if (menu == null) { Check("WandPedestal_MenuInHud", false, "no WandSelectMenu on the HUD prefab"); yield break; }
+            if (menu == null)
+            {
+                Check("WandPedestal_MenuInHud", false, "no WandSelectMenu on the HUD prefab");
+                DeveloperAccess.LockForTests();
+                yield break;
+            }
             Check("WandPedestal_MenuInHud", true);
             Check("WandPedestal_MenuStartsClosed", !menu.IsOpen);
             Check("WandPedestal_MenuHasRows", menu.rows != null && menu.rows.Length > 0,
@@ -2835,6 +2844,7 @@ namespace VibeGame1
             {
                 Skip("WandPedestal_EquipsSelectedWand", "player has fewer than 2 wands in the loadout");
                 WandPedestal.DevMenuEnabled = devMenuWas;
+                DeveloperAccess.LockForTests();
                 yield break;
             }
 
@@ -2898,6 +2908,7 @@ namespace VibeGame1
 
             // Leave the altar the way we found it (off, unless the user had switched it on).
             WandPedestal.DevMenuEnabled = devMenuWas;
+            DeveloperAccess.LockForTests();
             yield return null;
         }
 
@@ -3051,13 +3062,21 @@ namespace VibeGame1
             // STRETCHED so the phases can be sampled: the shipped strike leg is 0.044-0.14 s, which is
             // a couple of frames. The pose path is a normalised lerp, so a stretched attack walks the
             // identical phases - it just gives the sampler somewhere to stand.
+            yield return SettleTimeScale();
             trail.Clear();
             vm.PlayAttack(0, 1.2f, 0.5f);          // windup 0.50s, strike 0.24s, then hold + recovery
             yield return WaitRealtime(0.25f);
             bool quietInWindup = !trail.IsEmitting;
-            yield return WaitRealtime(0.40f);      // t = 0.65s: inside the strike
-            bool liveInStrike = trail.IsEmitting;
-            yield return WaitRealtime(0.35f);      // t = 1.00s: past the strike, into the follow-through
+            // Observe the whole expected strike band instead of one instant. A busy editor can deliver
+            // a single long frame across t=0.65, making a correct coroutine look as if it never opened.
+            float observeUntil = Time.unscaledTime + 0.55f;
+            bool liveInStrike = false;
+            while (Time.unscaledTime < observeUntil)
+            {
+                if (trail.IsEmitting) liveInStrike = true;
+                yield return null;
+            }
+            yield return WaitRealtime(0.25f);      // t >= 1.05s: past the strike, into follow-through
             bool quietAfter = !trail.IsEmitting;
 
             Check("Trail_SilentDuringWindup", quietInWindup, "the wind-up is not dangerous yet");
@@ -3661,60 +3680,86 @@ namespace VibeGame1
             yield return ResetPlayerState();
 
             // ---- Items and wands are independent ----------------------------------------------
-            EnemyController victim = null;
-            yield return SpawnDummy(combat.transform.position + combat.transform.forward * 3f, e => victim = e);
-            if (victim == null) Skip("Items_WandIndependence", "no enemy prefab to stage the test around");
+            // No enemy is involved here. Keeping this behind SpawnDummy once allowed the exact
+            // viewmodel regression to be silently skipped when unrelated enemy staging failed.
+            var wandCtrl = combat.GetComponent<WandController>();
+            if (wandCtrl == null) Skip("Wands_Independent", "no WandController on the player");
             else
             {
                 // Wands and items are INDEPENDENT systems. Picking up an item must not touch the
                 // equipped wand, and an item must be usable with E without any swapping. An earlier
                 // build shared one offhand slot between them, which made items look broken.
-                var wandCtrl = combat.GetComponent<WandController>();
-                if (wandCtrl == null) Skip("Wands_Independent", "no WandController on the player");
-                else
-                {
-                    ClearItems();
-                    yield return null;
-                    wandCtrl.Equip(1);
-                    var wandBefore = wandCtrl.Current;
-                    int indexBefore = wandCtrl.Index;
+                ClearItems();
+                yield return null;
+                wandCtrl.Equip(1);
+                var wandBefore = wandCtrl.Current;
+                int indexBefore = wandCtrl.Index;
+                var offhandView = combat.GetComponentInChildren<OffhandViewmodel>(true);
+                var modelBefore = offhandView != null ? offhandView.DisplayedInstance : null;
+                Vector3 scaleBefore = modelBefore != null ? modelBefore.transform.localScale : Vector3.zero;
+                Check("Wands_VisibleModelExists", modelBefore != null,
+                    "offhand=" + (offhandView != null) + " model=" + (modelBefore != null ? modelBefore.name : "null"));
+                Check("Wands_VisibleModelMatchesEquipped",
+                    modelBefore != null && wandBefore != null && wandBefore.viewmodelPrefab != null &&
+                    modelBefore.name.StartsWith(wandBefore.viewmodelPrefab.name) &&
+                    Mathf.Abs(modelBefore.transform.localScale.x - wandBefore.viewmodelScale) < 0.0001f,
+                    "model=" + (modelBefore != null ? modelBefore.name : "null") +
+                    " expected=" + (wandBefore != null && wandBefore.viewmodelPrefab != null
+                        ? wandBefore.viewmodelPrefab.name : "null"));
 
-                    // Count deltas, not absolutes: a real pickup sits AT the spawn point and the harness
-                    // teleports here between tests, so the player can legitimately be carrying one already.
-                    int heldBefore = items.Held.Count;
-                    var probe = MakeItem(ItemEffect.Rebound);
-                    items.TryPickup(probe);
-                    yield return null;
-                    Check("Items_PickupDoesNotChangeWand", wandCtrl.Current == wandBefore && wandCtrl.Index == indexBefore,
-                        "wand " + (wandBefore != null ? wandBefore.displayName : "null") + " -> " +
-                        (wandCtrl.Current != null ? wandCtrl.Current.displayName : "null"));
-                    Check("Items_HeldAfterPickup", items.Held.Count == heldBefore + 1, $"held {heldBefore} -> {items.Held.Count}");
+                int heldBefore = items.Held.Count;
+                var probe = MakeItem(ItemEffect.Rebound);
+                items.TryPickup(probe);
+                yield return null;
+                Check("Items_PickupDoesNotChangeWand", wandCtrl.Current == wandBefore && wandCtrl.Index == indexBefore,
+                    "wand " + (wandBefore != null ? wandBefore.displayName : "null") + " -> " +
+                    (wandCtrl.Current != null ? wandCtrl.Current.displayName : "null"));
+                Check("Items_PickupPreservesWandModel",
+                    offhandView != null && offhandView.DisplayedInstance == modelBefore &&
+                    modelBefore != null && (modelBefore.transform.localScale - scaleBefore).sqrMagnitude < 0.000001f,
+                    "model=" + (offhandView != null && offhandView.DisplayedInstance != null
+                        ? offhandView.DisplayedInstance.name : "null"));
+                Check("Items_HeldAfterPickup", items.Held.Count == heldBefore + 1,
+                    $"held {heldBefore} -> {items.Held.Count}");
 
-                    // Usable directly, with no swap step.
-                    // UseCurrent() refuses while posture-broken. A previous section can leave the player
-                    // staggered, which would look like "items don't work" when the gate is what fired.
-                    if (posture != null) posture.ResetFull();
-                    yield return null;
-                    Check("Items_NotBlockedByStagger", combat == null || !combat.IsStaggered,
-                        "staggered=" + (combat != null && combat.IsStaggered));
-                    int beforeUse = items.Held.Count;
-                    items.UseCurrent();
-                    yield return null;
-                    Check("Items_UsableDirectly", items.Held.Count == beforeUse - 1,
-                        $"held {beforeUse} -> {items.Held.Count} (E must spend one with no swap step)");
-                    Check("Items_EffectApplied", motor.IsReboundArmed, "rebound=" + motor.IsReboundArmed);
-                    Check("Wands_StillEquippedAfterItemUse", wandCtrl.Current == wandBefore,
-                        "wand=" + (wandCtrl.Current != null ? wandCtrl.Current.displayName : "null"));
+                // Die while the item is still held: the regression left its tiny model visible for
+                // the death delay. Respawn clears inventory but must not rebuild the persistent wand.
+                GameEvents.RaisePlayerDied();
+                yield return null;
+                Check("DeathWithItemPreservesWandModel",
+                    offhandView != null && offhandView.DisplayedInstance == modelBefore &&
+                    modelBefore != null && (modelBefore.transform.localScale - scaleBefore).sqrMagnitude < 0.000001f);
+                GameEvents.RaisePlayerRespawned();
+                yield return null;
+                Check("RespawnPreservesWandModel",
+                    offhandView != null && offhandView.DisplayedInstance == modelBefore &&
+                    modelBefore != null && (modelBefore.transform.localScale - scaleBefore).sqrMagnitude < 0.000001f);
+                Check("RespawnClearsItems", items.Held.Count == 0, "held=" + items.Held.Count);
 
-                    // The wand set is fixed: cycling stays inside the loadout.
-                    int n = wandCtrl.loadout != null ? wandCtrl.loadout.Length : 0;
-                    wandCtrl.Next();
-                    Check("Wands_CycleStaysInLoadout", n > 0 && wandCtrl.Index >= 0 && wandCtrl.Index < n,
-                        "index=" + wandCtrl.Index + "/" + n);
-                    wandCtrl.Equip(indexBefore);
-                }
+                // Usable directly, with no swap step. Restage after the respawn deliberately cleared it.
+                items.TryPickup(probe);
+                if (posture != null) posture.ResetFull();
+                yield return null;
+                Check("Items_NotBlockedByStagger", combat == null || !combat.IsStaggered,
+                    "staggered=" + (combat != null && combat.IsStaggered));
+                int beforeUse = items.Held.Count;
+                items.UseCurrent();
+                yield return null;
+                Check("Items_UsableDirectly", items.Held.Count == beforeUse - 1,
+                    $"held {beforeUse} -> {items.Held.Count} (E must spend one with no swap step)");
+                Check("Items_EffectApplied", motor.IsReboundArmed, "rebound=" + motor.IsReboundArmed);
+                Check("Wands_StillEquippedAfterItemUse", wandCtrl.Current == wandBefore,
+                    "wand=" + (wandCtrl.Current != null ? wandCtrl.Current.displayName : "null"));
+                Check("Items_UsePreservesWandModel",
+                    offhandView != null && offhandView.DisplayedInstance == modelBefore &&
+                    modelBefore != null && (modelBefore.transform.localScale - scaleBefore).sqrMagnitude < 0.000001f);
 
-                if (victim != null) Destroy(victim.gameObject);
+                // The wand set is fixed: cycling stays inside the loadout.
+                int n = wandCtrl.loadout != null ? wandCtrl.loadout.Length : 0;
+                wandCtrl.Next();
+                Check("Wands_CycleStaysInLoadout", n > 0 && wandCtrl.Index >= 0 && wandCtrl.Index < n,
+                    "index=" + wandCtrl.Index + "/" + n);
+                wandCtrl.Equip(indexBefore);
             }
             yield return SettleTimeScale();
             ClearItems();
@@ -4401,6 +4446,10 @@ namespace VibeGame1
                 var testMenu = hud.GetComponent<TestMenu>();
                 if (testMenu != null && testMenu.statusEffectsButton != null)
                 {
+                    // This is a developer-menu control. Exercise the real wired button with the same
+                    // session capability a trusted tester must grant; the suite's LevelEditor and
+                    // WandPedestal sections deliberately restore the locked state when they finish.
+                    DeveloperAccess.UnlockForTests();
                     StatusStripView.StatusEffectsVisible = true;
                     testMenu.statusEffectsButton.onClick.Invoke();
                     yield return null;
@@ -4411,6 +4460,7 @@ namespace VibeGame1
                     yield return null;
                     Check("HUD_StatusToggleRestoresLiveEffect", strip.Text.Contains("REBOUND ARMED"),
                         "text='" + strip.Text + "'");
+                    DeveloperAccess.LockForTests();
                 }
                 else Check("HUD_StatusToggleButtonWired", false, "generated HUD has no live status toggle button");
 
@@ -5400,6 +5450,248 @@ namespace VibeGame1
             }
 
             yield return null;
+        }
+
+        // ================================================================ FLURRY BRAWLER V18 SMOKE
+        //
+        // This is deliberately a FILTERED Sandbox fixture, not another generic Legendary test.  V18 is
+        // a comparison body on its own Sandbox pad and its unusual presentation has four failure modes
+        // that asset arithmetic cannot catch: a normal hit interrupting the committed Clap, an answered
+        // Clap losing its one touchdown accent, a travelling clip moving the body twice, and Combo2's
+        // authored tail being replaced by recovery.  The real EnemyController still owns every attack;
+        // reflection merely selects a known data attack so random moveset choice cannot make this smoke
+        // test flaky.
+
+        static readonly BindingFlags PrivateInstance =
+            BindingFlags.Instance | BindingFlags.NonPublic;
+
+        EnemyAttackData V18Attack(EnemyController enemy, string attackName)
+        {
+            if (enemy == null || enemy.data == null || enemy.data.moveset == null ||
+                enemy.data.moveset.entries == null) return null;
+            foreach (var entry in enemy.data.moveset.entries)
+            {
+                if (entry == null || entry.combo == null || entry.combo.hits == null) continue;
+                foreach (var hit in entry.combo.hits)
+                    if (hit != null && hit.name == attackName) return hit;
+            }
+            return null;
+        }
+
+        bool BeginV18Windup(EnemyController enemy, EnemyAttackData attack)
+        {
+            var begin = typeof(EnemyController).GetMethod("BeginWindup", PrivateInstance);
+            if (begin == null || enemy == null || attack == null) return false;
+            begin.Invoke(enemy, new object[] { attack, 0f });
+            return enemy.Current == EnemyController.State.Windup && enemy.CurrentAttack == attack;
+        }
+
+        static bool AnimatorShows(Animator animator, string stateName)
+        {
+            if (animator == null || string.IsNullOrEmpty(stateName)) return false;
+            return animator.GetCurrentAnimatorStateInfo(0).IsName(stateName) ||
+                   (animator.IsInTransition(0) && animator.GetNextAnimatorStateInfo(0).IsName(stateName));
+        }
+
+        static int NearbyLiveRings(Vector3 point, float radius)
+        {
+            // SlashFx is pooled, so a hierarchy search misses retired effects and a name search would
+            // confuse another pooled primitive.  The private Kind is inspection-only: V18 still emits
+            // through the real public SlashFx.Ring path.
+            var kind = typeof(SlashFx).GetField("kind", PrivateInstance);
+            if (kind == null) return -1;
+            int count = 0;
+            float sqr = radius * radius;
+            foreach (var fx in Resources.FindObjectsOfTypeAll<SlashFx>())
+            {
+                if (fx == null || !fx.gameObject.scene.IsValid() || !fx.gameObject.activeInHierarchy) continue;
+                object value = kind.GetValue(fx);
+                if (value == null || value.ToString() != "Ring") continue;
+                if ((fx.transform.position - point).sqrMagnitude <= sqr) count++;
+            }
+            return count;
+        }
+
+        List<WorldEnemyState> IsolateWorldEnemiesExcept(EnemySpawner keepSpawner)
+        {
+            var state = new List<WorldEnemyState>();
+            foreach (var spawner in FindObjectsByType<EnemySpawner>())
+            {
+                if (spawner == keepSpawner || spawner.Instance == null) continue;
+                var instance = spawner.Instance;
+                var controller = instance.GetComponent<EnemyController>();
+                state.Add(new WorldEnemyState
+                {
+                    instance = instance,
+                    controller = controller,
+                    active = instance.activeSelf,
+                    aggroLocked = controller != null && controller.aggroLocked
+                });
+                if (controller != null) controller.aggroLocked = true;
+                instance.SetActive(false);
+            }
+            foreach (var bolt in FindObjectsByType<Projectile>())
+                if (bolt != null) Destroy(bolt.gameObject);
+            return state;
+        }
+
+        IEnumerator TestV18Smoke()
+        {
+            var spawner = FindSpawner("Spawn_Legendary_FlurryBrawlerV18");
+            if (spawner == null || spawner.prefab == null)
+            {
+                Skip("V18_SandboxSpawner", "open Assets/Scenes/Sandbox.unity; V18 is a Sandbox-only fixture");
+                yield break;
+            }
+
+            Check("V18_SandboxPrefab", spawner.prefab.name == "Legendary_FlurryBrawlerV18",
+                "prefab=" + spawner.prefab.name);
+            Vector3 playerStart = combat.transform.position;
+            float playerYaw = look != null ? look.Yaw : combat.transform.eulerAngles.y;
+            List<WorldEnemyState> quiet = null;
+            Action<ParryResult> onParry = null;
+            int blocked = 0, perfect = 0, comboHits = 0;
+
+            try
+            {
+                quiet = IsolateWorldEnemiesExcept(spawner);
+                spawner.Spawn();                         // real shipped Sandbox spawner, never a copied prefab
+                yield return WaitUntilOrTimeout(() => spawner.Instance != null &&
+                    spawner.Instance.GetComponent<EnemyController>() != null, 3f);
+                var enemy = spawner.Instance != null ? spawner.Instance.GetComponent<EnemyController>() : null;
+                var visuals = enemy != null ? enemy.GetComponentInChildren<FlurryBrawlerV18Visuals>(true) : null;
+                Check("V18_Spawned", enemy != null && visuals != null);
+                if (enemy == null || visuals == null) yield break;
+
+                enemy.aggroLocked = true;
+                yield return null;                       // EnemyController.Start binds Health/player/presentation
+                var clap = V18Attack(enemy, "BrawlerV18_LevitateClap");
+                var shoulder = V18Attack(enemy, "BrawlerV18_ShoulderCharge");
+                var combo2 = V18Attack(enemy, "BrawlerV18_Combo2");
+                Check("V18_AuthoredClap", clap != null);
+                Check("V18_AuthoredShoulder", shoulder != null);
+                Check("V18_AuthoredCombo2", combo2 != null);
+                if (clap == null || shoulder == null || combo2 == null) yield break;
+
+                onParry = result =>
+                {
+                    if (result == ParryResult.Blocked) blocked++;
+                    else if (result == ParryResult.Perfect) perfect++;
+                    else if (result == ParryResult.Hit) comboHits++;
+                };
+                GameEvents.ParryResolved += onParry;
+
+                // Keep the target inside the actual cone/range. The brawler remains aggro-locked, so
+                // only the deliberately reflected BeginWindup drives it.
+                Vector3 forward = spawner.transform.forward;
+                forward.y = 0f;
+                if (forward.sqrMagnitude < 0.01f) forward = Vector3.forward;
+                forward.Normalize();
+                motor.Teleport(enemy.transform.position + forward * 2.2f,
+                    Quaternion.LookRotation(-forward).eulerAngles.y);
+                enemy.transform.rotation = Quaternion.LookRotation(forward);
+                FacePoint(enemy.transform.position);
+
+                // A normal player hit during a committed Clap is presentation-only. It must leave the
+                // same data attack and the staged touchdown intact; then a held guard resolves exactly
+                // the scheduled one contact and its one ring.
+                int ringsBefore = NearbyLiveRings(enemy.transform.position + Vector3.up * 0.08f, 1f);
+                float clapGround = visuals.lungeRoot != null ? visuals.lungeRoot.localPosition.y : 0f;
+                Check("V18_ClapForce", BeginV18Windup(enemy, clap));
+                yield return WaitRealtime(0.20f);
+                enemy.Health.TakeDamage(new DamageInfo { damage = 1f, source = combat.gameObject });
+                bool pendingAfterDamage = (bool?)typeof(FlurryBrawlerV18Visuals)
+                    .GetField("clapImpactPending", PrivateInstance)?.GetValue(visuals) == true;
+                Check("V18_ClapDamageKeepsCommit", enemy.IsCommitted && enemy.CurrentAttack == clap &&
+                    enemy.NextImpactTime < float.MaxValue && pendingAfterDamage);
+                parry.GuardHeld = true;
+                yield return WaitUntilOrTimeout(() => blocked == 1 || enemy.Current == EnemyController.State.Recover,
+                    4f);
+                yield return null;
+                int ringsAfterBlock = NearbyLiveRings(enemy.transform.position + Vector3.up * 0.08f, 1f);
+                Check("V18_ClapBlockedOnce", blocked == 1, "resolved=" + blocked);
+                Check("V18_ClapBlockedTouchdown", visuals.lungeRoot == null ||
+                    Mathf.Abs(visuals.lungeRoot.localPosition.y - clapGround) <= 0.04f,
+                    "y=" + (visuals.lungeRoot != null ? visuals.lungeRoot.localPosition.y.ToString("0.###") : "none"));
+                if (ringsBefore >= 0 && ringsAfterBlock >= 0)
+                    Check("V18_ClapBlockedOneRing", ringsAfterBlock == ringsBefore + 1,
+                        "before=" + ringsBefore + " after=" + ringsAfterBlock);
+                else Skip("V18_ClapBlockedOneRing", "SlashFx pool kind unavailable");
+                parry.Cancel();
+                parry.ReleaseGuardOverride();
+
+                // A tap parry follows the identical real PlayerCombat path. ClearTelegraph/Recoil may
+                // run before this visual's Update on the contact frame, so the preserved pending accent
+                // is the observable contract rather than execution order. Let the preceding pooled ring
+                // retire first: comparing simultaneous active totals across two contacts can read 1 -> 1
+                // even when the second contact correctly rents a new ring as the first one returns.
+                yield return WaitUntilOrTimeout(
+                    () => NearbyLiveRings(enemy.transform.position + Vector3.up * 0.08f, 1f) == 0, 1f);
+                int ringsBeforePerfect = NearbyLiveRings(enemy.transform.position + Vector3.up * 0.08f, 1f);
+                Check("V18_ClapParryForce", BeginV18Windup(enemy, clap));
+                yield return WaitUntilOrTimeout(() => enemy.Current == EnemyController.State.Strike &&
+                    enemy.NextImpactTime - Time.time <= 0.06f, 4f);
+                parry.GuardHeld = false;
+                parry.StartParry();
+                yield return WaitUntilOrTimeout(() => perfect == 1 || enemy.Current == EnemyController.State.Recover,
+                    2f);
+                yield return null;
+                int ringsAfterPerfect = NearbyLiveRings(enemy.transform.position + Vector3.up * 0.08f, 1f);
+                Check("V18_ClapPerfectOnce", perfect == 1, "resolved=" + perfect);
+                Check("V18_ClapPerfectTouchdown", visuals.lungeRoot == null ||
+                    Mathf.Abs(visuals.lungeRoot.localPosition.y - clapGround) <= 0.04f,
+                    "y=" + (visuals.lungeRoot != null ? visuals.lungeRoot.localPosition.y.ToString("0.###") : "none"));
+                if (ringsBeforePerfect >= 0 && ringsAfterPerfect >= 0)
+                    Check("V18_ClapPerfectOneRing", ringsAfterPerfect == ringsBeforePerfect + 1,
+                        "before=" + ringsBeforePerfect + " after=" + ringsAfterPerfect);
+                else Skip("V18_ClapPerfectOneRing", "SlashFx pool kind unavailable");
+                parry.Cancel();
+                parry.ReleaseGuardOverride();
+
+                // Shoulder owns one data lunge. Run is the readable approach, ShoulderCharge is the
+                // contact beat, and collider/root travel must stay close to the authored 4.12 m rather
+                // than animation root motion adding a second copy.
+                motor.Teleport(enemy.transform.position + forward * 7f,
+                    Quaternion.LookRotation(-forward).eulerAngles.y);
+                enemy.transform.rotation = Quaternion.LookRotation(forward);
+                FacePoint(enemy.transform.position);
+                Vector3 shoulderStart = enemy.transform.position;
+                Check("V18_ShoulderForce", BeginV18Windup(enemy, shoulder));
+                yield return WaitRealtime(0.12f);
+                Check("V18_ShoulderRunApproach", AnimatorShows(visuals.animator, visuals.clipRun));
+                yield return WaitUntilOrTimeout(() => enemy.Current == EnemyController.State.Strike &&
+                    enemy.NextImpactTime - Time.time <= 0.18f, 4f);
+                Check("V18_ShoulderContactClip", AnimatorShows(visuals.animator, visuals.shoulderChargeClip));
+                yield return WaitUntilOrTimeout(() => enemy.Current == EnemyController.State.Recover, 2f);
+                float shoulderTravel = Vector3.ProjectOnPlane(enemy.transform.position - shoulderStart, Vector3.up).magnitude;
+                Check("V18_ShoulderSingleTravel", shoulderTravel >= shoulder.lungeDistance * 0.70f &&
+                    shoulderTravel <= shoulder.lungeDistance * 1.25f,
+                    "travel=" + shoulderTravel.ToString("0.##") + " authored=" + shoulder.lungeDistance.ToString("0.##"));
+
+                // Combo2 is a standalone one-contact attack. Its presentation remains on the contact
+                // clip during the post-impact tail even though EnemyController has already entered
+                // recovery, and only one actual PlayerCombat resolution may have occurred.
+                motor.Teleport(enemy.transform.position + forward * 2.2f,
+                    Quaternion.LookRotation(-forward).eulerAngles.y);
+                enemy.transform.rotation = Quaternion.LookRotation(forward);
+                FacePoint(enemy.transform.position);
+                int comboBefore = comboHits;
+                Check("V18_Combo2Force", BeginV18Windup(enemy, combo2));
+                yield return WaitUntilOrTimeout(() => comboHits == comboBefore + 1 ||
+                    enemy.Current == EnemyController.State.Recover, 4f);
+                yield return null;
+                Check("V18_Combo2SingleContact", comboHits == comboBefore + 1,
+                    "hits=" + (comboHits - comboBefore));
+                Check("V18_Combo2TailHeld", AnimatorShows(visuals.animator, visuals.comboClip));
+            }
+            finally
+            {
+                if (onParry != null) GameEvents.ParryResolved -= onParry;
+                if (parry != null) { parry.Cancel(); parry.ReleaseGuardOverride(); }
+                if (spawner != null) spawner.Despawn();
+                RestoreWorldEnemies(quiet);
+                if (motor != null) motor.Teleport(playerStart, playerYaw);
+            }
         }
 
         /// <summary>

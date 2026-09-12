@@ -18,7 +18,7 @@ MonoBehaviour:
     your air dash and carries a stronger, capped burst.
   effect: 2
   color: {r: 1.9294118, g: 4, b: 2.792157, a: 1}
-  viewmodelPrefab: {fileID: 8327378223746838329, guid: e1bea2d331b67db489710743d4265bf7, type: 3}
+  viewmodelPrefab: {fileID: 0}
   viewmodelScale: 0.5
   grappleRange: 28
   grappleConeDeg: 12

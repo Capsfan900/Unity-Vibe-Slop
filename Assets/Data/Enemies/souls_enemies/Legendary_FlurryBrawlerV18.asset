@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Legendary_FlurryBrawlerV18
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
+  displayName: THE FLURRY BRAWLER V18 (TEST)
+  maxHP: 190
+  maxPosture: 160
+  postureRegen: 6
+  postureRegenDelay: 3
+  staggerSeconds: 4
+  usesPosture: 1
+  isTurret: 0
+  moveSpeed: 5.2
+  turnSpeed: 340
+  aggroRange: 18
+  attackRange: 1.9
+  attackCooldown: 0.25
+  parryRecoilSeconds: 0.28
+  aggression: 0.8
+  flaskPunishChance: 0.7
+  windupTurnMultiplier: 0.3
+  stepSpeedMultiplier: 0.6
+  stepAcceleration: 8
+  stepDeadzone: 0.9
+  comboBreathSeconds: 0.35
+  readyDistanceMultiplier: 1.5
+  preferredRange: 2
+  commitTolerance: 0.3
+  repositionDeadzone: 0.4
+  backStepSpeedMultiplier: 0.35
+  strafeSpeedMultiplier: 0.45
+  lungeMinDistance: 0.9
+  shootsProjectiles: 0
+  rangedOnly: 0
+  projectileAttack: {fileID: 0}
+  projectileInterval: 1.6
+  projectileBurstCount: 1
+  projectileBurstInterval: 0.42
+  projectileAcquireDelay: 0.7
+  projectileSpeed: 32
+  projectileMinRange: 10
+  projectileMaxRange: 30
+  projectileLead: 0.8
+  projectileHomingDegPerSec: 0
+  projectileAllowTightRouteShots: 0
+  projectileIgnoreDepartureSupport: 0
+  parriedProjectileDamage: 30
+  parriedProjectilePosture: 40
+  parrySpeedGain: 6
+  projectileVisualScale: 1
+  projectileTrailScale: 1
+  projectileCueScale: 1
+  perfectBurstParriesToDestroy: 0
+  parrySurgeStep: 0
+  parrySurgeMaxStacks: 0
+  parrySurgeSeconds: 1.5
+  soulValue: 480
+  bodyColor: {r: 0.94509804, g: 0.92941177, b: 0.89411765, a: 1}
+  emission: {r: 1.3560785, g: 1.9, b: 0.44705883, a: 1.9}
+  scale: 1
+  moveset: {fileID: 11400000, guid: a654765521a73854ba59e69687ad86c7, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: a102520882710ba4d9edc39a8e5e2ce0, type: 2}
+    - {fileID: 11400000, guid: 346164f94e726704682a5e03f3ca37e5, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 72291ec4de9eefe44bcb818472f564e7, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 5042626343586964186f22cdf7857207, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 5343099cb45cbd24db77bb1a720b96c2, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 4d02fca56cddeb34b81ef59b5a18eeca, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: fa369379d42587a4593d4d336f8f896f, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: eb73916d658e7cb4cb630e79ff3e6f44, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 499fea23d3f8e404f98e043918498f70, type: 2}

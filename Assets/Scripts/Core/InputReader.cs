@@ -135,8 +135,8 @@ namespace VibeGame1
         /// also open on it. The editor runs before the menu (DefaultExecutionOrder), so the flag is seen in time.</summary>
         public void SuppressPauseThisFrame() { pauseSuppressedFrame = Time.frameCount; }
         public bool UseItemPressed => useItem != null && useItem.WasPressedThisFrame();
-        public bool TestMenuPressed => testMenu != null && testMenu.WasPressedThisFrame();
-        public bool WandCyclePressed => wandCycle != null && wandCycle.WasPressedThisFrame();
+        public bool TestMenuPressed => DeveloperAccess.IsUnlocked && testMenu != null && testMenu.WasPressedThisFrame();
+        public bool WandCyclePressed => DeveloperAccess.IsUnlocked && wandCycle != null && wandCycle.WasPressedThisFrame();
 
         /// <summary>
         /// Left Ctrl (or gamepad left trigger): the momentum slide. Checked against the whole map before
@@ -159,12 +159,12 @@ namespace VibeGame1
         /// <summary>F (or gamepad north): deliberate world interaction, e.g. the wand pedestal.</summary>
         public bool InteractPressed => interact != null && interact.WasPressedThisFrame();
 
-        // Debug keys (F5-F9). Consumed by DebugKeys in editor / development builds only.
-        public bool DebugWarpBossPressed => debugWarpBoss != null && debugWarpBoss.WasPressedThisFrame();
-        public bool DebugRestorePressed => debugRestore != null && debugRestore.WasPressedThisFrame();
-        public bool DebugSoulsPressed => debugSouls != null && debugSouls.WasPressedThisFrame();
-        public bool DebugGodModePressed => debugGodMode != null && debugGodMode.WasPressedThisFrame();
-        public bool DebugWallRunDiagPressed => debugWallRunDiag != null && debugWallRunDiag.WasPressedThisFrame();
+        // Debug keys (F5-F9). Every build routes them through one process-local console grant.
+        public bool DebugWarpBossPressed => DeveloperAccess.IsUnlocked && debugWarpBoss != null && debugWarpBoss.WasPressedThisFrame();
+        public bool DebugRestorePressed => DeveloperAccess.IsUnlocked && debugRestore != null && debugRestore.WasPressedThisFrame();
+        public bool DebugSoulsPressed => DeveloperAccess.IsUnlocked && debugSouls != null && debugSouls.WasPressedThisFrame();
+        public bool DebugGodModePressed => DeveloperAccess.IsUnlocked && debugGodMode != null && debugGodMode.WasPressedThisFrame();
+        public bool DebugWallRunDiagPressed => DeveloperAccess.IsUnlocked && debugWallRunDiag != null && debugWallRunDiag.WasPressedThisFrame();
 
         // ---- the weapon flourish: a real player action, and the one rebindable key ------------------
 
@@ -182,8 +182,8 @@ namespace VibeGame1
         public const string ConsoleToggleActionName = "ConsoleToggle";
         public const string ConsoleSubmitActionName = "ConsoleSubmit";
 
-        /// <summary>Backquote. Available in ordinary builds so a trusted playtester can deliberately
-        /// issue the session-only <c>editor unlock</c> command.</summary>
+        /// <summary>Backquote. Always available because it is the only door into the session-only
+        /// developer capability; all privileged commands and keys remain inert until that grant.</summary>
         public bool ConsoleTogglePressed => consoleToggle != null && consoleToggle.WasPressedThisFrame();
 
         /// <summary>Enter while the console input field is focused.</summary>
@@ -336,64 +336,37 @@ namespace VibeGame1
         // ---- the in-game level editor (F10 toggles; the rest only mean anything while it is open) ----
 
         /// <summary>
-        /// F10. Always available in editor/development builds; a shipped player must first grant the
-        /// process-local console switch with the exact <c>editor unlock</c> command.
+        /// F10. In every build, the player must first grant the process-local developer capability by
+        /// entering the secret passphrase in the command console.
         /// The in-game level editor is a development tool (docs/LEVEL-EDITOR.md; the 2026-09-05 decision
         /// froze it at v1), and without this gate a playtester who pressed F10 in the middle of a run
         /// was dropped into a fly camera with the motor idle — which is both a way to leave the level
-        /// and a way to invalidate a speedrun time. Gated HERE rather than in
-        /// <see cref="LevelEditor"/>'s three <c>Update</c> branches because hard rule 2 makes this the
-        /// one place the key exists, so every present and future consumer is covered by one line.
+        /// and a way to invalidate a speedrun time. Gated here because hard rule 2 makes this the one
+        /// place the key exists; <see cref="LevelEditor.Enter"/> and <see cref="LevelEditor.Toggle"/>
+        /// independently enforce the same capability so a direct component call cannot bypass it.
         ///
         /// <para>This does NOT disable the editor's code. A custom level still loads and plays in a
         /// shipped build — the main menu's CUSTOM rows set <see cref="LevelEditor.PendingLoadPath"/> and
         /// <c>LoadPendingAndPlay</c> calls <c>Enter</c>/<c>Play</c> directly, never through input.
-        /// Only the fly-cam ENTRY is gated. <c>TestMenu</c>'s LEVEL EDITOR row remains behind the
-        /// development symbols, and the EXPORT button behind <c>#if UNITY_EDITOR</c>.</para>
+        /// Only the fly-cam ENTRY is gated here. The test menu, debug hotkeys, Sandbox entry and fourth
+        /// test weapon consume the same capability. EXPORT remains editor-only.</para>
         /// </summary>
-        static bool levelEditorSessionUnlocked;
-
-        /// <summary>Whether a shipped player has deliberately unlocked F10 for this process.</summary>
-        public static bool LevelEditorSessionUnlocked { get { return levelEditorSessionUnlocked; } }
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetLevelEditorSessionUnlock()
-        {
-            // Also covers Enter Play Mode with domain reload disabled: an earlier run never leaks its
-            // developer grant into the next one.
-            levelEditorSessionUnlocked = false;
-        }
+        public static bool LevelEditorSessionUnlocked { get { return DeveloperAccess.IsUnlocked; } }
 
         /// <summary>The pure policy behind the compile-symbol gate, exposed so release behaviour is
         /// testable from EditMode without producing a second player build.</summary>
         public static bool LevelEditorShortcutAllowed(bool editorOrDevelopmentBuild, bool sessionUnlocked)
         {
-            return editorOrDevelopmentBuild || sessionUnlocked;
-        }
-
-        /// <summary>Called only by the command console's exact <c>editor unlock</c> command.</summary>
-        public static void UnlockLevelEditorForSession()
-        {
-            levelEditorSessionUnlocked = true;
-        }
-
-        /// <summary>Test hook and explicit session reset; never persisted.</summary>
-        public static void LockLevelEditorForSession()
-        {
-            levelEditorSessionUnlocked = false;
+            // The first parameter survives for serialized/test API compatibility. Editor and
+            // development builds no longer bypass the shared console gate.
+            return sessionUnlocked;
         }
 
         public bool LevelEditorPressed
         {
             get
             {
-                bool privilegedBuild =
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    true;
-#else
-                    false;
-#endif
-                return LevelEditorShortcutAllowed(privilegedBuild, levelEditorSessionUnlocked)
+                return LevelEditorShortcutAllowed(Application.isEditor || Debug.isDebugBuild, DeveloperAccess.IsUnlocked)
                     && levelEditor != null && levelEditor.WasPressedThisFrame();
             }
         }
@@ -457,7 +430,7 @@ namespace VibeGame1
                 if (slot1 != null && slot1.WasPressedThisFrame()) return 0;
                 if (slot2 != null && slot2.WasPressedThisFrame()) return 1;
                 if (slot3 != null && slot3.WasPressedThisFrame()) return 2;
-                if (slot4 != null && slot4.WasPressedThisFrame()) return 3;
+                if (DeveloperAccess.IsUnlocked && slot4 != null && slot4.WasPressedThisFrame()) return 3;
                 return -1;
             }
         }

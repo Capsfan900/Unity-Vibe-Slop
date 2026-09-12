@@ -1822,6 +1822,114 @@ namespace VibeGame1.EditorTools
             brawler.combos = brawler.moveset.ToComboArray();
             EditorUtility.SetDirty(brawler);
 
+            // --- FlurryBrawlerV18: ADDITIVE SANDBOX TEST BODY. ------------------------------------
+            // This does not replace or retune Legendary_FlurryBrawler (the shipped v15 prototype above).
+            // It exists to judge the v18 export's tightly filtered animation vocabulary in a clean pad.
+            // Source FBX SHA-256: EC0328191967144DDEBEF1185124A35FA40AF7590DAE24052791B4A7D765BCC2.
+            // Source manifest SHA-256: 269725080628FFED78EEE3ACA01A44F6C15B6C50A054998BEE374FA24220ADB8.
+            var br18Swing = Attack("BrawlerV18_Swing", a =>
+            {
+                a.clip = "AttackSwing";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.75f;
+                a.range = 2.45f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.15f;
+            });
+            var br18Overhead = Attack("BrawlerV18_Overhead", a =>
+            {
+                a.clip = "AttackOverhead";
+                a.windup = 0.95f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.00f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 34f; a.lungeDistance = 0f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.8f;
+            });
+            var br18Stab = Attack("BrawlerV18_Stab", a =>
+            {
+                a.clip = "AttackStab";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
+                a.range = 2.45f; a.coneDeg = 40f; a.damage = 20f; a.lungeDistance = 0f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.4f;
+            });
+            var br18Kick = Attack("BrawlerV18_Kick", a =>
+            {
+                a.clip = "AttackKick";
+                a.windup = 0.65f; a.impactDelay = 0.05f; a.strikeDuration = 0.22f; a.recovery = 0.90f;
+                a.range = 2.45f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 0f;
+                a.comboGap = 0.28f; a.unblockable = true;
+            });
+            var br18Jab2 = Attack("BrawlerV18_Jab2", a =>
+            {
+                a.clip = "Jab2";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
+                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
+            });
+            var br18Dash = Attack("BrawlerV18_Dash", a =>
+            {
+                // Dash has no OnAttackHit event in the source; 4b bakes its explicit 0.60 profile.
+                a.clip = "Dash";
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.22f; a.recovery = 1.00f;
+                a.range = 2.60f; a.coneDeg = 45f; a.damage = 22f; a.lungeDistance = 1.77f;
+                a.comboGap = 0.26f; a.unblockable = true;
+            });
+            var br18Shoulder = Attack("BrawlerV18_ShoulderCharge", a =>
+            {
+                a.clip = "ShoulderCharge";
+                a.windup = 1.00f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.10f;
+                a.range = 2.70f; a.coneDeg = 50f; a.damage = 30f; a.lungeDistance = 4.12f;
+                a.comboGap = 0.32f; a.unblockable = true;
+            });
+            var br18Clap = Attack("BrawlerV18_LevitateClap", a =>
+            {
+                // The LungeRoot rises during the two-second Idle hold. Strike begins 0.20 s before the
+                // impact and EnemyVisuals' first 40% of the 0.50 s strike returns it to base: touchdown
+                // therefore lands exactly on the one data-scheduled blast, never on an AnimationEvent.
+                a.clip = "Clap";
+                a.windup = 2.00f; a.impactDelay = 0.20f; a.strikeDuration = 0.30f; a.recovery = 1.50f;
+                a.range = 3.60f; a.coneDeg = 180f; a.damage = 28f; a.lungeDistance = 0f;
+                a.comboGap = 0.35f; a.parryPostureMultiplier = 2.0f;
+                Pose(a, Vector3.zero, Vector3.zero, new Vector3(0f, 1.60f, 0f), Vector3.zero, 0.45f);
+            });
+            var br18Combo2 = Attack("BrawlerV18_Combo2", a =>
+            {
+                // The source performance contains several gestures, but this TEST declares exactly one
+                // contact. EnemyController owns that one impact; no AnimationEvent creates extra hits.
+                a.clip = "Combo2";
+                a.windup = 1.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 4.60f;
+                a.range = 2.50f; a.coneDeg = 70f; a.damage = 20f; a.lungeDistance = 0f;
+                a.comboGap = 0.25f; a.parryPostureMultiplier = 1.25f; a.unblockable = false;
+            });
+
+            var brawler18 = GetOrCreate<EnemyData>(EnemyPaths.Data(FlurryBrawlerV18Authoring.EnemyName));
+            brawler18.displayName = "THE FLURRY BRAWLER V18 (TEST)";
+            // Initial comparison holds the v15 vitals exactly. Everything else remains a separate asset.
+            brawler18.maxHP = 190f; brawler18.maxPosture = 160f; brawler18.postureRegen = 6f;
+            brawler18.postureRegenDelay = 3f; brawler18.staggerSeconds = 4f;
+            brawler18.moveSpeed = 5.2f; brawler18.turnSpeed = 340f; brawler18.aggroRange = 18f;
+            brawler18.attackRange = 1.9f; brawler18.attackCooldown = 0.25f;
+            brawler18.parryRecoilSeconds = 0.28f; brawler18.aggression = 0.80f;
+            brawler18.windupTurnMultiplier = 0.30f; brawler18.stepSpeedMultiplier = 0.60f;
+            brawler18.stepAcceleration = 8f; brawler18.stepDeadzone = 0.90f;
+            brawler18.comboBreathSeconds = 0.35f; brawler18.readyDistanceMultiplier = 1.5f;
+            brawler18.preferredRange = 2.0f; brawler18.commitTolerance = 0.3f;
+            brawler18.repositionDeadzone = 0.40f;
+            brawler18.backStepSpeedMultiplier = 0.35f; brawler18.strafeSpeedMultiplier = 0.45f;
+            brawler18.lungeMinDistance = 0.9f; brawler18.soulValue = 480;
+            brawler18.bodyColor = Hex("#F1EDE4"); brawler18.emission = Hex("#B6FF3C") * 1.9f;
+            brawler18.scale = 1f; brawler18.flaskPunishChance = 0.7f;
+            brawler18.shootsProjectiles = false; brawler18.rangedOnly = false;
+            brawler18.moveset = Moveset("Legendary_FlurryBrawlerV18_Moveset", "The Flurry Brawler V18 Test", new[]
+            {
+                Entry("jab-two into swing",                                  3f,   0f,   3.4f, br18Jab2, br18Swing),
+                Entry("stab",                                                1.4f, 0f,   3.4f, br18Stab),
+                EntryCd("OVERHEAD tempo break",                              1.2f, 0f,   3.4f, 6f, br18Overhead),
+                EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.8f, 5f, br18Kick),
+                EntryCd("LEVITATE CLAP wide blast",                          1.1f, 0f,   3.8f, 8f, br18Clap),
+                Entry("DASH close",                                          2.6f, 2.6f, 4.7f, br18Dash),
+                EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 7.1f, 7f, br18Shoulder),
+                EntryCd("COMBO2 held performance (one contact)",              0.45f, 0f, 2.7f, 8f, br18Combo2),
+            });
+            brawler18.combos = brawler18.moveset.ToComboArray();
+            EditorUtility.SetDirty(brawler18);
+
             // ---------------- Weapons ----------------
             //
             // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette

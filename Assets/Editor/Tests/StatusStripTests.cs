@@ -136,6 +136,7 @@ namespace VibeGame1.Tests
         public void TestMenuToggleAndHudPrefabButtonAreWired()
         {
             var go = new GameObject("TestMenuToggle");
+            DeveloperAccess.UnlockForTests();
             try
             {
                 var menu = go.AddComponent<TestMenu>();
@@ -143,7 +144,11 @@ namespace VibeGame1.Tests
                 menu.ToggleStatusEffects();
                 Assert.AreNotEqual(before, StatusStripView.StatusEffectsVisible);
             }
-            finally { Object.DestroyImmediate(go); }
+            finally
+            {
+                DeveloperAccess.LockForTests();
+                Object.DestroyImmediate(go);
+            }
 
             var hud = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HUD.prefab");
             if (hud == null) Assert.Ignore("HUD.prefab missing — run VibeGame1/5. Build HUD");

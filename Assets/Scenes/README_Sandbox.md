@@ -134,7 +134,7 @@ Two details worth knowing:
 
 ## SandboxController
 
-On the `Sandbox` root. Editor / development builds only. It deliberately does **not** duplicate the
+On the `Sandbox` root. Present but disabled until the process-local developer capability is granted. It deliberately does **not** duplicate the
 existing debug tools — use those first:
 
 - **F1** — `TestMenu` overlay: warp, give item, equip weapon, full restore, god mode, +souls,

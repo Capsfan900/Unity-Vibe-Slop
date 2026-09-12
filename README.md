@@ -49,7 +49,7 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | **Wall run** (no binding — arrive airborne along a wall at a jog or better) | — | — |
 | **Stamina** (the segmented bar above health; DASH / AIR / WALL pips) | — | — |
 | **Settings** (sensitivity, FOV, graphics, audio, flourish key) | Title screen `SETTINGS`, or `Esc` → `SETTINGS` in a level | Same |
-| **Level editor** (build a level in game; see `docs/LEVEL-EDITOR.md`) | Editor/development: `F10`; release: `` ` `` → `editor unlock` → `F10` | — |
+| **Level editor** (trusted developer access; see `docs/LEVEL-EDITOR.md`) | `` ` `` → private passphrase → `F10` | — |
 | **Controls reference** (every bind, on one card) | `Esc` → SETTINGS → INFO, title screen SETTINGS → INFO, or `F1` → INFO | Same |
 | Attack | `LMB` | RB |
 | **Parry** (tap) | `RMB` | LB |
@@ -66,7 +66,7 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | Pause | `Esc` | Start |
 
 `F` is shared: while a wand altar's `[F]  CHOOSE WAND` prompt is showing it opens the wand menu, otherwise it
-drinks a flask. `R` still cycles wands as a debug convenience. **The wand altar is a dev fixture**: it is
+drinks a flask. After developer access is granted, `R` cycles wands as a debug convenience. **The wand altar is a dev fixture**: it is
 hidden until you turn on `WAND PEDESTAL` in the `F1` test menu, and you start every run with all four wands
 (Emberlance equipped) either way. Held items and running effects (REBOUND/SIGIL armed, speed stacks, GOD MODE) are listed
 in the small strip under SOULS at the top-left.
@@ -135,9 +135,10 @@ when your mouse is still, so you can strafe around it — **the mouse always win
 stands down instantly, and swing far enough away (about 60 degrees) and the lock drops. It also drops on
 its own when the target dies, leaves range or stays behind cover.
 
-### Dev keys — editor and development builds only
+### Dev keys — private session access only
 
-Implemented in `Assets/Scripts/Debug/DebugKeys.cs`; compiled out of release builds.
+Implemented in `Assets/Scripts/Debug/DebugKeys.cs`. They remain inert in every build until the private
+passphrase is entered into the Backquote console; the grant resets when the game process exits.
 
 | Key | Effect |
 |---|---|
@@ -312,8 +313,9 @@ add a prefab case in `PrefabFactory`, then place an `EnemySpawner` in `LevelGrey
 
 **An item** — the live set is `Grapple`, `Rebound`, and `DeflectSigil` (`WallSurge = 1` is a retired
 serialization tombstone). Append a new `ItemEffect` value, handle it in `PlayerItems.Apply()` (return
-`false` to refuse and keep the item), create the `ItemData` asset in `DataFactory`, build its offhand
-viewmodel in `PrefabFactory`, and reference it by `itemKey` from the level definition. Run 3, 4, 6.
+`false` to refuse and keep the item), create the `ItemData` asset in `DataFactory`, build its world pickup
+colour/label through the shared pickup presentation, and reference it by `itemKey` from the level definition.
+Items never replace the persistent wand viewmodel. Run 3 and 6 (plus 4 only if the shared pickup changes).
 
 **A sound** — drop `.ogg`/`.wav` files into `Assets/Resources/Audio/Sfx/<SfxName>/`. A random variant
 plays each time. No code change. Empty folders fall back to `ProceduralSfx` synthesis.

@@ -27,15 +27,42 @@ namespace VibeGame1.Tests
         [Test]
         public void ConsoleRoutesTimingCommandsWithoutImplicitExport()
         {
-            var help = DeveloperConsole.ExecuteCommand("help");
-            StringAssert.Contains("timing start/stop/status/export/discard", help.message);
+            DeveloperAccess.LockForTests();
+            try
+            {
+                var lockedHelp = DeveloperConsole.ExecuteCommand("help");
+                StringAssert.DoesNotContain("timing", lockedHelp.message);
+                StringAssert.Contains("passphrase", lockedHelp.message);
 
-            var status = DeveloperConsole.ExecuteCommand(" timing    status ");
-            StringAssert.StartsWith("TIMING CAPTURE", status.message);
-            StringAssert.DoesNotContain("EXPORTED", status.message);
+                var denied = DeveloperConsole.ExecuteCommand(" timing    status ");
+                StringAssert.Contains("LOCKED", denied.message);
 
-            var start = DeveloperConsole.ExecuteCommand("timing start");
-            StringAssert.Contains("TIMING CAPTURE", start.message);
+                DeveloperAccess.UnlockForTests();
+                var help = DeveloperConsole.ExecuteCommand("help");
+                StringAssert.Contains("timing start/stop/status/export/discard", help.message);
+
+                var status = DeveloperConsole.ExecuteCommand(" timing    status ");
+                StringAssert.StartsWith("TIMING CAPTURE", status.message);
+                StringAssert.DoesNotContain("EXPORTED", status.message);
+
+                var start = DeveloperConsole.ExecuteCommand("timing start");
+                StringAssert.Contains("TIMING CAPTURE", start.message);
+            }
+            finally { DeveloperAccess.LockForTests(); }
+        }
+
+        [Test]
+        public void DirectCaptureEntryPoints_AreInertWhileLocked()
+        {
+            DeveloperAccess.LockForTests();
+
+            string message;
+            Assert.IsFalse(PlayerTimingCapture.StartCapture(out message));
+            StringAssert.Contains("REQUIRES DEVELOPER ACCESS", message);
+            StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.Status());
+            StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.StopCapture());
+            StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.Export());
+            StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.Discard());
         }
     }
 }

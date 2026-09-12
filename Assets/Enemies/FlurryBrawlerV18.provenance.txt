@@ -1,0 +1,17 @@
+Flurry Brawler V18 test body
+
+Source directory (read-only during integration):
+C:/Users/tyler/Main Storage/ai_skelly_tool/output/flurry_brawler_v18
+
+Copied source files:
+- flurry_brawler_v18.mv.fbx -> FlurryBrawlerV18.fbx
+  SHA-256 EC0328191967144DDEBEF1185124A35FA40AF7590DAE24052791B4A7D765BCC2
+- flurry_brawler_v18.mv.albedo.png -> FlurryBrawlerV18_albedo.png
+  SHA-256 0BD9D62D82B51EF5C290BFDF76244349B5B1A602E8E0A10348CC819BE05CA20B
+- raw_front.png -> FlurryBrawlerV18_source.png
+  SHA-256 65F0DAB337338AC1194689FDCE05ED7C0AA5B331AB6EBA250F70111567E55128
+
+The source flurry_brawler_v18.mv.clips.json has SHA-256
+269725080628FFED78EEE3ACA01A44F6C15B6C50A054998BEE374FA24220ADB8.
+FlurryBrawlerV18.clips.json is deliberately filtered to the approved 18-state project allowlist;
+it is not a byte-for-byte copy of that 32-state source manifest.

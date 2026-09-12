@@ -2,7 +2,7 @@
 
 What is actually proven about `vibegame1`, how it was proven, and — just as important — what is **not**.
 
-Latest run date: 2026-09-10. The dated sections below retain earlier results for history; reproduce the
+Latest run date: 2026-09-11. The dated sections below retain earlier results for history; reproduce the
 current checks with the commands in [TOOLING.md](TOOLING.md).
 
 Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -10,6 +10,34 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 ---
 
 ## Results
+
+### Separate V18 Flurry Brawler Souls prototype and Unity CLI pilot — 2026-09-11
+
+- **Full EditMode: 963/963 passed**, zero failures/skips, 49.34 s after the final live-smoke verifier edit.
+  These tests resolve the shipped V18 data, nine attacks, standalone moveset, prefab, Generic FBX clips,
+  Animator controller, Sandbox pad and explicit absence of every parkour-projectile component.
+- **Full Level_01 FeatureTests: 813 passed, 0 failed, 1 intentional skip**, 60.4 s, from a fresh session
+  with `GameManager.I != null` and `Time.timeScale == 1`. The skip states that V18's shipped fixture exists
+  only in Sandbox; all campaign movement, projectile/parry, items, HUD, gates and boss behavior passed.
+- **Focused Sandbox V18 smoke: 21/21 passed**, zero failures/skips, 9.6 s. Real `EnemyController` scheduling
+  and `PlayerCombat.ReceiveAttack` proved blocked and perfect-parried Clap each resolve once, ground the
+  levitated body and emit one ring; ordinary damage does not hide/cancel the committed Clap; Shoulder Charge
+  presents Run then contact and moves one authored 4.12 m lunge; Combo2 deals one hit and retains its tail.
+- **The lineage boundary is explicit.** `Legendary_FlurryBrawlerV18` is a separate test Souls enemy using
+  ordinary melee `EnemyController`, its own data/prefab/moveset and a presentation-only
+  `FlurryBrawlerV18Visuals` layer. It has no `BossController`, `ProjectileShooter`, `SentryBurst`,
+  `ProjectileVolleySequence` or `ParrySurge`; the existing V15 brawler and all parkour enemies are unchanged.
+- **Compile/health:** runtime and editor assemblies compile with zero errors (18 existing editor warnings).
+  Health Check produced no error section and the existing 1942 broad serialized-null/audio warnings.
+- **CLI evidence is mixed but useful.** Official CLI state/preflight plus clip, data, mini-boss and Sandbox
+  generators completed through the live Hub-authenticated editor. Long generation exceeded Pipeline's
+  five-second response window while Unity still completed the write, and Pipeline reachability briefly
+  disappeared around reloads. Short CLI evals remain useful; MCP plus generated-asset readback owns long
+  operations and verification.
+
+**Still human-only:** judge whether Dash convincingly reads as the requested rising clap strike, whether
+Shoulder Charge visibly meets the player, whether the levitate/Clap slam has enough weight, and whether the
+tells are fair at manual parry timing. The smoke proves sequencing and combat resolution, not feel.
 
 ### Restored vertical course, blue-sentry Insight routes and player timing capture — 2026-09-10
 

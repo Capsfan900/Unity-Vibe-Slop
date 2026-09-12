@@ -8,11 +8,11 @@ namespace VibeGame1
     /// <summary>
     /// Developer overlay (F1). A button-driven superset of <see cref="DebugKeys"/>: warp, grant items,
     /// swap weapons, restore/break the player, wipe or reset enemies, plus a live state readout.
-    /// Editor / development builds only.
+    /// Present in playtest builds for trusted diagnosis, but inert until the command console grants
+    /// <see cref="DeveloperAccess"/> for this process.
     /// </summary>
     public class TestMenu : MonoBehaviour
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
         [Header("Panel")]
         public GameObject panel;
         public TMP_Text readout;
@@ -129,7 +129,7 @@ namespace VibeGame1
 
         public void Open()
         {
-            if (open) return;
+            if (open || !DeveloperAccess.IsUnlocked) return;
             open = true;
             if (GameManager.I != null) GameManager.I.SetState(GameState.Paused);   // also unlocks the cursor
             if (TimeScaleController.I != null) timeHandle = TimeScaleController.I.Request(0f);
@@ -257,6 +257,7 @@ namespace VibeGame1
         /// </summary>
         public void ToggleStatusEffects()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             StatusStripView.StatusEffectsVisible = !StatusStripView.StatusEffectsVisible;
             RefreshButtons();
         }
@@ -268,6 +269,7 @@ namespace VibeGame1
         /// </summary>
         public void ToggleWandPedestal()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             WandPedestal.DevMenuEnabled = !WandPedestal.DevMenuEnabled;
             RefreshButtons();
         }
@@ -279,6 +281,7 @@ namespace VibeGame1
         /// </summary>
         public void ToggleArmMovement()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             MovementPose.Enabled = !MovementPose.Enabled;
             RefreshButtons();
         }
@@ -470,6 +473,5 @@ namespace VibeGame1
 
             readout.text = sb.ToString();
         }
-#endif
     }
 }

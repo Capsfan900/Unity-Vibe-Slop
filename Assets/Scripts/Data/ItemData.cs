@@ -34,8 +34,8 @@ namespace VibeGame1
         public ItemEffect effect = ItemEffect.Grapple;
         [ColorUsage(true, true)] public Color color = Color.white;
 
-        [Header("Offhand viewmodel")]
-        [Tooltip("Shown in the player's offhand when this item is the queued spell. Assigned by PrefabFactory.")]
+        [Header("Legacy item model")]
+        [Tooltip("Dormant compatibility data for older builds that swapped items into the offhand. The persistent offhand now always displays the equipped wand.")]
         public GameObject viewmodelPrefab;
         public float viewmodelScale = 0.5f;
 

@@ -27,7 +27,8 @@ namespace VibeGame1.EditorTools
             EnsureFolder(PrefabDir, "Wands");
             EnsureFolder(PrefabDir, "Items");
 
-            // A. weapons/wands/items first so the *Data.viewmodelPrefab fields can be assigned.
+            // A. weapon/wand viewmodels plus legacy item-model compatibility assets first so their
+            // Data references can be assigned. Items no longer replace the persistent offhand wand.
             // Requires DataFactory (step 3) to have run: these write back onto existing assets.
             BuildWeaponViewmodels();
             BuildWandViewmodels();
@@ -395,11 +396,12 @@ namespace VibeGame1.EditorTools
             }
         }
 
-        // ------------------------------------------------------------------ A3. item viewmodels
+        // ------------------------------------------------------- A3. legacy item model compatibility
 
         /// <summary>
-        /// Offhand models for the carried spells, so a swapped-in item visibly says WHICH spell is
-        /// queued instead of every item showing the same tinted cube.
+        /// Preserves prefab references already serialized into ItemData. Runtime no longer swaps these
+        /// into the hand: WandController exclusively owns the persistent offhand model. Keeping the
+        /// generated assets avoids destructive data migration and leaves room for non-viewmodel pickup FX.
         ///
         /// ORDERING: DataFactory (step 3) must run before PrefabFactory (step 4) — these assign the
         /// prefab back onto the ItemData asset, exactly like the wands. `0. Rebuild Everything` already

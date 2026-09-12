@@ -21,6 +21,13 @@ namespace VibeGame1
 
         public static void Run(string scenario)
         {
+            if (!DeveloperAccess.IsUnlocked)
+            {
+                Log = "developer access locked\n";
+                Done = true;
+                Debug.LogWarning("[Harness] Developer access is locked.");
+                return;
+            }
             if (inst == null)
             {
                 var go = new GameObject("DebugHarness");

@@ -236,7 +236,7 @@ namespace VibeGame1
             if (panel != null)
                 foreach (Transform child in panel.transform)
                     if (child.name.EndsWith("Header") || child.name == "TitleRule") child.gameObject.SetActive(!on);
-            if (infoText != null && on && string.IsNullOrEmpty(infoText.text)) infoText.text = ControlsInfo.Text;
+            if (infoText != null && on) infoText.text = ControlsInfo.Text;
             if (infoButton != null)
             {
                 var label = infoButton.GetComponentInChildren<TMP_Text>();

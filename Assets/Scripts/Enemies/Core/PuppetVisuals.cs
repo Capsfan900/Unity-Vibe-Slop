@@ -253,10 +253,16 @@ namespace VibeGame1
             if (atk == null) return;
 
             float toImpact = Mathf.Max(0.05f, seconds + atk.impactDelay);
-            PlayAttackClip(atk, toImpact);
+            if (UseDefaultAttackClipPlayback(atk)) PlayAttackClip(atk, toImpact);
             if (IsSpinPass(atk)) BeginPass(toImpact);
             else UnwindToSquare();
         }
+
+        /// <summary>
+        /// Override only when a specialised body stages this attack's Animator clip itself. Telegraph's
+        /// shared dimming/cue contract and spin bookkeeping still run; only ordinary clip playback is skipped.
+        /// </summary>
+        protected virtual bool UseDefaultAttackClipPlayback(EnemyAttackData atk) { return true; }
 
         public override void Strike(float lunge, float seconds)
         {
@@ -549,6 +555,26 @@ namespace VibeGame1
             attackImpactAt = float.MaxValue;   // a one-shot owns the speed; no impact switch pending
         }
 
+        /// <summary>
+        /// Reserve the Animator for a derived presentation until an absolute scaled-time deadline.
+        /// This is deliberately the whole protected surface: a specialised body may stage its own clip,
+        /// but locomotion still cannot seize the Animator halfway through it and the base attack-speed
+        /// handoff cannot overwrite the staged clip's rate.
+        /// </summary>
+        protected void ReserveAnimatorUntil(float until)
+        {
+            clipHold = until;
+            attackImpactAt = float.MaxValue;
+        }
+
+        /// <summary>Move an in-flight attack clip's speed handoff onto the brain's actual impact clock.</summary>
+        protected void ReanchorAnimatorImpact(float until)
+        {
+            float tail = attackImpactAt < float.MaxValue ? Mathf.Max(0f, clipHold - attackImpactAt) : 0f;
+            attackImpactAt = until;
+            clipHold = until + tail;
+        }
+
         void PlayLoop(string clip)
         {
             if (animator == null || animator.runtimeAnimatorController == null || string.IsNullOrEmpty(clip)) return;
@@ -581,7 +607,11 @@ namespace VibeGame1
         {
             // After the Animator has posed the rig for this frame and before the camera reads it.
             CompensateTravel();
+            AfterTravelCompensated();
         }
+
+        /// <summary>Last presentation hook after Generic-rig XZ compensation; default bodies do nothing.</summary>
+        protected virtual void AfterTravelCompensated() { }
 
         // ---------------------------------------------------------------- tick
 

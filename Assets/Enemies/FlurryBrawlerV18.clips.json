@@ -1,0 +1,20 @@
+[
+  { "name": "Idle", "start": 1, "end": 32, "loop": true, "events": [], "time_base": "fbx" },
+  { "name": "Walk", "start": 68, "end": 89, "loop": true, "events": [{ "time": 0.0, "function": "OnFootstep" }, { "time": 0.5, "function": "OnFootstep" }], "root": { "motion": true, "distance_m": 2.321, "forward_m": 2.32, "right_m": -0.036, "duration_s": 0.875, "peak_lift_m": 0.0, "crouch_m": 0.0, "airborne": null }, "time_base": "fbx" },
+  { "name": "Run", "start": 94, "end": 110, "loop": true, "events": [{ "time": 0.0, "function": "OnFootstep" }, { "time": 0.5, "function": "OnFootstep" }], "root": { "motion": true, "distance_m": 2.927, "forward_m": 2.927, "right_m": 0.009, "duration_s": 0.667, "peak_lift_m": 0.0, "crouch_m": 0.0, "airborne": null }, "time_base": "fbx" },
+  { "name": "Jump", "start": 115, "end": 137, "loop": false, "events": [{ "time": 0.28, "function": "OnJumpTakeoff" }, { "time": 0.85, "function": "OnJumpLand" }], "time_base": "fbx" },
+  { "name": "AttackSwing", "start": 142, "end": 160, "loop": false, "events": [{ "time": 0.55, "function": "OnAttackHit" }], "time_base": "fbx" },
+  { "name": "AttackOverhead", "start": 165, "end": 187, "loop": false, "events": [{ "time": 0.6, "function": "OnAttackHit" }], "time_base": "fbx" },
+  { "name": "AttackStab", "start": 192, "end": 206, "loop": false, "events": [{ "time": 0.55, "function": "OnAttackHit" }], "time_base": "fbx" },
+  { "name": "AttackKick", "start": 211, "end": 228, "loop": false, "events": [{ "time": 0.55, "function": "OnAttackHit" }], "time_base": "fbx" },
+  { "name": "Hit", "start": 233, "end": 245, "loop": false, "events": [], "time_base": "fbx" },
+  { "name": "Stagger", "start": 250, "end": 270, "loop": false, "events": [], "time_base": "fbx" },
+  { "name": "Roar", "start": 275, "end": 304, "loop": false, "events": [{ "time": 0.4, "function": "OnRoar" }], "time_base": "fbx" },
+  { "name": "Block", "start": 309, "end": 329, "loop": true, "events": [], "time_base": "fbx" },
+  { "name": "Death", "start": 365, "end": 391, "loop": false, "events": [{ "time": 0.95, "function": "OnDeathFinished" }], "time_base": "fbx" },
+  { "name": "Jab2", "start": 411, "end": 421, "loop": false, "events": [{ "time": 0.733, "function": "OnAttackHit" }], "generated": true, "root": { "motion": true, "forward_m": -0.073, "right_m": -0.236, "distance_m": 0.247, "duration_s": 0.375, "peak_lift_m": 0.011, "crouch_m": 0.0, "airborne": null }, "time_base": "fbx" },
+  { "name": "Dash", "start": 444, "end": 455, "loop": false, "events": [], "generated": true, "root": { "motion": true, "forward_m": 1.533, "right_m": -0.038, "distance_m": 1.534, "duration_s": 0.417, "peak_lift_m": 0.249, "crouch_m": 0.06, "airborne": null }, "time_base": "fbx" },
+  { "name": "Clap", "start": 836, "end": 892, "loop": false, "events": [{ "time": 0.182, "function": "OnAttackHit" }], "generated": true, "root": { "motion": false, "forward_m": 0.001, "right_m": -0.001, "distance_m": 0.001, "duration_s": 2.292, "peak_lift_m": 0.006, "crouch_m": 0.0, "airborne": null }, "time_base": "fbx" },
+  { "name": "ShoulderCharge", "start": 897, "end": 929, "loop": false, "events": [{ "time": 0.129, "function": "OnJumpTakeoff" }, { "time": 0.161, "function": "OnJumpLand" }, { "time": 0.161, "function": "OnAttackHit" }], "generated": true, "root": { "motion": true, "forward_m": 3.449, "right_m": -0.186, "distance_m": 3.454, "duration_s": 1.292, "peak_lift_m": 0.081, "crouch_m": 0.044, "airborne": [0.129, 0.161] }, "time_base": "fbx" },
+  { "name": "Combo2", "start": 1055, "end": 1211, "loop": false, "events": [{ "time": 0.671, "function": "OnAttackHit" }], "generated": true, "root": { "motion": true, "forward_m": -0.092, "right_m": 0.243, "distance_m": 0.26, "duration_s": 6.458, "peak_lift_m": 0.041, "crouch_m": 0.116, "airborne": null }, "time_base": "fbx" }
+]

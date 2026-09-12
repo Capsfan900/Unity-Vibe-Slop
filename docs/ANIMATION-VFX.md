@@ -109,6 +109,34 @@ Audited from the code, not assumed.
   (`FireBarView` + `VibeGame1/UI/FireBar`): heat rises with the charge, a gain kicks it, a full meter holds
   a roaring band that pulses and never blooms. No texture, no particles, one quad, unscaled time.
 
+### Flurry Brawler V18 — staged presentation without a second fight clock
+
+The additive sandbox-only `Legendary_FlurryBrawlerV18` uses exactly 18 imported Generic clips:
+`Idle`, `Walk`, `Run`, `Jump`, `AttackSwing`, `AttackOverhead`, `AttackStab`, `AttackKick`, `Hit`,
+`Stagger`, `Roar`, `Block`, `Death`, `Jab2`, `Dash`, `Clap`, `ShoulderCharge`, `Combo2`. The generated
+Animator controller is a transitionless library with one nonempty state per clip and no AnimationEvents.
+This is a Souls melee test body—ordinary `EnemyController`, never a boss or parkour shooter—and it is
+separate from the retained v15 Flurry Brawler.
+
+`FlurryBrawlerV18Visuals : PuppetVisuals` preserves the shared dark wind-up, one-frame cue flash,
+posture eye, and deathblow marker, but owns the few presentation beats that ordinary immediate clip
+playback cannot express:
+
+- ShoulderCharge reads as `Run` across the committed approach and changes to the charge performance for
+  contact. Dash and Shoulder movement still comes solely from attack data; Hips XZ is cancelled.
+- Clap holds `Idle` through a 1.6 m levitation, descends into Clap, explicitly touches the captured ground
+  height on the real impact frame, then emits one existing `SlashFx` ring/spark accent. The effect also
+  appears on a spatial miss but never deals separate damage.
+- Combo2 declares one contact only, then holds the full authored tail. Later gestures in the clip do not
+  imply extra active windows. Jump is a harmless entrance and Block is a recovery pose, not mechanics.
+
+All staged deadlines are re-anchored when `BeginStrike` publishes the actual
+`EnemyController.NextImpactTime`; remaining clip progress is retimed rather than restarted. The V18
+profile owns only `LungeRoot.y` for Clap after Generic-rig travel compensation, so it does not fight the
+Animator or the base motion coroutine on another channel. A normal damage flash during committed
+Windup/Strike cannot hide a still-scheduled attack. Recoil, stagger, death, and a non-committed hit take
+visual precedence and cancel pending effects. Full combat flow: DATAFLOW → *Flurry Brawler V18*.
+
 ---
 
 ## 3. The gaps, in priority order

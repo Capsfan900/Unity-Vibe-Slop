@@ -18,7 +18,6 @@ namespace VibeGame1
     /// </summary>
     public class SandboxController : MonoBehaviour
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
         [Header("Spawning")]
         [Tooltip("Parallel to enemyPrefabs; used for labels and for the dummy's stat overrides.")]
         public EnemyData[] spawnableEnemies;
@@ -72,6 +71,18 @@ namespace VibeGame1
         const float PadCacheRefreshSeconds = 2f;
 
         // ---- lifecycle ---------------------------------------------------------------------------
+
+        void Awake()
+        {
+            // Loading the scene directly or through a stale button must not bypass the same capability
+            // that hides the SANDBOX row on the main menu.
+            DeveloperAccess.Changed += ApplyDeveloperAccess;
+            ApplyDeveloperAccess();
+        }
+
+        void OnDestroy() { DeveloperAccess.Changed -= ApplyDeveloperAccess; }
+
+        void ApplyDeveloperAccess() { enabled = DeveloperAccess.IsUnlocked; }
 
         void OnEnable() { GameEvents.ItemUsed += OnItemUsed; }
         void OnDisable() { GameEvents.ItemUsed -= OnItemUsed; }
@@ -201,6 +212,7 @@ namespace VibeGame1
 
         public GameObject SpawnEnemyInFront(int index)
         {
+            if (!DeveloperAccess.IsUnlocked) return null;
             if (enemyPrefabs == null || index < 0 || index >= enemyPrefabs.Length)
             {
                 Debug.LogWarning($"[Sandbox] No enemy prefab at index {index}.");
@@ -240,6 +252,7 @@ namespace VibeGame1
         [ContextMenu("Spawn Practice Dummy")]
         public void SpawnDummy()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             var go = SpawnEnemyInFront(dummyPrefabIndex);
             if (go == null) return;
             go.name = "Practice Dummy (sandbox)";
@@ -267,6 +280,7 @@ namespace VibeGame1
         [ContextMenu("Activate Boss")]
         public void ActivateBoss()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             var boss = FindAnyObjectByType<BossController>();
             if (boss == null) { Debug.LogWarning("[Sandbox] No boss in the scene."); return; }
             boss.Activate();
@@ -281,6 +295,7 @@ namespace VibeGame1
         [ContextMenu("Clear All Enemies")]
         public void ClearAllEnemies()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             foreach (var spawner in FindObjectsByType<EnemySpawner>())
                 if (spawner != null) spawner.Despawn();
 
@@ -304,6 +319,7 @@ namespace VibeGame1
         [ContextMenu("Toggle Infinite Flask")]
         public void ToggleInfiniteFlask()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             infiniteFlask = !infiniteFlask;
             Debug.Log($"[Sandbox] Infinite flask {(infiniteFlask ? "ON" : "OFF")}");
         }
@@ -311,6 +327,7 @@ namespace VibeGame1
         [ContextMenu("Toggle Infinite Items")]
         public void ToggleInfiniteItems()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             infiniteItems = !infiniteItems;
             Debug.Log($"[Sandbox] Infinite items {(infiniteItems ? "ON" : "OFF")}");
         }
@@ -319,6 +336,7 @@ namespace VibeGame1
         [ContextMenu("Reset Sandbox")]
         public void ResetSandbox()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             // Drop anything spawned by hand first, so ResetEnemies only restores the pads.
             foreach (var go in spawned) if (go != null) Destroy(go);
             spawned.Clear();
@@ -367,6 +385,7 @@ namespace VibeGame1
         [ContextMenu("Warp To Movement Yard")]
         public void WarpToMovementYard()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             if (yardSpawn == null)
             {
                 Debug.LogWarning("[Sandbox] No yardSpawn assigned — rebuild the sandbox (VibeGame1/7. Build Sandbox Scene).");
@@ -381,6 +400,5 @@ namespace VibeGame1
             var look = OnPlayer<PlayerLook>();
             if (look != null) look.SetYaw(yaw);
         }
-#endif
     }
 }

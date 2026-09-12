@@ -63,6 +63,11 @@ namespace VibeGame1
         public ViewmodelArm arm;
 
         GameObject instance;
+        /// <summary>
+        /// The persistent model currently held in the left hand. Exposed read-only so behavioural
+        /// verification can prove unrelated inventory/death events did not replace or rescale it.
+        /// </summary>
+        public GameObject DisplayedInstance { get { return instance; } }
         FirstPersonMotor motor;
         Coroutine anim;
         Vector3 sway;
@@ -119,34 +124,6 @@ namespace VibeGame1
             Spawn(wand.viewmodelPrefab, wand.viewmodelScale, wand.color);
         }
 
-        public void ShowItem(ItemData item)
-        {
-            Clear();
-            if (item == null) return;
-
-            // Each spell has its own model, so a swapped-in item tells you WHICH spell is queued at a
-            // glance. Every item showing the same tinted cube made the three read as one.
-            if (item.viewmodelPrefab != null)
-            {
-                Spawn(item.viewmodelPrefab, item.viewmodelScale, item.color);
-                return;
-            }
-
-            // Fallback only: an item with no authored viewmodel still gets a readable emissive shard.
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            var col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-            go.name = "ItemShard";
-            go.transform.SetParent(grip != null ? grip : model, false);
-            go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
-            go.transform.localScale = Vector3.one * 0.16f;
-            instance = go;
-            currentTint = item.color;
-            Tint(item.color);
-            StripShadows(go);
-        }
-
         void Spawn(GameObject prefab, float scale, Color tint)
         {
             if (prefab == null) return;
@@ -163,8 +140,7 @@ namespace VibeGame1
         /// <summary>
         /// Slide the HAND onto the wand's grip without moving the wand. Same trick as the weapon hand:
         /// the hand moves to the prefab's <c>Grip*</c> part and the grip node moves by the exact
-        /// opposite, so every readability-tuned pose still puts the wand on the same pixels. An item
-        /// shard with no authored grip is simply held in the middle of the palm.
+        /// opposite, so every readability-tuned pose still puts the wand on the same pixels.
         /// </summary>
         void CloseHandOn(GameObject inst)
         {
@@ -262,7 +238,7 @@ namespace VibeGame1
 
         /// <summary>
         /// World position of the wand's emissive tip, so callers can originate a blast where the wand
-        /// actually is. Falls back to the model root for item shards, which have no named tip.
+        /// actually is. Falls back to the model root if a legacy wand has no named tip.
         /// </summary>
         public Vector3 TipWorldPosition
         {

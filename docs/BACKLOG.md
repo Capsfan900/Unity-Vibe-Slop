@@ -372,19 +372,12 @@ stack (a stack costs about three hops of the reworked spacing), or decay tied to
 than time, which survives any future respacing. Change it in `DataFactory`, re-run generator `3`, and
 assert the shipped value in `SurgeTurretTests` — a code default is not a shipped value (AGENTS.md rule 9).
 
-## F10 opens the level editor in a shipped playtest build (opened 2026-09-07)
+## ~~F10 opens the level editor in a shipped playtest build~~ — closed 2026-09-11
 
-`Assets/Scripts/Debug/DebugKeys.cs` gates F5/F6/F7/F8/F9 behind
-`#if UNITY_EDITOR || DEVELOPMENT_BUILD`, so they compile out of a playtest build correctly.
-**`Assets/Scripts/Level/LevelEditor.cs` does not.** Only its EXPORT button is hidden outside the editor
-(`#if !UNITY_EDITOR`, lines 200-202) — a playtester who presses F10 gets the fly-cam level editor over
-their run. Found by the build-distribution worker while wiring `BuildRunner`; not changed, because gating
-a gameplay screen is outside a build lane and the file is a system this session did not own.
-
-Intended shape: wrap the F10 key read in `LevelEditor` in the same
-`#if UNITY_EDITOR || DEVELOPMENT_BUILD` the dev keys use, so the editor is unreachable in a release build
-while staying available in every development build. Decide first whether playtesters SHOULD have it — an
-in-game editor is a fine feedback tool if the build is going to trusted testers.
+Superseded by the stronger shared `DeveloperAccess` policy. F1/F5-F10, slot 4, R wand cycling, timing
+capture, Sandbox/custom rows and their mutating components are inert in every build until a private
+Backquote-console passphrase is accepted for that process. The old public `editor unlock` phrase is a
+tested rejection. Only the digest ships and the grant is never saved.
 
 ## Publish the first playtest build (opened 2026-09-07)
 

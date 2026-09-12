@@ -99,8 +99,10 @@ namespace VibeGame1
         public string LastExportPath { get { return lastExportPath; } }
         public CaptureFile Data { get { return capture; } }
 
-        /// <summary>True only in the editor or a development build; release players cannot activate capture.</summary>
-        public static bool IsSupported { get { return Application.isEditor || Debug.isDebugBuild; } }
+        /// <summary>The recorder is available in every build only after the shared session capability
+        /// is granted. This lets a trusted playtester capture a release-only timing problem without
+        /// exposing local file writes to ordinary players.</summary>
+        public static bool IsSupported { get { return DeveloperAccess.IsUnlocked; } }
 
         void Awake()
         {
@@ -132,7 +134,9 @@ namespace VibeGame1
         {
             if (!IsSupported || !Application.isPlaying)
             {
-                message = "TIMING CAPTURE IS AVAILABLE IN EDITOR PLAY MODE OR DEVELOPMENT BUILDS";
+                message = !DeveloperAccess.IsUnlocked
+                    ? "TIMING CAPTURE REQUIRES DEVELOPER ACCESS"
+                    : "TIMING CAPTURE REQUIRES PLAY MODE";
                 return false;
             }
 
@@ -149,6 +153,7 @@ namespace VibeGame1
 
         public static string StopCapture()
         {
+            if (!DeveloperAccess.IsUnlocked) return "TIMING CAPTURE REQUIRES DEVELOPER ACCESS";
             if (instance == null || !instance.capturing) return "TIMING CAPTURE IS NOT RUNNING";
             instance.StopCaptureInternal();
             return "TIMING CAPTURE STOPPED  " + instance.SampleCount + " SAMPLES  " + instance.EventCount + " EVENTS";
@@ -156,6 +161,7 @@ namespace VibeGame1
 
         public static string Status()
         {
+            if (!DeveloperAccess.IsUnlocked) return "TIMING CAPTURE REQUIRES DEVELOPER ACCESS";
             if (instance == null) return "TIMING CAPTURE IDLE  0 SAMPLES  0 EVENTS";
             return "TIMING CAPTURE " + (instance.capturing ? "RECORDING" : "STOPPED") + "  " +
                    instance.SampleCount + " SAMPLES  " + instance.EventCount + " EVENTS" +
@@ -165,6 +171,7 @@ namespace VibeGame1
 
         public static string Export()
         {
+            if (!DeveloperAccess.IsUnlocked) return "TIMING CAPTURE REQUIRES DEVELOPER ACCESS";
             if (instance == null || instance.capture.samples.Count == 0)
                 return "TIMING CAPTURE HAS NO SAMPLES TO EXPORT";
             string path;
@@ -175,6 +182,7 @@ namespace VibeGame1
 
         public static string Discard()
         {
+            if (!DeveloperAccess.IsUnlocked) return "TIMING CAPTURE REQUIRES DEVELOPER ACCESS";
             if (instance == null) return "TIMING CAPTURE ALREADY EMPTY";
             instance.StopCaptureInternal();
             instance.capture = new CaptureFile();
@@ -182,8 +190,8 @@ namespace VibeGame1
             return "TIMING CAPTURE DISCARDED";
         }
 
-        /// <summary>Begins a fresh in-memory capture. Public so the buffer can be covered in EditMode.</summary>
-        public void BeginCapture()
+        /// <summary>Begins a fresh in-memory capture after the public, gated entry point accepts it.</summary>
+        void BeginCapture()
         {
             UnsubscribeAll();
             capture = new CaptureFile
@@ -199,7 +207,7 @@ namespace VibeGame1
         }
 
         /// <summary>Stops recording but retains the in-memory data until export or discard.</summary>
-        public void StopCaptureInternal()
+        void StopCaptureInternal()
         {
             if (!capturing) return;
             capturing = false;

@@ -39,6 +39,15 @@ namespace VibeGame1
 
         static void L(string s) { Log += s + " "; }
 
+        static bool BeginRun()
+        {
+            if (DeveloperAccess.IsUnlocked) return true;
+            Log = "developer access locked";
+            Done = true;
+            Debug.LogWarning("[FrameFilm] Developer access is locked.");
+            return false;
+        }
+
         public static string Status
         {
             get { return "done=" + Done + " frames=" + (inst != null ? inst.buffer.Count : 0) + " " + Log; }
@@ -47,6 +56,7 @@ namespace VibeGame1
         /// <summary>Film one whole parry-to-riposte against the named enemy already in the level.</summary>
         public static void Run(string directory, string enemyName)
         {
+            if (!BeginRun()) return;
             if (inst == null)
             {
                 var go = new GameObject("FrameFilm");
@@ -72,6 +82,7 @@ namespace VibeGame1
         /// </summary>
         public static void RunGuardEntry(string directory)
         {
+            if (!BeginRun()) return;
             if (inst == null)
             {
                 var go = new GameObject("FrameFilm");
@@ -100,6 +111,7 @@ namespace VibeGame1
         /// </summary>
         public static void RunSwings(string directory)
         {
+            if (!BeginRun()) return;
             if (inst == null)
             {
                 var go = new GameObject("FrameFilm");
@@ -132,6 +144,7 @@ namespace VibeGame1
         /// </summary>
         public static void RunWindups(string directory, string enemyName, float distance)
         {
+            if (!BeginRun()) return;
             if (inst == null)
             {
                 var go = new GameObject("FrameFilm");

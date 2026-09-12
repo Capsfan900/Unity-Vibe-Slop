@@ -204,7 +204,7 @@ namespace VibeGame1.EditorTools
             menu.playSubtitle = Txt("PlaySubtitle", p, "", 16f, new Color(1f, 1f, 1f, 0.45f), TextAlignmentOptions.Center);
             Rect(menu.playSubtitle.gameObject, Center, Center, Center, new Vector2(0f, -260f), new Vector2(900f, 24f));
 
-            var footer = Txt("Footer", p, "ESC pauses in a level  ·  F1 opens the developer menu", 15f,
+            var footer = Txt("Footer", p, "IN A LEVEL:  ESC pauses  ·  Backquote opens the command console", 15f,
                              new Color(1f, 1f, 1f, 0.28f), TextAlignmentOptions.Center);
             Rect(footer.gameObject, BottomCenter, BottomCenter, BottomCenter, new Vector2(0f, 32f), new Vector2(1200f, 24f));
 

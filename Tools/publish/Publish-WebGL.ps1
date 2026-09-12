@@ -2,14 +2,14 @@
 .SYNOPSIS
   Publishes Builds/WebGL to GitHub Pages via the "gh-pages" branch, classic style: a git worktree checked
   out to an orphan gh-pages branch, mirrored with the build output, committed and pushed. Master history
-  stays clean — the build never touches master.
+  stays clean -- the build never touches master.
 
 .DESCRIPTION
   One-time setup the USER must do in GitHub's web UI (this script cannot do it):
     Settings > Pages > Build and deployment > Source: "Deploy from a branch"
     Branch: gh-pages, folder: / (root)
   After the first successful run of this script the gh-pages branch will exist and Pages will publish it
-  automatically on every push to that branch — no GitHub Actions workflow needed for this approach.
+  automatically on every push to that branch -- no GitHub Actions workflow needed for this approach.
 
 .PARAMETER BuildDir
   Folder produced by VibeGame1.EditorTools.BuildRunner.WebGL() (default: Builds/WebGL at the repo root).
@@ -33,10 +33,24 @@ Push-Location $repoRoot
 try {
     $BuildDir = (Resolve-Path $BuildDir -ErrorAction Stop).Path
     if (-not (Test-Path (Join-Path $BuildDir "index.html"))) {
-        throw "No index.html in '$BuildDir' — run VibeGame1.EditorTools.BuildRunner.WebGL() in the editor first."
+        throw "No index.html in '$BuildDir' -- run VibeGame1.EditorTools.BuildRunner.WebGL() in the editor first."
     }
 
     $sha = (git rev-parse --short HEAD).Trim()
+    $buildInfoPath = Join-Path $BuildDir "build-info.txt"
+    if (-not (Test-Path $buildInfoPath)) { throw "No build-info.txt in '$BuildDir' -- refusing an untraceable publish." }
+    $buildInfo = @{}
+    foreach ($line in Get-Content $buildInfoPath) {
+        if ($line -match '^([^=]+)=(.*)$') { $buildInfo[$matches[1]] = $matches[2] }
+    }
+    if ($buildInfo['git_sha'] -ne $sha) {
+        throw "Stale WebGL build: build-info SHA '$($buildInfo['git_sha'])' does not match HEAD '$sha'. Rebuild first."
+    }
+    $buildInputsDirty = $buildInfo['build_inputs_dirty']
+    if ([string]::IsNullOrWhiteSpace($buildInputsDirty)) { $buildInputsDirty = $buildInfo['git_dirty'] }
+    if ($buildInputsDirty -ne 'no') {
+        throw "WebGL build had dirty or unknown Assets/Packages/ProjectSettings inputs -- commit or remove those changes, rebuild, then publish."
+    }
     Write-Host "Publishing $BuildDir to '$Branch' (from master @ $sha)..."
 
     # Clean any stale worktree from a previous failed run.
@@ -52,7 +66,7 @@ try {
     if ($remoteHasBranch) {
         git worktree add $worktreeDir $Branch
     } else {
-        Write-Host "Remote branch '$Branch' does not exist yet — creating it as an orphan."
+        Write-Host "Remote branch '$Branch' does not exist yet -- creating it as an orphan."
         git worktree add --detach $worktreeDir
         Push-Location $worktreeDir
         git checkout --orphan $Branch
@@ -72,7 +86,7 @@ try {
         git add -A
         $status = git status --porcelain
         if (-not $status) {
-            Write-Host "Nothing changed since the last publish — skipping commit."
+            Write-Host "Nothing changed since the last publish -- skipping commit."
         } else {
             git commit -m "Playtest WebGL build from master@$sha ($(Get-Date -AsUTC -Format o))"
             git push origin "HEAD:$Branch"

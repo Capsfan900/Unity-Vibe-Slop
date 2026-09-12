@@ -42,7 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
-        static GameObject pLegBrawler;
+        static GameObject pLegBrawler, pLegBrawlerV18;
         static GameObject pSentryGrunt, pSentryHeavy, pSurgeTurret;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
@@ -831,6 +831,16 @@ namespace VibeGame1.EditorTools
                 sTurrets[i] = Spawner("Spawn_pshooter_enemy03_" + (i + 1), new Vector3(turretX[i], spawnY, z - 8f), pSurgeTurret, false, root);
             }
 
+            // V18 is a separate comparison fixture, not a replacement for the v15 pad. The arena rows
+            // have no honest 4.12 m charge lane left, so its pad sits in the movement yard's clear
+            // x 100..126 pocket, between the long-wall exit and the drop tower. It faces south across
+            // flat floor; the wake switch is 6.5 m away and therefore beyond the committed charge.
+            Vector3 v18Pad = new Vector3(FlurryBrawlerV18PadPosition.x, padY, FlurryBrawlerV18PadPosition.z);
+            Vector3 v18Spawn = new Vector3(FlurryBrawlerV18PadPosition.x, spawnY, FlurryBrawlerV18PadPosition.z);
+            Box("Pad_Legendary_FlurryBrawlerV18", v18Pad, new Vector3(5.5f, 1f, 5.5f), mBoss, root);
+            var sBrawlerV18 = Spawner("Spawn_Legendary_FlurryBrawlerV18", v18Spawn, pLegBrawlerV18, false, root);
+            sBrawlerV18.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
             // starts three fights at once and nothing can be studied — you cannot read a wind-up, time
@@ -854,6 +864,9 @@ namespace VibeGame1.EditorTools
             for (int i = 0; i < turretX.Length; i++)
                 Switch("Wake_pshooter_enemy03_" + (i + 1), new Vector3(turretX[i], FloorTop, z - 8f + 3.2f),
                        sTurrets[i], "TURRET " + (i + 1), root);
+            Switch("Wake_Legendary_FlurryBrawlerV18",
+                   new Vector3(FlurryBrawlerV18PadPosition.x, FloorTop, FlurryBrawlerV18PadPosition.z - 6.5f),
+                   sBrawlerV18, "FLURRY BRAWLER V18 TEST", root);
         }
 
         /// <summary>
@@ -869,6 +882,13 @@ namespace VibeGame1.EditorTools
         /// switch like every other pad, so the arena is still quiet on load.</para>
         /// </summary>
         static readonly float[] turretX = { -8f, -3f, 2f };
+
+        /// <summary>
+        /// V18's separate comparison pad lives in the open movement-yard pocket between the long-wall
+        /// exit (ends at x 100) and the drop tower (starts at x 126). Its south-facing 4.12 m charge has
+        /// more than ten metres of flat run before either structure.
+        /// </summary>
+        public static readonly Vector3 FlurryBrawlerV18PadPosition = new Vector3(112f, FloorTop, 20f);
 
         /// <summary>
         /// A wake switch: stone post on Default (walkable, bakes) with a small emissive lamp on
@@ -1024,8 +1044,9 @@ namespace VibeGame1.EditorTools
             // APPEND ONLY. The documented indices (0 Grunt, 1 Heavy, 2 Boss) are in README_Sandbox.md
             // and in muscle memory; renumbering silently changes what SpawnEnemyInFront(2) drops.
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
-                                              pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
-                                              pSentryGrunt, pSentryHeavy, pSurgeTurret, pLegBrawler };
+                                               pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
+                                               pSentryGrunt, pSentryHeavy, pSurgeTurret, pLegBrawler,
+                                               pLegBrawlerV18 };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -1042,6 +1063,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("pshooter_enemy02"),
                 LoadEnemyData("pshooter_enemy03"),
                 LoadEnemyData("Legendary_FlurryBrawler"),
+                LoadEnemyData("Legendary_FlurryBrawlerV18"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1089,6 +1111,7 @@ namespace VibeGame1.EditorTools
             pLegHalberdier = LoadPrefab("Legendary_Halberdier");
             pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
             pLegBrawler = LoadPrefab("Legendary_FlurryBrawler");
+            pLegBrawlerV18 = LoadPrefab("Legendary_FlurryBrawlerV18");
             pSentryGrunt = LoadPrefab("pshooter_enemy01");
             pSentryHeavy = LoadPrefab("pshooter_enemy02");
             pSurgeTurret = LoadPrefab("pshooter_enemy03");

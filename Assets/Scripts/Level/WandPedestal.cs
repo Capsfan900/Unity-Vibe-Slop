@@ -69,7 +69,7 @@ namespace VibeGame1
                 var t = transform.parent.Find(name + "_Plinth");
                 if (t != null) plinth = t.gameObject;
             }
-            ApplyEnabled(DevMenuEnabled);
+            ApplyEnabled(DevMenuEnabled && DeveloperAccess.IsUnlocked);
         }
 
         void OnEnable() { GameEvents.PlayerRespawned += Clear; }
@@ -84,7 +84,8 @@ namespace VibeGame1
 
         void Update()
         {
-            if (!applied || appliedEnabled != DevMenuEnabled) ApplyEnabled(DevMenuEnabled);
+            bool available = DevMenuEnabled && DeveloperAccess.IsUnlocked;
+            if (!applied || appliedEnabled != available) ApplyEnabled(available);
             if (!appliedEnabled) return;
 
             if (visual != null)
@@ -110,7 +111,7 @@ namespace VibeGame1
         /// </summary>
         public bool TryInteract()
         {
-            if (!DevMenuEnabled) return false;
+            if (!DevMenuEnabled || !DeveloperAccess.IsUnlocked) return false;
             bool menuOpen = WandSelectMenu.I != null && WandSelectMenu.I.IsOpen;
             if (menuOpen || !GameManager.IsPlaying || inRange == null || !IsLookedAt()) return false;
             Open(inRange);
@@ -157,7 +158,7 @@ namespace VibeGame1
         /// </summary>
         public void Open(WandController wands)
         {
-            if (!DevMenuEnabled || wands == null || !GameManager.IsPlaying) return;
+            if (!DevMenuEnabled || !DeveloperAccess.IsUnlocked || wands == null || !GameManager.IsPlaying) return;
             var menu = WandSelectMenu.I;
             if (menu == null) menu = FindAnyObjectByType<WandSelectMenu>();
             if (menu == null) return;

@@ -80,6 +80,12 @@ namespace VibeGame1
 
         void Update()
         {
+            if (!DeveloperAccess.IsUnlocked)
+            {
+                ShowPrompt(false);
+                return;
+            }
+
             // Re-lock whatever is on the pad now. A freshly spawned enemy arrives with the prefab's own
             // aggroLocked (false), so this is what makes the switch survive a respawn.
             var e = Enemy;
@@ -106,6 +112,7 @@ namespace VibeGame1
         /// </summary>
         public bool Activate()
         {
+            if (!DeveloperAccess.IsUnlocked) return false;
             var e = Enemy;
             if (e == null || !e.IsAlive) return false;
             woken.Add(e);
@@ -124,6 +131,7 @@ namespace VibeGame1
         /// <summary>Put the pad's enemy back to sleep — the sandbox reset path.</summary>
         public void Rearm()
         {
+            if (!DeveloperAccess.IsUnlocked) return;
             woken.Clear();
             var e = Enemy;
             if (e != null) e.aggroLocked = true;

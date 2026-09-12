@@ -72,6 +72,10 @@ namespace VibeGame1.EditorTools
             // 0.73 s beat. See
             // DataFactory, THE FLURRY BRAWLER.
             BuildMiniBoss("Legendary_FlurryBrawler", EnemyDataDir + "/Legendary_FlurryBrawler.asset", Silhouette.FlurryBrawler);
+            // ADDITIVE TEST BODY. V18 stays sandbox-only and never replaces the v15 prefab above.
+            BuildMiniBoss(FlurryBrawlerV18Authoring.EnemyName,
+                EnemyDataDir + "/" + FlurryBrawlerV18Authoring.EnemyName + ".asset",
+                Silhouette.FlurryBrawlerV18);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -83,10 +87,10 @@ namespace VibeGame1.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
-            Debug.Log("[MiniBossFactory] Built 8 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 9 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18 }
 
         // ------------------------------------------------------------------ the rig
 
@@ -136,9 +140,13 @@ namespace VibeGame1.EditorTools
             // deathblow glyph) is inherited unchanged and only the clips and the whirl are added.
             // EnemyController resolves IEnemyPresentation, so the brain never learns about either.
             bool animated = spec != null && spec.animated;
-            var visuals = animated
-                ? visual.AddComponent<PuppetVisuals>()
-                : visual.AddComponent<EnemyVisuals>();
+            EnemyVisuals visuals;
+            if (shape == Silhouette.FlurryBrawlerV18)
+                visuals = visual.AddComponent<FlurryBrawlerV18Visuals>();
+            else if (animated)
+                visuals = visual.AddComponent<PuppetVisuals>();
+            else
+                visuals = visual.AddComponent<EnemyVisuals>();
             var flash = visual.AddComponent<EmissiveFlash>();
 
             var lungeRoot = Empty("LungeRoot", visual.transform, Vector3.zero);
@@ -188,6 +196,28 @@ namespace VibeGame1.EditorTools
             flash.renderers = new[] { visuals.body, visuals.weapon };
 
             if (animated) WireAnimatedBody((PuppetVisuals)visuals, spec, modelRoot, name, data);
+
+            if (visuals is FlurryBrawlerV18Visuals v18)
+            {
+                // Rule 9: every presentation-profile value is rebuilt onto the prefab.
+                v18.shoulderChargeAttack = "BrawlerV18_ShoulderCharge";
+                v18.shoulderChargeClip = "ShoulderCharge";
+                v18.dashAttack = "BrawlerV18_Dash";
+                v18.clapAttack = "BrawlerV18_LevitateClap";
+                v18.clapClip = "Clap";
+                v18.comboAttack = "BrawlerV18_Combo2";
+                v18.comboClip = "Combo2";
+                v18.jumpClip = "Jump";
+                v18.blockClip = "Block";
+                v18.entranceProbeDelay = 0.12f;
+                v18.entranceHoldSeconds = 0.95f;
+                v18.hitHoldSeconds = 0.50f;
+                v18.clapRingRadius = 3.8f;
+                v18.clapRingSeconds = 0.34f;
+                v18.clapSparkCount = 14;
+                v18.clapSparkSpeed = 7f;
+                v18.clapSparkSpread = 120f;
+            }
 
             // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
             // shows up as a missing telegraph mid-fight, which is the worst possible place to find it.
@@ -510,6 +540,39 @@ namespace VibeGame1.EditorTools
                         spinPrefix = ""
                     };
 
+                case Silhouette.FlurryBrawlerV18:
+                    return new ModelSpec
+                    {
+                        fbx = "FlurryBrawlerV18.fbx",
+                        // Measured on the exact V18 source named in FlurryBrawlerV18.provenance.txt:
+                        // bounds x -0.45..0.45, y 0.01..1.99, z -0.18..0.41, facing +Z. Feet already
+                        // meet the origin and the mass sits 0.12 m ahead of the bone plane.
+                        yLift = 0f,
+                        yaw = 0f,
+                        zShift = -0.12f,
+                        // Head bone (0,1.76,0.04); the small posture port sits toward the front surface.
+                        eyePos = new Vector3(0f, 1.76f, 0.28f),
+                        eyeSize = new Vector3(0.20f, 0.20f, 0.09f),
+                        eyeRound = true,
+                        // RightUpperArm (0.15,1.63,0.01), RightHand (0.35,0.85,-0.02).
+                        armPos = new Vector3(0.15f, 1.63f, 0.01f),
+                        handPos = new Vector3(0.20f, -0.78f, -0.03f),
+                        weaponFxPos = new Vector3(0.06f, 0.02f, 0.16f),
+                        // Chest bone (0,1.40,-0.01).
+                        markHeight = 1.40f,
+                        albedo = "FlurryBrawlerV18_albedo.png",
+                        bladeTrail = false,
+                        note = "unarmed V18 test body; 0.90 m wide, 1.98 m tall, feet on origin, +Z facing",
+
+                        animated = true,
+                        attackClip = "AttackSwing",
+                        heavyClip = "AttackOverhead",
+                        // V18 deliberately has no IdleCombat in its filtered project manifest.
+                        idleClip = "Idle",
+                        spinClip = "",
+                        spinPrefix = ""
+                    };
+
                 case Silhouette.Halberdier:
                     return new ModelSpec
                     {
@@ -696,6 +759,15 @@ namespace VibeGame1.EditorTools
             // the four canonical names. Each entry carries its own length and contact anchor, read
             // from the manifest here at build time, so the clip still bends to the attack's clock.
             var withHit = ForgeClipSplitter.ClipsWithEvent(fbx, "OnAttackHit");
+            // V18 Dash is intentionally eventless in the source. Its generated beats profile still has
+            // an explicit 0.60 contact, so bake it without inventing a runtime AnimationEvent. The same
+            // table pins Combo2 to its one approved source contact instead of interpreting its later
+            // performance gestures as additional combat.
+            float unusedExplicit;
+            foreach (var allowedClip in FlurryBrawlerV18Authoring.ClipAllowlist)
+                if (FlurryBrawlerV18Authoring.TryExplicitContact(name, allowedClip, out unusedExplicit) &&
+                    !withHit.Contains(allowedClip))
+                    withHit.Add(allowedClip);
             pv.namedClips = withHit.ToArray();
             pv.namedClipLengths = new float[withHit.Count];
             pv.namedClipHits = new float[withHit.Count];
@@ -709,9 +781,19 @@ namespace VibeGame1.EditorTools
                 // pelvis -- and the manifest is kept only when the art reaches no further anywhere else.
                 float manifest = ForgeClipSplitter.ReadHitNormalizedTime(fbx, withHit[i], 0.55f);
                 string why = "manifest (authored clip)";
-                float anchor = ForgeClipSplitter.ClipIsGenerated(fbx, withHit[i])
-                    ? MeasureContactFraction(fbx, withHit[i], manifest, out why)
-                    : manifest;
+                float explicitAnchor;
+                float anchor;
+                if (FlurryBrawlerV18Authoring.TryExplicitContact(name, withHit[i], out explicitAnchor))
+                {
+                    anchor = explicitAnchor;
+                    why = "explicit generated beats profile (source has no OnAttackHit)";
+                }
+                else
+                {
+                    anchor = ForgeClipSplitter.ClipIsGenerated(fbx, withHit[i])
+                        ? MeasureContactFraction(fbx, withHit[i], manifest, out why)
+                        : manifest;
+                }
                 pv.namedClipHits[i] = anchor;
                 Debug.Log("[MiniBossFactory] " + name + " clip '" + withHit[i] + "': contact anchor " +
                           anchor.ToString("F2") + " -- " + why);
@@ -724,6 +806,15 @@ namespace VibeGame1.EditorTools
             var have = PuppetAnimatorFactory.ClipsIn(fbx);
             var names = new System.Collections.Generic.HashSet<string>();
             for (int i = 0; i < have.Count; i++) names.Add(have[i].name);
+
+            if (name == FlurryBrawlerV18Authoring.EnemyName)
+            {
+                var allowed = new System.Collections.Generic.HashSet<string>(FlurryBrawlerV18Authoring.ClipAllowlist);
+                if (!names.SetEquals(allowed))
+                    Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
+                        FlurryBrawlerV18Authoring.ClipAllowlist.Length + " clips. Expected: " +
+                        string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
+            }
 
             // ...and the same for every clip the enemy's ATTACKS name. Checked against the imported
             // clips AND the baked table: a name in the manifest that did not import would pass the

@@ -988,21 +988,24 @@ FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEF
 - **The pull is motor state on the motor clock.** Hitstop can neither freeze nor stretch it (rule 1),
   it allocates nothing, and every write is a `cc.Move`, so walls still stop it.
 
-### Offhand slot
+### Persistent offhand wand and independent items
 
 ```
-OffhandController  = the player's left hand, ALWAYS visible (OffhandViewmodel)
-   Kind = Wand (default) | Item
-   Wand in hand  → a riposte blasts (WandController.FireRiposte), charge builds at the tip
-   Item in hand  → the wand is STOWED; the riposte falls back to a melee deathblow
-   ⇢ OffhandChanged(kind, item, wand) → HUD readout
+WandController = the ONLY owner of the player's persistent left-hand model (OffhandViewmodel)
+   equip/start → OffhandViewmodel.ShowWand(Current)
+   riposte     → charge/discharge animation and blast originate at the displayed wand tip
+
+PlayerItems = inventory/effect state only
+   pickup/use/respawn → ItemsChanged → item HUD slots
+   use effect         → OffhandViewmodel.PlayUse() and TipWorldPosition may animate/originate the effect
+   NEVER ShowItem/ShowWand: an item does not replace or rescale the equipped wand
 ```
 
 **Invariants**
-- The offhand is a SHARED slot. Equipping an item genuinely costs you the wand riposte — that trade is the
-  decision the slot exists to make.
-- The wand is on screen full time. It previously existed only for the length of a riposte, which is why the
-  blast read as an explosion with no visible source.
+- Wands and items are independent. Carrying or spending an item never changes the equipped wand, its rendered
+  instance or its scale; death/respawn clears item state without rebuilding the wand.
+- The wand is on screen full time. It previously existed only for the length of a riposte, and briefly regressed
+  into a shared item slot; both failures made the blast read as if it had no visible source.
 - `Physics.IgnoreLayerCollision(Interactable, Player)` must stay **false** — it suppresses trigger callbacks,
   not just contacts, and silently kills every pickup, checkpoint and bloodstain.
 
@@ -1176,15 +1179,18 @@ you can see the whole enemy when it commits.
 | Legendary_Knight (The Iron Penitent) | 4.2 |
 | Legendary_Spellsword (The Ashen Chorister) | 4.3 |
 | Legendary_Marionette (The Pale Marionette) — *prototype, sandbox only* | 3.7 |
+| Legendary_FlurryBrawlerV18 — *TEST, sandbox only* | 2.0 |
 | Boss (The Hollow Warden) | 4.6 |
 
-The three `Legendary_*` mini-bosses are ordinary `EnemyController`s built by
+The three campaign `Legendary_*` mini-bosses and the separate sandbox prototypes are ordinary
+`EnemyController`s built by
 **VibeGame1 → 4b. Build Mini-Bosses** (`Editor/MiniBossFactory.cs`), a sibling of step 4 rather than
 part of it. They are deliberately NOT `BossController`s: that class raises `BossDefeated`, which stops
 the speedrun timer and clears the level. See ARCHITECTURE.md → *Legendary mini-bosses*.
 
-Three of them (`Legendary_Spellsword`, `Legendary_Knight`, `Legendary_Marionette`) carry an **imported
-mesh** from `Assets/Enemies/*.fbx` in place of the primitive body. Nothing in this map changes: the
+Several (`Legendary_Spellsword`, `Legendary_Knight`, `Legendary_Marionette`, and later sandbox
+prototypes including `Legendary_FlurryBrawlerV18`) carry an **imported mesh** from
+`Assets/Enemies/*.fbx` in place of the primitive body. Nothing in this map changes: the
 brain is untouched and the bindings simply resolve to the imported `SkinnedMeshRenderer` and to empty
 pivots parented under it rather than to primitives. Physics stays on the prefab root — a legless model
 hovers by lifting the mesh inside `Visual`, never via `NavMeshAgent.baseOffset`. See AUTHORING.md →
@@ -1266,6 +1272,43 @@ EnemyController.BeginWindup(atk, gap)
    → HandleBroken→ Slump(true): the whirl stops DEAD and the glyph comes up. That frame is
                    the punish read, and it works because nothing else is moving.
 ```
+
+#### Flurry Brawler V18 — staged animation, one combat clock
+
+`Legendary_FlurryBrawlerV18` is an additive **sandbox-only TEST enemy**, not a replacement or retune of
+`Legendary_FlurryBrawler` v15. It remains in the `souls_enemies` lineage: an ordinary melee
+`EnemyController` with `shootsProjectiles = false` and `rangedOnly = false`; its prefab has no
+`BossController`, `ProjectileShooter`, `SentryBurst`, `ProjectileVolleySequence`, or `ParrySurge`.
+
+```
+DataFactory.CreateAll
+   → Legendary_FlurryBrawlerV18 EnemyData
+   → Legendary_FlurryBrawlerV18_Moveset + BrawlerV18_* attacks
+4a. ForgeClipSplitter
+   → FlurryBrawlerV18.fbx: exactly 18 Generic, nonempty, eventless clip sub-assets
+4b. MiniBossFactory
+   → generated 18-state Legendary_FlurryBrawlerV18_Animator.controller
+   → Legendary_FlurryBrawlerV18 prefab (EnemyController + FlurryBrawlerV18Visuals)
+7. SandboxBuilder
+   → separate pad/spawner/wake switch at (112, 20); v15 pad remains
+```
+
+The allowlist is exactly `Idle`, `Walk`, `Run`, `Jump`, `AttackSwing`, `AttackOverhead`, `AttackStab`,
+`AttackKick`, `Hit`, `Stagger`, `Roar`, `Block`, `Death`, `Jab2`, `Dash`, `Clap`, `ShoulderCharge`, and
+`Combo2`. The controller is still a clip library with no authored transitions and the splitter writes
+zero `AnimationEvent`s; every hit remains the single schedule owned by `EnemyController` and resolves
+only through `PlayerCombat.ReceiveAttack`.
+
+`FlurryBrawlerV18Visuals` is the V18-only presentation profile. Ordinary attacks use
+`PuppetVisuals`; Shoulder holds `Run` then stages `ShoulderCharge` at contact, Clap holds `Idle` during
+the authored 1.6 m lift then stages `Clap`, and Combo2 declares exactly one contact and preserves its
+authored tail. `Strike` re-anchors those presentation deadlines to `EnemyController.NextImpactTime`, so
+a frame-late Windup→Strike transition cannot move the visible contact away from the real impact. The
+Clap profile owns only `LungeRoot.y` through descent and clamps it to the captured ground height before
+emitting the existing ring/sparks once, even on a miss. Dash and Shoulder travel remain
+`EnemyAttackData.lungeDistance`; `TravelRoot` cancels Hips XZ and the Animator never applies root motion.
+Jump on wake and Block on ordinary recovery are presentation only. Damage during a committed attack
+keeps the staged sequence visible; recoil, stagger, death, and non-committed hits may interrupt it.
 
 #### The blade trail — `EnemyWeaponTrail`
 
@@ -1970,12 +2013,23 @@ LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocumen
                               edge wear in shading only; geometry, colliders and renderer counts unchanged
    arenas / pedestals / sky / kill zone / NavMesh / Player / Managers / HUD   stay in the builder (campaign only)
 
+DeveloperAccess (one process-local capability; plain passphrase is never stored)
+   Backquote console input → normalize → SHA-256 → constant digest comparison
+   wrong/empty → no state change; accepted → IsUnlocked=true until the process restarts
+   ├─ InputReader permits F1, F5-F10 and weapon slot 4
+   ├─ DeveloperConsole permits timing commands
+   ├─ TestMenu.Open and its public toggles permit mutation
+   ├─ MainMenuController exposes Sandbox/custom rows; SandboxController otherwise disables itself
+   └─ LevelEditor entry, Sandbox controller/wake-switch mutations, wand pedestal, DebugHarness and
+      FrameFilm re-check at entry
+
 LevelEditor.Update  (GameState.Editing; InputReader is the only input reader — optional Editor* actions)
-   F10 works immediately in EDITOR / DEVELOPMENT BUILDS. In a shipped player it is rejected until the
-   session-only console command `editor unlock` sets InputReader.LevelEditorSessionUnlocked. The grant
-   resets on subsystem registration and is not saved. The editor's CODE still runs:
-   a CUSTOM level loads and plays in every build because PendingLoadPath calls Enter()/Play() DIRECTLY,
-   never through input. Only the fly-cam entry is gated.
+   F10 is rejected in EVERY build until DeveloperAccess.IsUnlocked. `LevelEditor.Enter/Toggle` also
+   enforce the capability, so a direct component/UnityEvent call cannot bypass the input gate. Sandbox
+   mutations, the dev wand pedestal and scripted diagnostics enforce it at their own entry points too.
+   The grant resets on subsystem registration and is not saved. A trusted tester can unlock, return to
+   the menu and reach Sandbox or
+   custom-level tools; an ordinary player sees only campaign rows.
    F10 ─► Enter(): returnPosition, fly camera on PlayerLook, cursor locked, panel shown
    Aim(): ray from the lens → grid snap (1 m platforms/water/walls/ramps, 0.5 m else; Alt = free) → preview cube
    [ ] kind · V variant · = − size ladder · T rotate (axis swap / flow turn), Shift+T the reverse turn
@@ -1991,13 +2045,15 @@ LevelEditor.Update  (GameState.Editing; InputReader is the only input reader —
 MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json → LevelEditor.PendingLoadPath → load Sandbox → Play
 
 DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
-   `help` | `clear` | `editor unlock` | `timing start/stop/status/export/discard`;
+   LOCKED: `help` | `clear` | bare secret passphrase (only its digest ships)
+   UNLOCKED: `help` | `clear` | `timing start/stop/status/export/discard` plus F1/F5-F10/4;
    no generic reflection/cheat execution
-   Open → TimeScaleController.Request(0), GameState.Paused, free cursor, focus TMP_InputField
+   Open → TimeScaleController.Request(0), GameState.Paused, free cursor, focus TMP_InputField;
+          locked input is password-masked and every rejected/accepted credential echo is redacted
    Close → release its own time handle and restore prior state/cursor
 ```
 
-`PlayerTimingCapture` is an editor/development-build, explicitly opt-in, local-only diagnostic. `timing
+`PlayerTimingCapture` is an explicitly unlocked, opt-in, local-only diagnostic in every build. `timing
 start` records bounded in-memory movement samples plus projectile emission/cue/arrival/result events;
 `timing stop` freezes the trace without writing a file; `timing export` writes JSON under
 `Application.persistentDataPath/timing-captures/`. It observes `InputReader`, `FirstPersonMotor` and

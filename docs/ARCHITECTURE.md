@@ -142,7 +142,7 @@ concepts and would need de-singletoning first — see the design doc.
 | `ScreenFlash` | Full-screen flashes |
 | `SettingsApplier` | Pushes `SettingsStore.Current` onto `PlayerLook`, `CameraFX`, `QualitySettings`, the URP volume clone. `DontDestroyOnLoad`, bootstrapped by `RuntimeInitializeOnLoadMethod` — nothing to place |
 | `SettingsMenu` | The settings panel, one instance per scene (title screen and pause path share the class) |
-| `DeveloperConsole` | Minimal gameplay HUD console (`help`, `clear`, `editor unlock`, opt-in local `timing ...` capture); owns only its pause/cursor overlay state, while `InputReader` owns its keys and the session-only F10 grant |
+| `DeveloperConsole` / `DeveloperAccess` | Minimal gameplay HUD console and the one process-local capability for all player-reachable tooling. Locked help/clear plus a hashed bare passphrase; once granted, F1/F5-F10, slot 4/R, Sandbox/custom rows, wand pedestal, scripted diagnostics and opt-in local `timing ...` capture become available. Input and each mutating public entry point re-check the same gate. The plain phrase and grant are never saved. |
 
 ---
 
@@ -474,6 +474,12 @@ The Shade is fast through **combo density and short recoveries only**. No wind-u
 `0.45 s` — the contract above is not negotiable for a mini-boss, and a faster tell would need its cue to
 fire before the wind-up began.
 
+The sandbox also carries additive `Legendary_*` prototypes built by the same factory but absent from
+campaign `LevelDefinition`s. They keep the same Souls lineage and must not acquire the parkour family's
+projectile components. `Legendary_FlurryBrawlerV18` is one of these: ordinary melee `EnemyController`,
+not `BossController`, with `shootsProjectiles = false`, `rangedOnly = false`, posture/deathblow feedback,
+and its own data/moveset/prefab rather than an alias or retune of the v15 Flurry Brawler.
+
 ### The Ember Revenant — the burning prototype
 
 `Legendary_Revenant`. **A prototype and a sandbox exhibit, not a campaign enemy**, exactly like the
@@ -526,9 +532,9 @@ after a deflect is the reward here, not a metronome that must not drift.
 
 ### The Flurry Brawler — the ladder prototype (2026-09-07, v15 body)
 
-`Legendary_FlurryBrawler`. **A prototype and a sandbox exhibit**, like the other three: a pad at
+`Legendary_FlurryBrawler`. **A prototype and a sandbox exhibit**, like the other sandbox prototypes: a pad at
 x −22 / z −26 (the west end of the second row), a wake switch (`FLURRY BRAWLER`), and in no
-`LevelDefinition` and no `LevelRegistry`. The fourth forge body (`Assets/Enemies/FlurryBrawler.fbx`,
+`LevelDefinition` and no `LevelRegistry`. Another forge body (`Assets/Enemies/FlurryBrawler.fbx`,
 **v15, 32 clips**), and the first UNARMED one.
 
 **Its job in one sentence:** an unarmed pressure fighter whose punch-strings come in a LADDER the player
@@ -590,9 +596,40 @@ is right for an axe head that really sits there and wrong twice over on a brawle
 and `Jab2`, `UppercutLeft`, `Clap` and `Slam` are all anchored on the LEFT wrist. A two-handed trail
 would be a change to `EnemyWeaponTrail` and is a lead call, not something an enemy smuggles in.
 
+### The Flurry Brawler V18 — additive staged-animation test
+
+`Legendary_FlurryBrawlerV18` is a separate sandbox test body at `(112, 20)`. V15 remains authored,
+spawnable, and unchanged. V18 keeps its own `Legendary_FlurryBrawlerV18_Moveset`, uniquely prefixed
+`BrawlerV18_*` attacks, generated prefab/controller, spawner, and wake switch. It uses the normal
+distance/cone impact path through `PlayerCombat.ReceiveAttack`; `FlurryBrawlerV18Visuals` changes only
+what the body shows.
+
+Its project animation library is a strict 18-clip allowlist: `Idle`, `Walk`, `Run`, `Jump`,
+`AttackSwing`, `AttackOverhead`, `AttackStab`, `AttackKick`, `Hit`, `Stagger`, `Roar`, `Block`, `Death`,
+`Jab2`, `Dash`, `Clap`, `ShoulderCharge`, `Combo2`. `ForgeClipSplitter` imports those as Generic,
+nonempty sub-assets with zero AnimationEvents; `PuppetAnimatorFactory` generates one state per clip and
+no authored transitions. The larger source export is provenance, not permission to import another take.
+
+The V18-only subclass exists because three performances cannot use ordinary immediate attack playback:
+
+- **ShoulderCharge:** hold `Run` over the brain-owned 4.12 m approach, then enter ShoulderCharge for
+  contact. The Hips' XZ is cancelled; data remains the only travel authority.
+- **Clap:** hold `Idle` while the shared authored pose lifts `LungeRoot` 1.6 m, then enter Clap for
+  descent/contact. The subclass owns only lift Y, re-anchors to `EnemyController.NextImpactTime`, clamps
+  the body to its captured ground height, and emits the existing ring/sparks exactly once at that same
+  contact, hit or miss. It never schedules damage.
+- **Combo2:** one declared, blockable combat contact at the approved clip anchor. Playback bends to the
+  data clock, then its remaining authored tail keeps Animator ownership; later gestures are not hits.
+
+Dash uses its explicit eventless contact profile. Jump on wake and Block during ordinary recovery are
+presentation only. Normal damage during a committed Windup/Strike preserves the scheduled presentation
+because it does not cancel the brain's attack; recoil, stagger, death, and non-committed hits take
+precedence and cancel pending V18 effects. The subclass and the generated controller remain on the visual
+side of `IEnemyPresentation`; `EnemyController` contains no V18 branch.
+
 ### The Argent Halberdier — the reach prototype
 
-`Legendary_Halberdier`. **A prototype and a sandbox exhibit**, like the other two: a pad at x 0.75
+`Legendary_Halberdier`. **A prototype and a sandbox exhibit**, like the other sandbox prototypes: a pad at x 0.75
 (between the Heavy pad and the Warden's), a wake switch, and in no `LevelDefinition` and no
 `LevelRegistry`. The body is the third `ai_skelly_tool` export — a towering armoured halberdier with a
 tail, the first forge model to ship a painted albedo — and the first whose attacks are **generated,
@@ -835,8 +872,8 @@ Yes, the primitives can be replaced with real models — the seam already exists
 only class permitted to know about meshes, renderers or animation.** `EnemyController` contains zero
 `Renderer` / `Material` / `Animator` references; it only calls presentation methods. Every one of those
 methods is `virtual`, and the controller resolves its reference with
-`GetComponentInChildren<EnemyVisuals>()` — so **a subclass is picked up automatically and no gameplay
-code changes.**
+`GetComponentInChildren<IEnemyPresentation>()` — so **a subclass is picked up automatically and no
+gameplay code changes.**
 
 The path is: subclass `EnemyVisuals`, override the presentation methods (`Setup`, `SetAccent`,
 `SetPostureRatio`, `Telegraph`, `CueFlash`, `Strike`, `ClearTelegraph`, `Recoil`, `HitFlash`, `Slump`,

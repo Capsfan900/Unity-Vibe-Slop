@@ -370,30 +370,34 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void ReleaseF10_RequiresTheSessionOnlyConsoleUnlock()
+        public void EveryBuildF10_RequiresTheSharedSessionCapability()
         {
-            InputReader.LockLevelEditorForSession();
+            DeveloperAccess.LockForTests();
             try
             {
                 Assert.IsFalse(InputReader.LevelEditorShortcutAllowed(false, false),
                     "an ordinary release build must reject F10");
-                Assert.IsTrue(InputReader.LevelEditorShortcutAllowed(true, false),
-                    "editor and development builds retain normal F10 access");
+                Assert.IsFalse(InputReader.LevelEditorShortcutAllowed(true, false),
+                    "editor and development builds must not bypass the console capability");
 
                 var help = DeveloperConsole.ExecuteCommand("  HELP  ");
                 Assert.IsFalse(help.clear);
                 Assert.AreEqual(DeveloperConsole.HelpText, help.message);
                 Assert.IsFalse(InputReader.LevelEditorSessionUnlocked, "help must not grant access");
 
-                var unlock = DeveloperConsole.ExecuteCommand("editor    unlock");
+                var rejectedLegacy = DeveloperConsole.ExecuteCommand("editor    unlock");
+                Assert.IsFalse(InputReader.LevelEditorSessionUnlocked,
+                    "the old public phrase must never grant developer access");
+                StringAssert.Contains("LOCKED", rejectedLegacy.message);
+
+                DeveloperAccess.UnlockForTests();
                 Assert.IsTrue(InputReader.LevelEditorSessionUnlocked);
                 Assert.IsTrue(InputReader.LevelEditorShortcutAllowed(false, InputReader.LevelEditorSessionUnlocked));
-                StringAssert.Contains("THIS SESSION", unlock.message);
 
                 Assert.IsTrue(DeveloperConsole.ExecuteCommand("clear").clear);
                 Assert.IsFalse(DeveloperConsole.ExecuteCommand("editor please").clear);
             }
-            finally { InputReader.LockLevelEditorForSession(); }
+            finally { DeveloperAccess.LockForTests(); }
         }
     }
 }
