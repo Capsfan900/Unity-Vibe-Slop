@@ -2081,6 +2081,41 @@ sequence; changing duplicate-window ordering requires an explicit metadata migra
 `ChallengeRoute` remains ordinal 11. Its stable IDs use `*.ChallengeRoute.*`; route source spawners and
 entry/rejoin anchors remain authored data through regeneration and export.
 
+### Level Studio protected draft storage — `LevelDraftStore`
+
+```
+Campaign LevelDefinition asset (read-only while authoring)
+  -> LevelDraftStore.CreateFromCampaign()
+  -> versioned envelope (draft ID, schema, monotonic revision, SHA-256 payload hash, base snapshot)
+  -> <project>/LevelDrafts/<draftId>/draft.json       (atomic manual replacement)
+  -> autosave.candidate.<unique>.json -> autosave.revision.<revision>.json
+  -> immutable publication; newest three valid snapshots retained (legacy .0/.1/.2 remain readable)
+
+LevelDraftStore.List()
+  -> validates schema/version/ID/hash before materializing any LevelDefinition
+  -> source GUID + canonical SHA-256 -> Unchanged / Changed / Missing / Unknown apply state
+  -> invalid/read-only/recovery-only diagnostic rows remain visible
+  -> non-overlapping root/scoring, zone, singleton and object projection -> changedObjectCount
+     (gate/exit/portal/window fields have their own owners even while disabled;
+      duplicate IDs use occurrence keys; relative order of surviving objects counts once per collection)
+LevelDraftStore.Recover()
+  -> RecoverResult / RecoveryHistory expose every candidate with revision, validity and diagnostic
+  -> repairs interrupted publication/trim before selecting a recovery; never promotes it over the manual save
+  -> valid first, embedded revision descending, parsed UTC descending, stable path ascending
+  -> newest three current valid files stay active; corrupt files move intact into quarantine/ with diagnostics
+```
+
+The campaign asset is never a draft save target. `LevelDrafts/` is outside `Assets/`, ignored by git and
+excluded from player builds; the store accepts an explicit root so EditMode tests use a disposable directory.
+Writes validate the mutable manifest and both complete finite payloads before persistence, then flush a unique
+same-directory temporary file and atomically publish it. Live manifest revisions/times advance only after the
+whole operation succeeds. Per-draft process locks coordinate store instances and reject reentrant writes.
+Unsupported active manual/recovery formats or schemas freeze every write and automatic repair for that draft;
+only their headers reach summaries. A corrupt manual is retained and cannot be implicitly overwritten.
+Failure injection covers before/after directory creation, enumeration/read, temp creation/write/flush,
+move/replace publication, trim/delete, quarantine and cleanup. Reads repair interrupted current-format work
+without a later save. Returned `LevelDraft` objects own their cloned `LevelDefinition` and implement `IDisposable`.
+
 ### The in-game level editor — `LevelEditor` + the one piece factory
 
 ```

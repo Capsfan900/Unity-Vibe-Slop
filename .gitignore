@@ -115,3 +115,6 @@ __pycache__/
 
 # gh-pages publish worktree (Tools/publish/Publish-WebGL.ps1) — never committed to master
 /.worktrees/
+
+# Level Studio working copies are editor-only, non-shipping local documents.
+/LevelDrafts/
