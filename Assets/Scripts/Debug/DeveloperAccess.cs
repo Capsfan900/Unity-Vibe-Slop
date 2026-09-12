@@ -16,7 +16,7 @@ namespace VibeGame1
     /// </summary>
     public static class DeveloperAccess
     {
-        const string UnlockDigest = "1ea2d7618a07b6d17c25da2b144b7cd4f54c9fdc04b240b8ec59d5cc8603d329";
+        const string UnlockDigest = "05b3b66d444b8ed761948161aa8e4b986d2df0588facc556b4c97dc60d44c286";
 
         static bool unlocked;
 
