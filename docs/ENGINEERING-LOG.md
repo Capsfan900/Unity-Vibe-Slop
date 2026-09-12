@@ -18,10 +18,11 @@ CLI unavailable because those two stores are intentionally readable only by the 
 
 **Invariant.** Do not diagnose `Registered 0 packages` followed by a missing built-in module as an asset or
 package defect until licensing initialization is proven. Do not retry the raw `-createProject` probe, copy
-licensing binaries or edit token/license files. Drive the already-open Hub-authenticated editor through
-`Tools/unity-cli/Invoke-VibeGame.ps1` / `unity command eval`, with MCP as fallback. Run the CLI from the normal
-user context when checking reachability; the Pipeline descriptor is deliberately protected by a user-only
-ACL.
+licensing binaries or edit token/license files. Drive the already-open Hub-authenticated editor through MCP.
+The retained `Tools/unity-cli/Invoke-VibeGame.ps1` / `unity command eval` pilot is an optional short diagnostic,
+not the base workflow: its five-second Pipeline window has timed out on healthy editor work, including a
+later preflight. Run it from the normal user context only when comparing transport reachability; the Pipeline
+descriptor is deliberately protected by a user-only ACL.
 
 ## 2026-09-11 — Player-reachable diagnostics need one capability, not scattered build symbols
 

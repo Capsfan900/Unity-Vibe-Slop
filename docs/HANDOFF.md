@@ -1,4 +1,4 @@
-# Handoff — Unity CLI pilot and V18 Souls-enemy prototype
+# Handoff — MCP-primary integration and V18 Souls-enemy prototype
 
 ## Current state — 2026-09-11
 
@@ -14,7 +14,9 @@ parkour projectile, surge or boss components and does not replace V15. Its indep
 
 The earlier in-flight release pass is also present: centralized process-local `DeveloperAccess`, locked
 release diagnostics, transactional build/publish scripts, the persistent-wand toothpick repair, regenerated
-HUD/Main Menu and the official Unity CLI/Pipeline pilot. Preserve the user-owned files listed below.
+HUD/Main Menu and the official Unity CLI/Pipeline pilot. None of those game changes are being rolled back.
+MCP is again the primary editor/build/test transport; the retained CLI is only an optional short diagnostic.
+Preserve the user-owned files listed below.
 
 ## Verification completed
 
@@ -25,10 +27,13 @@ HUD/Main Menu and the official Unity CLI/Pipeline pilot. Preserve the user-owned
   once with one ring, Shoulder shows Run→contact with one 4.12 m lunge, and Combo2 has one contact plus tail.
 - Runtime/editor offline builds: zero errors; editor retains 18 existing warnings.
 - Health Check: no error section; 1942 existing broad serialized-null/audio warnings.
-- WebGL build: **success**, 30.6 MB, three scenes, High stripping. The live
+- WebGL build artifact: **built and published**, 30.6 MB, three scenes, High stripping. The live
   `build-info.txt` identifies `79dc3f7`, `unity-cli-pilot` and `build_inputs_dirty=no`.
 - GitHub Pages: published and returning HTTP 200 at
   `https://capsfan900.github.io/Unity-Vibe-Slop/`.
+- Browser acceptance: **failed by human playtest** on 2026-09-11; the user reported unplayable frame pacing,
+  degraded fidelity and broken-feeling behavior versus local testing. WebGL is experimental, and Windows is
+  the primary friend-playtest target.
 
 Human review remains required for the animation feel: Dash-as-rising-clap readability, shoulder/body contact,
 Clap weight, and fair manual parry tells.
@@ -40,11 +45,13 @@ The failed disposable probe is not caused by too many projects or a missing Anim
 registered zero built-in packages, and only then failed to resolve `Animator`. Hub-authenticated live-editor
 execution works.
 
-Unity CLI `1.0.0-beta.8` with `com.unity.pipeline 0.7.0-exp.1` helped with short state/preflight/eval calls and
-successfully drove several generators. It is not yet a replacement for MCP: Pipeline can disappear around a
-domain reload, and a long generator can exceed the package's five-second main-thread response window even
-while Unity finishes writing assets. Use CLI for short live-editor queries; use MCP and asset readback for
-long generators/tests. Never run `unity test/build/run` against this active working copy.
+Unity CLI `1.0.0-beta.8` with `com.unity.pipeline 0.7.0-exp.1` helped with some short state/eval calls and
+successfully drove several generators, so the pilot and all game work created on its branch remain. It is
+not the base workflow: Pipeline can disappear around a domain reload, and both a long generator and a later
+preflight exceeded the package's five-second main-thread response window while Unity remained healthy.
+Use MCP for normal live-editor queries, generators, tests and builds. Use CLI only as an optional short
+diagnostic comparison, with MCP/asset readback afterward. Never run `unity test/build/run` against this
+active working copy.
 
 Unity's `com.unity.ai.assistant` package also waits roughly 30 seconds for its Account API on Play Mode domain
 reload, temporarily logging zero matching entitlements before licensing resolves successfully. Confirm
@@ -53,12 +60,12 @@ stale during that delay.
 
 ## Exact resume order
 
-1. Human-play the V18 Sandbox pad and report feel/tell issues before promoting it from a test enemy.
-2. For the next public WebGL playtest, temporarily move the unlicensed replacement song and `.meta` outside
-   `Assets/`, build from the exact clean implementation commit, verify `build_inputs_dirty=no`, publish
-   `gh-pages`, then restore both local files.
-3. Keep `master` on the pre-CLI baseline until the CLI/Pipeline pilot has earned promotion; continue ordinary
-   work on `unity-cli-pilot` as requested.
+1. Finish a clean native Windows build: keep the unlicensed replacement song and `.meta` outside `Assets/`
+   until the asynchronous build has fully finished, require `build_inputs_dirty=no`, then restore both local
+   files and publish the zip as a GitHub Release.
+2. Human-play the V18 Sandbox pad and report feel/tell issues before promoting it from a test enemy.
+3. Continue ordinary work through MCP. Preserve every game change from `unity-cli-pilot`; do not reset to the
+   old `master` tip or remove the Pipeline package merely to change transport priority.
 
 ## Preserved user-owned files
 

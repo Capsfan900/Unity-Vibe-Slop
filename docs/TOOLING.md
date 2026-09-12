@@ -455,20 +455,22 @@ project path explicit. Common calls:
 ./Tools/unity-cli/Invoke-VibeGame.ps1 build-windows
 ```
 
-Direct `unity command ... eval` is the preferred terminal path once Pipeline reports `isReachable: true`:
-Roslyn evaluates against the live editor without changing source or causing a domain reload. The existing
-third-party MCP bridge remains installed and is the fallback while this experimental package proves itself.
-If Pipeline is absent, unreachable or changes behavior, do not start another Editor—use MCP against the open
-one or revert the pilot tag.
+The MCP bridge is the primary terminal path for editor state, generators, tests and builds. It has the
+project's established session pinning, state readback and long-operation workflow. Keep the CLI/Pipeline
+pilot installed so none of the work developed on `unity-cli-pilot` is rolled back, but treat
+`unity command ... eval` as an optional probe for short, read-only calls only. If Pipeline is absent,
+unreachable, times out or changes behavior, do not retry it or start another Editor—continue through MCP
+against the already-open editor.
 
 Treat Pipeline reachability as ephemeral across domain reloads. In the 2026-09-11 pilot, `state`, preflight,
 clip splitting, data generation, mini-boss generation and Sandbox generation all succeeded through the CLI,
 but a later long mini-boss generation exceeded Pipeline's five-second main-thread response window. Unity
 continued and wrote the prefab/controller after the client had returned HTTP 400. A subsequent `state` call
 found port 7801, while the immediately following `preflight` temporarily reported no Pipeline instance.
-Therefore use CLI for short state/preflight/eval calls; after any long generator, domain reload or timeout,
-read the generated asset back and fall back to MCP. Neither a CLI timeout nor a transient missing descriptor
-proves that Unity stopped the requested work.
+On 2026-09-11 a later CLI preflight also exceeded that same five-second window and returned HTTP 400 while
+the editor remained healthy. Therefore MCP owns normal work. Use CLI only when a short diagnostic benefits
+from comparing transports; after any CLI call, read the editor or generated asset back through MCP. Neither
+a CLI timeout nor a transient missing descriptor proves that Unity stopped the requested work.
 
 The CLI's Hub account database and `Library/Pipeline/.unity-pipeline-port` descriptor are user-scoped. A
 restricted automation sandbox can therefore return `LOCAL_STORE_UNWRITABLE`, fail to read the descriptor, or

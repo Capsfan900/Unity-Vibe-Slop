@@ -1,8 +1,9 @@
 # Distribution
 
-How to cut a playtest build and hand a playtester a link, using the standard two channels for a Unity
-playtest: **WebGL on GitHub Pages** (click a link, zero install) and **Windows as a zipped GitHub Release**
-(download and run).
+How to cut a playtest build and share it through two channels. **Windows as a zipped GitHub Release is the
+primary friend-playtest build** because it preserves native timing, fidelity and frame pacing. **WebGL on
+GitHub Pages is an experimental convenience link**: easier to open, but not the authoritative gameplay
+build until that exact published payload passes an in-browser playtest.
 
 **No GameCI / Unity-in-Actions.** Building Unity headlessly in GitHub Actions needs a Unity licence secret
 the user has not provided. Builds happen locally, in the editor the lead session already has open. The
@@ -107,7 +108,7 @@ The Windows build is **~96 MB**, of which roughly 10 MB is this game (assets ~9 
   `vibegame1_Data/Managed` from 37 MB to 11 MB (`System.Xml`, `System.Data`, `System.Drawing` were all
   shipping into a game that parses no XML and opens no database).
 
-**WebGL is the number that matters for a link.** The first WebGL build was cut 2026-09-07: **30.8 MB, and
+**WebGL is the number that matters for browser-link size, not gameplay acceptance.** The first WebGL build was cut 2026-09-07: **30.8 MB, and
 that is already gzipped** — Unity ships the `.unityweb` files pre-compressed (they carry the `1f8b` gzip
 magic), so it is the wire size a playtester actually waits for, not a pre-compression figure. Uncompressed
 the payload is 58.7 MB: `WebGL.wasm` 31.0 → 8.7 MB, `WebGL.data` 27.4 → 22.0 MB, `WebGL.framework.js`
@@ -136,7 +137,7 @@ Hub would cut the managed side further at the cost of much slower builds.
 
 ## Publishing
 
-### WebGL → GitHub Pages (the important one — send a link)
+### WebGL → GitHub Pages (experimental convenience link)
 
 ```powershell
 ./Tools/publish/Publish-WebGL.ps1
@@ -149,7 +150,7 @@ The publisher refuses a stale SHA, a missing `build-info.txt`, or anything excep
 `build_inputs_dirty=no`; a public link must map back to reproducible game inputs. Local-only root files
 such as screenshots may make `git_dirty=YES` without poisoning a build, and remain visible in the metadata.
 
-### Windows → GitHub Release (zip, download-and-run)
+### Windows → GitHub Release (primary friend-playtest build)
 
 ```powershell
 ./Tools/publish/Publish-WindowsRelease.ps1 -Tag playtest-2026-09-07
