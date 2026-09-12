@@ -1586,6 +1586,36 @@ namespace VibeGame1.EditorTools
             infoCard.SetActive(false);
             var info = BtnK("InfoButton", p, "INFO", new Vector2(480f, 430f), new Vector2(180f, 48f));
 
+            // Dedicated two-column keybind card: twenty-four ordinary player actions cannot share the
+            // thirteen-row image/audio/settings page without squeezing off-screen at ultrawide aspect.
+            // It is an overlay like INFO, so the existing BACK and RESET DEFAULTS anchors stay stable.
+            var keyCard = new GameObject("KeybindPanel", typeof(RectTransform));
+            keyCard.transform.SetParent(p, false);
+            RectK(keyCard, Mid, Mid, Mid, new Vector2(0f, 20f), new Vector2(1200f, 780f));
+            GlassCard(keyCard.transform, Vector2.zero, new Vector2(1200f, 780f));
+            var keyTitle = TxtK("KeybindTitle", keyCard.transform, "KEYBINDS", 30f, Bone, TextAlignmentOptions.Center);
+            keyTitle.fontStyle = FontStyles.Bold;
+            keyTitle.characterSpacing = 8f;
+            RectK(keyTitle.gameObject, Mid, Mid, Mid, new Vector2(0f, 342f), new Vector2(800f, 40f));
+            var keyHint = TxtK("KeybindHint", keyCard.transform,
+                "REBIND listens for keyboard, mouse, or controller buttons · ESC cancels · console/dev keys stay reserved",
+                13f, new Color(1f, 1f, 1f, 0.55f), TextAlignmentOptions.Center);
+            RectK(keyHint.gameObject, Mid, Mid, Mid, new Vector2(0f, 312f), new Vector2(1080f, 24f));
+
+            var specs = InputReader.RebindableBindings;
+            var bindingRows = new SettingsMenu.BindingRow[specs.Length];
+            int perColumn = (specs.Length + 1) / 2;
+            for (int i = 0; i < specs.Length; i++)
+            {
+                int column = i / perColumn;
+                int row = i % perColumn;
+                float x = column == 0 ? -292f : 292f;
+                float y = 272f - row * 50f;
+                bindingRows[i] = BuildBindingRow(specs[i], keyCard.transform, x, y);
+            }
+            keyCard.SetActive(false);
+            var keybind = BtnK("KeybindButton", p, "KEYBINDS", new Vector2(280f, 430f), new Vector2(190f, 48f));
+
             menu.panel = panel.gameObject;
             menu.rows = rows;
             menu.backButton = back;
@@ -1593,9 +1623,50 @@ namespace VibeGame1.EditorTools
             menu.infoButton = info;
             menu.infoPanel = infoCard;
             menu.infoText = infoText;
+            menu.keybindButton = keybind;
+            menu.keybindPanel = keyCard;
+            menu.bindingRows = bindingRows;
 
             panel.gameObject.SetActive(false);
             return panel.gameObject;
+        }
+
+        static SettingsMenu.BindingRow BuildBindingRow(InputReader.RebindableBinding spec, Transform parent,
+                                                        float x, float y)
+        {
+            var strip = ImgK("Bind_" + spec.id, parent, new Color(1f, 1f, 1f, 0.035f));
+            strip.raycastTarget = false;
+            strip.sprite = UiSprites.Track();
+            strip.type = Image.Type.Sliced;
+            RectK(strip.gameObject, Mid, Mid, Mid, new Vector2(x, y), new Vector2(560f, 44f));
+
+            var label = TxtK("Label", strip.transform, spec.label, 14f, Bone, TextAlignmentOptions.Left);
+            label.characterSpacing = 1.5f;
+            RectK(label.gameObject, Left, Left, Left, new Vector2(12f, 0f), new Vector2(188f, 28f));
+
+            var value = TxtK("Value", strip.transform, SettingsData.KeyLabel(spec.defaultPath), 14f,
+                             Bone, TextAlignmentOptions.Center);
+            value.fontStyle = FontStyles.Bold;
+            RectK(value.gameObject, Left, Left, Mid, new Vector2(203f, 6f), new Vector2(124f, 22f));
+
+            var note = TxtK("Note", strip.transform, "", 9f, new Color(1f, 1f, 1f, 0.4f),
+                            TextAlignmentOptions.Center);
+            RectK(note.gameObject, Left, Left, Mid, new Vector2(203f, -11f), new Vector2(124f, 14f));
+
+            var rebind = RowBtn("Rebind", strip.transform, "BIND", new Vector2(-143f, 0f),
+                                new Vector2(82f, 34f), 12f);
+            var reset = RowBtn("Reset", strip.transform, "RESET", new Vector2(-52f, 0f),
+                               new Vector2(88f, 34f), 11f);
+            return new SettingsMenu.BindingRow
+            {
+                bindingId = spec.id,
+                root = strip.gameObject,
+                label = label,
+                value = value,
+                note = note,
+                rebind = rebind,
+                reset = reset,
+            };
         }
 
         static SettingsMenu.Row BuildRow(SettingsMenu.RowKind kind, Transform parent, float y)

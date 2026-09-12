@@ -71,6 +71,7 @@ namespace VibeGame1
 
         /// <summary>Longest control path we will store. A prefs entry longer than this is junk.</summary>
         public const int BindingPathMaxLength = 96;
+        public const int BindingOverridesJsonMaxLength = 32768;
 
         // ---- the settings themselves -------------------------------------------------------------
 
@@ -110,6 +111,10 @@ namespace VibeGame1
         /// </summary>
         public string weaponTwirlBinding = "";
 
+        /// <summary>Unity Input System binding overrides for every player-facing rebindable action.
+        /// InputReader is the only class that interprets this JSON; settings only persist and bound it.</summary>
+        public string bindingOverridesJson = "";
+
         // ---- construction ------------------------------------------------------------------------
 
         public static SettingsData Defaults()
@@ -136,6 +141,7 @@ namespace VibeGame1
                 masterVolume = masterVolume,
                 musicVolume = musicVolume,
                 weaponTwirlBinding = weaponTwirlBinding,
+                bindingOverridesJson = bindingOverridesJson,
             };
         }
 
@@ -169,6 +175,20 @@ namespace VibeGame1
             if (qualityLevel < -1) qualityLevel = -1;
 
             weaponTwirlBinding = SanitizeBindingPath(weaponTwirlBinding);
+            bindingOverridesJson = SanitizeBindingOverridesJson(bindingOverridesJson);
+        }
+
+        /// <summary>Reject obviously corrupt or hostile override blobs before InputReader sees them.
+        /// Detailed schema validation remains inside the Input System's guarded loader.</summary>
+        public static string SanitizeBindingOverridesJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return "";
+            json = json.Trim();
+            if (json.Length > BindingOverridesJsonMaxLength) return "";
+            char first = json[0];
+            char last = json[json.Length - 1];
+            if (!((first == '{' && last == '}') || (first == '[' && last == ']'))) return "";
+            return json;
         }
 
         /// <summary>

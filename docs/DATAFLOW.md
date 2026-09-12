@@ -1429,7 +1429,7 @@ Projectile.Update()  (scaled time: hitstop freezes it)
      it eases in over 0.09 s, fades back over 0.12 s, and is exactly on the logical line for the whole
      remaining ≤ 0.28 s cue window. A 7-point fixed buffer records the visible head, so the trail curves too.
      Reflection clears that history and flies visually straight. None of this enters arrival, registry or damage.
-   → BoltRegistry.Report(id, cue = now + remaining - 0.28 (MaxValue once cued), impact = now + remaining) every frame,
+    → BoltRegistry.Report(id, cue = now + remaining - 0.28 (MaxValue once cued), impact = now + remaining) every frame,
      Clear() on reflect / spend / destroy -- F2: EnemyController.AnyAttackIncoming and .EarliestCueTime consult the
      registry as well as the melee list, so a missed bolt parry costs parryMistimeRecovery 0.2 s and not the
      parryWhiffRecovery 0.5 s mash tax, and ParryController.ClampRecoveryToNextCue works on a span
@@ -1437,7 +1437,10 @@ Projectile.Update()  (scaled time: hitstop freezes it)
      already-fired cue at the crosshair, never reveal an uncued shot or become a second targeting system
    → remaining ≤ 0.28 s once → Sfx.ParryCue + the bolt flares ×2.3 × projectileCueScale and its core goes white-hot
                                                                         (the same lead every attack gives)
-   → within hitRadius of the chest → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
+    → each live homing segment Linecasts against the motor's world mask; solid route geometry retires
+      the bolt when its contact is before or tied with the swept player contact, so a curved shot cannot
+      pass through an intervening ramp obstacle and damage the player out of sight
+    → within hitRadius of the chest before any world contact → PlayerCombat.ReceiveAttack(AttackInfo{projectileAttack, shooter})   (rule 3)
         Perfect → report the phrase outcome exactly once, then the bolt REFLECTS at ×1.4 toward a living shooter,
                   motor.AddImpulse(ProjectileMath.SpeedGain(look.AimForward, parrySpeedGain 9))   (rule 10: motor entry point;
                   a run at 11 becomes 20 and bleeds toward the 17.6 air soft cap -- a boost, not a new cruise)
@@ -1449,6 +1452,8 @@ Projectile.Update()  (scaled time: hitstop freezes it)
 
 **Invariants**
 - **A bolt is an attack** and resolves only through `PlayerCombat.ReceiveAttack` (rule 3). Nothing here writes health or posture on the player.
+- **A planned clear flight is not permanent permission through walls.** Homing reacts to live movement,
+  so every runtime segment rechecks solid world geometry and resolves the earliest contact deterministically.
 - **The flight is the tell, and it is cued at 0.28 s like every attack.** A launch must forecast first
   contact at or beyond 0.44 s; the planner slows only as much as required, and refuses impossible shots.
 - **A bolt in flight is an INCOMING ATTACK** (`BoltRegistry`, F2). The two cue helpers on `EnemyController` read it with NO range test — a bolt is already aimed at you, so its arrival time is the question, not its perch's distance. Melee's 6 m `InThreatRange` is untouched.
@@ -1592,6 +1597,11 @@ SettingsMenu (UI, both prefabs)      edits SettingsStore.Current, Save() on ever
    → SettingsStore                   PlayerPrefs under vg1.settings.*; raises Changed
    → SettingsApplier                 DontDestroyOnLoad singleton, self-bootstrapped via
         │                             RuntimeInitializeOnLoadMethod -- nothing to place
+        ├→ InputReader.ApplyBindingOverrides                 (24 player-facing keyboard/mouse binds;
+        │                                                     interactive rebind excludes reserved
+        │                                                     developer, console and pause controls;
+        │                                                     loaded JSON is filtered back to those exact
+        │                                                     bindings and cannot override reserved actions)
         ├→ PlayerLook.mouseSensitivity / stickSensitivity   (public fields; PlayerLook is
         │                                                     never edited by settings code)
         ├→ CameraFX.baseFov + cam.fieldOfView               (CameraFX rewrites FOV every frame,
@@ -2416,7 +2426,8 @@ SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
 
 LevelManager  owns spawners, checkpoints, respawn
   Checkpoint trigger → SetCheckpoint(): heal, refill flask ⇢ CheckpointReached
-  death / void-fall (9m below last grounded) / KillZone → PlayerDeath → Respawn():
+  death / void-fall (9m below last grounded AND no solid route surface within the downward support probe)
+      / KillZone → PlayerDeath → Respawn():
       ResetEnemies() (re-instantiate every spawner, ResetArena() on every trigger) → Teleport
       ⇢ PlayerRespawned → items restored, posture cleared, boss bar hidden, ambient music
 SpeedrunTimer: starts on first movement input, stops on BossDefeated, unscaled, excludes menus

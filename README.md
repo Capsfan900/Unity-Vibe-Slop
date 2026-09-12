@@ -48,7 +48,7 @@ If anything looks broken (magenta materials, frozen HUD bars, enemies standing s
 | **Wall jump** (airborne, near a wall) | `Space` again | A / Cross again |
 | **Wall run** (no binding — arrive airborne along a wall at a jog or better) | — | — |
 | **Stamina** (the segmented bar above health; DASH / AIR / WALL pips) | — | — |
-| **Settings** (sensitivity, FOV, graphics, audio, flourish key) | Title screen `SETTINGS`, or `Esc` → `SETTINGS` in a level | Same |
+| **Settings** (sensitivity, FOV, graphics, audio, customizable keybinds) | Title screen `SETTINGS`, or `Esc` → `SETTINGS` in a level | Same |
 | **Level editor** (trusted developer access; see `docs/LEVEL-EDITOR.md`) | `` ` `` → private passphrase → `F10` | — |
 | **Controls reference** (every bind, on one card) | `Esc` → SETTINGS → INFO, title screen SETTINGS → INFO, or `F1` → INFO | Same |
 | Attack | `LMB` | RB |
@@ -110,9 +110,10 @@ just after the run ends on its own still counts. The camera leans 13° into the 
 The same face cannot be re-run straight away.
 
 **Settings** live in one menu reached two ways: `SETTINGS` on the title screen, or `Esc` then `SETTINGS`
-from the pause menu in a level. Mouse and stick sensitivity, FOV, flourish rebinding, resolution, display
-mode, vsync, frame cap, quality, bloom, film grain, master volume and music volume are saved between
-sessions and applied in every scene.
+from the pause menu in a level. The `KEYBINDS` page can rebind every player-facing keyboard/mouse action;
+developer keys, the command console, pause and the mouse-look axis remain reserved. Binding overrides,
+mouse and stick sensitivity, FOV, resolution, display mode, vsync, frame cap, quality, bloom, film grain,
+master volume and music volume are saved between sessions and applied in every scene.
 
 Level 01 uses them in three places, plus the wall-run lines below. On **The Shattered Causeway** a fallen standing stone lies across the
 walkway near its north end — slide under it to keep your speed, or jump over it and lose it — and one broken

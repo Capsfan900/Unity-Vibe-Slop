@@ -58,6 +58,7 @@ namespace VibeGame1
             d.masterVolume = GetFloat("volMaster", d.masterVolume);
             d.musicVolume = GetFloat("volMusic", d.musicVolume);
             d.weaponTwirlBinding = GetString("bindTwirl", d.weaponTwirlBinding);
+            d.bindingOverridesJson = GetString("bindingOverrides", d.bindingOverridesJson);
 
             d.Clamp();
             return d;
@@ -85,6 +86,7 @@ namespace VibeGame1
             SetFloat("volMaster", d.masterVolume);
             SetFloat("volMusic", d.musicVolume);
             SetString("bindTwirl", d.weaponTwirlBinding);
+            SetString("bindingOverrides", d.bindingOverridesJson);
 
             PlayerPrefs.Save();
 
@@ -105,7 +107,7 @@ namespace VibeGame1
         {
             foreach (var k in new[] { "mouseSens", "stickSens", "fov", "quality", "screenW", "screenH",
                                       "displayMode", "vsync", "fpsCap", "bloom", "grain",
-                                      "armMovement", "volMaster", "volMusic", "bindTwirl" })
+                                      "armMovement", "volMaster", "volMusic", "bindTwirl", "bindingOverrides" })
                 PlayerPrefs.DeleteKey(KeyPrefix + k);
             PlayerPrefs.Save();
             current = null;

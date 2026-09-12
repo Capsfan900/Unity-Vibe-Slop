@@ -4076,3 +4076,40 @@ scale across pickup, successful use, death and respawn.
 **Invariant.** Data independence is not visual independence. If a system claims exclusive ownership of a
 persistent viewmodel, test the rendered instance across every unrelated lifecycle event—not just its selected
 data asset.
+
+## 2026-09-12 — Downhill travel is not a void, and a homing plan is not a wall exemption
+
+**Symptom.** Playtesters died unpredictably while jumping down the opening ramp, and some projectile deaths
+appeared to come through the ramp's obstacles.
+
+**Root cause.** `PlayerDeath` inferred a void solely from being nine metres below the last grounded sample.
+The opening ramp itself drops 36 metres, so an ordinary downhill jump or a low-frame-rate contact gap could
+cross that threshold while the player was still directly above the course. Separately, a projectile proved
+its forecast path only at launch; homing could bend the live path into newly intervening solid geometry, but
+runtime contact tested only the moving player.
+
+**Fix.** The void check now requires both the existing unsupported vertical drop and the absence of a solid
+route surface in a downward sphere probe. Incoming bolts linecast every travelled segment against the same
+world mask as the motor and deterministically resolve whichever comes first: solid geometry or the swept
+player contact. Projectile damage and parry timing are unchanged.
+
+**Invariant.** A stale grounded height is an early-fall heuristic, not proof that the course disappeared.
+Likewise, launch-time clearance does not authorize a live homing curve through later geometry; order world
+and player contacts within the frame and resolve only the earliest one.
+
+## 2026-09-12 — A reserved key must be protected on capture and on load
+
+**Symptom.** The customizable keybind page said console and developer keys were reserved, but only Escape
+and Backquote were blocked during interactive capture. A valid edited PlayerPrefs JSON blob could also apply
+overrides to actions the settings page never exposes.
+
+**Root cause.** The UI contract was enforced as a one-off completion check rather than as a policy on every
+input boundary. Unity's complete override JSON can name any binding in the action asset, not only the row that
+started the listen.
+
+**Fix.** `InputReader.IsReservedBindingPath` owns the console/developer key list. Interactive completion
+rejects it, and saved JSON is filtered after loading so only the exact 24 exposed action/binding pairs survive;
+all reserved paths and overrides on hidden actions are removed before play.
+
+**Invariant.** Treat persisted binding JSON as external input. A control reservation is real only when both
+interactive capture and settings restoration enforce the same allowlist.

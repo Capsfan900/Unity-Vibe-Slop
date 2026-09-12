@@ -18,6 +18,9 @@ namespace VibeGame1
         WeaponViewmodel viewmodel;
         bool dying;
 
+        const float SupportProbeStart = 0.25f;
+        const float SupportProbeRadius = 0.2f;
+
         void Awake()
         {
             health = GetComponent<Health>();
@@ -34,7 +37,9 @@ namespace VibeGame1
             // Waiting for the y=-25 kill plane cost ~1.7s of silent falling from the arena. Fail fast instead.
             if (dying || health == null || health.IsDead || motor == null) return;
             if (!GameManager.IsPlaying || motor.IsGrounded) return;
-            if (transform.position.y >= motor.LastGroundedPosition.y - voidFallDistance) return;
+            bool supportBelow = HasRouteSurfaceBelow();
+            if (!ShouldTriggerVoidFall(transform.position.y, motor.LastGroundedPosition.y,
+                                       voidFallDistance, motor.IsGrounded, supportBelow)) return;
 
             if (health.Invulnerable)
             {
@@ -43,6 +48,29 @@ namespace VibeGame1
                 return;
             }
             health.TakeDamage(new DamageInfo { damage = 99999f, source = gameObject });
+        }
+
+        /// <summary>
+        /// A downhill jump can legitimately descend more than the void threshold while remaining directly
+        /// above a ramp. Ground contact is deliberately tolerant of seams and low frame rates, so a stale
+        /// grounded sample alone cannot prove that the player has left the course.
+        /// </summary>
+        bool HasRouteSurfaceBelow()
+        {
+            int mask = motor != null
+                ? motor.WorldMask
+                : ~((1 << Layers.Player) | (1 << Layers.Enemy) | (1 << Layers.Interactable));
+            float distance = Mathf.Max(0.01f, voidFallDistance) + SupportProbeStart;
+            return Physics.SphereCast(transform.position + Vector3.up * SupportProbeStart,
+                                      SupportProbeRadius, Vector3.down, out _, distance, mask,
+                                      QueryTriggerInteraction.Ignore);
+        }
+
+        public static bool ShouldTriggerVoidFall(float currentY, float lastGroundedY, float threshold,
+                                                 bool grounded, bool supportBelow)
+        {
+            return !grounded && !supportBelow &&
+                   currentY < lastGroundedY - Mathf.Max(0.01f, threshold);
         }
 
         void OnDied()

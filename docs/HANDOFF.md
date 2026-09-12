@@ -1,34 +1,33 @@
-# Handoff — Windows friend build ready
+# Handoff — keybind friend-build update
 
 ## Current state — 2026-09-12
 
-Work is unified on `master` and pushed through `302fc6e`. The retained Unity CLI pilot and all gameplay
-work from that branch are present; MCP is the primary live-editor/build/test transport. The tracked tree is
-clean. Preserve the user-owned untracked files listed below.
+The new `master` pass adds the complete KEYBINDS page and the opening-ramp random-death/projectile hotfix.
+Both generated UI prefabs and `MainMenu.unity` are current. MCP remains the primary live-editor/build/test
+transport; the Unity CLI pilot remains available for short state/preflight calls.
 
-The Windows friend build is ready at
-`Builds/vibegame1-windows-playtest-2026-09-12-friends.zip` (47,874,159 bytes, SHA256
-`A242F599D450A54F2B179458D5643058766151A7358A83212B9E8EE09D1E2BDD`). Its source tag
-`playtest-2026-09-12-friends` is pushed and resolves to `302fc6e`. The executable includes Main Menu,
-Level 1 and Sandbox. Release diagnostics remain gated behind the in-game console and password.
-
-The ZIP is prepared locally but is not a GitHub Release asset: GitHub CLI is not installed and no API token
-is available in this environment. Upload that exact ZIP at the repository's Releases page using the already
-pushed tag; do not rebuild it merely to obtain `build_inputs_dirty=no`, because the intentional local song
-is the only dirty game input.
+The intended friend package is `Builds/vibegame1-windows-playtest-2026-09-12-keybinds.zip`. Trust it only
+when `Builds/Windows/build-info.txt` names the current `master` HEAD and D3D11. The local Level 01 song is
+intentionally untracked but included in the friend build; therefore `build_inputs_dirty=YES` is expected and
+the strict public publisher cannot be used. Preserve the song and record its SHA256 in
+`friend-build-content.txt` inside the ZIP.
 
 ## Completion evidence
 
-- **Song included:** Unity imported and packed
+- **Keybind verification:** quick EditMode **935/935 passed**, zero failures/skips, 7.6 s
+  (`TestResults/EditMode-20260912-005833.xml`). Runtime/editor offline builds have zero errors. Health Check
+  has zero errors. Both HUD and Main Menu generators were rerun.
+- **Reserved controls:** persisted override JSON is filtered to the 24 exposed bindings; Escape, Backquote,
+  Enter, gamepad Start, weapon slot 4 and F1/F5-F10 cannot be captured by an ordinary action.
+- **Opening ramp:** void death requires both the old vertical threshold and no route surface beneath the
+  player. Projectiles now resolve live solid-route contact before equal/later player contact.
+- **Song source:** Unity imports
   `FineArt & jazza's dance party - Eyes Wide Shut.mp3` as 3.3 MB / 3.2% of packed assets. Its source SHA256
-  is `0490CA1D7A06D76C59B5C17505A21008746DA5A05AB51AEBB7CDF53B0AC65576`. The file remains local and is
-  named/hashed in `friend-build-content.txt` inside the ZIP.
+  is `0490CA1D7A06D76C59B5C17505A21008746DA5A05AB51AEBB7CDF53B0AC65576`. The file remains local.
 - **Windows startup resolved:** `BuildRunner` and the serialized Windows PlayerSettings both pin D3D11.
   `build-info.txt` reports `graphics_apis=Direct3D11`. The exact packaged executable, launched with no
   renderer override, selected Direct3D 11.0 and remained alive for the full 15-second native smoke. The
   former D3D12 path failed at swapchain presentation with DXGI `0x887a0001`.
-- **Tests:** full EditMode **963/963 passed**, zero failures/skips, 51.98 s. Runtime and editor offline
-  builds both compile with zero errors; the editor assembly retains 18 existing warnings.
 - **Canonical vocabulary:** `docs/LEVEL-VOCABULARY.md` defines T0 Opening Descent, T1 Stone Causeway, T2
   Helix Tower, T3 Balloon Aqueduct and T4 Warden Descent; enemy aliases map to shipped prefab/spawner IDs.
   `Tools/dashboard/out/index.html` overlays those zones and inventories on the parsed LevelDefinition map.
@@ -45,8 +44,9 @@ human playtest.
 
 ## Exact resume order
 
-1. Create the GitHub Release for pushed tag `playtest-2026-09-12-friends` and upload the prepared ZIP.
-2. Have a friend launch `vibegame1.exe`; if startup fails, collect the adjacent Player log and GPU/driver
+1. If the keybind ZIP is not yet attached, create/update its GitHub Release and upload the prepared ZIP.
+2. Have a friend launch `vibegame1.exe`, rebind one movement and one combat input, restart, verify persistence,
+   then run the opening descent. If startup fails, collect the adjacent Player log and GPU/driver
    details. Do not add a D3D12 fallback until it is proven on the affected machine.
 3. Human-play the V18 Sandbox pad and report tell/contact/weight issues before promoting it from test enemy.
 

@@ -559,6 +559,19 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void SolidRouteGeometryWinsBeforeOrAtThePlayerContact()
+        {
+            Assert.IsTrue(ProjectileMath.WorldContactComesFirst(true, 0.4f, true, 0.7f));
+            Assert.IsTrue(ProjectileMath.WorldContactComesFirst(true, 0.7f, true, 0.7f),
+                "a player on the far side of a surface is not hit through it");
+            Assert.IsFalse(ProjectileMath.WorldContactComesFirst(true, 0.8f, true, 0.2f),
+                "a wall later in the frame cannot erase an earlier honest player contact");
+            Assert.IsFalse(ProjectileMath.WorldContactComesFirst(false, 0f, true, 0.2f));
+            Assert.AreEqual(0.25f, ProjectileMath.SegmentFraction(Vector3.zero, Vector3.right * 4f,
+                Vector3.right), Eps);
+        }
+
+        [Test]
         public void TeleportIsReanchoredInsteadOfBecomingACollisionPath()
         {
             Vector3 previousTarget = Vector3.zero;

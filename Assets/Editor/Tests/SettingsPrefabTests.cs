@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using VibeGame1;
 
@@ -231,6 +232,117 @@ namespace VibeGame1.Tests
                 "the action exists but nothing is bound to it");
             StringAssert.Contains("\"path\": \"" + SettingsData.WeaponTwirlDefaultBinding + "\"", json,
                 "the shipped default key is not " + SettingsData.WeaponTwirlDefaultBinding);
+        }
+
+        [Test]
+        public void EveryExposedKeybindResolvesToTheShippedActionAndBinding()
+        {
+            const string assetPath = "Assets/InputSystem_Actions.inputactions";
+            var asset = UnityEngine.InputSystem.InputActionAsset.FromJson(System.IO.File.ReadAllText(assetPath));
+            try
+            {
+                var map = asset.FindActionMap("Player", true);
+                foreach (var spec in InputReader.RebindableBindings)
+                {
+                    var action = map.FindAction(spec.actionName, false);
+                    Assert.IsNotNull(action, spec.id + ": action missing: " + spec.actionName);
+                    bool found = false;
+                    for (int i = 0; i < action.bindings.Count; i++)
+                        if (string.Equals(action.bindings[i].path, spec.defaultPath,
+                                          System.StringComparison.OrdinalIgnoreCase)) found = true;
+                    Assert.IsTrue(found, spec.id + ": default binding missing: " + spec.defaultPath);
+                }
+            }
+            finally { Object.DestroyImmediate(asset); }
+        }
+
+        [Test]
+        public void CompleteOverrideJsonRoundTripsThroughTheOnlyInputOwner()
+        {
+            const string assetPath = "Assets/InputSystem_Actions.inputactions";
+            var source = UnityEngine.InputSystem.InputActionAsset.FromJson(System.IO.File.ReadAllText(assetPath));
+            GameObject host = null;
+            InputReader reader = null;
+            try
+            {
+                var action = source.FindActionMap("Player", true).FindAction("Dash", true);
+                int index = -1;
+                for (int i = 0; i < action.bindings.Count; i++)
+                    if (string.Equals(action.bindings[i].path, "<Keyboard>/leftShift",
+                                      System.StringComparison.OrdinalIgnoreCase)) index = i;
+                Assert.GreaterOrEqual(index, 0);
+                action.ApplyBindingOverride(index, "<Keyboard>/h");
+
+                host = new GameObject("SettingsInputReaderTest");
+                reader = host.AddComponent<InputReader>();
+                // EditMode has no project-wide InputSystem.actions instance. Inject the parsed shipped
+                // asset so this exercises InputReader's real load/filter/export boundary without
+                // turning a release-critical persistence test into an Ignore.
+                const System.Reflection.BindingFlags privateInstance =
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                typeof(InputReader).GetField("actionsAsset", privateInstance).SetValue(reader, source);
+                typeof(InputReader).GetField("playerMap", privateInstance)
+                    .SetValue(reader, source.FindActionMap("Player", true));
+                Assert.IsTrue(reader.HasBinding("Dash"));
+                reader.ApplyBindingOverrides(source.SaveBindingOverridesAsJson());
+                Assert.AreEqual("H", reader.BindingLabel("Dash"));
+                StringAssert.Contains("bindings", reader.ExportBindingOverrides());
+
+                reader.ApplyBindingOverrides("");
+                Assert.AreEqual("LEFT SHIFT", reader.BindingLabel("Dash"),
+                    "an empty saved set must restore the action asset default");
+
+                action.ApplyBindingOverride(index, "<Keyboard>/f10");
+                reader.ApplyBindingOverrides(source.SaveBindingOverridesAsJson());
+                Assert.AreEqual("LEFT SHIFT", reader.BindingLabel("Dash"),
+                    "saved JSON must not capture a reserved developer key");
+                StringAssert.DoesNotContain("f10", reader.ExportBindingOverrides().ToLowerInvariant());
+
+                var pause = source.FindActionMap("Player", true).FindAction("Pause", true);
+                int pauseIndex = -1;
+                for (int i = 0; i < pause.bindings.Count; i++)
+                    if (string.Equals(pause.bindings[i].path, "<Keyboard>/escape",
+                                      System.StringComparison.OrdinalIgnoreCase)) pauseIndex = i;
+                Assert.GreaterOrEqual(pauseIndex, 0);
+                pause.ApplyBindingOverride(pauseIndex, "<Keyboard>/h");
+                reader.ApplyBindingOverrides(source.SaveBindingOverridesAsJson());
+                StringAssert.DoesNotContain("<Keyboard>/h", reader.ExportBindingOverrides(),
+                    "saved JSON must not override actions outside the exposed keybind rows");
+            }
+            finally
+            {
+                if (reader != null) reader.ApplyBindingOverrides("");
+                if (host != null) Object.DestroyImmediate(host);
+                Object.DestroyImmediate(source);
+            }
+        }
+
+        [Test]
+        public void BothPrefabsCarryTheCompleteKeybindPage()
+        {
+            foreach (var path in new[] { HudPath, MenuPath })
+            {
+                var menu = Load(path);
+                string which = path.Contains("HUD") ? "HUD" : "MainMenu";
+                Assert.IsNotNull(menu.keybindButton, which + ": KEYBINDS button missing — rebuild 5 / 9");
+                Assert.IsNotNull(menu.keybindPanel, which + ": keybind panel missing — rebuild 5 / 9");
+                Assert.IsFalse(menu.keybindPanel.activeSelf, which + ": keybind panel must ship closed");
+                Assert.IsNotNull(menu.bindingRows, which + ": binding rows missing");
+                Assert.AreEqual(InputReader.RebindableBindings.Length, menu.bindingRows.Length,
+                    which + ": not every exposed action was built");
+                for (int i = 0; i < menu.bindingRows.Length; i++)
+                {
+                    var row = menu.bindingRows[i];
+                    Assert.IsNotNull(row, which + ": null binding row " + i);
+                    Assert.AreEqual(InputReader.RebindableBindings[i].id, row.bindingId,
+                        which + ": binding row order drifted at " + i);
+                    Assert.IsNotNull(row.root); Assert.IsNotNull(row.label); Assert.IsNotNull(row.value);
+                    Assert.IsNotNull(row.rebind); Assert.IsNotNull(row.reset); Assert.IsNotNull(row.note);
+                }
+                if (which == "MainMenu")
+                    Assert.IsNotNull(menu.GetComponent<InputReader>(),
+                        "title settings need a scene-local InputReader so rebinding works before PLAY");
+            }
         }
 
         [Test]

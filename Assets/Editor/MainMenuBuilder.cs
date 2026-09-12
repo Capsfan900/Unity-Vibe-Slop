@@ -119,6 +119,9 @@ namespace VibeGame1.EditorTools
             menu.registry = registry;
             menu.sandboxSceneName = SandboxSceneName;
 
+            // The title scene has no Managers prefab, but keybind listening belongs in InputReader by
+            // hard rule 2. A scene-local reader makes KEYBINDS fully usable before starting a run.
+            root.AddComponent<InputReader>();
             var settings = root.AddComponent<SettingsMenu>();
 
             Transform t = root.transform;

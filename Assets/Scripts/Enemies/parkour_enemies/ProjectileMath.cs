@@ -61,6 +61,25 @@ namespace VibeGame1
             return true;
         }
 
+        /// <summary>Fraction of a travelled segment occupied by a point reported on that segment.</summary>
+        public static float SegmentFraction(Vector3 start, Vector3 end, Vector3 point)
+        {
+            Vector3 segment = end - start;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= 1e-8f) return 0f;
+            return Mathf.Clamp01(Vector3.Dot(point - start, segment) / lengthSquared);
+        }
+
+        /// <summary>
+        /// Orders the two contacts that may occur inside one frame. Solid route geometry wins ties so a
+        /// player cannot be hit through the surface separating them from a homing bolt.
+        /// </summary>
+        public static bool WorldContactComesFirst(bool hitWorld, float worldFraction,
+                                                  bool hitPlayer, float playerFraction)
+        {
+            return hitWorld && (!hitPlayer || worldFraction <= playerFraction);
+        }
+
         /// <summary>
         /// Selects the target point used at the start of a relative sweep. A teleport/respawn is a
         /// discontinuity, not a 100-metre collision path. Ordinary motion gets generous velocity-scaled

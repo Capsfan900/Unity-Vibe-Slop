@@ -15,8 +15,8 @@ namespace VibeGame1
     /// member plus a case in three switches, not a new panel.</para>
     ///
     /// <para><b>Nothing here reads input devices</b> (hard rule 2). Closing with ESC in a level goes
-    /// through <c>InputReader.PausePressed</c>. The front-end scene has no InputReader, so there the
-    /// BACK button is the only way out — which is fine, it is a mouse-driven screen.</para>
+        /// through <c>InputReader.PausePressed</c>. The front-end carries a scene-local reader as well, so
+        /// keybind listening and Escape cancellation use the same owner before and during a run.</para>
     ///
     /// <para><b>Nothing here writes Time.timeScale</b> (hard rule 1). Opening in a level takes a
     /// <c>TimeScaleController</c> handle and releases it on close. Every animation and readout uses
@@ -45,9 +45,8 @@ namespace VibeGame1
             // order. There is no SFX row on purpose — see SettingsData's volume block.
             MasterVolume = 10,
             MusicVolume = 11,
-            /// <summary>The weapon flourish key. The one rebindable action in the game; the row lives in
-            /// CONTROL (see AllKinds) even though its number is last, because the enum is append-only
-            /// and the array below is the SCREEN order.</summary>
+            /// <summary>Legacy serialized row id. Flourish now lives with every other action on the
+            /// dedicated KEYBINDS page; keep the number stable for old prefabs until regeneration.</summary>
             WeaponTwirlKey = 12,
             /// <summary>Purely visual parkour reactions on the two first-person arms.</summary>
             ArmMovement = 13,
@@ -78,6 +77,18 @@ namespace VibeGame1
             public TMP_Text note;
         }
 
+        [Serializable]
+        public class BindingRow
+        {
+            public string bindingId;
+            public GameObject root;
+            public TMP_Text label;
+            public TMP_Text value;
+            public TMP_Text note;
+            public Button rebind;
+            public Button reset;
+        }
+
         public static SettingsMenu I { get; private set; }
 
         [Header("Panel")]
@@ -85,6 +96,12 @@ namespace VibeGame1
         public Row[] rows;
         public Button backButton;
         public Button resetButton;
+
+        [Header("KEYBINDS card - every ordinary player action")]
+        public Button keybindButton;
+        public GameObject keybindPanel;
+        public BindingRow[] bindingRows;
+        bool keybindOpen;
 
         [Header("INFO card - the key reference (ControlsInfo), one emitter for both prefabs")]
         public Button infoButton;
@@ -126,6 +143,7 @@ namespace VibeGame1
         /// value text says so; nothing else on the screen changes, so the panel cannot lie about which
         /// key is bound while it waits for the next one.</summary>
         bool listening;
+        string listeningBindingId;
 
         /// <summary>Test hook and the row's own readout: the panel is waiting for a key.</summary>
         public bool IsListeningForKey { get { return listening; } }
@@ -152,8 +170,11 @@ namespace VibeGame1
             if (backButton != null) backButton.onClick.AddListener(Close);
             if (resetButton != null) resetButton.onClick.AddListener(ResetToDefaults);
             if (infoButton != null) infoButton.onClick.AddListener(ToggleInfo);
+            if (keybindButton != null) keybindButton.onClick.AddListener(ToggleKeybinds);
             if (infoPanel != null) infoPanel.SetActive(false);
+            if (keybindPanel != null) keybindPanel.SetActive(false);
             BindRows();
+            BindBindingRows();
         }
 
         void Update()
@@ -211,6 +232,7 @@ namespace VibeGame1
 
             if (panel != null) panel.SetActive(true);
             ShowInfo(false);
+            ShowKeybinds(false);
             Refresh();
             AudioManager.Play(Sfx.Click);
         }
@@ -224,8 +246,11 @@ namespace VibeGame1
 
         public void ToggleInfo() { ShowInfo(!infoOpen); AudioManager.Play(Sfx.Click); }
 
+        public void ToggleKeybinds() { ShowKeybinds(!keybindOpen); AudioManager.Play(Sfx.Click); }
+
         void ShowInfo(bool on)
         {
+            if (on) ShowKeybinds(false);
             infoOpen = on;
             if (infoPanel != null) infoPanel.SetActive(on);
             // The card is glass: the rows would show through it and keep taking clicks, so they step
@@ -242,6 +267,30 @@ namespace VibeGame1
                 var label = infoButton.GetComponentInChildren<TMP_Text>();
                 if (label != null) label.text = on ? "SETTINGS" : "INFO";
             }
+        }
+
+        void ShowKeybinds(bool on)
+        {
+            if (on && infoOpen) ShowInfo(false);
+            keybindOpen = on;
+            if (keybindPanel != null) keybindPanel.SetActive(on);
+            SetGeneralRowsVisible(!on && !infoOpen);
+            if (keybindButton != null)
+            {
+                var label = keybindButton.GetComponentInChildren<TMP_Text>();
+                if (label != null) label.text = on ? "SETTINGS" : "KEYBINDS";
+            }
+            Refresh();
+        }
+
+        void SetGeneralRowsVisible(bool on)
+        {
+            if (rows != null)
+                for (int i = 0; i < rows.Length; i++)
+                    if (rows[i] != null && rows[i].root != null) rows[i].root.SetActive(on);
+            if (panel != null)
+                foreach (Transform child in panel.transform)
+                    if (child.name.EndsWith("Header") || child.name == "TitleRule") child.gameObject.SetActive(on);
         }
 
         public void Close()
@@ -293,6 +342,19 @@ namespace VibeGame1
             Refresh();
         }
 
+        void BindBindingRows()
+        {
+            if (bindingRows == null) return;
+            for (int i = 0; i < bindingRows.Length; i++)
+            {
+                var row = bindingRows[i];
+                if (row == null) continue;
+                string id = row.bindingId;
+                if (row.rebind != null) row.rebind.onClick.AddListener(delegate { BeginListening(id); });
+                if (row.reset != null) row.reset.onClick.AddListener(delegate { ResetBinding(id); });
+            }
+        }
+
         /// <summary>Repaint every row from the live settings. Cheap; called on open and after any change.</summary>
         public void Refresh()
         {
@@ -322,8 +384,8 @@ namespace VibeGame1
 
                     bool usable = RowIsUsable(row.kind);
                     // The rebind row's two buttons are not symmetrical: RESET is pure data and always
-                    // works, REBIND needs a live InputReader to listen with (the front-end scene has
-                    // none). Everywhere else both buttons share one verdict.
+                    // works, REBIND needs a live InputReader to listen with. Everywhere else both
+                    // buttons share one verdict.
                     bool canListen = usable && InputReader.I != null && InputReader.I.HasWeaponTwirlAction;
                     if (row.decrease != null)
                         row.decrease.interactable = row.kind == RowKind.WeaponTwirlKey ? (canListen && !listening) : usable;
@@ -331,6 +393,23 @@ namespace VibeGame1
                         row.increase.interactable = row.kind == RowKind.WeaponTwirlKey ? !listening : usable;
                     if (row.slider != null) row.slider.interactable = usable;
                     if (row.note != null) row.note.text = NoteFor(row.kind, d);
+                }
+
+                if (bindingRows != null)
+                {
+                    for (int i = 0; i < bindingRows.Length; i++)
+                    {
+                        var row = bindingRows[i];
+                        if (row == null) continue;
+                        bool activeListen = listening && row.bindingId == listeningBindingId;
+                        bool available = InputReader.I != null && InputReader.I.HasBinding(row.bindingId);
+                        if (row.value != null) row.value.text = activeListen ? ListeningLabel
+                            : available ? InputReader.I.BindingLabel(row.bindingId) : "UNAVAILABLE";
+                        if (row.rebind != null) row.rebind.interactable = available && !listening;
+                        if (row.reset != null) row.reset.interactable = available && !listening;
+                        if (row.note != null) row.note.text = activeListen ? "esc cancels · ` reserved"
+                            : InputReader.I == null ? "input unavailable" : "";
+                    }
                 }
             }
             finally { building = false; }
@@ -353,7 +432,8 @@ namespace VibeGame1
                 if (listening) return "esc cancels";
                 if (InputReader.I == null) return "rebind in game";
                 if (!InputReader.I.HasWeaponTwirlAction) return "action missing";
-                return string.IsNullOrEmpty(d.weaponTwirlBinding) ? "default" : "custom";
+                return string.IsNullOrEmpty(d.weaponTwirlBinding) && string.IsNullOrEmpty(d.bindingOverridesJson)
+                    ? "default" : "custom";
             }
             if (kind == RowKind.ArmMovement) return "visual only";
             // The two volume rows say what they actually reach, and admit a silent game rather than
@@ -567,7 +647,7 @@ namespace VibeGame1
             // REBIND is the only control on this screen that is not a value edit: it starts a listen.
             // Everything else, including its own RESET, goes through the pure static Step above.
             if (IsRebind(kind) && delta < 0) { BeginListening(); return; }
-            if (IsRebind(kind)) StopListening();
+            if (IsRebind(kind)) { ResetBinding("Flourish"); return; }
 
             var names = QualitySettings.names;
             Step(SettingsStore.Current, kind, delta, resolutions, names != null ? names.Length : 0);
@@ -588,31 +668,53 @@ namespace VibeGame1
         /// </summary>
         void BeginListening()
         {
+            BeginListening("Flourish");
+        }
+
+        void BeginListening(string bindingId)
+        {
             var reader = InputReader.I;
-            if (reader == null || !reader.HasWeaponTwirlAction || listening) return;
+            if (reader == null || !reader.HasBinding(bindingId) || listening) return;
 
             listening = true;
+            listeningBindingId = bindingId;
             Refresh();
             AudioManager.Play(Sfx.Click, 1f, 1.3f);
 
-            reader.BeginWeaponTwirlRebind(
+            reader.BeginBindingRebind(bindingId,
                 path =>
                 {
                     listening = false;
+                    listeningBindingId = null;
                     var d = SettingsStore.Current;
-                    d.weaponTwirlBinding = path;
+                    d.bindingOverridesJson = reader.ExportBindingOverrides();
+                    d.weaponTwirlBinding = ""; // the complete override set supersedes the legacy one-row key
                     Commit();                       // clamps, saves, and re-applies through the applier
                     AudioManager.Play(Sfx.Click, 1f, 1.1f);
                 },
                 () =>
                 {
                     listening = false;
+                    listeningBindingId = null;
                     // Put the action back on whatever is actually SAVED: a cancelled listen must leave
                     // no trace, and the value text must never show a key the game will not answer to.
-                    if (InputReader.I != null) InputReader.I.ApplyWeaponTwirlOverride(SettingsStore.Current.weaponTwirlBinding);
+                    if (InputReader.I != null) InputReader.I.ApplyBindingOverrides(
+                        SettingsStore.Current.bindingOverridesJson, SettingsStore.Current.weaponTwirlBinding);
                     Refresh();
                     AudioManager.Play(Sfx.Click, 1f, 0.8f);
                 });
+        }
+
+        void ResetBinding(string bindingId)
+        {
+            var reader = InputReader.I;
+            if (reader == null || listening) return;
+            reader.ClearBindingOverride(bindingId);
+            var d = SettingsStore.Current;
+            d.bindingOverridesJson = reader.ExportBindingOverrides();
+            if (bindingId == "Flourish") d.weaponTwirlBinding = "";
+            Commit();
+            AudioManager.Play(Sfx.Click, 1f, 0.9f);
         }
 
         /// <summary>Abandon a listen from this side (panel closing, object disabled).</summary>
@@ -620,6 +722,7 @@ namespace VibeGame1
         {
             if (!listening) return;
             listening = false;
+            listeningBindingId = null;
             if (InputReader.I != null) InputReader.I.CancelRebind();
         }
 

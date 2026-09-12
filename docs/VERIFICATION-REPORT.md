@@ -11,6 +11,28 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Custom keybinds and opening-ramp death hotfix — 2026-09-12
+
+- **Quick EditMode: 935/935 passed**, zero failures/skips, 7.6 s
+  (`TestResults/EditMode-20260912-005833.xml`). The run includes all exposed-binding/prefab assertions,
+  complete override persistence, reserved-key filtering, downhill support and earliest projectile/world
+  contact tests; 37 slow `LevelLines` cases were deliberately excluded because no level geometry or motor
+  tuning changed.
+- **Generated assets are current:** both `HUD.prefab` and the Main Menu prefab/scene were rebuilt in the
+  open Unity 6000.5.10f1 editor. Each ships the 24-row KEYBINDS page; the title scene ships its local
+  `InputReader`, so rebinding works before entering a level.
+- **Input boundary:** interactive capture and loaded PlayerPrefs JSON both preserve Escape, console access,
+  developer keys and gamepad Start. Loaded JSON is restricted to the exact exposed action/binding pairs.
+- **Ramp-death fix:** void death now also requires no route support beneath the player; homing projectiles
+  resolve solid route contact before an equal/later swept player contact and still route all attacks through
+  `PlayerCombat.ReceiveAttack`.
+- **Compile/health:** runtime and editor assemblies compile with zero errors (18 existing editor warnings).
+  Health Check reports zero errors and 3318 broad serialized-null/audio warnings.
+
+**Still human-only:** confirm the chosen keyboard/controller bindings feel usable after relaunch, and run the
+opening descent at playtester frame rates. Automated tests prove persistence/contact policy, not input feel or
+the actual ramp collider experience.
+
 ### D3D11 Windows friend build and canonical Level Map — 2026-09-12
 
 - **Full EditMode: 963/963 passed**, zero failures/skips, 51.98 s after the BuildRunner and dashboard

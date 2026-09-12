@@ -72,6 +72,7 @@ namespace VibeGame1
         PlayerCombat combat;
         FirstPersonMotor motor;
         PlayerLook look;
+        int worldMask;
 
         Vector3 dir;
         int boltId;      // BoltRegistry key, taken at Fire (F2)
@@ -136,6 +137,9 @@ namespace VibeGame1
             playerT = target != null ? target.transform : null;
             motor = target != null ? target.GetComponent<FirstPersonMotor>() : null;
             look = target != null ? target.GetComponent<PlayerLook>() : null;
+            worldMask = motor != null
+                ? motor.WorldMask
+                : ~((1 << Layers.Player) | (1 << Layers.Enemy) | (1 << Layers.Interactable));
             dir = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector3.forward;
             speed = speedMetresPerSecond;
             age = 0f;
@@ -301,6 +305,21 @@ namespace VibeGame1
                 float hitFraction;
                 bool sweptHit = ProjectileMath.SweptSphereFirstHit(previousBolt, currentBolt, targetStart,
                                                                    target, hitRadius, out hitFraction);
+                RaycastHit worldHit;
+                bool hitWorld = Physics.Linecast(previousBolt, currentBolt, out worldHit, worldMask,
+                                                 QueryTriggerInteraction.Ignore);
+                float worldFraction = hitWorld
+                    ? ProjectileMath.SegmentFraction(previousBolt, currentBolt, worldHit.point)
+                    : 1f;
+                if (ProjectileMath.WorldContactComesFirst(hitWorld, worldFraction, sweptHit, hitFraction))
+                {
+                    // The launch forecast proves the planned route, but homing follows the player's live
+                    // movement. If that changed curve reaches solid level geometry, the wall owns the
+                    // contact; a bolt may not continue through it and damage the player out of sight.
+                    transform.position = worldHit.point;
+                    Spend();
+                    return;
+                }
                 float remaining;
                 if (sweptHit) remaining = 0f;
                 else

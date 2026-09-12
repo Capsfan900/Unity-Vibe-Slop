@@ -12,6 +12,47 @@ namespace VibeGame1
     {
         public static InputReader I { get; private set; }
 
+        public sealed class RebindableBinding
+        {
+            public readonly string id, label, actionName, defaultPath;
+            public RebindableBinding(string id, string label, string actionName, string defaultPath)
+            { this.id = id; this.label = label; this.actionName = actionName; this.defaultPath = defaultPath; }
+        }
+
+        /// <summary>Every ordinary player-facing button exposed by the in-game KEYBINDS page. Developer/editor
+        /// actions, console access and Escape are intentionally reserved; Look is an axis controlled by
+        /// sensitivity. Movement entries target the primary WASD composite parts.</summary>
+        public static readonly RebindableBinding[] RebindableBindings =
+        {
+            new RebindableBinding("MoveForward", "MOVE FORWARD", "Move", "<Keyboard>/w"),
+            new RebindableBinding("MoveBack", "MOVE BACK", "Move", "<Keyboard>/s"),
+            new RebindableBinding("MoveLeft", "MOVE LEFT", "Move", "<Keyboard>/a"),
+            new RebindableBinding("MoveRight", "MOVE RIGHT", "Move", "<Keyboard>/d"),
+            new RebindableBinding("Jump", "JUMP / WALL JUMP", "Jump", "<Keyboard>/space"),
+            new RebindableBinding("Dash", "DASH", "Dash", "<Keyboard>/leftShift"),
+            new RebindableBinding("Slide", "SLIDE", "Slide", "<Keyboard>/leftCtrl"),
+            new RebindableBinding("Attack", "ATTACK", "Attack", "<Mouse>/leftButton"),
+            new RebindableBinding("Parry", "PARRY / GUARD", "Parry", "<Mouse>/rightButton"),
+            new RebindableBinding("Heal", "HEAL", "Heal", "<Keyboard>/f"),
+            new RebindableBinding("Ultimate", "ULTIMATE", "Ultimate", "<Keyboard>/q"),
+            new RebindableBinding("UseItem", "USE ITEM", "UseItem", "<Keyboard>/e"),
+            new RebindableBinding("Interact", "INTERACT", "Interact", "<Keyboard>/f"),
+            new RebindableBinding("LockOn", "LOCK ON", "LockOn", "<Mouse>/middleButton"),
+            new RebindableBinding("Previous", "PREVIOUS WEAPON", "Previous", "<Mouse>/scroll/down"),
+            new RebindableBinding("Next", "NEXT WEAPON", "Next", "<Mouse>/scroll/up"),
+            new RebindableBinding("Weapon1", "WEAPON SLOT 1", "WeaponSlot1", "<Keyboard>/1"),
+            new RebindableBinding("Weapon2", "WEAPON SLOT 2", "WeaponSlot2", "<Keyboard>/2"),
+            new RebindableBinding("Weapon3", "WEAPON SLOT 3", "WeaponSlot3", "<Keyboard>/3"),
+            new RebindableBinding("LevelUp", "LEVEL UP MENU", "LevelUpMenu", "<Keyboard>/tab"),
+            new RebindableBinding("Flourish", "WEAPON FLOURISH", WeaponTwirlActionName, SettingsData.WeaponTwirlDefaultBinding),
+            new RebindableBinding("RadioPrevious", "RADIO PREVIOUS", "RadioPrevious", "<Keyboard>/leftBracket"),
+            new RebindableBinding("RadioNext", "RADIO NEXT", "RadioNext", "<Keyboard>/rightBracket"),
+            new RebindableBinding("RadioToggle", "RADIO TOGGLE", "RadioToggle", "<Keyboard>/backslash"),
+        };
+
+        InputActionAsset actionsAsset;
+        InputActionMap playerMap;
+
         InputAction move, look, jump, dash, attack, parry, heal, ultimate, previous, next,
                     slot1, slot2, slot3, slot4, levelUp, pause,
                     debugWarpBoss, debugRestore, debugSouls, debugGodMode, debugWallRunDiag,
@@ -30,13 +71,14 @@ namespace VibeGame1
             if (I != null && I != this) { Destroy(gameObject); return; }
             I = this;
 
-            var asset = InputSystem.actions;
-            if (asset == null)
+            actionsAsset = InputSystem.actions;
+            if (actionsAsset == null)
             {
                 Debug.LogError("[InputReader] No project-wide InputActionAsset assigned.");
                 return;
             }
-            var map = asset.FindActionMap("Player", true);
+            playerMap = actionsAsset.FindActionMap("Player", true);
+            var map = playerMap;
             move = map.FindAction("Move", true);
             look = map.FindAction("Look", true);
             jump = map.FindAction("Jump", true);
@@ -96,10 +138,10 @@ namespace VibeGame1
             // The player's saved key, before anything can press it. SettingsApplier pushes it again on
             // every scene load; doing it here as well means a level whose InputReader wakes before the
             // applier's deferred pass still starts on the right binding rather than on F11 for a frame.
-            ApplyWeaponTwirlOverride(SettingsStore.Current.weaponTwirlBinding);
+            ApplyBindingOverrides(SettingsStore.Current.bindingOverridesJson, SettingsStore.Current.weaponTwirlBinding);
 
             map.Enable();
-            asset.FindActionMap("UI")?.Enable();
+            actionsAsset.FindActionMap("UI")?.Enable();
         }
 
         public Vector2 MoveAxis => move != null ? move.ReadValue<Vector2>() : Vector2.zero;
@@ -191,11 +233,13 @@ namespace VibeGame1
 
         /// <summary>False when the .inputactions asset predates the action — the settings row says so
         /// rather than offering a rebind that would go nowhere.</summary>
-        public bool HasWeaponTwirlAction => weaponTwirl != null;
+        public bool HasWeaponTwirlAction => HasBinding("Flourish");
 
         InputActionRebindingExtensions.RebindingOperation rebind;
+        InputAction rebindAction;
+        bool rebindWasEnabled;
 
-        /// <summary>True while <see cref="BeginWeaponTwirlRebind"/> is listening.</summary>
+        /// <summary>True while any keybind row is listening.</summary>
         public bool IsRebinding => rebind != null;
 
         /// <summary>The path the flourish is actually bound to right now, override included.</summary>
@@ -244,6 +288,136 @@ namespace VibeGame1
             weaponTwirl.RemoveBindingOverride(0);
         }
 
+        static RebindableBinding BindingSpec(string id)
+        {
+            for (int i = 0; i < RebindableBindings.Length; i++)
+                if (string.Equals(RebindableBindings[i].id, id, StringComparison.Ordinal))
+                    return RebindableBindings[i];
+            return null;
+        }
+
+        InputAction BindingAction(RebindableBinding spec)
+        {
+            return spec != null && playerMap != null ? playerMap.FindAction(spec.actionName, false) : null;
+        }
+
+        static int BindingIndex(InputAction action, RebindableBinding spec)
+        {
+            if (action == null || spec == null) return -1;
+            for (int i = 0; i < action.bindings.Count; i++)
+                if (string.Equals(action.bindings[i].path, spec.defaultPath, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            return -1;
+        }
+
+        public bool HasBinding(string id)
+        {
+            var spec = BindingSpec(id);
+            var action = BindingAction(spec);
+            return BindingIndex(action, spec) >= 0;
+        }
+
+        public string BindingLabel(string id)
+        {
+            var spec = BindingSpec(id);
+            var action = BindingAction(spec);
+            int index = BindingIndex(action, spec);
+            string path = index >= 0 ? action.bindings[index].effectivePath : (spec != null ? spec.defaultPath : "");
+            string human = null;
+            try { human = InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice); }
+            catch { human = null; }
+            return string.IsNullOrEmpty(human) ? SettingsData.KeyLabel(path) : human.ToUpperInvariant();
+        }
+
+        /// <summary>Apply the complete saved override set. A malformed set falls back atomically to
+        /// defaults. The old flourish-only path is migrated only when no complete set exists.</summary>
+        public void ApplyBindingOverrides(string json, string legacyFlourishPath = "")
+        {
+            if (actionsAsset == null) return;
+            actionsAsset.RemoveAllBindingOverrides();
+            string clean = SettingsData.SanitizeBindingOverridesJson(json);
+            if (clean.Length > 0)
+            {
+                try { actionsAsset.LoadBindingOverridesFromJson(clean); }
+                catch (Exception e)
+                {
+                    actionsAsset.RemoveAllBindingOverrides();
+                    Debug.LogWarning("[InputReader] Rejected saved keybind overrides: " + e.Message);
+                }
+                RemoveUnapprovedBindingOverrides();
+            }
+            else if (!string.IsNullOrEmpty(legacyFlourishPath))
+            {
+                ApplyWeaponTwirlOverride(legacyFlourishPath);
+            }
+        }
+
+        public string ExportBindingOverrides()
+        {
+            return actionsAsset != null ? actionsAsset.SaveBindingOverridesAsJson() : "";
+        }
+
+        /// <summary>True for the process-level console/developer keys that ordinary gameplay actions
+        /// may never capture. Escape is handled as the rebind cancel key and is reserved here as well
+        /// so a valid-but-edited prefs blob cannot bypass the interactive listener.</summary>
+        public static bool IsReservedBindingPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            string lower = path.Trim().ToLowerInvariant();
+            return lower.EndsWith("/escape", StringComparison.Ordinal) ||
+                   lower.EndsWith("/backquote", StringComparison.Ordinal) ||
+                   lower.EndsWith("/enter", StringComparison.Ordinal) ||
+                   lower.EndsWith("/numpadenter", StringComparison.Ordinal) ||
+                   lower.EndsWith("<gamepad>/start", StringComparison.Ordinal) ||
+                   lower.EndsWith("/4", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f1", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f5", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f6", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f7", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f8", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f9", StringComparison.Ordinal) ||
+                   lower.EndsWith("/f10", StringComparison.Ordinal);
+        }
+
+        /// <summary>Saved override JSON is external data. Keep overrides only on the exact bindings
+        /// exposed by this menu, and remove any attempt to capture a reserved process-level key.</summary>
+        void RemoveUnapprovedBindingOverrides()
+        {
+            if (actionsAsset == null) return;
+            foreach (var map in actionsAsset.actionMaps)
+            {
+                foreach (var action in map.actions)
+                {
+                    for (int i = 0; i < action.bindings.Count; i++)
+                    {
+                        var binding = action.bindings[i];
+                        if (string.IsNullOrEmpty(binding.overridePath)) continue;
+                        bool exposed = false;
+                        for (int j = 0; j < RebindableBindings.Length; j++)
+                        {
+                            var spec = RebindableBindings[j];
+                            if (string.Equals(action.name, spec.actionName, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(binding.path, spec.defaultPath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                exposed = true;
+                                break;
+                            }
+                        }
+                        if (!exposed || IsReservedBindingPath(binding.overridePath))
+                            action.RemoveBindingOverride(i);
+                    }
+                }
+            }
+        }
+
+        public void ClearBindingOverride(string id)
+        {
+            var spec = BindingSpec(id);
+            var action = BindingAction(spec);
+            int index = BindingIndex(action, spec);
+            if (index >= 0) action.RemoveBindingOverride(index);
+        }
+
         /// <summary>
         /// Listen for one key and hand its control path back as a string. Hard rule 2 lives here: the
         /// settings screen never touches the Input System, it calls this and gets a string back.
@@ -257,17 +431,28 @@ namespace VibeGame1
         /// </summary>
         public void BeginWeaponTwirlRebind(Action<string> onComplete, Action onCancel)
         {
+            BeginBindingRebind("Flourish", onComplete, onCancel);
+        }
+
+        /// <summary>Listen for one button for any exposed keybind row. Pointer motion and analog sticks
+        /// cannot win the listen; Escape cancels, and Backquote remains the command-console door.</summary>
+        public void BeginBindingRebind(string id, Action<string> onComplete, Action onCancel)
+        {
             CancelRebind();
-            if (weaponTwirl == null || weaponTwirl.bindings.Count == 0)
+            var spec = BindingSpec(id);
+            var action = BindingAction(spec);
+            int index = BindingIndex(action, spec);
+            if (index < 0)
             {
                 if (onCancel != null) onCancel();
                 return;
             }
 
-            bool wasEnabled = weaponTwirl.enabled;
-            if (wasEnabled) weaponTwirl.Disable();
+            rebindAction = action;
+            rebindWasEnabled = action.enabled;
+            if (rebindWasEnabled) action.Disable();
 
-            rebind = weaponTwirl.PerformInteractiveRebinding(0)
+            rebind = action.PerformInteractiveRebinding(index)
                 .WithControlsExcluding("<Mouse>/position")
                 .WithControlsExcluding("<Mouse>/delta")
                 .WithControlsExcluding("<Mouse>/scroll")
@@ -278,7 +463,6 @@ namespace VibeGame1
                 .OnCancel(op =>
                 {
                     DisposeRebind();
-                    if (wasEnabled) weaponTwirl.Enable();
                     if (onCancel != null) onCancel();
                 })
                 .OnComplete(op =>
@@ -294,16 +478,23 @@ namespace VibeGame1
                     // Using it turned EVERY rebind into a cancel: sanitize returned "", the empty branch
                     // re-applied the saved value, and the key snapped back to the default. The only key
                     // the flourish could ever end up on was F11, which is exactly what the user hit.
-                    string path = weaponTwirl.bindings.Count > 0 ? weaponTwirl.bindings[0].effectivePath : null;
+                    string path = index < action.bindings.Count ? action.bindings[index].effectivePath : null;
                     DisposeRebind();
-                    if (wasEnabled) weaponTwirl.Enable();
                     // The operation has already written an override onto the action. Whatever the caller
                     // persists is pushed straight back through ApplyWeaponTwirlOverride, so a rejected
                     // path (see SanitizeBindingPath) is undone rather than left half-applied.
                     string clean = SettingsData.SanitizeBindingPath(path);
                     if (clean.Length == 0)
                     {
-                        ApplyWeaponTwirlOverride(SettingsStore.Current.weaponTwirlBinding);
+                        ApplyBindingOverrides(SettingsStore.Current.bindingOverridesJson,
+                                              SettingsStore.Current.weaponTwirlBinding);
+                        if (onCancel != null) onCancel();
+                        return;
+                    }
+                    if (IsReservedBindingPath(clean))
+                    {
+                        ApplyBindingOverrides(SettingsStore.Current.bindingOverridesJson,
+                                              SettingsStore.Current.weaponTwirlBinding);
                         if (onCancel != null) onCancel();
                         return;
                     }
@@ -320,7 +511,7 @@ namespace VibeGame1
             rebind = null;
             op.Cancel();
             op.Dispose();
-            if (weaponTwirl != null && !weaponTwirl.enabled) weaponTwirl.Enable();
+            RestoreRebindAction();
         }
 
         void DisposeRebind()
@@ -329,9 +520,18 @@ namespace VibeGame1
             var op = rebind;
             rebind = null;
             op.Dispose();
+            RestoreRebindAction();
+        }
+
+        void RestoreRebindAction()
+        {
+            if (rebindAction != null && rebindWasEnabled && !rebindAction.enabled) rebindAction.Enable();
+            rebindAction = null;
+            rebindWasEnabled = false;
         }
 
         void OnDisable() { CancelRebind(); }
+        void OnDestroy() { CancelRebind(); if (I == this) I = null; }
 
         // ---- the in-game level editor (F10 toggles; the rest only mean anything while it is open) ----
 

@@ -30,6 +30,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0, d.screenHeight);
             Assert.IsTrue(d.filmGrain);
             Assert.IsTrue(d.armMovement, "movement reactions are cosmetic but ship enabled");
+            Assert.AreEqual("", d.bindingOverridesJson, "fresh profiles use the action asset defaults");
         }
 
         [Test]
@@ -80,6 +81,7 @@ namespace VibeGame1.Tests
             d.qualityLevel = 1; d.screenWidth = 1280; d.screenHeight = 720;
             d.displayMode = DisplayMode.Windowed; d.vSync = 0; d.frameRateCap = 144;
             d.bloomScale = 0.5f; d.filmGrain = false; d.armMovement = false;
+            d.bindingOverridesJson = "{\"bindings\":[]}";
 
             var c = d.Clone();
             Assert.AreEqual(0.2f, c.mouseSensitivity, 1e-5f);
@@ -94,6 +96,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0.5f, c.bloomScale, 1e-5f);
             Assert.IsFalse(c.filmGrain);
             Assert.IsFalse(c.armMovement);
+            Assert.AreEqual(d.bindingOverridesJson, c.bindingOverridesJson);
         }
 
         // ------------------------------------------------------------------ cycling
@@ -400,6 +403,7 @@ namespace VibeGame1.Tests
                 d.bloomScale = 0.35f;
                 d.filmGrain = false;
                 d.armMovement = false;
+                d.bindingOverridesJson = "{\"bindings\":[]}";
                 SettingsStore.Save(d);
 
                 SettingsStore.Forget();                 // drop the cache; force a real prefs read
@@ -417,6 +421,7 @@ namespace VibeGame1.Tests
                 Assert.AreEqual(0.35f, got.bloomScale, 1e-5f);
                 Assert.IsFalse(got.filmGrain);
                 Assert.IsFalse(got.armMovement);
+                Assert.AreEqual("{\"bindings\":[]}", got.bindingOverridesJson);
             }
             finally
             {
@@ -498,6 +503,25 @@ namespace VibeGame1.Tests
             Assert.AreEqual(SettingsData.WeaponTwirlDefaultBinding, d.WeaponTwirlBindingOrDefault());
             Assert.AreEqual("F11", SettingsMenu.ValueLabel(SettingsMenu.RowKind.WeaponTwirlKey, d),
                 "with no override the row must read the shipped default key");
+        }
+
+        [Test]
+        public void OrdinaryKeybinds_CannotCaptureConsoleOrDeveloperKeys()
+        {
+            string[] reserved =
+            {
+                "<Keyboard>/escape", "<Keyboard>/backquote", "<Keyboard>/enter",
+                "<Keyboard>/numpadEnter", "<Gamepad>/start", "<Keyboard>/4", "<Keyboard>/f1",
+                "<Keyboard>/f5", "<Keyboard>/f6", "<Keyboard>/f7", "<Keyboard>/f8",
+                "<Keyboard>/f9", "<Keyboard>/f10",
+            };
+            foreach (string path in reserved)
+                Assert.IsTrue(InputReader.IsReservedBindingPath(path), path + " must stay reserved");
+
+            Assert.IsFalse(InputReader.IsReservedBindingPath("<Keyboard>/f11"),
+                "F11 is the shipped flourish key, not a developer key");
+            Assert.IsFalse(InputReader.IsReservedBindingPath("<Keyboard>/h"));
+            Assert.IsFalse(InputReader.IsReservedBindingPath("<Gamepad>/buttonSouth"));
         }
 
         [Test]
@@ -594,6 +618,40 @@ namespace VibeGame1.Tests
 
             foreach (var good in new[] { "<Keyboard>/h", "<Keyboard>/f11", "<Mouse>/middleButton", "<Gamepad>/buttonNorth" })
                 Assert.AreEqual(good, SettingsData.SanitizeBindingPath(good), good + " is a legal binding path");
+        }
+
+        [Test]
+        public void CompleteBindingOverrideJson_IsBoundedAndCloned()
+        {
+            var d = SettingsData.Defaults();
+            d.bindingOverridesJson = "  {\"bindings\":[]}  ";
+            d.Clamp();
+            Assert.AreEqual("{\"bindings\":[]}", d.bindingOverridesJson);
+            Assert.AreEqual(d.bindingOverridesJson, d.Clone().bindingOverridesJson);
+
+            d.bindingOverridesJson = "not json";
+            d.Clamp();
+            Assert.AreEqual("", d.bindingOverridesJson, "malformed prefs must fall back to asset defaults");
+
+            d.bindingOverridesJson = "{" + new string('x', SettingsData.BindingOverridesJsonMaxLength) + "}";
+            d.Clamp();
+            Assert.AreEqual("", d.bindingOverridesJson, "an oversized prefs blob must be rejected");
+        }
+
+        [Test]
+        public void EveryOrdinaryKeybindHasAUniqueStableId()
+        {
+            Assert.AreEqual(24, InputReader.RebindableBindings.Length,
+                "movement, combat, items, weapon selection, progression and radio should all be exposed");
+            var ids = new System.Collections.Generic.HashSet<string>();
+            foreach (var binding in InputReader.RebindableBindings)
+            {
+                Assert.IsTrue(ids.Add(binding.id), "duplicate binding id " + binding.id);
+                Assert.IsFalse(string.IsNullOrWhiteSpace(binding.label));
+                Assert.IsFalse(string.IsNullOrWhiteSpace(binding.actionName));
+                Assert.AreEqual(binding.defaultPath, SettingsData.SanitizeBindingPath(binding.defaultPath),
+                    binding.id + " does not carry a legal default control path");
+            }
         }
     }
 }

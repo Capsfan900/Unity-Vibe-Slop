@@ -137,14 +137,14 @@ namespace VibeGame1
 
         /// <summary>
         /// Push the player's rebindable key onto <see cref="InputReader"/> — the only class allowed to
-        /// touch the Input System (hard rule 2). Null-safe on purpose: the front-end scene has no
-        /// InputReader at all, and the level's one applies the same value itself in Awake, so this is
-        /// the "changed it mid-run" path rather than the only path.
+        /// touch the Input System (hard rule 2). Null-safe on purpose: scene transitions briefly have no
+        /// reader, and every reader also applies the same value in Awake. This is the live-change path,
+        /// not the only initialization path.
         /// </summary>
         void ApplyBindings(SettingsData d)
         {
             if (InputReader.I == null) return;
-            InputReader.I.ApplyWeaponTwirlOverride(d.weaponTwirlBinding);
+            InputReader.I.ApplyBindingOverrides(d.bindingOverridesJson, d.weaponTwirlBinding);
         }
 
         // ------------------------------------------------------------------ field of view
