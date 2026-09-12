@@ -26,10 +26,7 @@ namespace VibeGame1.EditorTools
         const string ItemsDir = "Assets/Data/Items/";
         const string RegistryPath = "Assets/Data/LevelRegistry.asset";
 
-        static Material mStone, mCyan, mCloudSea;
         static GameObject pPlayer, pManagers, pHud;
-        static readonly System.Collections.Generic.Dictionary<string, EnemySpawner> builtSpawners =
-            new System.Collections.Generic.Dictionary<string, EnemySpawner>();
 
         [MenuItem("VibeGame1/8. Build Level From Definition")]
         public static void BuildSelected()
@@ -142,7 +139,6 @@ namespace VibeGame1.EditorTools
                 return;
             }
 
-            builtSpawners.Clear();
             LoadShared();
 
             // ---- clear previous build (never touch Level_Manual) ----------------------------------
@@ -179,137 +175,19 @@ namespace VibeGame1.EditorTools
             runScorer.definition = def;
             runScorer.registry = AssetDatabase.LoadAssetAtPath<LevelRegistry>(RegistryPath);
 
-            // ---- every piece, through the ONE factory the in-game editor also uses ---------------------
-            // The definition's pieces (platforms, start, spawns, checkpoints, torches, pickups, balloons,
-            // water) are built by LevelPieceFactory with the editor context: AssetDatabase lookups,
-            // PrefabUtility instances (the prefab link survives), static flags. The runtime LevelEditor
-            // builds the same document with plain Instantiate and no flags; LevelEditorTests compares
-            // the two. Arenas, pedestals, the sky and the kill zone are campaign-only and stay here.
-            var ctx = EditorContext.Default();
-            var counts = LevelPieceFactory.BuildDocument(LevelDocument.FromDefinition(def), root, ctx);
-            var startSpawnT = root.Find("StartSpawn");
-            var startSpawn = startSpawnT != null ? startSpawnT.gameObject
-                           : LevelPieceFactory.PlayerStart(def.playerStart, def.playerStartYaw, root);
-            foreach (var sp in level.GetComponentsInChildren<EnemySpawner>(true)) builtSpawners[sp.name] = sp;
-
-            // Progress-gated volleys coordinate existing spawners. Route-only records remain audit data:
-            // binding every ordinary sentry here turns broad range/LOS behaviour into a one-shot invisible
-            // corridor trigger. Engagement windows certify useful contacts but never gate runtime fire.
-            if (def.projectileSequences != null)
+            var content = BuildWorldContent(def, new LevelWorldContentContext
             {
-                foreach (var sequence in def.projectileSequences)
-                {
-                    if (sequence == null || sequence.spawnerNames == null || sequence.spawnerNames.Length == 0) continue;
-                    if (!sequence.CoordinatesRuntime) continue;
-                    var ordered = new System.Collections.Generic.List<EnemySpawner>();
-                    bool complete = true;
-                    foreach (string spawnerName in sequence.spawnerNames)
-                    {
-                        EnemySpawner member;
-                        if (builtSpawners.TryGetValue(spawnerName, out member)) ordered.Add(member);
-                        else
-                        {
-                            complete = false;
-                            Debug.LogWarning("[LevelDefinitionBuilder] Projectile sequence '" + sequence.name +
-                                             "' names missing spawner '" + spawnerName + "'.");
-                        }
-                    }
-                    if (!complete) continue;
-                    var host = LevelPieceFactory.Empty(sequence.name, Vector3.zero, Quaternion.identity, root);
-                    host.AddComponent<ProjectileVolleySequence>().Configure(
-                        ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout,
-                        sequence.shotResolutionTimeout,
-                        sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates,
-                        null, sequence.repeatFromIndex, sequence.firstMemberAcquireDelay);
-                }
-            }
-
-            // ---- wand altars --------------------------------------------------------------------------
-            // Must survive the round trip: a level built without its pedestal has no way to pick a wand,
-            // and the omission is invisible until you play it.
-            if (def.pedestals != null)
-            {
-                foreach (var pd in def.pedestals)
-                {
-                    if (pd == null) continue;
-                    WandAltar(pd.name, pd.groundPosition, pd.triggerRadius, root, ctx);
-                }
-            }
-
-            // ---- arenas (mini-boss gates and the boss gate are the same mechanism) --------------------
-            if (def.arenas != null)
-            {
-                foreach (var a in def.arenas)
-                {
-                    if (a == null || !a.enabled) continue;
-                    var gate = LevelPieceFactory.Box(a.gateName, a.gateOpenPosition, a.gateSize, ctx.Material(a.gateMaterialKey), root, ctx, false, counts);
-
-                    var trigger = LevelPieceFactory.Empty(a.triggerName, a.triggerPosition, Quaternion.identity, root);
-                    var col = trigger.AddComponent<BoxCollider>();
-                    col.size = a.triggerSize;
-                    col.isTrigger = true;
-                    var bat = trigger.AddComponent<BossArenaTrigger>();
-                    bat.gate = gate.transform;
-                    bat.gateOpenPosition = a.gateOpenPosition;
-                    bat.gateClosedPosition = a.gateClosedPosition;
-
-                    if (a.hasExitGate)
-                    {
-                        // Rest position is CLOSED: the exit is sealed until the legendary falls.
-                        var exit = LevelPieceFactory.Box(a.exitGateName, a.exitGateClosedPosition, a.exitGateSize,
-                                                         ctx.Material(a.exitGateMaterialKey), root, ctx, false, counts);
-                        bat.exitGate = exit.transform;
-                        bat.exitGateClosedPosition = a.exitGateClosedPosition;
-                        bat.exitGateOpenPosition = a.exitGateOpenPosition;
-                    }
-
-                    if (!string.IsNullOrEmpty(a.clearSpawnerName))
-                    {
-                        EnemySpawner sp;
-                        if (builtSpawners.TryGetValue(a.clearSpawnerName, out sp)) bat.clearSpawner = sp;
-                        else Debug.LogWarning("[LevelDefinitionBuilder] Arena '" + a.triggerName + "' names clearSpawner '" +
-                                              a.clearSpawnerName + "', which is not a spawn in this definition (a missing " +
-                                              "mini-boss prefab also drops its spawner). Its exit gate will never open.");
-                    }
-
-                    if (a.solarRealm != null && a.solarRealm.enabled)
-                        BuildSolarRealm(a, bat, root, ctx);
-                }
-            }
-
-            // ---- sky --------------------------------------------------------------------------------
-            // On the Sky layer, so the NavMesh bake below (RenderMeshes, layer 0 only) ignores it.
-            if (def.sky != null && def.sky.enabled)
-            {
-                var skyGroup = new GameObject("Sky");
-                skyGroup.transform.SetParent(root, false);
-                Starfield.Build(skyGroup.transform, def.sky.starCount, def.sky.radius, def.sky.seed,
-                                def.sky.includeEclipse, def.sky.eclipseYawDeg, def.sky.eclipsePitchDeg,
-                                def.sky.eclipseDiameterDeg);
-            }
-
-            // A single fixed lower atmosphere spans the full route. The Sky layer and lack of a
-            // collider keep it presentation-only and outside the Default-only NavMesh bake below.
-            CloudSea.BuildCampaign(root, mCloudSea);
-
-            // A physical local-records display behind Level 1's spawn. This is intentionally not part
-            // of GhostHud: it is world scenery the player turns around to inspect, never mid-run HUD.
-            BuildWorldLeaderboard(def, root, ctx);
-
-            // Optional Challenge Routes are invisible anchors. Their entry/rejoin boxes stay as data
-            // on ChallengeRouteMarker for capture tooling; generating trigger volumes here would turn a
-            // developer timing anchor into gameplay geometry.
-            BuildChallengeRoutes(def, root);
-
-            // ---- kill zone --------------------------------------------------------------------------
-            if (def.killZone != null)
-            {
-                var kill = LevelPieceFactory.Empty(def.killZone.name, def.killZone.center, Quaternion.identity, root);
-                var kc = kill.AddComponent<BoxCollider>();
-                kc.size = def.killZone.size;
-                kc.isTrigger = true;
-                kill.AddComponent<KillZone>();
-            }
+                root = root,
+                pieces = EditorContext.Default(),
+                builtSpawners = new System.Collections.Generic.Dictionary<string, EnemySpawner>(),
+                pedestalStone = LoadMat("Stone"),
+                pedestalCyan = LoadMat("NeonCyan"),
+                cloudSea = LoadMat("CloudSea"),
+                safety = LevelWorldContentSafety.CampaignRuntime,
+                buildCloudSea = true
+            });
+            var counts = content.counts;
+            var startSpawn = content.startSpawn;
 
             // ---- NavMesh ----------------------------------------------------------------------------
             var surface = level.AddComponent<NavMeshSurface>();
@@ -346,6 +224,170 @@ namespace VibeGame1.EditorTools
                       $"scene saved '{scene.path}'.");
         }
 
+        /// <summary>
+        /// Builds the definition's world content below <paramref name="context"/>'s explicit root.
+        /// This deliberately has no scene lifecycle policy: it never opens, saves or clears scenes,
+        /// bakes NavMesh, creates Player/Managers/HUD, or adds a LevelRunScorer. Those campaign-only
+        /// responsibilities remain in <see cref="Build"/>.  A caller also chooses whether live runtime
+        /// coordinators/triggers are installed, so editor preview can render the same authored content
+        /// without becoming a second gameplay world.
+        /// </summary>
+        public static LevelWorldContentResult BuildWorldContent(LevelDefinition def, LevelWorldContentContext context)
+        {
+            if (def == null) throw new System.ArgumentNullException(nameof(def));
+            if (context == null) throw new System.ArgumentNullException(nameof(context));
+            if (context.root == null) throw new System.ArgumentException("World content needs an explicit root.", nameof(context));
+            if (context.pieces == null) throw new System.ArgumentException("World content needs an explicit piece context.", nameof(context));
+            if (context.builtSpawners == null)
+                context.builtSpawners = new System.Collections.Generic.Dictionary<string, EnemySpawner>();
+
+            context.builtSpawners.Clear();
+            Transform root = context.root;
+            var counts = LevelPieceFactory.BuildDocument(LevelDocument.FromDefinition(def), root, context.pieces);
+            var startSpawnT = root.Find("StartSpawn");
+            var startSpawn = startSpawnT != null ? startSpawnT.gameObject
+                           : LevelPieceFactory.PlayerStart(def.playerStart, def.playerStartYaw, root);
+            foreach (var sp in root.GetComponentsInChildren<EnemySpawner>(true)) context.builtSpawners[sp.name] = sp;
+
+            if (context.BuildsRuntimeBehaviours && def.projectileSequences != null)
+            {
+                foreach (var sequence in def.projectileSequences)
+                {
+                    if (sequence == null || sequence.spawnerNames == null || sequence.spawnerNames.Length == 0) continue;
+                    if (!sequence.CoordinatesRuntime) continue;
+                    var ordered = new System.Collections.Generic.List<EnemySpawner>();
+                    bool complete = true;
+                    foreach (string spawnerName in sequence.spawnerNames)
+                    {
+                        EnemySpawner member;
+                        if (context.builtSpawners.TryGetValue(spawnerName, out member)) ordered.Add(member);
+                        else
+                        {
+                            complete = false;
+                            Debug.LogWarning("[LevelDefinitionBuilder] Projectile sequence '" + sequence.name +
+                                             "' names missing spawner '" + spawnerName + "'.");
+                        }
+                    }
+                    if (!complete) continue;
+                    var host = LevelPieceFactory.Empty(sequence.name, Vector3.zero, Quaternion.identity, root);
+                    host.AddComponent<ProjectileVolleySequence>().Configure(
+                        ordered.ToArray(), sequence.recoveryGap, sequence.readinessTimeout,
+                        sequence.shotResolutionTimeout,
+                        sequence.progressOrigin, sequence.progressDirection, sequence.memberProgressGates,
+                        null, sequence.repeatFromIndex, sequence.firstMemberAcquireDelay);
+                }
+            }
+
+            if (def.pedestals != null)
+            {
+                foreach (var pd in def.pedestals)
+                {
+                    if (pd == null) continue;
+                    WandAltar(pd.name, pd.groundPosition, pd.triggerRadius, root, context.pieces,
+                              context.pedestalStone, context.pedestalCyan);
+                }
+            }
+
+            if (def.arenas != null)
+            {
+                foreach (var a in def.arenas)
+                {
+                    if (a == null || !a.enabled) continue;
+                    var gate = LevelPieceFactory.Box(a.gateName, a.gateOpenPosition, a.gateSize,
+                                                     context.pieces.Material(a.gateMaterialKey), root, context.pieces,
+                                                     false, counts);
+                    var trigger = LevelPieceFactory.Empty(a.triggerName, a.triggerPosition, Quaternion.identity, root);
+                    var col = trigger.AddComponent<BoxCollider>();
+                    col.size = a.triggerSize;
+                    col.isTrigger = true;
+                    BossArenaTrigger fight = null;
+                    if (context.BuildsRuntimeBehaviours)
+                    {
+                        fight = trigger.AddComponent<BossArenaTrigger>();
+                        fight.gate = gate.transform;
+                        fight.gateOpenPosition = a.gateOpenPosition;
+                        fight.gateClosedPosition = a.gateClosedPosition;
+                    }
+
+                    if (a.hasExitGate)
+                    {
+                        var exit = LevelPieceFactory.Box(a.exitGateName, a.exitGateClosedPosition, a.exitGateSize,
+                                                         context.pieces.Material(a.exitGateMaterialKey), root,
+                                                         context.pieces, false, counts);
+                        if (fight != null)
+                        {
+                            fight.exitGate = exit.transform;
+                            fight.exitGateClosedPosition = a.exitGateClosedPosition;
+                            fight.exitGateOpenPosition = a.exitGateOpenPosition;
+                        }
+                    }
+
+                    if (fight != null && !string.IsNullOrEmpty(a.clearSpawnerName))
+                    {
+                        EnemySpawner sp;
+                        if (context.builtSpawners.TryGetValue(a.clearSpawnerName, out sp)) fight.clearSpawner = sp;
+                        else Debug.LogWarning("[LevelDefinitionBuilder] Arena '" + a.triggerName + "' names clearSpawner '" +
+                                              a.clearSpawnerName + "', which is not a spawn in this definition (a missing " +
+                                              "mini-boss prefab also drops its spawner). Its exit gate will never open.");
+                    }
+
+                    if (a.solarRealm != null && a.solarRealm.enabled)
+                        BuildSolarRealm(a, fight, root, context.pieces, context.builtSpawners,
+                                        context.BuildsRuntimeBehaviours);
+                }
+            }
+
+            if (def.sky != null && def.sky.enabled)
+            {
+                var skyGroup = new GameObject("Sky");
+                skyGroup.transform.SetParent(root, false);
+                Starfield.Build(skyGroup.transform, def.sky.starCount, def.sky.radius, def.sky.seed,
+                                def.sky.includeEclipse, def.sky.eclipseYawDeg, def.sky.eclipsePitchDeg,
+                                def.sky.eclipseDiameterDeg);
+            }
+
+            if (context.buildCloudSea) CloudSea.BuildCampaign(root, context.cloudSea);
+            BuildWorldLeaderboard(def, root, context.pieces);
+            BuildChallengeRoutes(def, root);
+
+            if (def.killZone != null)
+            {
+                var kill = LevelPieceFactory.Empty(def.killZone.name, def.killZone.center, Quaternion.identity, root);
+                var kc = kill.AddComponent<BoxCollider>();
+                kc.size = def.killZone.size;
+                kc.isTrigger = true;
+                if (context.BuildsRuntimeBehaviours) kill.AddComponent<KillZone>();
+            }
+
+            if (context.safety == LevelWorldContentSafety.PreviewSafe)
+                NeutralizePreviewRuntime(root);
+
+            return new LevelWorldContentResult
+            {
+                root = root,
+                startSpawn = startSpawn,
+                counts = counts,
+                builtSpawners = context.builtSpawners
+            };
+        }
+
+        /// <summary>
+        /// Leaves a preview's data-bearing scene artifacts inspectable while preventing the temporary
+        /// root from becoming a gameplay participant if it survives into play mode. This is intentionally
+        /// post-construction: it applies equally to direct factory pieces, prefab-backed pieces and the
+        /// builder-owned altar/arena/realm presentation without forking their visual construction path.
+        /// </summary>
+        static void NeutralizePreviewRuntime(Transform root)
+        {
+            foreach (var behaviour in root.GetComponentsInChildren<MonoBehaviour>(true))
+                // CloudSea owns a generated presentation mesh and releases it from OnDisable. It has no
+                // collider, input, combat, player or event behaviour, so keeping this one presentation
+                // component alive preserves the authored cloud visual without reactivating gameplay.
+                if (!(behaviour is CloudSea)) behaviour.enabled = false;
+            foreach (var collider in root.GetComponentsInChildren<Collider>(true))
+                collider.enabled = false;
+        }
+
         // ---- helpers ------------------------------------------------------------------------------
         // Mirrors LevelGreyboxBuilder's helpers deliberately: same geometry, same static flags, same
         // collider/trim rules. Divergence here would mean the two builders silently produce different
@@ -353,9 +395,6 @@ namespace VibeGame1.EditorTools
 
         static void LoadShared()
         {
-            mStone = LoadMat("Stone");
-            mCyan = LoadMat("NeonCyan");
-            mCloudSea = LoadMat("CloudSea");
             pPlayer = LoadPrefab("Player");
             pManagers = LoadPrefab("Managers");
             pHud = LoadPrefab("HUD");
@@ -409,9 +448,10 @@ namespace VibeGame1.EditorTools
         /// Interactable carrying the trigger. Mirrors LevelGreyboxBuilder.WandAltar exactly - divergence
         /// here means the two builders produce different altars from the same intent.
         /// </summary>
-        static GameObject WandAltar(string name, Vector3 groundPos, float triggerRadius, Transform parent, LevelPieceContext ctx)
+        static GameObject WandAltar(string name, Vector3 groundPos, float triggerRadius, Transform parent,
+                                    LevelPieceContext ctx, Material stone, Material cyan)
         {
-            LevelPieceFactory.Box(name + "_Plinth", groundPos + Vector3.up * 0.4f, new Vector3(1.8f, 0.8f, 1.8f), mStone, parent, ctx, true, null);
+            LevelPieceFactory.Box(name + "_Plinth", groundPos + Vector3.up * 0.4f, new Vector3(1.8f, 0.8f, 1.8f), stone, parent, ctx, true, null);
 
             var altar = new GameObject(name);
             altar.transform.SetParent(parent, false);
@@ -433,7 +473,7 @@ namespace VibeGame1.EditorTools
             crystal.transform.SetParent(visual.transform, false);
             crystal.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
             crystal.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
-            if (mCyan != null) crystal.GetComponent<Renderer>().sharedMaterial = mCyan;
+            if (cyan != null) crystal.GetComponent<Renderer>().sharedMaterial = cyan;
 
             var lightGo = LevelPieceFactory.Empty("Glow", groundPos + Vector3.up * 1.6f, Quaternion.identity, altar.transform);
             var light = lightGo.AddComponent<Light>();
@@ -441,7 +481,7 @@ namespace VibeGame1.EditorTools
             light.range = 8f;
             light.intensity = 2.2f;
             light.shadows = LightShadows.None;
-            if (mCyan != null) light.color = mCyan.HasProperty("_BaseColor") ? mCyan.GetColor("_BaseColor") : Color.cyan;
+            if (cyan != null) light.color = cyan.HasProperty("_BaseColor") ? cyan.GetColor("_BaseColor") : Color.cyan;
 
             SetLayerRecursively(altar, Layers.Interactable);
             return altar;
@@ -561,11 +601,13 @@ namespace VibeGame1.EditorTools
             return text;
         }
 
-        static void BuildSolarRealm(ArenaDef arena, BossArenaTrigger fight, Transform levelRoot, LevelPieceContext ctx)
+        static void BuildSolarRealm(ArenaDef arena, BossArenaTrigger fight, Transform levelRoot, LevelPieceContext ctx,
+                                    System.Collections.Generic.IDictionary<string, EnemySpawner> spawnerLookup,
+                                    bool buildRuntimeBehaviours)
         {
             var def = arena.solarRealm;
             EnemySpawner spawner;
-            if (!builtSpawners.TryGetValue(def.enemySpawnerName, out spawner))
+            if (!spawnerLookup.TryGetValue(def.enemySpawnerName, out spawner))
             {
                 Debug.LogWarning("[LevelDefinitionBuilder] Solar arena '" + arena.gateName +
                                  "' names missing spawner '" + def.enemySpawnerName + "'.");
@@ -600,10 +642,14 @@ namespace VibeGame1.EditorTools
             var trigger = exterior.AddComponent<SphereCollider>();
             trigger.radius = def.exteriorRadius;
             trigger.isTrigger = true;
-            var portal = exterior.AddComponent<SolarArenaPortal>();
-            portal.arena = fight;
-            portal.definition = CloneSolarRealm(def);
-            fight.solarPortal = portal;
+            SolarArenaPortal portal = null;
+            if (buildRuntimeBehaviours)
+            {
+                portal = exterior.AddComponent<SolarArenaPortal>();
+                portal.arena = fight;
+                portal.definition = CloneSolarRealm(def);
+                if (fight != null) fight.solarPortal = portal;
+            }
 
             float visualRadius = def.visualRadius > 0f ? def.visualRadius : def.exteriorRadius;
             var plasma = VisualSphere("Plasma", def.exteriorCenter, visualRadius * 2f,
@@ -616,8 +662,11 @@ namespace VibeGame1.EditorTools
 
             var realm = LevelPieceFactory.Empty(arena.triggerName + "_Realm", def.realmCenter,
                                                  Quaternion.identity, levelRoot);
-            portal.realmBoundsCenter = realm.transform;
-            portal.realmContainmentRadius = def.realmShellRadius;
+            if (portal != null)
+            {
+                portal.realmBoundsCenter = realm.transform;
+                portal.realmContainmentRadius = def.realmShellRadius;
+            }
 
             // A round, disconnected NavMesh island. Collision is stationary; only the shell visuals spin.
             var floor = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -661,10 +710,16 @@ namespace VibeGame1.EditorTools
             light.intensity = 2.6f;
             light.shadows = LightShadows.None;
 
-            portal.realmEntry = Marker("RealmEntry", def.playerEntryPosition, def.playerEntryYaw, realm.transform);
-            portal.worldRetry = Marker("WorldRetry", def.retryPosition, def.retryYaw, exterior.transform);
-            portal.worldReturn = Marker("WorldReturn", def.returnPosition, def.returnYaw, exterior.transform);
-            portal.hasReturn = def.hasReturn;
+            Transform realmEntry = Marker("RealmEntry", def.playerEntryPosition, def.playerEntryYaw, realm.transform);
+            Transform worldRetry = Marker("WorldRetry", def.retryPosition, def.retryYaw, exterior.transform);
+            Transform worldReturn = Marker("WorldReturn", def.returnPosition, def.returnYaw, exterior.transform);
+            if (portal != null)
+            {
+                portal.realmEntry = realmEntry;
+                portal.worldRetry = worldRetry;
+                portal.worldReturn = worldReturn;
+                portal.hasReturn = def.hasReturn;
+            }
 
             if (def.hasReturn)
             {
@@ -672,10 +727,13 @@ namespace VibeGame1.EditorTools
                 var exitCol = exit.AddComponent<SphereCollider>();
                 exitCol.radius = 1.5f;
                 exitCol.isTrigger = true;
-                var exitTrigger = exit.AddComponent<SolarRealmExitTrigger>();
-                exitTrigger.portal = portal;
+                if (portal != null)
+                {
+                    var exitTrigger = exit.AddComponent<SolarRealmExitTrigger>();
+                    exitTrigger.portal = portal;
+                }
                 VisualSphere("ExitGlow", def.realmExitPosition, 2.5f, ctx.Material("SolarCorona"), exit.transform);
-                portal.realmExitRoot = exit;
+                if (portal != null) portal.realmExitRoot = exit;
             }
         }
 

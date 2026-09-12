@@ -2131,7 +2131,8 @@ LevelDefinition asset  ──LevelDocument.FromDefinition──►  LevelDocumen
                               every object gets a LevelPiece tag (kind, index)
                               Ground/Stone/Platform share Architectural Stone: metre-scale joints/grain/
                               edge wear in shading only; geometry, colliders and renderer counts unchanged
-   arenas / pedestals / sky / kill zone / NavMesh / Player / Managers / HUD   stay in the builder (campaign only)
+   reusable seam also builds pedestals / arenas / sky / routes / kill-volume shape; NavMesh / Player /
+   Managers / HUD / scene lifecycle remain campaign-wrapper only
 
 DeveloperAccess (one process-local capability; plain passphrase is never stored)
    Backquote console input → normalize → SHA-256 → constant digest comparison
@@ -2172,6 +2173,33 @@ DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
           locked input is password-masked and every rejected/accepted credential echo is redacted
    Close → release its own time handle and restore prior state/cursor
 ```
+
+### Reusable world-content construction seam
+
+```
+LevelDefinition + LevelWorldContentContext(explicit root, piece resolver, materials, per-build spawner map,
+                                           CampaignRuntime / PreviewSafe policy and cloud flag)
+  -> LevelDefinitionBuilder.BuildWorldContent(...)
+       -> LevelPieceFactory.BuildDocument plus player start, projectile sequence hosts, pedestals, arenas,
+          solar-realm visuals, sky, cloud sea, world leaderboard, Challenge Route anchors and kill-volume shape
+       -> LevelWorldContentResult(root, startSpawn, counts, builtSpawners)
+
+Campaign Build() owns scene-root cleanup, LevelRunScorer, NavMesh bake, Player/Managers/HUD bootstrap and save;
+it supplies the canonical editor context with runtime behaviours enabled and consumes the seam result.
+Level Studio preview supplies PreviewSafe: after shared construction it disables every generated gameplay
+MonoBehaviour and Collider, retaining authored renderer/mesh/marker/collider data while preventing gameplay
+participation. The presentation-only `CloudSea` stays enabled because disabling it releases its generated mesh. The
+seam never opens, saves or clears scenes, bakes NavMesh, creates campaign roots or writes global gameplay state.
+```
+
+**Invariants**
+
+- A content build may only construct below its supplied root; it never discovers or mutates a scene root.
+- The spawner lookup is per build, never a static dictionary shared by campaign and preview.
+- PreviewSafe preserves authored visual/geometry construction and collider data, but disables generated gameplay
+  MonoBehaviours and every Collider (including spawners, pickups, checkpoints, water, balloons and altars).
+- The campaign wrapper is the sole owner of destructive lifecycle work and uses this same seam, so it cannot drift
+  from preview construction through a copied factory path.
 
 `PlayerTimingCapture` is an explicitly unlocked, opt-in, local-only diagnostic in every build. `timing
 start` records bounded in-memory movement samples plus projectile emission/cue/arrival/result events;
