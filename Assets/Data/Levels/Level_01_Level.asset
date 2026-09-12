@@ -2088,50 +2088,38 @@ MonoBehaviour:
       heightTolerance: 4
       arrivalStart: 32
       arrivalEnd: 48
-  insightRoutes:
+  challengeRoutes:
   - meta:
-      objectId: T1.InsightRoute.01
+      objectId: T1.ChallengeRoute.01
       friendlyName: 
       zoneIdOverride: 
-    routeId: T1_Insight_Flare
+    routeId: T1_Challenge_Flare
     sourceSpawnerNames:
     - Spawn_T1_GruntA
     - Spawn_T1_GruntB
-    markerPosition: {x: 9, y: 4.5, z: 38}
-    markerEulerAngles: {x: 0, y: 180, z: 0}
-    markerScale: {x: 1.5, y: 1.5, z: 1.5}
-    markerMaterialKey: NeonCyan
     entryCenter: {x: 0, y: 5, z: 37}
     entrySize: {x: 42, y: 16, z: 10}
     rejoinCenter: {x: 0, y: 7, z: 70}
     rejoinSize: {x: 30, y: 20, z: 10}
   - meta:
-      objectId: T2.InsightRoute.01
+      objectId: T2.ChallengeRoute.01
       friendlyName: 
       zoneIdOverride: 
-    routeId: T2_Insight_Flare
+    routeId: T2_Challenge_Flare
     sourceSpawnerNames:
     - Spawn_T2_GruntB
     - Spawn_T2_GruntA
-    markerPosition: {x: -18, y: 13, z: 150}
-    markerEulerAngles: {x: 0, y: 180, z: 0}
-    markerScale: {x: 1.5, y: 1.5, z: 1.5}
-    markerMaterialKey: NeonYellow
     entryCenter: {x: 0, y: 13, z: 149}
     entrySize: {x: 52, y: 32, z: 12}
     rejoinCenter: {x: 0, y: 22, z: 198}
     rejoinSize: {x: 32, y: 24, z: 12}
   - meta:
-      objectId: T3.InsightRoute.01
+      objectId: T3.ChallengeRoute.01
       friendlyName: 
       zoneIdOverride: 
-    routeId: T3_Insight_Flare
+    routeId: T3_Challenge_Flare
     sourceSpawnerNames:
     - Spawn_T3_Grunt
-    markerPosition: {x: -9, y: 25, z: 274}
-    markerEulerAngles: {x: 0, y: 180, z: 0}
-    markerScale: {x: 1.5, y: 1.5, z: 1.5}
-    markerMaterialKey: NeonRed
     entryCenter: {x: 0, y: 25, z: 276}
     entrySize: {x: 42, y: 28, z: 12}
     rejoinCenter: {x: 0, y: 30, z: 339}
