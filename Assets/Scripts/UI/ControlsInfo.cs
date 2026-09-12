@@ -32,7 +32,7 @@ namespace VibeGame1
             "Parry to break their POSTURE, then deathblow. Blocking costs YOUR posture. Every parry stokes PYRE.\n" +
             "\n" +
             H + "ITEMS AND MENUS" + HE + "\n" +
-            D + "E" + DE + "  use item      " + D + "F" + DE + "  flask (or CHOOSE WAND at an altar)      " + D + "1 2 3 / wheel" + DE + "  weapon      " + D + "Tab" + DE + "  level up      " + D + "Esc" + DE + "  pause\n" +
+            D + "E" + DE + "  cast book item      " + D + "F" + DE + "  flask (or CHOOSE INSCRIPTION at an altar)      " + D + "1 2 3 / wheel" + DE + "  weapon      " + D + "Tab" + DE + "  level up      " + D + "Esc" + DE + "  pause\n" +
             D + "F11" + DE + "  weapon flourish (cosmetic - rebind it under SETTINGS > CONTROL > FLOURISH KEY)\n" +
             D + "Backquote" + DE + "  command console";
 
@@ -45,6 +45,6 @@ namespace VibeGame1
             "Panel: NEW  SAVE  LOAD  PLAY  EXPORT ASSET  EXIT.   Files: AppData/LocalLow/vibegame1/vibegame1/levels\n" +
             "\n" +
             H + "DEV KEYS" + HE + "  (session access granted)\n" +
-            D + "F1" + DE + "  test menu      " + D + "F5" + DE + "  warp to boss      " + D + "F6" + DE + "  full restore      " + D + "F7" + DE + "  +1000 souls      " + D + "F8" + DE + "  god mode      " + D + "4" + DE + "  dev blade      " + D + "R" + DE + "  cycle wand";
+            D + "F1" + DE + "  test menu      " + D + "F5" + DE + "  warp to boss      " + D + "F6" + DE + "  full restore      " + D + "F7" + DE + "  +1000 souls      " + D + "F8" + DE + "  god mode      " + D + "4" + DE + "  dev blade      " + D + "R" + DE + "  cycle inscription";
     }
 }

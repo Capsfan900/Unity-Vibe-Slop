@@ -19,7 +19,7 @@ MonoBehaviour:
     is empowered.'
   effect: 0
   color: {r: 1.7647059, g: 4.745098, b: 5, a: 1}
-  viewmodelPrefab: {fileID: 0}
+  viewmodelPrefab: {fileID: 5387924563961540692, guid: e637fe0a881c1514dbfbf7c11212cdb9, type: 3}
   viewmodelScale: 0.5
   grappleRange: 28
   grappleConeDeg: 12

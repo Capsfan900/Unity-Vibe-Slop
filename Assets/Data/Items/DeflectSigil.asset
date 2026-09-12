@@ -18,7 +18,7 @@ MonoBehaviour:
     Perfect adds two speed stacks and a stronger forward impulse.
   effect: 3
   color: {r: 3.7764707, g: 2.8588235, b: 4.5, a: 1}
-  viewmodelPrefab: {fileID: 0}
+  viewmodelPrefab: {fileID: 839634465420938441, guid: 90282e9c91b83d248964138cac96e85d, type: 3}
   viewmodelScale: 0.5
   grappleRange: 28
   grappleConeDeg: 12

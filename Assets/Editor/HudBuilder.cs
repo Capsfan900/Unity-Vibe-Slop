@@ -701,7 +701,7 @@ namespace VibeGame1.EditorTools
             menu.panel = panel.gameObject;
             Transform p = Pane("Card", panel.transform, Center, Center, Center, new Vector2(0f, 10f), new Vector2(1180f, 740f));
 
-            var title = Txt("Title", p, "CHOOSE YOUR WAND", 42f, Bone, TextAlignmentOptions.Center);
+            var title = Txt("Title", p, "CHOOSE AN INSCRIPTION", 42f, Bone, TextAlignmentOptions.Center);
             title.fontStyle = FontStyles.Bold;
             title.characterSpacing = 8f;
             Rect(title.gameObject, Center, Center, Center, new Vector2(0f, 306f), new Vector2(1100f, 56f));
@@ -737,7 +737,7 @@ namespace VibeGame1.EditorTools
                 strip.type = Image.Type.Sliced;
                 Rect(strip.gameObject, Center, Center, Center, new Vector2(0f, y), new Vector2(1100f, 84f));
 
-                var name = Txt("Name", strip.transform, "WAND", 26f, Cyan, TextAlignmentOptions.Left);
+                var name = Txt("Name", strip.transform, "SPELL", 26f, Cyan, TextAlignmentOptions.Left);
                 name.fontStyle = FontStyles.Bold;
                 Rect(name.gameObject, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(20f, 22f), new Vector2(560f, 30f));
 
@@ -993,8 +993,8 @@ namespace VibeGame1.EditorTools
             // TestMenu.RefreshButtons rewrites the label to the live "STATUS EFFECTS: ON/OFF" state.
             menu.statusEffectsButton = MenuBtn(p, "Player", "STATUS EFFECTS: ON", 90f, firstY - step * 4f);
             // The wand altar is a dev fixture now: hidden and inert until this flips WandPedestal.DevMenuEnabled.
-            // TestMenu.RefreshButtons rewrites the label to the live "WAND PEDESTAL: OFF/ON" state.
-            menu.wandPedestalButton = MenuBtn(p, "Player", "WAND PEDESTAL: OFF", 90f, firstY - step * 5f);
+            // TestMenu.RefreshButtons rewrites the label to the live "INSCRIPTION ALTAR: OFF/ON" state.
+            menu.wandPedestalButton = MenuBtn(p, "Player", "INSCRIPTION ALTAR: OFF", 90f, firstY - step * 5f);
             // BACKLOG 2b's viewmodel movement channel, switchable live. The user asked for the toggle the
             // day it was built: it is a FEEL change they may not want, and one you cannot turn off
             // mid-run cannot be judged against the version without it.

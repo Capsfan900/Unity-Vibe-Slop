@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -49,11 +50,11 @@ namespace VibeGame1.Tests
             Assert.IsTrue(waterVerdict.insideDeck, waterVerdict.Summary());
 
             var west = LevelDefinitionAuthoring.Perches.Single(p => p.name == "T1_Perch_W");
-            Assert.That(Vector3.Distance(west.center, new Vector3(-23f, 3.5f, 58.5f)), Is.LessThan(0.001f),
-                "the west perch must remain a forward flank outside the cyan sun silhouette");
+            Assert.That(Vector3.Distance(west.center, new Vector3(-24f, 4.5f, 60f)), Is.LessThan(0.001f),
+                "the west perch must remain a raised forward flank outside the cyan sun silhouette");
             var east = LevelDefinitionAuthoring.Perches.Single(p => p.name == "T1_Perch_E");
-            Assert.That(Vector3.Distance(east.center, new Vector3(4f, 3.5f, 62f)), Is.LessThan(0.001f),
-                "the east perch must remain ahead of the runway with both restored wall faces clear");
+            Assert.That(Vector3.Distance(east.center, new Vector3(6.8f, 5f, 62f)), Is.LessThan(0.001f),
+                "the east perch must stay high enough to clear the slide gate while remaining ahead of the runway");
         }
 
         [Test]
@@ -113,6 +114,33 @@ namespace VibeGame1.Tests
                 Assert.AreEqual(0, verdict.forcedLookAway.Count,
                     "an integrated parry-route shot must be answerable without turning away from movement: " + verdict.Summary());
             }
+        }
+
+        [Test]
+        public void BothSentriesAreVisibleFromStone4BeforeTheCausewayCommitment()
+        {
+            var boxes = A.BoxesFrom(def);
+            AssertMuzzleVisible(boxes, "T1_Perch_W", "T1_Stone_4");
+            AssertMuzzleVisible(boxes, "T1_Perch_E", "T1_Stone_4");
+        }
+
+        static void AssertMuzzleVisible(IList<A.Box> boxes, string perchName, string approachDeck)
+        {
+            int perchIndex = A.IndexOf(boxes, perchName);
+            int deckIndex = A.IndexOf(boxes, approachDeck);
+            Assert.GreaterOrEqual(perchIndex, 0, perchName + " missing");
+            Assert.GreaterOrEqual(deckIndex, 0, approachDeck + " missing");
+            var perch = boxes[perchIndex];
+            var deck = boxes[deckIndex];
+            Vector3 eye = new Vector3((deck.min.x + deck.max.x) * .5f, deck.max.y + 1.7f,
+                                      (deck.min.z + deck.max.z) * .5f);
+            Vector3 muzzle = new Vector3((perch.min.x + perch.max.x) * .5f, perch.max.y + 1.5f,
+                                         (perch.min.z + perch.max.z) * .5f);
+            var blockers = new List<A.Box>();
+            for (int i = 0; i < boxes.Count; i++)
+                if (i != perchIndex && i != deckIndex) blockers.Add(boxes[i]);
+            Assert.IsTrue(T.LineClear(eye, muzzle, blockers),
+                approachDeck + " must see " + perchName + "'s muzzle before route commitment");
         }
 
         void AssertDeck(string name, Vector3 center, Vector3 size)

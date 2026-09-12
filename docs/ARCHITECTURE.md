@@ -261,11 +261,9 @@ Enemy→player hits are a distance + cone test at the scheduled impact time — 
   a single ember at a sliver of charge to a blaze at full. This is the player's *primary* read on their
   own charge; the HUD bar only confirms it. Intensities are deliberately conservative — see the art
   direction note below.
-- **The super leaves the weapon.** Every element of a super's VFX is anchored to
-  `WeaponViewmodel.TipWorldPosition` — the main-hand twin of the wand's `OffhandViewmodel.TipWorldPosition`
-  — so the blast is visibly authored by the blade, head or point that swung. The quake traces the hammer
-  head down to the floor and radiates from *that* contact point. An effect centred on the player reads as
-  something happening to them, not something they did.
+- **The super leaves the weapon.** `FireSlashFx` starts a broad ember sheet at
+  `WeaponViewmodel.TipWorldPosition`, using the weapon's authored radius/arc/hit progress. The old electrical
+  flight helpers remain preserved but are no longer called by player Pyre.
 - **Super attack (`Q`, full Pyre).** One per weapon, authored entirely as `WeaponData.super*` fields.
   Sword *Emberfall Arc* (one 170° sweep), dagger *Thornstorm* (nine stabs in a 70° cone, posture-heavy),
   hammer *Bronzefall* (0.52 s wind-up into a 360° quake, 130 posture, 6 m knockback), dev blade
@@ -926,11 +924,11 @@ with nothing in range costs nothing and says "NO TARGET"; there is no second spe
 
 ---
 
-## Wands (riposte weapons)
+## Spellbook inscriptions (riposte powers)
 
-Bloodborne firearms are the reference. The riposte — the critical attack after a posture break — is no
-longer a melee stab: the player commits, **draws a magic wand and blasts**. Wands are a swapped loadout,
-not a freely-fired weapon. `Data/WandData.cs` is the asset, `Player/WandController.cs` the behaviour.
+The riposte powers retain `WandData` / `WandController` names so existing assets and events remain valid,
+but their player-facing form is four inscriptions in one persistent open spellbook. They are a selected
+loadout, not freely fired; item casts share the book without changing the selected riposte power.
 
 ```
 ExecuteInteractor.ExecuteCo
@@ -969,12 +967,16 @@ Two rules:
   `WandController` raises it at the discharge; `ExecuteInteractor` raises it only in the no-wand melee
   fallback (which is also the Grapple's path). Exactly one of the two fires per riposte.
 
-Chosen at the **wand pedestal** at the level's spawn point: aim at the altar and press `F`
+Chosen at the **inscription altar** at the level's spawn point: aim at the altar and press `F`
 (`WandPedestal` → `WandSelectMenu` → `WandController.Equip`) — see the Wand pedestal map in `DATAFLOW.md`.
 The altar is a **dev fixture**, hidden and inert until `WandPedestal.DevMenuEnabled` is switched on from the
 F1 test menu; the default loadout (all four wands, Emberlance equipped) is what the player runs with.
-Also cycled with **`R`** (`WandCycle`) as a debug convenience; both raise `GameEvents.WandChanged` for the HUD
-label. With no wand equipped the original melee deathblow runs unchanged, so the system degrades safely.
+Also cycled with **`R`** (`WandCycle`, compatibility name) as a debug convenience; both raise
+`GameEvents.WandChanged` for the HUD. With no inscription equipped the melee deathblow runs unchanged.
+
+`SpellbookFactory` generates `VM_Spellbook.prefab`: open leather covers, ten warm parchment leaves, three
+loose flowing pages, fixed ink marks, and a spell-tinted core/eight-rune halo above `CastOrigin`.
+`SpellbookVisual` animates on `PlayerDelta`; selections and FIFO item changes update display state only.
 
 Assets live in `Assets/Data/Wands/`, built by `VibeGame1/3b. Create Wands` — which **must run before
 `4. Build Prefabs`**, because the prefab step assigns the viewmodels back onto the wand assets.

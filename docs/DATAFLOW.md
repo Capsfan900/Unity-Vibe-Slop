@@ -569,7 +569,7 @@ PLAYER  PlayerPosture     built by: HELD GUARD (damage × 1.5), timed BLOCK (× 
 
 ---
 
-## Riposte and wands
+## Riposte inscriptions and the spellbook
 
 ```
 enemy posture breaks → EnemyVisuals.Slump(true) → the body BUCKLES back and down (never forward)
@@ -581,7 +581,7 @@ enemy posture breaks → EnemyVisuals.Slump(true) → the body BUCKLES back and 
 enemy staggered + in cone → ExecuteInteractor.Update() → Target / HasMarkedTarget
                             ⇢ DeathblowReady(bool) → HUD banner (boss only)
                             ⇢ PromptChanged("DEATHBLOW  [ATTACK]")        ← names the INPUT
-    wand cooling? ⇢ PromptChanged("DEATHBLOW  [ATTACK]  WAND 3.2s")  ← says so, never fails silently
+    inscription cooling? ⇢ PromptChanged("DEATHBLOW  [ATTACK]  WAND 3.2s")  ← legacy label; says so
 
 InputReader.AttackPressed → WeaponController.TryAttack()
     ExecuteInteractor.TryExecute()  →  false when HasMarkedTarget is false  →  ORDINARY SWING
@@ -596,7 +596,7 @@ InputReader.AttackPressed → WeaponController.TryAttack()
       ← this is what makes a deliberate press feel deliberate; without it the first
         0.18 s of a deathblow was pixel- and audio-identical to the swing the player
         thought they had thrown
-    wand = WandController.WandReady ? Current : null       ← a cooling wand DEGRADES to melee
+    inscription = WandController.WandReady ? Current : null ← compatibility type remains WandData
     player invulnerable, CanMove = false, enemy.BeginExecuted()
     melee commit (wandCommit 0.18s)
     StepInCo: CharacterController.Move toward the victim, stopping at stabStandoff (2.2m x enemy scale).
@@ -605,9 +605,9 @@ InputReader.AttackPressed → WeaponController.TryAttack()
               tighter framing the stagger pose has to survive.
     → WandController.FireRiposte(target, weapon.executeDamage)
           readyAt = unscaledTime + wand.cooldown   ⇢ WandCooldownChanged → HUD WandCooldownBar
-          OffhandViewmodel.PlayThrust(windup, hold, recover)   COCK → STAB → HOLD → WITHDRAW
-              tip light ramps tipLightIdle → tipLightCharged over the cock; glints on an
-              accelerating cadence at OffhandViewmodel.TipWorldPosition
+          OffhandViewmodel.PlayThrust(windup, hold, recover)
+              persistent SpellbookVisual raises and casts; selected inscription colours the runic orb
+              above the open pages; the book instance is never replaced or rescaled
           ⇢ RiposteLanded(target)        ← raised BEFORE damage, so listeners can read the victim
           THE BLAST IS DRAWN FROM THE TIP, NOT ON THE VICTIM — and CONTACT is the surface of
           the chest, e.DeathblowPoint(eye), not its centre. `origin + up*0.95` was the middle of
@@ -632,7 +632,8 @@ InputReader.AttackPressed → WeaponController.TryAttack()
 - Only the ripostee takes `isExecute` damage. Splash/chain/pierce is ordinary damage, so an AoE can never
   deathblow a bystander boss.
 - `RiposteLanded` fires before the damage — listeners depend on reading the victim while alive.
-- Wand `windup`/`recover` set the riposte's cadence; that is what makes wands feel different.
+- `WandData.windup/recover` still set the riposte cadence; the name is serialized compatibility, while
+  the player-facing presentation is a selected spellbook inscription.
 - Falls back to the original melee deathblow when no wand is equipped **or while the wand is cooling**.
 - **The deathblow is a PRESS, and the press must announce itself.** `TryExecute` returns false whenever
   there is no marked target, so an attack press away from a broken enemy is always just a swing. Against
@@ -648,8 +649,8 @@ InputReader.AttackPressed → WeaponController.TryAttack()
 - The cooldown is on the CONTROLLER, not per wand asset: cycling with `R` mid-fight does not refresh it.
 - **A cooling wand must say so.** `ExecuteInteractor` appends the remaining seconds to the `EXECUTE`
   prompt. A riposte that quietly comes out as melee reads as a broken wand.
-- **Every element of the blast is anchored to `OffhandViewmodel.TipWorldPosition`.** Anything drawn only on
-  the victim reads as an explosion with no author — that was the whole of the "you can't see the wand" bug.
+- **Every element of the blast is anchored to the book's `CastOrigin`.** `TipWorldPosition` remains the
+  compatibility API and resolves to `SpellbookVisual.CastOriginWorldPosition` while the book is present.
 - **The thrust pose finishes near SCREEN CENTRE**, `thrustPosition (-0.07, -0.09, 0.80)` /
   `thrustEuler (66, -6, 4)`, written in `PrefabFactory` (rule 9). A viewmodel wand can never physically
   reach 2.2 m, so the stab is sold by the tip visually *landing on* the victim's chest — which only
@@ -660,9 +661,9 @@ InputReader.AttackPressed → WeaponController.TryAttack()
 - **The camera must be able to FRAME the victim.** `ExecuteInteractor.stabStandoff` is a presentation
   value as much as a gameplay one: under ~2m the camera ends up inside a 0.45m-radius capsule at 95° FOV
   and the entire riposte plays behind a wall of black.
-- **The wand carries its own light.** The world is near-black and the wand shaft is a dark material, so
-  without `OffhandViewmodel`'s tip light the prop silhouettes into the background and only the emissive
-  tip survives. The light also lights the victim, so the charge doubles as the read on who you are killing.
+- **The book remains open and readable in motion.** Ten fixed leaves flutter on `PlayerDelta`, three loose
+  pages orbit without physics, and a core plus eight separated runes show the current inscription/item.
+  Parchment self-light stays below bloom; only the spell orb owns the hot channel.
 - Screen flash and chromatic aberration are capped low on purpose. Both were previously loud enough
   (0.55 alpha, 1.0 chroma) to destroy the wand they were meant to punctuate.
 - Poses, scales and the standoff all live on the Player prefab or on `WandData`, so **`PrefabFactory` and
@@ -700,14 +701,11 @@ InputReader.UltimatePressed → UltimateAbility.Update → TrySuper()
                   Health.TakeDamage(superDamage × PlayerStats.DamageMultiplier(weapon))
                   Posture.Add(boss ? Posture.Max × ultBossPostureFraction / hits : superPostureDamage)
                   OnParried(0), NavMeshAgent shove by superKnockback
-        SuperKind picks ONLY the VFX, and EVERY element of it is anchored to
-            WeaponViewmodel.TipWorldPosition — the sword's point, the hammer's head, the dagger's tip:
-              all kinds, first beat: Beam(grip → tip) + Flare(tip)      the blow starts in your hand
-              Cleave  Fan(tip, 170 deg) + Arc ahead of the tip + Sparks off the edge
-              Flurry  Beam(tip → fanned target) once per hit, + a muzzle glint at the point
-              Quake   raycast down from the head → impact; Beam(head → impact), Flare(impact),
-                      360 deg spoke fan FROM THE IMPACT POINT, debris up
-              Nova    360 deg spoke fans from the tip, one lifted out of plane
+        VFX is anchored to WeaponViewmodel.TipWorldPosition:
+              FireSlashFx.Play(tip, aim, ember hue, superRadius, superArcDeg, hit progress, lifetime)
+              one broad hot edge + torn fringe + embers per authored hit; multi-hit weapons walk the
+              edge across the same authored arc
+        FireSlashContactCo waits for the visible edge beat, then applies the unchanged damage/posture/shove
     hitStop(superHitStop), shake(superShake), Release()
 ```
 
@@ -724,11 +722,9 @@ InputReader.UltimatePressed → UltimateAbility.Update → TrySuper()
   one sink (the super, which spends it in full) and one reset (`PlayerRespawned`).
 - **A perfect deflect must always be worth strictly more than a block.** `pyreBlockFraction < 1` is
   what keeps the tighter window worth chasing. `FeatureTests > Parry_BlockStokesPyreLessThanPerfect`.
-- **The blast leaves the WEAPON.** Every element is anchored to `WeaponViewmodel.TipWorldPosition`, the
-  main-hand twin of `OffhandViewmodel.TipWorldPosition` that the wand riposte already uses. Drawn from
-  `transform.position` — which is what it did — a super reads as something happening *to* the player
-  rather than something they authored: the hand swings and an unrelated effect goes off around the navel.
-  The quake in particular traces the hammer head down to the floor and radiates from *that* contact point.
+- **The fire slash leaves the WEAPON.** Every sheet begins at `WeaponViewmodel.TipWorldPosition`; damage
+  follows its contact beat instead of preceding the visible effect. `PyreArc`, `LightningEffect` and the
+  dormant `BoltCo` remain intact as the preserved electrical-flight library for a future enemy.
 - **Every super is data.** `UltimateAbility` reads `WeaponData` and nothing else; a new weapon gets a
   super by authoring `super*` fields in `DataFactory`. `SuperKind` chooses presentation, never geometry.
 - **The fire is the primary read on charge.** The HUD bar is the confirmation, not the signal — the
@@ -988,24 +984,25 @@ FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEF
 - **The pull is motor state on the motor clock.** Hitstop can neither freeze nor stretch it (rule 1),
   it allocates nothing, and every write is a `cc.Move`, so walls still stop it.
 
-### Persistent offhand wand and independent items
+### Persistent spellbook, inscriptions and FIFO items
 
 ```
-WandController = the ONLY owner of the player's persistent left-hand model (OffhandViewmodel)
-   equip/start → OffhandViewmodel.ShowWand(Current)
-   riposte     → charge/discharge animation and blast originate at the displayed wand tip
+WandController = serialized compatibility owner of the selected riposte inscription
+   equip/start → OffhandViewmodel.ShowWand(Current) → create one SpellbookVisual if absent
+   selection   → SpellbookVisual.SetSelectedSpell(Current); never swap the book instance
+   riposte     → book raises/casts; blast originates at SpellbookVisual.CastOrigin
 
-PlayerItems = inventory/effect state only
-   pickup/use/respawn → ItemsChanged → item HUD slots
-   use effect         → OffhandViewmodel.PlayUse() and TipWorldPosition may animate/originate the effect
-   NEVER ShowItem/ShowWand: an item does not replace or rescale the equipped wand
+PlayerItems = FIFO inventory/effect state
+   pickup/use/respawn → ItemsChanged → HUD slots + SpellbookVisual.SetFrontItem(Current)
+   accepted use       → CaptureAcceptedCast(item) BEFORE removal, then PlayUse(item)
+   NEVER ShowItem/ShowWand: an item changes the orb, not the book model or its scale
 ```
 
 **Invariants**
-- Wands and items are independent. Carrying or spending an item never changes the equipped wand, its rendered
-  instance or its scale; death/respawn clears item state without rebuilding the wand.
-- The wand is on screen full time. It previously existed only for the length of a riposte, and briefly regressed
-  into a shared item slot; both failures made the blast read as if it had no visible source.
+- Inscriptions and items are independent data channels sharing one presentation. Neither can replace, destroy
+  or rescale the persistent book; death/respawn clears item state without rebuilding it.
+- Legacy wand viewmodel assets remain serialized for compatibility/future content, but the player no longer
+  displays them. `ShowWand` is a compatibility method whose shipped path updates the book inscription.
 - `Physics.IgnoreLayerCollision(Interactable, Player)` must stay **false** — it suppresses trigger callbacks,
   not just contacts, and silently kills every pickup, checkpoint and bloodstain.
 
@@ -1966,13 +1963,17 @@ WATER    (no prefab: TraversalBuilders.BuildWater from LevelDefinition.waters[] 
                                                                  stay-refresh on the motor clock, never an Exit
   FirstPersonMotor.Update
     inWater = now < waterUntil;  flow = volume.Flow (TraversalMath.Flow: normalised × flowSpeed)
-    ground branch, in water:   rel = TraversalMath.WaterStep(hv − flow, wish, WaterFloorSpeed, waterAccel, dt)
+    slide branch, grounded + in water:
+                               rel = TraversalMath.WaterStep(hv − flow, wish, WaterFloorSpeed, waterAccel, dt)
                                hv  = rel + flow
                                WaterFloorSpeed = groundSpeed × waterSpeedScale (1.35 → 14.85 m/s)
-                               no groundFriction, no groundOverspeedDecay, turned at 30 m/s² not 90
-    slide branch, in water:    the SAME step; slideEndsAt is pushed every frame (no decay end, no cap):
+                               no groundFriction, no groundOverspeedDecay, turned at 30 m/s² not 90;
+                               slideEndsAt is pushed every frame (no decay end, no cap):
                                a slide on water ends only off the water or on a jump
-    air branch, in water:      the boost zone: airCarryDecay is skipped (the carry is kept); airSoftCap still bleeds
+    grounded, not sliding:     ordinary ground acceleration, friction and overspeed decay; water contact alone
+                               never creates a skate or adds the flow conveyor
+    airborne:                  ordinary air carry decay and air soft cap, even while inside the shallow trigger;
+                               a slide-jump carries its earned speed but cannot turn water contact into a cruise
     Teleport clears it.  PlayerFeedback reads motor.InWater as an EDGE: FovKick(waterEnterFovKick) + soft Land
     on entry; WaterFx.Tick every frame: spray (SlashFx.Sparks, cold blue) + a synthesised hiss loop on its own
     AudioSource, both riding speed / WaterFloorSpeed
@@ -1994,8 +1995,9 @@ GRAPPLE BURST
   the motor decides. A second writer on `vel` would be the slide-vs-agent fight in a new costume.
 - **A launch REPLACES the vertical speed** (`TraversalMath.Launch`). The height a balloon buys is the same every
   time, which is what lets a level be authored against it (3.27 m at 14 m/s / −30).
-- **Water never slows anyone** (`WaterStep` targets `max(floor, carried)`), and **still water never starts a
-  stationary body moving**. The only way off the water floor is off the water or a jump.
+- **Water rewards an active grounded slide; it is not an ice-physics mode.** Only that slide calls
+  `WaterStep`, which targets `max(floor, carried)` and never slows the committed slide. Running, standing and
+  jumping use the ordinary ground/air laws, so merely touching the sheet never throws or carries the player.
 - **Water is a stay-refreshed touch, never an Enter/Exit pair.** A CharacterController disabled for a teleport
   sends no Exit; a grace on the motor clock cannot be left on.
 - **The burst window opens when control returns, not when the pull lands**, and it is forfeited after

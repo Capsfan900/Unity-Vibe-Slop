@@ -11,6 +11,34 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Spellbook, Pyre fire slash, slide-only ice and Sentry route visibility — 2026-09-12
+
+- **Full EditMode: 991/991 passed**, zero failures/skips, 49.4 s
+  (`TestResults/EditMode-20260912-095827.xml`). Two immediately preceding clean full runs also passed
+  991/991, closing the T2 bolt-line and solar-clearance failures rather than accepting a single lucky run.
+- **Fresh Level_01 FeatureTests: 813 passed, 0 failed, 1 intentional skip**, 58.8 s, after proving
+  `GameManager.I != null` and `Time.timeScale == 1`. The skip is the documented Sandbox-only V18 fixture.
+- **Spellbook:** the Player prefab resolves the generated `VM_Spellbook`; selection changes retain the same
+  instance/scale, FIFO casts capture the accepted item before removal, ten bound pages and three loose pages
+  animate, and the core/eight-rune halo remains outside the aim lane. A live player-eye capture was inspected
+  after the first structurally-correct version was rejected for dark pages and a flat opaque halo.
+- **Pyre:** `FireSlashFx` preserves every weapon's authored radius/arc/hit count and delays damage to its
+  visible contact beat. Its pool, lifetime, geometry and 1.05 peak cap pass. `PyreArc`, `LightningEffect` and
+  dormant `BoltCo` remain present for a future enemy electrical attack.
+- **Ice/water:** only `slideOnGround && inWater` enters `WaterStep`; normal running and airborne carry use the
+  ordinary laws. The water-slide floor is stable at 20/60/240 fps.
+- **Sentry routes:** strict eye-to-muzzle tests cover all five blue-Sentry approach beats. T2's upper perch
+  ships at world `(21,20,185)`, yaw `230°`; it clears L10 and the gold portal, stays 5.7° off route bearing,
+  and has two valid 27.5 m/s contact samples. **Projectile Encounter Report: PASS** at 11/17.6/27.5 m/s for
+  every campaign shooter. **Level Arc Report: PASS** for every baseline/tech hop, wall line, slide gate,
+  four-balloon arc, water sheet and shooter perch, with no forced look-away.
+- **Compile/health:** runtime build has 0 warnings/errors; editor build has 0 errors and the 18 known warnings.
+  Health Check has no error section and the existing 3318 broad serialized-null/audio warnings.
+
+**Still human-only:** play all five blue-Sentry beats at normal and stacked speed to judge whether the
+announce→obstacle→parry→flare shortcut cadence is fun, and judge the fire slash's weight/timing on real enemies.
+Automated contact math and a still image cannot prove those feel decisions.
+
 ### Custom keybinds and opening-ramp death hotfix — 2026-09-12
 
 - **Quick EditMode: 935/935 passed**, zero failures/skips, 7.6 s

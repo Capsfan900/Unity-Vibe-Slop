@@ -2699,7 +2699,7 @@ namespace VibeGame1
             yield return SettleTimeScale();
         }
 
-        // ================================================================ 6b. WAND PEDESTAL
+        // ================================================================ 6b. INSCRIPTION ALTAR
 
         /// <summary>
         /// The pre-run loadout choice. Proximity must NOT open the menu — the player aims at the altar
@@ -2728,7 +2728,7 @@ namespace VibeGame1
                 "rows=" + (menu.rows != null ? menu.rows.Length : 0));
 
             // ---- the altar is a DEV FIXTURE: off by default, hidden and inert ----------------------
-            // The test menu's "WAND PEDESTAL" button is the only switch. Driven through the same
+            // The test menu's "INSCRIPTION ALTAR" button is the only switch. Driven through the same
             // TestMenu body the button calls, then the flag directly, so both the wiring and the gate
             // are proven. The flag is restored at the end of this test whatever it was before.
             var testMenu = FindAnyObjectByType<TestMenu>();
@@ -2745,7 +2745,7 @@ namespace VibeGame1
                     ? testMenu.wandPedestalButton.GetComponentInChildren<TMPro.TMP_Text>().text : "";
                 Check("WandPedestal_TestMenuToggleFlipsFlag", flipped, flagBefore + " -> " + WandPedestal.DevMenuEnabled);
                 Check("WandPedestal_TestMenuLabelTracksFlag",
-                    label == (WandPedestal.DevMenuEnabled ? "WAND PEDESTAL: ON" : "WAND PEDESTAL: OFF"), "label='" + label + "'");
+                    label == (WandPedestal.DevMenuEnabled ? "INSCRIPTION ALTAR: ON" : "INSCRIPTION ALTAR: OFF"), "label='" + label + "'");
                 testMenu.ToggleWandPedestal();
                 Check("WandPedestal_TestMenuToggleFlipsBack", WandPedestal.DevMenuEnabled == flagBefore);
             }
@@ -2931,16 +2931,6 @@ namespace VibeGame1
                 yield break;
             }
 
-            bool scaled = true;
-            string detail = "";
-            foreach (var w in wandCtl.loadout)
-            {
-                if (w == null) continue;
-                detail += w.displayName + "=" + w.viewmodelScale.ToString("F2") + " ";
-                if (w.viewmodelScale < 0.6f) scaled = false;
-            }
-            Check("WandRead_ScaleShipped", scaled, detail + "(WandFactory must write viewmodelScale >= 0.60)");
-
             // Rule 9 again: cooldown is a new field, so every existing wand asset deserialised it as 0
             // until WandFactory was re-run. A 0 here is not "no cooldown by design", it is "the tuning
             // never shipped" — and the heavier wands must genuinely wait longer or the cooldown is not
@@ -2966,12 +2956,14 @@ namespace VibeGame1
             var offhand = combat != null ? combat.GetComponentInChildren<OffhandViewmodel>(true) : null;
             if (offhand == null) { Skip("WandRead_ThrustPoseAimsForward", "no OffhandViewmodel"); yield break; }
 
-            // A thrust pose that leaves the wand upright never points at anything, and one pushed far
-            // from the lens shrinks to a splinter at 95 degrees FOV.
-            Check("WandRead_ThrustPoseAimsForward", offhand.thrustEuler.x > 30f,
-                "thrustEuler.x=" + offhand.thrustEuler.x);
-            Check("WandRead_ThrustStaysNearLens", offhand.thrustPosition.z <= 0.8f,
-                "thrustPosition.z=" + offhand.thrustPosition.z);
+            Check("Spellbook_PrefabShipped", offhand.spellbookPrefab != null,
+                "SpellbookFactory must run before PrefabFactory.BuildPlayer");
+            var book = offhand.DisplayedInstance != null
+                ? offhand.DisplayedInstance.GetComponent<SpellbookVisual>() : null;
+            Check("Spellbook_PersistentOpenModel", book != null && book.bookRoot != null && book.castOrigin != null,
+                "displayed=" + (offhand.DisplayedInstance != null ? offhand.DisplayedInstance.name : "null"));
+            Check("Spellbook_PagesFlow", book != null && book.pagePivots != null && book.pagePivots.Length >= 8
+                && book.floatingPagePivots != null && book.floatingPagePivots.Length >= 3);
             Check("WandRead_TipLightEnabled", offhand.tipLightEnabled && offhand.tipLightRange >= 6f,
                 "enabled=" + offhand.tipLightEnabled + " range=" + offhand.tipLightRange);
 
@@ -3699,13 +3691,12 @@ namespace VibeGame1
                 Vector3 scaleBefore = modelBefore != null ? modelBefore.transform.localScale : Vector3.zero;
                 Check("Wands_VisibleModelExists", modelBefore != null,
                     "offhand=" + (offhandView != null) + " model=" + (modelBefore != null ? modelBefore.name : "null"));
-                Check("Wands_VisibleModelMatchesEquipped",
-                    modelBefore != null && wandBefore != null && wandBefore.viewmodelPrefab != null &&
-                    modelBefore.name.StartsWith(wandBefore.viewmodelPrefab.name) &&
-                    Mathf.Abs(modelBefore.transform.localScale.x - wandBefore.viewmodelScale) < 0.0001f,
+                var bookBefore = modelBefore != null ? modelBefore.GetComponent<SpellbookVisual>() : null;
+                Check("Spellbook_VisibleModelMatchesInscription",
+                    bookBefore != null && bookBefore.SelectedSpell == wandBefore &&
+                    Mathf.Abs(modelBefore.transform.localScale.x - 1f) < 0.0001f,
                     "model=" + (modelBefore != null ? modelBefore.name : "null") +
-                    " expected=" + (wandBefore != null && wandBefore.viewmodelPrefab != null
-                        ? wandBefore.viewmodelPrefab.name : "null"));
+                    " inscription=" + (wandBefore != null ? wandBefore.displayName : "null"));
 
                 int heldBefore = items.Held.Count;
                 var probe = MakeItem(ItemEffect.Rebound);

@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -94,11 +95,69 @@ namespace VibeGame1.Tests
         public void LowerAndUpperSentriesEachCrossTheirAssignedTerraces()
         {
             var boxes = A.BoxesFrom(def);
+            var stats = AssetDatabase.LoadAssetAtPath<PlayerStatsData>("Assets/Data/PlayerStats.asset");
+            Assert.IsNotNull(stats);
+            System.Func<string, string[]> routeOf = deck =>
+            {
+                int i = int.Parse(deck.Substring(4)) - 1;
+                string previous = i > 0 ? "T2_L" + i : null;
+                string next = i < 10 ? "T2_L" + (i + 2) : null;
+                return previous == null && next == null ? null : new[] { previous, next };
+            };
             foreach (var perch in LevelDefinitionAuthoring.Perches.Where(p => p.name.StartsWith("T2_")))
             {
-                var verdict = T.AnalyzeShooter(boxes, perch.name, perch.spawn, perch.covers.Split(','), 10f, 32f);
+                var verdict = T.AnalyzeShooterPlacement(boxes, perch.name, perch.spawn, perch.covers.Split(','),
+                    10f, 32f, stats.facingConeDeg, routeOf);
                 Assert.AreEqual(perch.covers.Split(',').Length, verdict.covered.Count, verdict.Summary());
+                Assert.AreEqual(0, verdict.forcedLookAway.Count, verdict.Summary());
             }
+        }
+
+        [Test]
+        public void SentriesAreVisibleBeforeTheirLowerAndUpperSwitchbackCommitments()
+        {
+            var boxes = A.BoxesFrom(def);
+            var lower = def.platforms.Single(p => p.name == "T2_Perch_W");
+            var upper = def.platforms.Single(p => p.name == "T2_Perch_E");
+            Assert.That(Vector3.Distance(lower.center, new Vector3(20f, 8f, 174f)), Is.LessThan(0.001f),
+                "the canonical lower perch must receive T2's +38 m solar translation");
+            Assert.That(Vector3.Distance(upper.center, new Vector3(21f, 20f, 185f)), Is.LessThan(0.001f),
+                "the canonical upper perch must receive T2's +38 m solar translation");
+            AssertMuzzleVisible(boxes, "T2_Perch_W", "T2_L1");
+            AssertMuzzleVisible(boxes, "T2_Perch_W", "T2_L2");
+            AssertMuzzleVisible(boxes, "T2_Perch_E", "T2_L8");
+            AssertMuzzleVisible(boxes, "T2_Perch_E", "T2_L9");
+        }
+
+        [Test]
+        public void TowerAndButtressLeaveTheEntrySightlineAndTerraceClear()
+        {
+            var tower = def.platforms.Single(p => p.name == "T2_Tower");
+            var buttress = def.platforms.Single(p => p.name == "T2_Buttress");
+            var lowerEast = def.platforms.Single(p => p.name == "T2_L2");
+            Assert.That(tower.size.x, Is.EqualTo(4f).Within(0.001f), "the tower may be iconic, not a six-metre blindfold");
+            Assert.That(tower.size.y, Is.EqualTo(20f).Within(0.001f), "the core keeps its vertical identity without covering the entry");
+            Assert.LessOrEqual(buttress.center.x + buttress.size.x * .5f, lowerEast.center.x - lowerEast.size.x * .5f,
+                "the chimney buttress must stay beside T2_L2 instead of creating an obstructing stacked underside");
+        }
+
+        static void AssertMuzzleVisible(IList<A.Box> boxes, string perchName, string approachDeck)
+        {
+            int perchIndex = A.IndexOf(boxes, perchName);
+            int deckIndex = A.IndexOf(boxes, approachDeck);
+            Assert.GreaterOrEqual(perchIndex, 0, perchName + " missing");
+            Assert.GreaterOrEqual(deckIndex, 0, approachDeck + " missing");
+            var perch = boxes[perchIndex];
+            var deck = boxes[deckIndex];
+            Vector3 eye = new Vector3((deck.min.x + deck.max.x) * .5f, deck.max.y + 1.7f,
+                                      (deck.min.z + deck.max.z) * .5f);
+            Vector3 muzzle = new Vector3((perch.min.x + perch.max.x) * .5f, perch.max.y + 1.5f,
+                                         (perch.min.z + perch.max.z) * .5f);
+            var blockers = new List<A.Box>();
+            for (int i = 0; i < boxes.Count; i++)
+                if (i != perchIndex && i != deckIndex) blockers.Add(boxes[i]);
+            Assert.IsTrue(T.LineClear(eye, muzzle, blockers),
+                approachDeck + " must see " + perchName + "'s muzzle before route commitment");
         }
     }
 }

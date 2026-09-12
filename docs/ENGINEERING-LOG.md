@@ -1,5 +1,60 @@
 # Engineering log
 
+## 2026-09-12 — A generated viewmodel can be structurally correct and still read as the wrong object
+
+**Symptom.** The first persistent spellbook build passed its prefab, persistence and aim-lane tests, but a
+live player-eye capture still looked like two dark blocks holding one flat beige ball.
+
+**Root cause.** The parchment relied entirely on eclipse lighting, while the “halo” was a larger opaque
+sphere surrounding an opaque core. Nested opaque geometry has no visible separation; structural assertions
+cannot prove material readability or silhouette.
+
+**Fix.** Give parchment restrained self-light below bloom, add fixed ink strokes to the upper leaves, and
+replace the outer sphere with eight separated spell-tinted rune bars. The book remains generated data,
+camera-left and allocation-free at runtime. `SpellbookVisualTests` pins the fixed renderer/page budgets; the
+player-eye screenshot owns the presentation proof.
+
+**Invariant.** A generated prop needs both structural tests and a live camera read. Never call nested opaque
+geometry a halo, and never rely on level lighting alone for a persistent near-lens information surface.
+
+## 2026-09-12 — Sentry placement is a four-constraint solve, not a perch coordinate
+
+**Symptom.** Moving the upper T2 blue Sentry “forward” fixed one route report but put its perch inside the
+gold portal silhouette and made the L9 bolt cross the L10 terrace. Earlier positions also lost the fastest
+27.5 m/s interception sample.
+
+**Root cause.** Visibility, collision clearance, parry-facing direction and predicted projectile contact
+were being evaluated one at a time. A position can pass any three and still fail the encounter.
+
+**Fix.** Solve all four against the generated boxes and shipped projectile math. The upper perch ships at
+world `(21,20,185)`, yaw `230°`, covering L9: visible from L8/L9, 5.7° off the outgoing route bearing,
+clear of L10, 13.26 m outside the gold sun surface (required 11.95), with two valid 27.5 m/s contact samples.
+
+**Invariant.** Every parkour shooter placement must simultaneously prove eye-to-muzzle visibility, an
+unblocked in-band bolt, no forced look-away, and valid contacts at all audited route speeds. Solar/exterior
+clearance is part of the same solve wherever a portal is nearby.
+
+## 2026-09-12 — A traversal trigger is not permission to replace ordinary movement
+
+**Symptom.** The water/ice sheet threw ordinary runners around and made jumps feel slippery even when the
+player had not committed to a slide. The intended reward — extra speed while sliding — instead behaved
+like a global surface-physics mode.
+
+**Root cause.** `FirstPersonMotor` entered the no-friction `WaterStep` path for every grounded water touch,
+added the volume's flow conveyor, and suppressed ordinary carry decay while airborne in the trigger. The
+trigger is deliberately taller than the rendered sheet for reliable stay refreshes, so normal footsteps and
+hops were enough to inherit all three behaviours.
+
+**Fix.** Only `slideOnGround && inWater` may call `WaterStep` or add `WaterFlow`. A non-sliding grounded
+player follows the ordinary ground law, and every airborne player follows ordinary carry and soft-cap decay.
+`TouchWater` / `InWater` remain intact for trigger safety and presentation. `PivotMovementTests` pins the
+slide-only wording and the water-slide floor at 20, 60 and 240 fps.
+
+**Invariant.** Environmental contact may report context; it must not silently become a second movement
+controller. Water/ice is a slide reward, not passive slipperiness. Any future surface effect that changes
+velocity must be entered through an explicit motor state and must prove the ordinary run/jump paths remain
+unchanged.
+
 ## 2026-09-11 — Raw batch probes can lose the Hub licensing context while the live editor is healthy
 
 **Symptom.** A disposable `Unity.exe -batchmode -nographics -quit -createProject` probe repeatedly

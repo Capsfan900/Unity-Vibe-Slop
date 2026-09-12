@@ -71,8 +71,7 @@ namespace VibeGame1
 
         void Update()
         {
-            // Items are INDEPENDENT of wands: E always spends the first carried item, with no swapping
-            // and no interaction with whatever wand is equipped.
+            // E casts the first carried item from the persistent book, with no swapping step.
             if (!GameManager.IsPlaying || InputReader.I == null) return;
             if (InputReader.I.UseItemPressed) UseCurrent();
         }
@@ -99,6 +98,7 @@ namespace VibeGame1
             if (item == null || !held.Contains(item)) return false;
             if (combat != null && combat.IsStaggered) return false;
             if (!Apply(item)) return false;
+            if (offhand != null) offhand.PlayUse(item);
             held.Remove(item);
             Spent(item);
             return true;
@@ -111,6 +111,7 @@ namespace VibeGame1
 
             var item = held[0];
             if (!Apply(item)) return;   // refused: still carried, nothing announced
+            if (offhand != null) offhand.PlayUse(item);
             held.RemoveAt(0);
             Spent(item);
         }
@@ -134,10 +135,9 @@ namespace VibeGame1
 
         void Broadcast()
         {
-            // Item inventory and the equipped wand are independent systems. WandController is the
-            // only writer of the persistent offhand model; replacing it here with an item's much
-            // smaller pickup mesh makes every wand collapse into a "toothpick" after pickup/use and
-            // leaves that tiny model visible through the death delay until respawn rebuilds the wand.
+            // Inventory updates only the orb above the persistent spellbook. It never swaps a pickup
+            // prefab into the hand, which is the old path that collapsed the prop into a toothpick.
+            if (offhand != null) offhand.SetFrontItem(Current);
             GameEvents.RaiseItemsChanged(held.ToArray());
         }
 
@@ -313,7 +313,6 @@ namespace VibeGame1
             // teleport with a coloured flash.
             Vector3 from = offhand != null ? offhand.TipWorldPosition : transform.position;
             ItemVfx.GrappleLine(from, e.DeathblowPoint(eye), hue);
-            if (offhand != null) offhand.PlayUse();
             if (CameraFX.I != null) CameraFX.I.FovKick(10f);
             AudioManager.Play(sound, 0.8f, pitch);
 

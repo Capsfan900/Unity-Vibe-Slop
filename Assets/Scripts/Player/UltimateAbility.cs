@@ -24,13 +24,12 @@ namespace VibeGame1
         public Material ringMaterial;
         public bool IsActive { get; private set; }
 
-        // ---- the bolt ------------------------------------------------------------------------------
+        // ---- preserved electrical prototype --------------------------------------------------------
         // Consts, not serialized fields: these are feel constants, not content, so rule 9 does not apply
         // and there is nothing on the Player prefab to go stale.
         //
-        // Fast. The whole point is that the bolt is SEEN to cross the gap, and the super's own slow-mo
-        // (ultSlowScale, affectsPlayer:false) already stretches it on screen — these are realtime
-        // seconds, so a 0.18 s flight plays back much longer than 0.18 s of apparent time.
+        // Player Pyre no longer calls BoltCo. Its complete electrical flight remains here, and the public
+        // PyreArc / LightningEffect helpers remain intact, for the requested future enemy attack.
         const float BoltSecondsPerMetre = 0.022f;
         const float BoltMinSeconds = 0.06f;
         const float BoltMaxSeconds = 0.20f;
@@ -167,17 +166,46 @@ namespace VibeGame1
                 seen.Add(e);
 
                 Vector3 dir = to.sqrMagnitude > 0.0001f ? to.normalized : flat;
-                // EVERY victim gets a BOLT THROWN AT IT, and the damage lands when the bolt arrives.
-                // The super used to resolve as an OverlapSphere on one frame with a fan of static beams
-                // drawn around it — which is a plain attack wearing VFX. Nothing travelled, so nothing
-                // connected the weapon to the thing that fell over.
-                StartCoroutine(BoltCo(e, tip, hue, w.superDamage * mult, w, d, hits, dir));
+                // Damage lands just after the broad hot edge reaches the contact beat. The target set,
+                // damage, posture and shove remain the weapon-authored super contract.
+                StartCoroutine(FireSlashContactCo(e, tip, hue, w.superDamage * mult, w, d, hits, dir));
             }
         }
 
+        IEnumerator FireSlashContactCo(EnemyController e, Vector3 from, Color hue, float damage,
+                                       WeaponData w, PlayerStatsData d, int hits, Vector3 dir)
+        {
+            // Realtime, like the existing Pyre cadence: the hot edge visibly leaves the hand before
+            // the body reacts, while every victim remains in the same authored hit beat.
+            yield return new WaitForSecondsRealtime(FireSlashFx.DefaultSeconds * 0.32f);
+            if (e == null || !e.IsAlive) yield break;
+
+            Vector3 eye = look != null && look.Cam != null ? look.Cam.position : transform.position + Vector3.up;
+            Vector3 point = e.DeathblowPoint(eye);
+            Color fire = Color.Lerp(EmberHue, SlashFx.NormaliseColor(hue), 0.16f);
+            Vector3 back = from - point;
+            if (back.sqrMagnitude < 0.0001f) back = -dir;
+            SlashFx.Flare(point, fire, 0.62f, 0.14f);
+            SlashFx.Sparks(point, (back.normalized + Vector3.up * 0.32f).normalized, fire, 9, 8f, 45f);
+            AudioManager.Play(Sfx.Execute, 0.32f, 1.12f);
+
+            e.Health.TakeDamage(new DamageInfo
+            {
+                damage = damage,
+                source = gameObject,
+                point = point,
+                direction = dir,
+            });
+            bool boss = e is BossController;
+            e.Posture.Add(boss ? e.Posture.Max * d.ultBossPostureFraction / Mathf.Max(1, hits)
+                               : w.superPostureDamage);
+            e.OnParried(0f);
+            Shove(e, dir, w.superKnockback);
+        }
+
         /// <summary>
-        /// One bolt of fire: it LEAVES THE WEAPON, crosses the gap, and detonates on the victim, which is
-        /// the frame the damage lands.
+        /// Preserved travelling-bolt prototype. Player Pyre no longer calls this path; keep it available
+        /// as the electrical-flight reference for a future enemy ability.
         ///
         /// <para>This is the difference between a super and an area query with sparks on top. The blow
         /// already started at the tip (<see cref="Fx"/> runs the energy up the blade) and the enemy
@@ -263,7 +291,7 @@ namespace VibeGame1
         }
 
         /// <summary>
-        /// The one place <see cref="SuperKind"/> matters: how the blow is drawn.
+        /// Draws Pyre as a weapon-originated fire sheet using the weapon's authored hit geometry.
         ///
         /// <para><b>THE BLAST LEAVES THE WEAPON.</b> Every element below is anchored to
         /// <see cref="WeaponViewmodel.TipWorldPosition"/> — the sword's point, the hammer's head, the
@@ -272,11 +300,8 @@ namespace VibeGame1
         /// an effect happening TO the player rather than one they authored: the hand swings, and
         /// something unrelated goes off around their navel. See docs/ENGINEERING-LOG.md.</para>
         ///
-        /// <para>Built from <see cref="SlashFx.Beam"/> rather than <see cref="SlashFx.Ring"/>. `Ring`
-        /// draws a hoop 0.045 m thick, which is right for a 1–2 m grounded impact and invisible at the
-        /// 5–12 m reach a super covers — from the centre, the far side of a 7.5 m ring is a 4.5 cm wire
-        /// seven metres away, i.e. sub-pixel. A fan of beams radiating from the emission point is the
-        /// same silhouette and stays legible at any radius.</para>
+        /// <para><see cref="FireSlashFx"/> draws a broad hot edge and torn ember fringe, rather than the
+        /// old electrical bundle. Radius, arc and multi-hit progress still come directly from data.</para>
         /// </summary>
         void Fx(WeaponData w, Color hue, Vector3 origin, Vector3 flat, int index, int hits)
         {
@@ -291,50 +316,15 @@ namespace VibeGame1
                 SlashFx.Flare(tip, hue, 0.42f, 0.14f);
             }
 
-            switch (w.superKind)
-            {
-                case SuperKind.Cleave:
-                    // The sweep leaves the edge: beams fanned from the blade point across the arc, with
-                    // the crescent drawn out ahead of the tip along the same axis.
-                    Fan(tip, flat, hue, w.superArcDeg, w.superRadius, 9, 0.05f, 0.22f);
-                    SlashFx.Arc(tip + flat * 0.9f, flat, hue, w.superRadius * 0.55f, w.superArcDeg, 0.22f, Vector3.up);
-                    SlashFx.Sparks(tip, flat, hue, 16, 10f, 40f);
-                    break;
-
-                case SuperKind.Flurry:
-                {
-                    // One stab per hit, each one leaving the dagger's point and walking across the cone,
-                    // so the burst reads as nine blows thrown by the hand rather than one wide effect.
-                    float t = hits > 1 ? (float)index / (hits - 1) : 0.5f;
-                    Vector3 fan = Quaternion.AngleAxis(Mathf.Lerp(-w.superArcDeg * 0.5f, w.superArcDeg * 0.5f, t), Vector3.up) * flat;
-                    Vector3 far = origin + fan * w.superRadius;
-                    SlashFx.Beam(tip, far, hue, 0.045f, 0.12f);
-                    SlashFx.Flare(tip, hue, 0.20f, 0.08f);          // muzzle glint at the point, every hit
-                    SlashFx.Flare(far, hue, 0.25f, 0.10f);
-                    break;
-                }
-
-                case SuperKind.Quake:
-                {
-                    // The hammer HITS THE GROUND and the shock runs out from where it landed. The head
-                    // is traced down to the floor under it, the spokes radiate from that contact point,
-                    // and a beam links head to floor so the causal chain is on screen: hand, head, impact.
-                    Vector3 impact = GroundUnder(tip, flat);
-                    SlashFx.Beam(tip, impact, hue, 0.10f, 0.18f);
-                    SlashFx.Flare(impact, hue, 0.9f, 0.22f);
-                    Fan(impact + Vector3.up * 0.12f, flat, hue, 360f, w.superRadius, 14, 0.09f, 0.30f);
-                    SlashFx.Sparks(impact, Vector3.up, hue, 22, 9f, 70f);
-                    break;
-                }
-
-                case SuperKind.Nova:
-                    // The detonation happens ON the blade: spokes thrown up and out of the horizontal
-                    // plane from the tip, so it reads as a sphere bursting off the weapon.
-                    Fan(tip, flat, hue, 360f, w.superRadius, 16, 0.07f, 0.28f);
-                    Fan(tip, flat, hue, 360f, w.superRadius * 0.7f, 8, 0.06f, 0.26f, 0.55f);
-                    SlashFx.Flare(tip, hue, 0.9f, 0.22f);
-                    break;
-            }
+            // Every weapon keeps its authored hit count, radius and arc. Pyre now renders those exact
+            // numbers as one torn sheet of flame per hit instead of sending electrical bundles at each
+            // victim. Multi-hit weapons walk the hot edge across the same arc.
+            float progress = hits > 1 ? (float)index / (hits - 1) : 0.5f;
+            Color fire = Color.Lerp(EmberHue, SlashFx.NormaliseColor(hue), 0.16f);
+            float life = Mathf.Clamp(w.superActive > 0f ? w.superActive : FireSlashFx.DefaultSeconds,
+                                     FireSlashFx.MinSeconds, FireSlashFx.MaxSeconds);
+            FireSlashFx.Play(tip, flat, fire, w.superRadius, w.superArcDeg, progress, life);
+            SlashFx.Sparks(tip, flat, fire, index == 0 ? 14 : 7, 9f, 38f);
         }
 
         /// <summary>

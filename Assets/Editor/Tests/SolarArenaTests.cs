@@ -106,7 +106,7 @@ namespace VibeGame1.Tests
         {
             Assert.That(def.platforms.Single(p => p.name == "T2_L1").center.z, Is.EqualTo(151.375f).Within(Eps));
             Assert.That(def.platforms.Single(p => p.name == "T2_L11").center.z, Is.EqualTo(183.5f).Within(Eps));
-            Assert.That(def.spawns.Single(s => s.name == "Spawn_T2_GruntA").position.z, Is.EqualTo(179f).Within(Eps));
+            Assert.That(def.spawns.Single(s => s.name == "Spawn_T2_GruntA").position.z, Is.EqualTo(185f).Within(Eps));
             Assert.That(def.pickups.Single(p => p.name == "Pickup_T2_Hook").position.z, Is.EqualTo(151.375f).Within(Eps));
             Assert.That(def.checkpoints.Single(c => c.name == "Checkpoint_2").position.z, Is.EqualTo(151.375f).Within(Eps));
             Assert.That(def.torches.Single(t => t.name == "Torch_T2_Mid").basePosition.z, Is.EqualTo(142f).Within(Eps));

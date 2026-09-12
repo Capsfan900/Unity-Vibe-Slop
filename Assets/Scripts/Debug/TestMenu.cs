@@ -369,7 +369,7 @@ namespace VibeGame1
             if (wandPedestalButton != null)
             {
                 var text = wandPedestalButton.GetComponentInChildren<TMP_Text>();
-                if (text != null) text.text = WandPedestal.DevMenuEnabled ? "WAND PEDESTAL: ON" : "WAND PEDESTAL: OFF";
+                if (text != null) text.text = WandPedestal.DevMenuEnabled ? "INSCRIPTION ALTAR: ON" : "INSCRIPTION ALTAR: OFF";
             }
 
             if (statusEffectsButton != null)

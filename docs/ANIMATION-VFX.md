@@ -467,6 +467,25 @@ still reads as a wall, that the ice-cyan and azure trims separate at 30 m, and t
 "enough to spice up the scene" rather than too many are **reasoned, not seen**. They need one human
 playtest.
 
+### 3.9a The open spellbook and Pyre fire slash ✅ 2026-09-12
+
+The visible offhand wand is retired. `SpellbookFactory` builds one persistent open book with dark burgundy
+leather, ten warm page leaves, ink strokes, three loose orbiting pages and a fixed core/eight-rune spell
+halo. `SpellbookVisual` moves on `PlayerDelta`, so hitstop never freezes the player's cast. The current
+riposte inscription supplies the orb hue until a FIFO item sits at the front; an accepted cast captures
+that item's colour before inventory removal. Nothing replaces or rescales the book.
+
+The first live screenshot caught two faults the structural tests could not: unlit parchment collapsed into
+the cover, and nested opaque core/halo spheres read as one flat ball. Parchment now has restrained 0.10×
+self-light below bloom, carries dark ink strokes, and the halo is eight separated tinted bars with negative
+space. The generated model stays camera-left and `CastOrigin` remains outside the crosshair lane.
+
+Player Pyre now throws `FireSlashFx`: a broad hot inner edge, torn fringe and ember breakup following the
+weapon's authored radius, arc and multi-hit progress. Damage waits for the visible contact beat. The old
+electrical flight was preserved—not deleted—in `PyreArc`, `LightningEffect` and dormant `BoltCo`, reserved
+for a future enemy. `FireSlashFx` pools at eight live sheets, uses unscaled lifetime and caps its peak at
+1.05; it adds no gameplay query or timing authority.
+
 ### 3.10 The Sentry is a cartoon ghost, and the flare is bigger by giving up brightness ✅ 2026-09-06
 
 **The ask, verbatim.** *"redesign the looks of the parkour enemy1 make it like a blush ghost that looks

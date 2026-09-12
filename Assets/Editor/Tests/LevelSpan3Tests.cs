@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -114,6 +115,30 @@ namespace VibeGame1.Tests
                 var verdict = T.AnalyzeShooter(boxes, perch.name, perch.spawn, perch.covers.Split(','), 10f, 32f);
                 Assert.AreEqual(perch.covers.Split(',').Length, verdict.covered.Count, verdict.Summary());
             }
+        }
+
+        [Test]
+        public void BlueSentryIsVisibleFromTheFirstPillarBeforeThePillarLine()
+        {
+            var boxes = A.BoxesFrom(def);
+            var authoredPerch = def.platforms.Single(p => p.name == "T3_Perch_W");
+            Assert.That(Vector3.Distance(authoredPerch.center, new Vector3(-18f, 23.5f, 290f)), Is.LessThan(0.001f),
+                "the canonical red-span perch must receive T3's +70 m solar translation");
+            int perchIndex = A.IndexOf(boxes, "T3_Perch_W");
+            int deckIndex = A.IndexOf(boxes, "T3_Pillar_1");
+            Assert.GreaterOrEqual(perchIndex, 0);
+            Assert.GreaterOrEqual(deckIndex, 0);
+            var perch = boxes[perchIndex];
+            var deck = boxes[deckIndex];
+            Vector3 eye = new Vector3((deck.min.x + deck.max.x) * .5f, deck.max.y + 1.7f,
+                                      (deck.min.z + deck.max.z) * .5f);
+            Vector3 muzzle = new Vector3((perch.min.x + perch.max.x) * .5f, perch.max.y + 1.5f,
+                                         (perch.min.z + perch.max.z) * .5f);
+            var blockers = new List<A.Box>();
+            for (int i = 0; i < boxes.Count; i++)
+                if (i != perchIndex && i != deckIndex) blockers.Add(boxes[i]);
+            Assert.IsTrue(T.LineClear(eye, muzzle, blockers),
+                "Pillar 1 must see the blue sentry muzzle before committing to the elevated pillar line");
         }
 
         void AssertDeck(string name, Vector3 center, Vector3 size)

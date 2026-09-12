@@ -229,6 +229,11 @@ namespace VibeGame1.EditorTools
             // Neutral emissive body EnergyGlow tints at runtime. White because the property block
             // multiplies the hue in; a coloured base would double-tint.
             new Spec("M_Energy",        Color.black,    Color.white * 0.9f),
+            // The spellbook is broad and always near the lens, so its mass needs its own warm value
+            // structure instead of borrowing blue-grey level stone. Leather stays unlit; parchment gets
+            // a very low warm self-light so the open pages remain readable in the eclipse without blooming.
+            new Spec("M_SpellbookLeather", Hex("#29131B"), Color.black, 0.30f),
+            new Spec("M_SpellbookPage",    Hex("#B9A47A"), Hex("#B9A47A") * 0.10f, 0.08f),
             // ---- Traversal (2026-09-04 pivot) ---------------------------------------------------
             // The balloon is a MARKER, not a light: soft gold held under the 1.05 bloom threshold so it
             // never competes with a cue flash, and warm so it separates from the cold water and the

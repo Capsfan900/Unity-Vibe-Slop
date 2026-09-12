@@ -33,6 +33,7 @@ namespace VibeGame1.EditorTools
             BuildWeaponViewmodels();
             BuildWandViewmodels();
             BuildItemViewmodels();
+            SpellbookFactory.CreateAll();
 
             // E. bloodstain before Managers so LevelManager can reference it
             GameObject bloodstain = BuildBloodstain();
@@ -818,6 +819,7 @@ namespace VibeGame1.EditorTools
             // duration of a riposte, which is why the blast read as an explosion with no source.
             var offRoot = Empty("OffhandRoot", camGo.transform, Vector3.zero);
             var offhand = offRoot.AddComponent<OffhandViewmodel>();
+            offhand.spellbookPrefab = Load<GameObject>(SpellbookFactory.PrefabPath);
             // A CODE DEFAULT IS NOT A SHIPPED VALUE. These are public fields, so the Player prefab keeps
             // whatever was serialised the day it was built — editing the initialisers in
             // OffhandViewmodel changes nothing here. Every pose the riposte depends on is written

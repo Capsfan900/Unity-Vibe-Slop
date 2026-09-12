@@ -13,7 +13,7 @@ namespace VibeGame1
     ///
     /// <para><b>It is a dev fixture unless <see cref="DevMenuEnabled"/> is on.</b> The altar is built
     /// into every level and sandbox spawn, but by default it does not draw, does not prompt and
-    /// refuses <see cref="TryInteract"/>; the F1 test menu's "WAND PEDESTAL" button turns it on. The
+    /// refuses <see cref="TryInteract"/>; the F1 test menu's "INSCRIPTION ALTAR" button turns it on. The
     /// player keeps whatever the Player prefab's <see cref="WandController.loadout"/> gives them.</para>
     /// </summary>
     [RequireComponent(typeof(Collider))]
@@ -34,7 +34,7 @@ namespace VibeGame1
         [Tooltip("How centred the altar must be in view: cosine of the half-angle. 0.8 ≈ a 37° cone.")]
         [Range(0f, 1f)] public float lookDot = 0.8f;
 
-        public string promptText = "[F]  CHOOSE WAND";
+        public string promptText = "[F]  CHOOSE INSCRIPTION";
 
         /// <summary>
         /// True while ANY pedestal is offering its prompt. `F` is also the flask key, so the two would

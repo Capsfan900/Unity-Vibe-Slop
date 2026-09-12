@@ -241,11 +241,12 @@ namespace VibeGame1
         public float launchCarryCap = 9f;
 
         [Header("Traversal - water, balloons, grapple burst (2026-09-04 pivot)")]
-        [Tooltip("Skating floor as a multiple of groundSpeed while on water. 1.35 x 11 = 14.85 m/s: faster " +
-                 "than a sprint, under a dash, so water is the fastest FLOOR without out-running the air kit.")]
+        [Tooltip("Skating floor as a multiple of groundSpeed while actively sliding on water. 1.35 x 11 = " +
+                 "14.85 m/s: faster than a sprint, under a dash, so the slide is rewarded without " +
+                 "making ordinary running or jumping on the surface slippery.")]
         public float waterSpeedScale = 1.35f;
-        [Tooltip("m/s^2 the skated velocity turns and lifts at on water. A third of groundAccel: turning " +
-                 "on water is a skate, not a snap. Also how fast a walker is lifted to the floor speed.")]
+        [Tooltip("m/s^2 the active slide's velocity turns and lifts on water. A third of groundAccel: " +
+                 "turning on water is a skate, not a snap.")]
         public float waterAccel = 30f;
         [Tooltip("Seconds a water touch keeps counting after the trigger last refreshed it. Covers the gap " +
                  "between physics steps; short enough that stepping off is immediate.")]
@@ -369,7 +370,7 @@ namespace VibeGame1
         public bool InWater => now < waterUntil;
         /// <summary>The water's conveyor velocity, or zero.</summary>
         public Vector3 WaterFlow => InWater && waterVolume != null ? waterVolume.Flow : Vector3.zero;
-        /// <summary>The speed water skates you up to: groundSpeed x waterSpeedScale (x any item multiplier).</summary>
+        /// <summary>The speed an active water slide skates you up to: groundSpeed x waterSpeedScale (x any item multiplier).</summary>
         public float WaterFloorSpeed => groundSpeed * SpeedMultiplier * waterSpeedScale;
         /// <summary>A dash press right now would be a free grapple-exit burst.</summary>
         public bool IsBurstOpen => TraversalMath.BurstOpen(now, pullBurstUntil);
@@ -1192,18 +1193,12 @@ namespace VibeGame1
                         // Only pinned to the floor when actually ON it — sliding off a ledge has to fall.
                         if (IsGrounded && vel.y < 0f) vel.y = -2f;
                 }
-                else if (IsGrounded && inWater)
-                {
-                    // SKATING. Velocity relative to the flow is held at or above the water floor with
-                    // no friction and no overspeed decay, turned at waterAccel, and the conveyor is
-                    // added back. Water never slows anyone: the only way off the floor speed is off
-                    // the water. See TraversalMath.WaterStep.
-                    Vector3 rel = TraversalMath.WaterStep(hv - flow, wish, WaterFloorSpeed, waterAccel, dt);
-                    hv = TraversalMath.WaterVelocity(rel, flow);
-                    if (vel.y < 0f) vel.y = -2f;
-                }
                 else if (IsGrounded)
                 {
+                    // Water contact alone deliberately has no movement law. It remains reported for
+                    // visuals and trigger safety, but a runner has ordinary ground response and a
+                    // jumper has ordinary air decay. The no-friction floor and flow conveyor above are
+                    // the reward for committing to a slide, never a surface that takes control away.
                     if (wish.sqrMagnitude < 0.001f)
                     {
                         float sp = hv.magnitude;
@@ -1251,10 +1246,10 @@ namespace VibeGame1
                     // or a slide-jump is a burst you spend, not a glide you keep. Then the SOFT CAP:
                     // the surplus over airSoftCap (a dash) bleeds fast on exp(-airDrag t). Together:
                     // momentum, never a cruise.
-                    // Inside the water's boost zone (a hop along the surface) the carry is kept -
-                    // "air resistance is very low" over water is the Neon White rule - but the soft cap
-                    // still bleeds a dash, so a hop cannot launder one into a cruise.
-                    if (!inWater) hv = DecayExcess(hv, groundSpeed * SpeedMultiplier, airCarryDecay, dt);
+                    // Water contact alone does not preserve a jump's carry. A slide may pass its
+                    // earned speed into the air, but it then follows the same ordinary air-decay law as
+                    // every other slide-jump; a hop cannot turn the surface into an uncontrolled cruise.
+                    hv = DecayExcess(hv, groundSpeed * SpeedMultiplier, airCarryDecay, dt);
                     hv = DecayExcess(hv, airSoftCap, airDrag, dt);
                 }
 

@@ -62,7 +62,7 @@ namespace VibeGame1.Tests
         // ---- water ----------------------------------------------------------------------------------
 
         [Test]
-        public void WaterLiftsAWalkerToTheFloorSpeedAlongTheStick()
+        public void SlidingWaterLiftsASlideToTheFloorSpeedAlongTheStick()
         {
             Vector3 rel = Vector3.forward * 5f;
             for (int i = 0; i < 200; i++) rel = TraversalMath.WaterStep(rel, Vector3.forward, 14.85f, 30f, 1f / 60f);
@@ -71,7 +71,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void WaterNeverSlowsAnyone()
+        public void SlidingWaterNeverSlowsASlide()
         {
             // Faster than the floor: kept exactly, no friction, no overspeed decay.
             Vector3 rel = Vector3.forward * 20f;
@@ -89,6 +89,22 @@ namespace VibeGame1.Tests
         {
             var rel = TraversalMath.WaterStep(Vector3.zero, Vector3.zero, 14.85f, 30f, 1f / 60f);
             Assert.AreEqual(0f, rel.magnitude, Eps, "water carries you; it does not start you moving");
+        }
+
+        [TestCase(20f)]
+        [TestCase(60f)]
+        [TestCase(240f)]
+        public void SlidingWaterFloorIsStableAtEverySupportedFrameRate(float fps)
+        {
+            // This is the active-slide law only. Its acceleration is expressed in m/s^2, so the
+            // 1-second result must not depend on the frame cadence that sliced it.
+            Vector3 rel = Vector3.forward * 5f;
+            int frames = Mathf.RoundToInt(fps);
+            for (int i = 0; i < frames; i++)
+                rel = TraversalMath.WaterStep(rel, Vector3.forward, 14.85f, 30f, 1f / fps);
+
+            Assert.AreEqual(14.85f, rel.magnitude, Eps);
+            Assert.Greater(Vector3.Dot(rel.normalized, Vector3.forward), 0.999f);
         }
 
         [Test]

@@ -447,31 +447,29 @@ namespace VibeGame1.EditorTools
             // exactly where it is meant to be firing. From here it is 7.3 m - in band the whole way.
             // Both claimed decks stay in band with a clear line: T1_Stone_4 at 25.0 m and T1_Causeway at
             // 10.7 m, and both lines pass west of T1_Obelisk_W (x -7.0..-5.8) and of T1_Fallen_Obelisk.
-            // Wide forward flanks: both bolts cross the open runway from ahead, remain inside the player's
-            // 75-degree answer cone on the causeway, cover Stone 4 inside the 32 m band, and clear the cyan
-            // sun by its full 12 m silhouette budget. Their different band-entry points separate the beats.
-            new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-23f, 3.5f, 58.5f), 90f, "T1_Stone_4,T1_Causeway"),
-            // The restored east walls block the former far-flank shot. This perch sits ahead of the
-            // causeway, west of its wall landing, so both incoming lines stay forward and unobstructed.
-            new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(4f, 3.5f, 62f), 180f, "T1_Causeway"),
-            // T2: the spiral. LevelSpan2Tests pins Spawn_T2_GruntB BESIDE the west wall, inside it (x > the
-            // wall's east face -10.6), between the landing pad (z 106.5) and the mount L4 (z 122), so a run
-            // along the wall passes it: a low perch at z 109-112, under the L6/L5 hops (10-12 m up). GruntA
-            // takes the east side, outside and above T2_Wall_East (top 10) so its bolt clears the wall.
-            // Covers L1 (15.5 m) and L2 (19.8 m): after the band's near edge moved to 10 m (2026-09-05), Entry at
-            // 9.3 m and L5 at 5.5 m are inside the muzzle's dead zone, so they are no longer claimed. The
-            // perch itself stays where LevelSpan2Tests pins the grunt.
-            // High over the open centre south of the restored wall: its downward crossing aligns with
-            // the L5 turn toward L6. Its flare turns that high-risk answer into the expert shortcut.
-            new Perch("T2_Perch_W", "Spawn_T2_GruntB", new Vector3(0f, 24f, 98f), 0f, "T2_L5"),
-            new Perch("T2_Perch_E", "Spawn_T2_GruntA", new Vector3(-12f, 19f, 141f), 90f, "T2_L10,T2_L11"),
+            // Wide forward flanks: the first shelf rises above the west causeway shoulder, so Stone 4 sees
+            // the squid and its incoming bolt before the slide gate. The second is high enough that its line
+            // clears that gate, but still sits inside the course's east shoulder rather than the wall-run.
+            // Both shots remain in the forward parry cone and their flare branch rejoins before the arena.
+            new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-24f, 4.5f, 60f), 90f, "T1_Stone_4,T1_Causeway"),
+            new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(6.8f, 5f, 62f), 180f, "T1_Causeway"),
+
+            // T2: announce each half of the helix from the OUTER forward shoulder, not from behind its
+            // central tower. The lower blue squid is visible from L1 and L2 before the first switchback;
+            // the upper one is visible from L8 before committing to L9. It sits on the inside-forward
+            // shoulder of L9: clear of L10's landing corridor and the gold portal sun, but still close
+            // enough for multiple valid high-speed predicted contacts. Their bolts cross those same terrace turns,
+            // and both flares feed the existing shortcut/rejoin interval.
+            new Perch("T2_Perch_W", "Spawn_T2_GruntB", new Vector3(20f, 8f, 136f), 205f, "T2_L1,T2_L2"),
+            new Perch("T2_Perch_E", "Spawn_T2_GruntA", new Vector3(21f, 20f, 147f), 230f, "T2_L9"),
             // T3: LevelSpan3Tests pins BOTH spawns beside T3_Wall_Span (z 214.5-234.5). West perch beside the
             // span's start (z 216-219, x -9..-6: clear of T3_Obelisk_W1 at x -5.6 / z 221.4 in plan), off the
             // arc's landing (x -1.3) and the pillar hops, covering the last three pillars
             // from behind; east perch OUTSIDE and ABOVE the span wall (top 30), covering the three steps.
-            // Above the west shoulder after pillar three, where its lines skim outside the intervening
-            // terraces. This is the red Insight carrier: its flare feeds the balloon branch.
-            new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(-18f, 23f, 220f), 140f, "T3_Pillar_1,T3_Pillar_2"),
+            // Above the west shoulder after pillar three, raised half a metre so the first pillar sees the
+            // enemy and its bolt over the next terrace instead of through it. This is the red Insight
+            // carrier: its flare feeds the balloon branch.
+            new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(-18f, 23.5f, 220f), 140f, "T3_Pillar_1,T3_Pillar_2"),
             // Half a metre farther west preserves all three Heavy shot lines while keeping its support
             // outside the red portal sun's full unrelated-silhouette clearance budget.
             new Perch("T3_Perch_E", "Spawn_T3_Heavy", new Vector3(-15.5f, 27f, 254f), 60f, "T3_Span,T3_Step_1,T3_Step_2"),
@@ -634,8 +632,8 @@ namespace VibeGame1.EditorTools
             new HybridStructure("T1_Wall_Causeway", new Vector3(10f, 4f, 51.5f), new Vector3(1.2f, 10f, 20f), "Stone", true, "NeonCyan", "a second wall line outside the open causeway"),
             new HybridStructure("T1_Wall_Landing", new Vector3(10f, 2.5f, 60.5f), new Vector3(8f, 1f, 8f), "Platform", true, "NeonCyan", "a generous wall-run rejoin shelf outside the cyan sun"),
 
-            new HybridStructure("T2_Tower", new Vector3(8f, 12f, 124f), new Vector3(6f, 22f, 6f), "Stone", true, "NeonYellow", "the spiral regains a readable vertical core without filling the terraces"),
-            new HybridStructure("T2_Buttress", new Vector3(13.6f, 10.5f, 124f), new Vector3(.8f, 9f, 4f), "Stone", true, "NeonYellow", "the tower chimney provides a tight optional wall-jump ascent"),
+            new HybridStructure("T2_Tower", new Vector3(8f, 12f, 124f), new Vector3(4f, 20f, 5f), "Stone", true, "NeonYellow", "the signature core stays vertical but no longer hides the helix entry or the lower sentry"),
+            new HybridStructure("T2_Buttress", new Vector3(12.2f, 10.5f, 124f), new Vector3(.8f, 9f, 4f), "Stone", true, "NeonYellow", "a 1.8 m chimney remains beside, rather than inside, the lower east terrace"),
             new HybridStructure("T2_Wall_East", new Vector3(24.5f, 10f, 126f), new Vector3(1.2f, 14f, 30f), "Stone", true, "NeonYellow", "an outer east wall-run line leaves the broad balcony untouched"),
             new HybridStructure("T2_Wall_Landing_East", new Vector3(18f, 18f, 142.5f), new Vector3(10f, 1f, 8f), "Platform", true, "NeonYellow", "east expert line rejoins on the upper terrace with clear solar silhouette margin"),
             new HybridStructure("T2_Wall_West", new Vector3(-22.5f, 13f, 116f), new Vector3(1.2f, 14f, 30f), "Stone", true, "NeonYellow", "an outer west wall-run line frames the second lap"),
