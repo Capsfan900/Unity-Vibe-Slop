@@ -2,7 +2,7 @@
 
 What is actually proven about `vibegame1`, how it was proven, and — just as important — what is **not**.
 
-Latest run date: 2026-09-11. The dated sections below retain earlier results for history; reproduce the
+Latest run date: 2026-09-12. The dated sections below retain earlier results for history; reproduce the
 current checks with the commands in [TOOLING.md](TOOLING.md).
 
 Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -10,6 +10,32 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 ---
 
 ## Results
+
+### D3D11 Windows friend build and canonical Level Map — 2026-09-12
+
+- **Full EditMode: 963/963 passed**, zero failures/skips, 51.98 s after the BuildRunner and dashboard
+  changes. Runtime and editor offline builds compile with zero errors; 18 existing editor warnings remain.
+- **D3D12 root symptom reproduced:** the earlier native player failed before the menu with swapchain
+  presentation/device error DXGI `0x887a0001`. The same player survived when forced to D3D11.
+- **The shipped choice is now deterministic:** `BuildRunner` sets Windows to D3D11 and
+  `ProjectSettings.asset` serializes `WindowsStandaloneSupport` API `02000000`, automatic selection off.
+  The new build's `build-info.txt` reports `graphics_apis=Direct3D11`.
+- **Native startup is proven:** the exact `302fc6e` friend executable, launched with no graphics-API flag,
+  reported Direct3D 11.0 and remained alive for the full 15-second smoke window.
+- **Requested song is proven inside the package:** Unity's packed-asset report lists the MP3 as 3.3 MB /
+  3.2%. The build records dirty inputs intentionally because the song is local-only; the package manifest
+  names it and records SHA256 `0490CA1D7A06D76C59B5C17505A21008746DA5A05AB51AEBB7CDF53B0AC65576`.
+- **Friend package:** `vibegame1-windows-playtest-2026-09-12-friends.zip` is 47,874,159 bytes, SHA256
+  `A242F599D450A54F2B179458D5643058766151A7358A83212B9E8EE09D1E2BDD`. Source tag
+  `playtest-2026-09-12-friends` is pushed at `302fc6e`.
+- **Level vocabulary/dashboard:** five named zones and all three parkour-projectile enemy aliases are tied
+  to shipped IDs in `LEVEL-VOCABULARY.md`; the generated dashboard parses the JSON block and renders zone
+  bands plus per-zone enemy, route and traversal inventories.
+- **Pages retired:** local and remote `gh-pages` are deleted after its failed human browser acceptance.
+
+**Still human-only:** a 15-second local launch proves startup and renderer selection, not sustained frame
+pacing on a friend's PC. The GitHub Release asset also still needs authenticated manual upload because this
+environment has neither GitHub CLI nor an API token.
 
 ### Separate V18 Flurry Brawler Souls prototype and Unity CLI pilot — 2026-09-11
 

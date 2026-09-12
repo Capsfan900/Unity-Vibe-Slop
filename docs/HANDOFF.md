@@ -1,71 +1,54 @@
-# Handoff — MCP-primary integration and V18 Souls-enemy prototype
+# Handoff — Windows friend build ready
 
-## Current state — 2026-09-11
+## Current state — 2026-09-12
 
-Work is on `unity-cli-pilot`; `master` remains the pre-CLI baseline at `17f81f0`, protected by
-`pre-unity-cli-pilot-2026-09-11`. The implementation is pushed in `4ad0151`; deterministic WebGL platform
-settings are pushed in `79dc3f7`. Rollback tag `pre-v18-souls-prototype-2026-09-11` is also on the remote.
+Work is unified on `master` and pushed through `302fc6e`. The retained Unity CLI pilot and all gameplay
+work from that branch are present; MCP is the primary live-editor/build/test transport. The tracked tree is
+clean. Preserve the user-owned untracked files listed below.
 
-The V18 Flurry Brawler is implemented as a completely separate test Souls-enemy lineage. It uses ordinary
-melee `EnemyController` and `PlayerCombat.ReceiveAttack`, with its own data, nine attacks, moveset, prefab,
-Generic FBX clip library, Animator controller and `FlurryBrawlerV18Visuals` presentation layer. It has no
-parkour projectile, surge or boss components and does not replace V15. Its independent Sandbox pad is at
-`(112, FloorTop, 20)`.
+The Windows friend build is ready at
+`Builds/vibegame1-windows-playtest-2026-09-12-friends.zip` (47,874,159 bytes, SHA256
+`A242F599D450A54F2B179458D5643058766151A7358A83212B9E8EE09D1E2BDD`). Its source tag
+`playtest-2026-09-12-friends` is pushed and resolves to `302fc6e`. The executable includes Main Menu,
+Level 1 and Sandbox. Release diagnostics remain gated behind the in-game console and password.
 
-The earlier in-flight release pass is also present: centralized process-local `DeveloperAccess`, locked
-release diagnostics, transactional build/publish scripts, the persistent-wand toothpick repair, regenerated
-HUD/Main Menu and the official Unity CLI/Pipeline pilot. None of those game changes are being rolled back.
-MCP is again the primary editor/build/test transport; the retained CLI is only an optional short diagnostic.
-Preserve the user-owned files listed below.
+The ZIP is prepared locally but is not a GitHub Release asset: GitHub CLI is not installed and no API token
+is available in this environment. Upload that exact ZIP at the repository's Releases page using the already
+pushed tag; do not rebuild it merely to obtain `build_inputs_dirty=no`, because the intentional local song
+is the only dirty game input.
 
-## Verification completed
+## Completion evidence
 
-- Full EditMode: **963/963 passed**, zero failures/skips, 49.34 s.
-- Fresh Level_01 FeatureTests: **813 passed, 0 failed, 1 intentional V18/Sandbox skip**, 60.4 s.
-- Focused Sandbox `V18Smoke`: **21/21 passed**, zero failures/skips, 9.6 s.
-- V18 smoke proves committed Clap survives ordinary damage, blocked/perfect Clap each resolves and grounds
-  once with one ring, Shoulder shows Run→contact with one 4.12 m lunge, and Combo2 has one contact plus tail.
-- Runtime/editor offline builds: zero errors; editor retains 18 existing warnings.
-- Health Check: no error section; 1942 existing broad serialized-null/audio warnings.
-- WebGL build artifact: **built and published**, 30.6 MB, three scenes, High stripping. The live
-  `build-info.txt` identifies `79dc3f7`, `unity-cli-pilot` and `build_inputs_dirty=no`.
-- GitHub Pages: published and returning HTTP 200 at
-  `https://capsfan900.github.io/Unity-Vibe-Slop/`.
-- Browser acceptance: **failed by human playtest** on 2026-09-11; the user reported unplayable frame pacing,
-  degraded fidelity and broken-feeling behavior versus local testing. WebGL is experimental, and Windows is
-  the primary friend-playtest target.
+- **Song included:** Unity imported and packed
+  `FineArt & jazza's dance party - Eyes Wide Shut.mp3` as 3.3 MB / 3.2% of packed assets. Its source SHA256
+  is `0490CA1D7A06D76C59B5C17505A21008746DA5A05AB51AEBB7CDF53B0AC65576`. The file remains local and is
+  named/hashed in `friend-build-content.txt` inside the ZIP.
+- **Windows startup resolved:** `BuildRunner` and the serialized Windows PlayerSettings both pin D3D11.
+  `build-info.txt` reports `graphics_apis=Direct3D11`. The exact packaged executable, launched with no
+  renderer override, selected Direct3D 11.0 and remained alive for the full 15-second native smoke. The
+  former D3D12 path failed at swapchain presentation with DXGI `0x887a0001`.
+- **Tests:** full EditMode **963/963 passed**, zero failures/skips, 51.98 s. Runtime and editor offline
+  builds both compile with zero errors; the editor assembly retains 18 existing warnings.
+- **Canonical vocabulary:** `docs/LEVEL-VOCABULARY.md` defines T0 Opening Descent, T1 Stone Causeway, T2
+  Helix Tower, T3 Balloon Aqueduct and T4 Warden Descent; enemy aliases map to shipped prefab/spawner IDs.
+  `Tools/dashboard/out/index.html` overlays those zones and inventories on the parsed LevelDefinition map.
+- **Warden causeway review:** commit `d3b6245` was not merged. It modifies an old generated
+  `Level_01_Level.asset` without changing current authoring and would overwrite later course/projectile
+  work. It is safely pushed as archival tag `preserved-warden-causeway-d3b6245` for a future authored port.
+- **GitHub Pages removed:** remote and local `gh-pages` were deleted; a remote branch query returned no
+  result. `Publish-WebGL.ps1` is retained only as rollback evidence and must not be run without a new user
+  decision, because it would recreate the branch.
 
-Human review remains required for the animation feel: Dash-as-rising-clap readability, shoulder/body contact,
-Clap weight, and fair manual parry tells.
-
-## Unity licensing and tool result
-
-The failed disposable probe is not caused by too many projects or a missing AnimationModule. Raw
-`Unity.exe -batchmode -createProject` bypassed Hub bootstrap/authentication, lost the Licensing Client pipe,
-registered zero built-in packages, and only then failed to resolve `Animator`. Hub-authenticated live-editor
-execution works.
-
-Unity CLI `1.0.0-beta.8` with `com.unity.pipeline 0.7.0-exp.1` helped with some short state/eval calls and
-successfully drove several generators, so the pilot and all game work created on its branch remain. It is
-not the base workflow: Pipeline can disappear around a domain reload, and both a long generator and a later
-preflight exceeded the package's five-second main-thread response window while Unity remained healthy.
-Use MCP for normal live-editor queries, generators, tests and builds. Use CLI only as an optional short
-diagnostic comparison, with MCP/asset readback afterward. Never run `unity test/build/run` against this
-active working copy.
-
-Unity's `com.unity.ai.assistant` package also waits roughly 30 seconds for its Account API on Play Mode domain
-reload, temporarily logging zero matching entitlements before licensing resolves successfully. Confirm
-`Time.frameCount` advances, `GameManager.I != null` and `Time.timeScale == 1`; the editor-state phase can remain
-stale during that delay.
+The V18 Flurry Brawler remains a separate Sandbox-only Souls-enemy lineage. It does not share the parkour
+projectile enemy structure. Earlier focused Sandbox `V18Smoke` was 21/21; its animation feel still needs a
+human playtest.
 
 ## Exact resume order
 
-1. Finish a clean native Windows build: keep the unlicensed replacement song and `.meta` outside `Assets/`
-   until the asynchronous build has fully finished, require `build_inputs_dirty=no`, then restore both local
-   files and publish the zip as a GitHub Release.
-2. Human-play the V18 Sandbox pad and report feel/tell issues before promoting it from a test enemy.
-3. Continue ordinary work through MCP. Preserve every game change from `unity-cli-pilot`; do not reset to the
-   old `master` tip or remove the Pipeline package merely to change transport priority.
+1. Create the GitHub Release for pushed tag `playtest-2026-09-12-friends` and upload the prepared ZIP.
+2. Have a friend launch `vibegame1.exe`; if startup fails, collect the adjacent Player log and GPU/driver
+   details. Do not add a D3D12 fallback until it is proven on the affected machine.
+3. Human-play the V18 Sandbox pad and report tell/contact/weight issues before promoting it from test enemy.
 
 ## Preserved user-owned files
 
