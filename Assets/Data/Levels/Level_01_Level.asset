@@ -26,573 +26,963 @@ MonoBehaviour:
     aSouls: 75
     sSouls: 100
   runSplits:
-  - name: Ninja
+  - meta:
+      objectId: T1.RunSplit.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Ninja
     endSpawnerName: Spawn_Legendary_Ninja
     sSeconds: 55
     aSeconds: 63.25
     bSeconds: 71.5
     cSeconds: 82.5
-  - name: Knight
+  - meta:
+      objectId: T2.RunSplit.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Knight
     endSpawnerName: Spawn_Legendary_Knight
     sSeconds: 60
     aSeconds: 69
     bSeconds: 78
     cSeconds: 90
-  - name: Spellsword
+  - meta:
+      objectId: T3.RunSplit.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spellsword
     endSpawnerName: Spawn_Legendary_Spellsword
     sSeconds: 70
     aSeconds: 80.5
     bSeconds: 91
     cSeconds: 105
-  - name: Warden
+  - meta:
+      objectId: T4.RunSplit.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Warden
     endSpawnerName: Spawn_Boss
     sSeconds: 40
     aSeconds: 46
     bSeconds: 52
     cSeconds: 60
+  zones:
+  - zoneId: T0
+    canonicalName: Opening Descent
+    splitName: Opening
+    aliases:
+    - first ramp
+    - opening ramp
+    - starting descent
+    - reliquary landing
+    order: 0
+    center: {x: 0, y: 32, z: -79.1}
+    size: {x: 256, y: 192, z: 173.8}
+    displayColor: {r: 0, g: 1, b: 1, a: 1}
+  - zoneId: T1
+    canonicalName: Stone Causeway
+    splitName: Ninja
+    aliases:
+    - first parkour section
+    - causeway
+    - Ninja section
+    order: 1
+    center: {x: 0, y: 32, z: 72.299995}
+    size: {x: 256, y: 192, z: 128.8}
+    displayColor: {r: 0.3, g: 0.8, b: 1, a: 1}
+  - zoneId: T2
+    canonicalName: Helix Tower
+    splitName: Knight
+    aliases:
+    - tower
+    - wall-run tower
+    - Knight section
+    order: 2
+    center: {x: 0, y: 32, z: 198.75}
+    size: {x: 256, y: 192, z: 123.90001}
+    displayColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+  - zoneId: T3
+    canonicalName: Balloon Aqueduct
+    splitName: Spellsword
+    aliases:
+    - balloon section
+    - water span
+    - Spellsword section
+    order: 3
+    center: {x: 0, y: 32, z: 326.84998}
+    size: {x: 256, y: 192, z: 132.1}
+    displayColor: {r: 0.3, g: 0.5, b: 1, a: 1}
+  - zoneId: T4
+    canonicalName: Warden Descent
+    splitName: Warden
+    aliases:
+    - last ramp
+    - final ramp
+    - Warden approach
+    - boss approach
+    order: 4
+    center: {x: 0, y: 32, z: 456.5}
+    size: {x: 256, y: 192, z: 127}
+    displayColor: {r: 0.8, g: 0.6, b: 1, a: 1}
   playerStart: {x: 0, y: 36.3, z: -162.3}
+  playerStartMeta:
+    objectId: T0.PlayerStart
+    friendlyName: 
+    zoneIdOverride: 
   playerStartYaw: 0
   platforms:
-  - name: Ground_Start
+  - meta:
+      objectId: T0.Platform.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Ground_Start
     center: {x: 0, y: -0.5, z: 0}
     size: {x: 16, y: 1, z: 16}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T1_Stone_1
+  - meta:
+      objectId: T1.Platform.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Stone_1
     center: {x: 0, y: -0.5, z: 13}
     size: {x: 12, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Stone_2
+  - meta:
+      objectId: T1.Platform.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Stone_2
     center: {x: 4, y: 0, z: 22}
     size: {x: 12, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Stone_3
+  - meta:
+      objectId: T1.Platform.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Stone_3
     center: {x: -4, y: 0.5, z: 31}
     size: {x: 12, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Fast_1
+  - meta:
+      objectId: T1.Platform.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Fast_1
     center: {x: 10, y: 0, z: 25}
     size: {x: 8, y: 1, z: 12}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Stone_4
+  - meta:
+      objectId: T1.Platform.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Stone_4
     center: {x: 0, y: 1, z: 40.5}
     size: {x: 14, y: 1, z: 9}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Causeway
+  - meta:
+      objectId: T1.Platform.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Causeway
     center: {x: 0, y: 1.5, z: 51.6}
     size: {x: 14, y: 1, z: 12.8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T2_L1
+  - meta:
+      objectId: T2.Platform.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L1
     center: {x: 14, y: 4.5, z: 151.375}
     size: {x: 12, y: 1, z: 10}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L2
+  - meta:
+      objectId: T2.Platform.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L2
     center: {x: 18, y: 6, z: 162}
     size: {x: 10, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T2_L3
+  - meta:
+      objectId: T2.Platform.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L3
     center: {x: 2, y: 7.5, z: 170.5}
     size: {x: 18, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L4
+  - meta:
+      objectId: T2.Platform.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L4
     center: {x: -13, y: 9, z: 162}
     size: {x: 12, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L5
+  - meta:
+      objectId: T2.Platform.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L5
     center: {x: -16, y: 10.5, z: 151}
     size: {x: 10, y: 1, z: 9}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L6
+  - meta:
+      objectId: T2.Platform.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L6
     center: {x: 0, y: 12, z: 145}
     size: {x: 18, y: 1, z: 10}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L7
+  - meta:
+      objectId: T2.Platform.07
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L7
     center: {x: 16, y: 13.5, z: 151}
     size: {x: 12, y: 1, z: 9}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L8
+  - meta:
+      objectId: T2.Platform.08
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L8
     center: {x: 18, y: 15, z: 162}
     size: {x: 10, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T2_L9
+  - meta:
+      objectId: T2.Platform.09
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L9
     center: {x: 3, y: 16.5, z: 170.5}
     size: {x: 18, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L10
+  - meta:
+      objectId: T2.Platform.10
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L10
     center: {x: 16, y: 18, z: 179}
     size: {x: 12, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_L11
+  - meta:
+      objectId: T2.Platform.11
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_L11
     center: {x: 0, y: 19.5, z: 183.5}
     size: {x: 18, y: 1, z: 5}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T3_Pillar_1
+  - meta:
+      objectId: T3.Platform.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Pillar_1
     center: {x: 0, y: 15.5, z: 266}
     size: {x: 14, y: 12, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Pillar_2
+  - meta:
+      objectId: T3.Platform.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Pillar_2
     center: {x: 4, y: 16.5, z: 275}
     size: {x: 16, y: 12, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Pillar_3
+  - meta:
+      objectId: T3.Platform.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Pillar_3
     center: {x: -4, y: 17.5, z: 284}
     size: {x: 16, y: 12, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Pillar_4
+  - meta:
+      objectId: T3.Platform.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Pillar_4
     center: {x: 0, y: 18.5, z: 293}
     size: {x: 14, y: 12, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Span
+  - meta:
+      objectId: T3.Platform.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Span
     center: {x: 0, y: 24, z: 305}
     size: {x: 16, y: 1, z: 14}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Step_1
+  - meta:
+      objectId: T3.Platform.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Step_1
     center: {x: 3, y: 25, z: 316}
     size: {x: 16, y: 1, z: 6}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Step_2
+  - meta:
+      objectId: T3.Platform.07
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Step_2
     center: {x: -3, y: 26.5, z: 323}
     size: {x: 16, y: 1, z: 6}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: Boss_Approach
+  - meta:
+      objectId: T4.Platform.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Boss_Approach
     center: {x: 0, y: 15.5, z: 448.3}
     size: {x: 10, y: 1, z: 11.4}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T1_Rail_L
+  - meta:
+      objectId: T1.Platform.07
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Rail_L
     center: {x: -7.1, y: 2.325, z: 51.6}
     size: {x: 0.2, y: 0.65, z: 12.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: 
     isStatic: 1
-  - name: T1_Rail_R
+  - meta:
+      objectId: T1.Platform.08
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Rail_R
     center: {x: 7.1, y: 2.325, z: 51.6}
     size: {x: 0.2, y: 0.65, z: 12.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: 
     isStatic: 1
-  - name: T1_Obelisk_W
+  - meta:
+      objectId: T1.Platform.09
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Obelisk_W
     center: {x: -9.5, y: 4.5, z: 50}
     size: {x: 1.4, y: 9, z: 1.4}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Fallen_Obelisk
+  - meta:
+      objectId: T1.Platform.10
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Fallen_Obelisk
     center: {x: 0, y: 3.7, z: 48}
     size: {x: 15, y: 0.8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Wall_Start
+  - meta:
+      objectId: T1.Platform.11
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Wall_Start
     center: {x: 15.5, y: 4, z: 25}
     size: {x: 1.2, y: 10, z: 24}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Wall_Causeway
+  - meta:
+      objectId: T1.Platform.12
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Wall_Causeway
     center: {x: 10, y: 4, z: 51.5}
     size: {x: 1.2, y: 10, z: 20}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T1_Wall_Landing
+  - meta:
+      objectId: T1.Platform.13
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Wall_Landing
     center: {x: 10, y: 2.5, z: 60.5}
     size: {x: 8, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T2_Tower
+  - meta:
+      objectId: T2.Platform.12
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Tower
     center: {x: 8, y: 12, z: 162}
     size: {x: 4, y: 20, z: 5}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_Buttress
+  - meta:
+      objectId: T2.Platform.13
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Buttress
     center: {x: 12.2, y: 10.5, z: 162}
     size: {x: 0.8, y: 9, z: 4}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_Wall_East
+  - meta:
+      objectId: T2.Platform.14
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Wall_East
     center: {x: 24.5, y: 10, z: 164}
     size: {x: 1.2, y: 14, z: 30}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_Wall_Landing_East
+  - meta:
+      objectId: T2.Platform.15
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Wall_Landing_East
     center: {x: 18, y: 18, z: 180.5}
     size: {x: 10, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_Wall_West
+  - meta:
+      objectId: T2.Platform.16
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Wall_West
     center: {x: -22.5, y: 13, z: 154}
     size: {x: 1.2, y: 14, z: 30}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T2_Wall_Landing_West
+  - meta:
+      objectId: T2.Platform.17
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Wall_Landing_West
     center: {x: -14.5, y: 12, z: 137}
     size: {x: 13, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
     isStatic: 1
-  - name: T3_Fallen_Lintel
+  - meta:
+      objectId: T3.Platform.08
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Fallen_Lintel
     center: {x: 0, y: 26.15, z: 301}
     size: {x: 17, y: 0.8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Obelisk_W1
+  - meta:
+      objectId: T3.Platform.09
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Obelisk_W1
     center: {x: -11, y: 23, z: 301}
     size: {x: 1.2, y: 13, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Obelisk_W2
+  - meta:
+      objectId: T3.Platform.10
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Obelisk_W2
     center: {x: -11, y: 23, z: 309}
     size: {x: 1.2, y: 13, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Obelisk_E1
+  - meta:
+      objectId: T3.Platform.11
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Obelisk_E1
     center: {x: 11, y: 23, z: 301}
     size: {x: 1.2, y: 13, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Obelisk_E2
+  - meta:
+      objectId: T3.Platform.12
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Obelisk_E2
     center: {x: 11, y: 23, z: 309}
     size: {x: 1.2, y: 13, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Recovery_W1
+  - meta:
+      objectId: T3.Platform.13
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Recovery_W1
     center: {x: -9, y: 21, z: 300}
     size: {x: 1.2, y: 9, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: 
     isStatic: 1
-  - name: T3_Recovery_W2
+  - meta:
+      objectId: T3.Platform.14
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Recovery_W2
     center: {x: -9, y: 21, z: 308}
     size: {x: 1.2, y: 9, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: 
     isStatic: 1
-  - name: T3_Recovery_E1
+  - meta:
+      objectId: T3.Platform.15
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Recovery_E1
     center: {x: 9, y: 21, z: 300}
     size: {x: 1.2, y: 9, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: 
     isStatic: 1
-  - name: T3_Recovery_E2
+  - meta:
+      objectId: T3.Platform.16
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Recovery_E2
     center: {x: 9, y: 21, z: 308}
     size: {x: 1.2, y: 9, z: 1.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: 
     isStatic: 1
-  - name: T3_Wall_Pillars
+  - meta:
+      objectId: T3.Platform.17
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Wall_Pillars
     center: {x: 13.5, y: 24, z: 275}
     size: {x: 1.2, y: 10, z: 30}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Wall_Landing_S
+  - meta:
+      objectId: T3.Platform.18
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Wall_Landing_S
     center: {x: 10.5, y: 24.5, z: 292}
     size: {x: 9, y: 1, z: 8}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T3_Wall_Span
+  - meta:
+      objectId: T3.Platform.19
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Wall_Span
     center: {x: 11, y: 29, z: 305}
     size: {x: 1.2, y: 10, z: 26}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonRed
     isStatic: 1
-  - name: T1_Perch_W
+  - meta:
+      objectId: T1.Platform.14
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Perch_W
     center: {x: -24, y: 4.5, z: 60}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T1_Perch_E
+  - meta:
+      objectId: T1.Platform.15
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Perch_E
     center: {x: 6.8, y: 5, z: 62}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T2_Perch_W
+  - meta:
+      objectId: T2.Platform.18
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Perch_W
     center: {x: 20, y: 8, z: 174}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T2_Perch_E
+  - meta:
+      objectId: T2.Platform.19
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Perch_E
     center: {x: 21, y: 20, z: 185}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T3_Perch_W
+  - meta:
+      objectId: T3.Platform.20
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Perch_W
     center: {x: -18, y: 23.5, z: 290}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T3_Perch_E
+  - meta:
+      objectId: T3.Platform.21
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Perch_E
     center: {x: -15.5, y: 27, z: 324}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T4_Entry
+  - meta:
+      objectId: T4.Platform.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_Entry
     center: {x: 0, y: 27.5, z: 393.15}
     size: {x: 10, y: 1, z: 3.7}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T4_TurretPad_1
+  - meta:
+      objectId: T4.Platform.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_TurretPad_1
     center: {x: -7, y: 21.5, z: 418.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T4_TurretPad_2
+  - meta:
+      objectId: T4.Platform.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_TurretPad_2
     center: {x: 7, y: 18.5, z: 430.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T4_TurretPad_3
+  - meta:
+      objectId: T4.Platform.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_TurretPad_3
     center: {x: -7, y: 15.5, z: 442.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_Entry
+  - meta:
+      objectId: T0.Platform.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_Entry
     center: {x: 0, y: 35.5, z: -165.6}
     size: {x: 14, y: 1, z: 12}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_RunOut
+  - meta:
+      objectId: T0.Platform.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_RunOut
     center: {x: 0, y: -0.5, z: -11.9}
     size: {x: 14, y: 1, z: 8.2}
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_TurretPad_1
+  - meta:
+      objectId: T0.Platform.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_TurretPad_1
     center: {x: -8.7, y: 28, z: -129.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_TurretPad_2
+  - meta:
+      objectId: T0.Platform.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_TurretPad_2
     center: {x: 8.7, y: 23.75, z: -112.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_TurretPad_3
+  - meta:
+      objectId: T0.Platform.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_TurretPad_3
     center: {x: -8.7, y: 17.75, z: -88.8}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_OverheadDais_Front
+  - meta:
+      objectId: T0.Platform.07
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_Front
     center: {x: 3.2, y: 19, z: -62.800003}
     size: {x: 5, y: 1, z: 5}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_OverheadDais_Rear
+  - meta:
+      objectId: T0.Platform.08
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_Rear
     center: {x: -3.2, y: 14.5, z: -45.800003}
     size: {x: 5, y: 1, z: 4}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_OverheadDais_Spine_0
+  - meta:
+      objectId: T0.Platform.09
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_Spine_0
     center: {x: 4.8, y: 18.5, z: -58.450005}
     size: {x: 1.8, y: 1.7, z: 4.9}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_Spine_1
+  - meta:
+      objectId: T0.Platform.10
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_Spine_1
     center: {x: 4.8, y: 17.15, z: -53.250004}
     size: {x: 1.8, y: 1.7, z: 4.9}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_Spine_2
+  - meta:
+      objectId: T0.Platform.11
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_Spine_2
     center: {x: 4.8, y: 15.8, z: -48.050003}
     size: {x: 1.8, y: 1.7, z: 4.9}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_Return
+  - meta:
+      objectId: T0.Platform.12
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_Return
     center: {x: 1.6, y: 14.5, z: -44.800003}
     size: {x: 7.8, y: 0.8, z: 1.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_FrontUnder
+  - meta:
+      objectId: T0.Platform.13
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_FrontUnder
     center: {x: 3.2, y: 18.85, z: -62.800003}
     size: {x: 3.8, y: 0.3, z: 3.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_FrontKeel
+  - meta:
+      objectId: T0.Platform.14
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_FrontKeel
     center: {x: 3.2, y: 18.4, z: -62.800003}
     size: {x: 2.2, y: 0.6, z: 2.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_RearUnder
+  - meta:
+      objectId: T0.Platform.15
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_RearUnder
     center: {x: -3.2, y: 14.55, z: -45.800003}
     size: {x: 3.8, y: 0.3, z: 3.8}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_OverheadDais_RearKeel
+  - meta:
+      objectId: T0.Platform.16
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_OverheadDais_RearKeel
     center: {x: -3.2, y: 14.3, z: -45.800003}
     size: {x: 2.2, y: 0.2, z: 2.2}
     materialKey: Stone
     trim: 0
     trimMaterialKey: NeonPink
     isStatic: 1
-  - name: T0_ReliquaryPad_1
+  - meta:
+      objectId: T0.Platform.17
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_ReliquaryPad_1
     center: {x: -10, y: -0.5, z: 6}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
-  - name: T0_ReliquaryPad_2
+  - meta:
+      objectId: T0.Platform.18
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_ReliquaryPad_2
     center: {x: 10, y: -0.5, z: 6}
     size: {x: 3, y: 1, z: 3}
     materialKey: Stone
@@ -600,7 +990,11 @@ MonoBehaviour:
     trimMaterialKey: NeonCyan
     isStatic: 1
   ramps:
-  - name: T1_Ramp_Stone12
+  - meta:
+      objectId: T1.Ramp.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Ramp_Stone12
     basePosition: {x: 3, y: 0, z: 16.5}
     width: 4
     run: 1.5
@@ -609,7 +1003,11 @@ MonoBehaviour:
     yaw: 0
     materialKey: Stone
     isStatic: 1
-  - name: T1_Ramp_Stone34
+  - meta:
+      objectId: T1.Ramp.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Ramp_Stone34
     basePosition: {x: -2, y: 1, z: 34.8}
     width: 4
     run: 1.4000015
@@ -618,7 +1016,11 @@ MonoBehaviour:
     yaw: 0
     materialKey: Stone
     isStatic: 1
-  - name: T1_Ramp_Causeway
+  - meta:
+      objectId: T1.Ramp.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Ramp_Causeway
     basePosition: {x: -5, y: 1.5, z: 43.5}
     width: 3
     run: 2.5
@@ -627,7 +1029,11 @@ MonoBehaviour:
     yaw: 0
     materialKey: Stone
     isStatic: 1
-  - name: T2_Ramp_L2_L3
+  - meta:
+      objectId: T2.Ramp.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Ramp_L2_L3
     basePosition: {x: 14, y: 6.5, z: 165}
     width: 3
     run: 5
@@ -636,7 +1042,11 @@ MonoBehaviour:
     yaw: -53.130104
     materialKey: Stone
     isStatic: 1
-  - name: T2_Ramp_L8_L9
+  - meta:
+      objectId: T2.Ramp.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T2_Ramp_L8_L9
     basePosition: {x: 14, y: 15.5, z: 165}
     width: 3
     run: 4.2426405
@@ -645,7 +1055,11 @@ MonoBehaviour:
     yaw: -45
     materialKey: Stone
     isStatic: 1
-  - name: T4_Ramp_Descent
+  - meta:
+      objectId: T4.Ramp.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_Ramp_Descent
     basePosition: {x: 0, y: 28, z: 394.8}
     width: 10
     run: 48
@@ -654,7 +1068,11 @@ MonoBehaviour:
     yaw: 0
     materialKey: Stone
     isStatic: 1
-  - name: T0_Ramp_Descent
+  - meta:
+      objectId: T0.Ramp.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_Ramp_Descent
     basePosition: {x: 0, y: 36, z: -159.8}
     width: 14
     run: 144
@@ -664,247 +1082,531 @@ MonoBehaviour:
     materialKey: Stone
     isStatic: 1
   spawns:
-  - name: Spawn_T1_GruntA
+  - meta:
+      objectId: T1.Sentry.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T1_GruntA
     prefabKey: pshooter_enemy01
     position: {x: -24, y: 5.1, z: 60}
     yaw: 90
     isBoss: 0
-  - name: Spawn_T1_GruntB
+  - meta:
+      objectId: T1.Sentry.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T1_GruntB
     prefabKey: pshooter_enemy01
     position: {x: 6.8, y: 5.6, z: 62}
     yaw: 180
     isBoss: 0
-  - name: Spawn_Legendary_Ninja
+  - meta:
+      objectId: T1.ThirteenthShade.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_Ninja
     prefabKey: Legendary_Ninja
     position: {x: 0, y: 4.1, z: 90}
     yaw: 180
     isBoss: 0
-  - name: Spawn_T2_GruntA
+  - meta:
+      objectId: T2.Sentry.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T2_GruntA
     prefabKey: pshooter_enemy01
     position: {x: 21, y: 20.6, z: 185}
     yaw: 230
     isBoss: 0
-  - name: Spawn_T2_GruntB
+  - meta:
+      objectId: T2.Sentry.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T2_GruntB
     prefabKey: pshooter_enemy01
     position: {x: 20, y: 8.6, z: 174}
     yaw: 205
     isBoss: 0
-  - name: Spawn_Legendary_Knight
+  - meta:
+      objectId: T2.IronPenitent.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_Knight
     prefabKey: Legendary_Knight
     position: {x: 0, y: 20.1, z: 173}
     yaw: 180
     isBoss: 0
-  - name: Spawn_T3_Grunt
+  - meta:
+      objectId: T3.Sentry.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T3_Grunt
     prefabKey: pshooter_enemy01
     position: {x: -18, y: 24.1, z: 290}
     yaw: 140
     isBoss: 0
-  - name: Spawn_T3_Heavy
+  - meta:
+      objectId: T3.HeavySentry.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T3_Heavy
     prefabKey: pshooter_enemy02
     position: {x: -15.5, y: 27.6, z: 324}
     yaw: 60
     isBoss: 0
-  - name: Spawn_Legendary_Spellsword
+  - meta:
+      objectId: T3.AshenChorister.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_Spellsword
     prefabKey: Legendary_Spellsword
     position: {x: 0, y: 28.1, z: 273}
     yaw: 180
     isBoss: 0
-  - name: Spawn_Boss
+  - meta:
+      objectId: T4.HollowWarden.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Boss
     prefabKey: Boss
     position: {x: 0, y: 16.1, z: 396}
     yaw: 180
     isBoss: 1
-  - name: Spawn_T4_Surge_1
+  - meta:
+      objectId: T4.SurgeTurret.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T4_Surge_1
     prefabKey: pshooter_enemy03
     position: {x: -7, y: 22.1, z: 418.8}
     yaw: 150
     isBoss: 0
-  - name: Spawn_T4_Surge_2
+  - meta:
+      objectId: T4.SurgeTurret.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T4_Surge_2
     prefabKey: pshooter_enemy03
     position: {x: 7, y: 19.1, z: 430.8}
     yaw: 210
     isBoss: 0
-  - name: Spawn_T4_Surge_3
+  - meta:
+      objectId: T4.SurgeTurret.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T4_Surge_3
     prefabKey: pshooter_enemy03
     position: {x: -7, y: 16.1, z: 442.8}
     yaw: 150
     isBoss: 0
-  - name: Spawn_T0_Surge_1
+  - meta:
+      objectId: T0.SurgeTurret.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Surge_1
     prefabKey: pshooter_enemy03
     position: {x: -8.7, y: 28.6, z: -129.8}
     yaw: 150
     isBoss: 0
-  - name: Spawn_T0_Surge_2
+  - meta:
+      objectId: T0.SurgeTurret.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Surge_2
     prefabKey: pshooter_enemy03
     position: {x: 8.7, y: 24.35, z: -112.8}
     yaw: 210
     isBoss: 0
-  - name: Spawn_T0_Surge_3
+  - meta:
+      objectId: T0.SurgeTurret.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Surge_3
     prefabKey: pshooter_enemy03
     position: {x: -8.7, y: 18.35, z: -88.8}
     yaw: 150
     isBoss: 0
-  - name: Spawn_T0_Surge_4
+  - meta:
+      objectId: T0.SurgeTurret.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Surge_4
     prefabKey: pshooter_enemy03
     position: {x: 3.2, y: 19.6, z: -63.800003}
     yaw: 195
     isBoss: 0
-  - name: Spawn_T0_Surge_5
+  - meta:
+      objectId: T0.SurgeTurret.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Surge_5
     prefabKey: pshooter_enemy03
     position: {x: -3.2, y: 15.1, z: -46.800003}
     yaw: 165
     isBoss: 0
-  - name: Spawn_T0_Reliquary_1
+  - meta:
+      objectId: T0.HeavySentry.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Reliquary_1
     prefabKey: pshooter_enemy02
     position: {x: -10, y: 0.1, z: 6}
     yaw: 150
     isBoss: 0
-  - name: Spawn_T0_Reliquary_2
+  - meta:
+      objectId: T0.HeavySentry.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_T0_Reliquary_2
     prefabKey: pshooter_enemy02
     position: {x: 10, y: 0.1, z: 6}
     yaw: 210
     isBoss: 0
   pickups:
-  - name: Pickup_Hook_Spawn
+  - meta:
+      objectId: T0.Pickup.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_Hook_Spawn
     itemKey: Grapple
     position: {x: 2, y: 1.2, z: 0}
-  - name: Pickup_Surge_Spawn
+  - meta:
+      objectId: T0.Pickup.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_Surge_Spawn
     itemKey: Rebound
     position: {x: -2, y: 1.2, z: 0}
-  - name: Pickup_T1_Hook
+  - meta:
+      objectId: T1.Pickup.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T1_Hook
     itemKey: Grapple
     position: {x: 0, y: 3.2, z: 38}
-  - name: Pickup_T1_Surge
+  - meta:
+      objectId: T1.Pickup.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T1_Surge
     itemKey: DeflectSigil
     position: {x: -8, y: 5.2, z: 80}
-  - name: Pickup_T2_Hook
+  - meta:
+      objectId: T2.Pickup.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T2_Hook
     itemKey: Grapple
     position: {x: 14, y: 6.2, z: 151.375}
-  - name: Pickup_T2_Surge
+  - meta:
+      objectId: T2.Pickup.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T2_Surge
     itemKey: Rebound
     position: {x: 0, y: 13.7, z: 145}
-  - name: Pickup_T2_Hook_2
+  - meta:
+      objectId: T2.Pickup.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T2_Hook_2
     itemKey: Grapple
     position: {x: -9, y: 21.2, z: 162}
-  - name: Pickup_T3_Surge
+  - meta:
+      objectId: T3.Pickup.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T3_Surge
     itemKey: DeflectSigil
     position: {x: 1, y: 22.7, z: 268}
-  - name: Pickup_T3_Hook
+  - meta:
+      objectId: T3.Pickup.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T3_Hook
     itemKey: Grapple
     position: {x: 0, y: 25.7, z: 304}
-  - name: Pickup_T3_Surge_2
+  - meta:
+      objectId: T3.Pickup.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T3_Surge_2
     itemKey: Rebound
     position: {x: 8, y: 29.2, z: 261}
-  - name: Pickup_Boss_Hook
+  - meta:
+      objectId: T4.Pickup.01
+      friendlyName: 
+      zoneIdOverride: T4
+    name: Pickup_Boss_Hook
     itemKey: Grapple
     position: {x: -8, y: 17.2, z: 376}
   checkpoints:
-  - name: Checkpoint_1
+  - meta:
+      objectId: T0.Checkpoint.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Checkpoint_1
     position: {x: 0, y: 0, z: 6}
     spawnOffset: {x: 0, y: 0.2, z: -3}
-  - name: Checkpoint_2
+  - meta:
+      objectId: T2.Checkpoint.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Checkpoint_2
     position: {x: 14, y: 5, z: 151.375}
     spawnOffset: {x: 0, y: 0.2, z: 0}
-  - name: Checkpoint_3
+  - meta:
+      objectId: T3.Checkpoint.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Checkpoint_3
     position: {x: 2.75, y: 21.5, z: 268}
     spawnOffset: {x: 0, y: 0.2, z: 0}
-  - name: Checkpoint_4
+  - meta:
+      objectId: T4.Checkpoint.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Checkpoint_4
     position: {x: 0, y: 16, z: 450}
     spawnOffset: {x: 0, y: 0.2, z: -3}
   torches:
-  - name: Torch_Start_SW
+  - meta:
+      objectId: T0.Torch.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Start_SW
     basePosition: {x: -7, y: 0, z: -7}
-  - name: Torch_Start_NW
+  - meta:
+      objectId: T0.Torch.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Start_NW
     basePosition: {x: -7, y: 0, z: 7}
-  - name: Torch_Start_SE
+  - meta:
+      objectId: T0.Torch.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Start_SE
     basePosition: {x: 7, y: 0, z: -7}
-  - name: Torch_Start_NE
+  - meta:
+      objectId: T0.Torch.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Start_NE
     basePosition: {x: 7.6, y: 0, z: 7.6}
-  - name: Torch_T1_A
+  - meta:
+      objectId: T1.Torch.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T1_A
     basePosition: {x: 2.2, y: 0, z: 14}
-  - name: Torch_T1_Fast
+  - meta:
+      objectId: T1.Torch.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T1_Fast
     basePosition: {x: 0.9, y: 0.5, z: 30}
-  - name: Torch_T1_B
+  - meta:
+      objectId: T1.Torch.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T1_B
     basePosition: {x: -2.2, y: 1.5, z: 38}
-  - name: Torch_T1_Causeway_S
+  - meta:
+      objectId: T1.Torch.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T1_Causeway_S
     basePosition: {x: 1.2, y: 2, z: 45}
-  - name: Torch_T1_Causeway_N
+  - meta:
+      objectId: T1.Torch.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T1_Causeway_N
     basePosition: {x: -1.2, y: 2, z: 63}
-  - name: Torch_T2_Mid
+  - meta:
+      objectId: T2.Torch.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T2_Mid
     basePosition: {x: -8.5, y: 12.5, z: 142}
-  - name: Torch_T2_Buttress
+  - meta:
+      objectId: T2.Torch.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T2_Buttress
     basePosition: {x: 22.5, y: 6.5, z: 162}
-  - name: Torch_T2_Top
+  - meta:
+      objectId: T2.Torch.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T2_Top
     basePosition: {x: 8.5, y: 20, z: 184}
-  - name: Torch_T3_Span_S
+  - meta:
+      objectId: T3.Torch.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T3_Span_S
     basePosition: {x: -7.5, y: 24.5, z: 301}
-  - name: Torch_T3_Span_N
+  - meta:
+      objectId: T3.Torch.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_T3_Span_N
     basePosition: {x: 7.5, y: 24.5, z: 310}
-  - name: Torch_Beacon_T1_Causeway_1
+  - meta:
+      objectId: T1.Torch.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T1_Causeway_1
     basePosition: {x: -6.5, y: 2, z: 47}
-  - name: Torch_Beacon_T1_Causeway_2
+  - meta:
+      objectId: T1.Torch.07
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T1_Causeway_2
     basePosition: {x: 6.5, y: 2, z: 56}
-  - name: Torch_Beacon_T2_L1
+  - meta:
+      objectId: T2.Torch.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T2_L1
     basePosition: {x: 19.5, y: 5, z: 148}
-  - name: Torch_Beacon_T2_L3
+  - meta:
+      objectId: T2.Torch.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T2_L3
     basePosition: {x: -6.5, y: 8, z: 173}
-  - name: Torch_Beacon_T2_L6
+  - meta:
+      objectId: T2.Torch.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T2_L6
     basePosition: {x: -8.5, y: 12.5, z: 142}
-  - name: Torch_Beacon_T2_L9
+  - meta:
+      objectId: T2.Torch.07
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T2_L9
     basePosition: {x: 11.5, y: 17, z: 173}
-  - name: Torch_Beacon_T2_L11
+  - meta:
+      objectId: T2.Torch.08
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T2_L11
     basePosition: {x: -8.5, y: 20, z: 184}
-  - name: Torch_Beacon_T3_Pillar_1
+  - meta:
+      objectId: T3.Torch.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T3_Pillar_1
     basePosition: {x: -6.5, y: 21.5, z: 263}
-  - name: Torch_Beacon_T3_Pillar_3
+  - meta:
+      objectId: T3.Torch.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T3_Pillar_3
     basePosition: {x: -11.5, y: 23.5, z: 286}
-  - name: Torch_Beacon_T3_Span
+  - meta:
+      objectId: T3.Torch.05
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T3_Span
     basePosition: {x: 7.5, y: 24.5, z: 305}
-  - name: Torch_Beacon_T3_Step_2
+  - meta:
+      objectId: T3.Torch.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: Torch_Beacon_T3_Step_2
     basePosition: {x: -10.5, y: 27, z: 323}
   pedestals:
-  - name: WandPedestal_Start
+  - meta:
+      objectId: T0.Pedestal.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: WandPedestal_Start
     groundPosition: {x: 3, y: 36, z: -162.3}
     triggerRadius: 3
   balloons:
-  - name: T3_Arc_1
+  - meta:
+      objectId: T3.Balloon.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Arc_1
     position: {x: -8, y: 24, z: 269}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
-  - name: T3_Arc_2
+  - meta:
+      objectId: T3.Balloon.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Arc_2
     position: {x: -12, y: 27, z: 275}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
-  - name: T3_Arc_3
+  - meta:
+      objectId: T3.Balloon.03
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Arc_3
     position: {x: -14, y: 30, z: 282}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
-  - name: T3_Arc_4
+  - meta:
+      objectId: T3.Balloon.04
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Arc_4
     position: {x: -11, y: 33, z: 290}
     launchSpeed: 11
     respawnSeconds: 2.5
     radius: 1.1
   waters:
-  - name: T1_Water_Fast
+  - meta:
+      objectId: T1.Water.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T1_Water_Fast
     center: {x: 10.1, y: 0.52, z: 25}
     size: {x: 7.4, y: 0.04, z: 11.4}
     flowDirection: {x: 0, y: 0, z: 1}
     flowSpeed: 6
-  - name: T3_Water_Span
+  - meta:
+      objectId: T3.Water.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Water_Span
     center: {x: 0, y: 24.52, z: 305}
     size: {x: 15.4, y: 0.04, z: 13.4}
     flowDirection: {x: 0, y: 0, z: 1}
     flowSpeed: 6
-  - name: T3_Water_Turn
+  - meta:
+      objectId: T3.Water.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: T3_Water_Turn
     center: {x: 1, y: 24.52, z: 310.8}
     size: {x: 8, y: 0.04, z: 1.6}
     flowDirection: {x: 0.24957606, y: 0, z: 0.9683552}
     flowSpeed: 6
   arenas:
-  - enabled: 1
+  - meta:
+      objectId: T1.Arena.01
+      friendlyName: 
+      zoneIdOverride: 
+    gateMeta:
+      objectId: T1.Gate.01
+      friendlyName: 
+      zoneIdOverride: 
+    exitGateMeta:
+      objectId: T1.ExitGate.01
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 1
     gateName: T1_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
@@ -921,6 +1623,10 @@ MonoBehaviour:
     exitGateClosedPosition: {x: 0, y: 6, z: 145.625}
     exitGateOpenPosition: {x: 0, y: -0.5, z: 145.625}
     solarRealm:
+      meta:
+        objectId: T1.BossPortal.01
+        friendlyName: 
+        zoneIdOverride: 
       enabled: 1
       themeMaterialKey: SolarCyan
       exteriorCenter: {x: 0, y: 8.2, z: 87.3}
@@ -942,7 +1648,19 @@ MonoBehaviour:
       realmExitPosition: {x: 700, y: 1.5, z: -17.5}
       returnPosition: {x: 10, y: 5.2, z: 151.375}
       returnYaw: 0
-  - enabled: 1
+  - meta:
+      objectId: T2.Arena.01
+      friendlyName: 
+      zoneIdOverride: 
+    gateMeta:
+      objectId: T2.Gate.01
+      friendlyName: 
+      zoneIdOverride: 
+    exitGateMeta:
+      objectId: T2.ExitGate.01
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 1
     gateName: T2_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
@@ -959,6 +1677,10 @@ MonoBehaviour:
     exitGateClosedPosition: {x: 0, y: 22, z: 264.75}
     exitGateOpenPosition: {x: 0, y: 15.5, z: 264.75}
     solarRealm:
+      meta:
+        objectId: T2.BossPortal.01
+        friendlyName: 
+        zoneIdOverride: 
       enabled: 1
       themeMaterialKey: SolarGold
       exteriorCenter: {x: 0, y: 24.55, z: 216.8}
@@ -980,7 +1702,19 @@ MonoBehaviour:
       realmExitPosition: {x: 700, y: 1.5, z: 62.5}
       returnPosition: {x: 2.75, y: 21.7, z: 268}
       returnYaw: 0
-  - enabled: 1
+  - meta:
+      objectId: T3.Arena.01
+      friendlyName: 
+      zoneIdOverride: 
+    gateMeta:
+      objectId: T3.Gate.01
+      friendlyName: 
+      zoneIdOverride: 
+    exitGateMeta:
+      objectId: T3.ExitGate.01
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 1
     gateName: T3_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
@@ -997,6 +1731,10 @@ MonoBehaviour:
     exitGateClosedPosition: {x: 0, y: 30, z: 390.75}
     exitGateOpenPosition: {x: 0, y: 23.5, z: 390.75}
     solarRealm:
+      meta:
+        objectId: T3.BossPortal.01
+        friendlyName: 
+        zoneIdOverride: 
       enabled: 1
       themeMaterialKey: SolarAzure
       exteriorCenter: {x: 0, y: 32.2, z: 356.3}
@@ -1018,7 +1756,19 @@ MonoBehaviour:
       realmExitPosition: {x: 700, y: 1.5, z: 142.5}
       returnPosition: {x: 0, y: 28.2, z: 393.15}
       returnYaw: 0
-  - enabled: 1
+  - meta:
+      objectId: T4.Arena.01
+      friendlyName: 
+      zoneIdOverride: 
+    gateMeta:
+      objectId: T4.Gate.01
+      friendlyName: 
+      zoneIdOverride: 
+    exitGateMeta:
+      objectId: 
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 1
     gateName: Boss_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
@@ -1035,6 +1785,10 @@ MonoBehaviour:
     exitGateClosedPosition: {x: 0, y: 0, z: 0}
     exitGateOpenPosition: {x: 0, y: 0, z: 0}
     solarRealm:
+      meta:
+        objectId: T4.BossPortal.01
+        friendlyName: 
+        zoneIdOverride: 
       enabled: 1
       themeMaterialKey: SolarGhost
       exteriorCenter: {x: 0, y: 22.3, z: 486.3}
@@ -1057,7 +1811,11 @@ MonoBehaviour:
       returnPosition: {x: 0, y: 0, z: 0}
       returnYaw: 0
   projectileSequences:
-  - name: T0_SurgeVolley
+  - meta:
+      objectId: T0.ProjectileSequence.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T0_SurgeVolley
     spawnerNames:
     - Spawn_T0_Surge_1
     - Spawn_T0_Surge_2
@@ -1082,56 +1840,88 @@ MonoBehaviour:
     - 90
     - 112
     engagementWindows:
-    - spawnerName: Spawn_T0_Surge_1
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.01
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Surge_1
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 3
       arrivalStart: 3
       arrivalEnd: 24
-    - spawnerName: Spawn_T0_Surge_2
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.02
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Surge_2
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 3
       arrivalStart: 20
       arrivalEnd: 46
-    - spawnerName: Spawn_T0_Surge_3
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.03
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Surge_3
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 3
       arrivalStart: 42
       arrivalEnd: 70
-    - spawnerName: Spawn_T0_Surge_4
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.04
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Surge_4
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 9
       arrivalStart: 66
       arrivalEnd: 94
-    - spawnerName: Spawn_T0_Surge_5
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.05
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Surge_5
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 9
       arrivalStart: 90
       arrivalEnd: 130
-    - spawnerName: Spawn_T0_Reliquary_1
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.06
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Reliquary_1
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 3
       arrivalStart: 90
       arrivalEnd: 130
-    - spawnerName: Spawn_T0_Reliquary_2
+    - meta:
+        objectId: T0.ProjectileEngagementWindow.07
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T0_Reliquary_2
       routeStart: {x: 0, y: 37.2, z: -159.8}
       routeEnd: {x: 0, y: 1.2, z: -15.800003}
       halfWidth: 7
       heightTolerance: 3
       arrivalStart: 112
       arrivalEnd: 143
-  - name: T1_ParryRoute
+  - meta:
+      objectId: T1.ProjectileSequence.01
+      friendlyName: 
+      zoneIdOverride: T1
+    name: T1_ParryRoute
     spawnerNames:
     - Spawn_T1_GruntA
     - Spawn_T1_GruntB
@@ -1144,21 +1934,33 @@ MonoBehaviour:
     progressDirection: {x: 0, y: 0, z: 0}
     memberProgressGates: []
     engagementWindows:
-    - spawnerName: Spawn_T1_GruntA
+    - meta:
+        objectId: T1.ProjectileEngagementWindow.01
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T1_GruntA
       routeStart: {x: 0, y: 2.7, z: 37.5}
       routeEnd: {x: 0, y: 3.2, z: 55.6}
       halfWidth: 12
       heightTolerance: 3
       arrivalStart: 2
       arrivalEnd: 17.099998
-    - spawnerName: Spawn_T1_GruntB
+    - meta:
+        objectId: T1.ProjectileEngagementWindow.02
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T1_GruntB
       routeStart: {x: 0, y: 2.7, z: 37.5}
       routeEnd: {x: 0, y: 3.2, z: 56.6}
       halfWidth: 12
       heightTolerance: 3
       arrivalStart: 6
       arrivalEnd: 18.099998
-  - name: T2_ParryRoute
+  - meta:
+      objectId: T2.ProjectileSequence.01
+      friendlyName: 
+      zoneIdOverride: T2
+    name: T2_ParryRoute
     spawnerNames:
     - Spawn_T2_GruntB
     - Spawn_T2_GruntA
@@ -1171,21 +1973,33 @@ MonoBehaviour:
     progressDirection: {x: 0, y: 0, z: 0}
     memberProgressGates: []
     engagementWindows:
-    - spawnerName: Spawn_T2_GruntB
+    - meta:
+        objectId: T2.ProjectileEngagementWindow.01
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T2_GruntB
       routeStart: {x: 18, y: 7.7, z: 159}
       routeEnd: {x: -13, y: 10.7, z: 164}
       halfWidth: 16
       heightTolerance: 3.2
       arrivalStart: 2
       arrivalEnd: 30.400637
-    - spawnerName: Spawn_T2_GruntA
+    - meta:
+        objectId: T2.ProjectileEngagementWindow.02
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T2_GruntA
       routeStart: {x: 3, y: 18.2, z: 168.5}
       routeEnd: {x: 0, y: 21.2, z: 184.5}
       halfWidth: 16
       heightTolerance: 3.2
       arrivalStart: 2
       arrivalEnd: 15.27882
-  - name: T3_ParryRoute
+  - meta:
+      objectId: T3.ProjectileSequence.01
+      friendlyName: 
+      zoneIdOverride: T3
+    name: T3_ParryRoute
     spawnerNames:
     - Spawn_T3_Grunt
     - Spawn_T3_Heavy
@@ -1198,21 +2012,33 @@ MonoBehaviour:
     progressDirection: {x: 0, y: 0, z: 0}
     memberProgressGates: []
     engagementWindows:
-    - spawnerName: Spawn_T3_Grunt
+    - meta:
+        objectId: T3.ProjectileEngagementWindow.01
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T3_Grunt
       routeStart: {x: 0, y: 22.7, z: 263}
       routeEnd: {x: -4, y: 24.7, z: 287}
       halfWidth: 18
       heightTolerance: 8
       arrivalStart: 2
       arrivalEnd: 23.33105
-    - spawnerName: Spawn_T3_Heavy
+    - meta:
+        objectId: T3.ProjectileEngagementWindow.02
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T3_Heavy
       routeStart: {x: 0, y: 25.7, z: 295}
       routeEnd: {x: -3, y: 28.2, z: 326}
       halfWidth: 12
       heightTolerance: 8
       arrivalStart: 4
       arrivalEnd: 29.144823
-  - name: T4_SurgeRoute
+  - meta:
+      objectId: T4.ProjectileSequence.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_SurgeRoute
     spawnerNames:
     - Spawn_T4_Surge_1
     - Spawn_T4_Surge_2
@@ -1229,21 +2055,33 @@ MonoBehaviour:
     - 14
     - 28
     engagementWindows:
-    - spawnerName: Spawn_T4_Surge_1
+    - meta:
+        objectId: T4.ProjectileEngagementWindow.01
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T4_Surge_1
       routeStart: {x: 0, y: 29.2, z: 394.8}
       routeEnd: {x: 0, y: 17.2, z: 453.3}
       halfWidth: 10
       heightTolerance: 4
       arrivalStart: 8
       arrivalEnd: 30
-    - spawnerName: Spawn_T4_Surge_2
+    - meta:
+        objectId: T4.ProjectileEngagementWindow.02
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T4_Surge_2
       routeStart: {x: 0, y: 29.2, z: 394.8}
       routeEnd: {x: 0, y: 17.2, z: 453.3}
       halfWidth: 10
       heightTolerance: 4
       arrivalStart: 20
       arrivalEnd: 42
-    - spawnerName: Spawn_T4_Surge_3
+    - meta:
+        objectId: T4.ProjectileEngagementWindow.03
+        friendlyName: 
+        zoneIdOverride: 
+      spawnerName: Spawn_T4_Surge_3
       routeStart: {x: 0, y: 29.2, z: 394.8}
       routeEnd: {x: 0, y: 17.2, z: 453.3}
       halfWidth: 10
@@ -1251,7 +2089,11 @@ MonoBehaviour:
       arrivalStart: 32
       arrivalEnd: 48
   insightRoutes:
-  - routeId: T1_Insight_Flare
+  - meta:
+      objectId: T1.InsightRoute.01
+      friendlyName: 
+      zoneIdOverride: 
+    routeId: T1_Insight_Flare
     sourceSpawnerNames:
     - Spawn_T1_GruntA
     - Spawn_T1_GruntB
@@ -1263,7 +2105,11 @@ MonoBehaviour:
     entrySize: {x: 42, y: 16, z: 10}
     rejoinCenter: {x: 0, y: 7, z: 70}
     rejoinSize: {x: 30, y: 20, z: 10}
-  - routeId: T2_Insight_Flare
+  - meta:
+      objectId: T2.InsightRoute.01
+      friendlyName: 
+      zoneIdOverride: 
+    routeId: T2_Insight_Flare
     sourceSpawnerNames:
     - Spawn_T2_GruntB
     - Spawn_T2_GruntA
@@ -1275,7 +2121,11 @@ MonoBehaviour:
     entrySize: {x: 52, y: 32, z: 12}
     rejoinCenter: {x: 0, y: 22, z: 198}
     rejoinSize: {x: 32, y: 24, z: 12}
-  - routeId: T3_Insight_Flare
+  - meta:
+      objectId: T3.InsightRoute.01
+      friendlyName: 
+      zoneIdOverride: 
+    routeId: T3_Insight_Flare
     sourceSpawnerNames:
     - Spawn_T3_Grunt
     markerPosition: {x: -9, y: 25, z: 274}
@@ -1287,6 +2137,10 @@ MonoBehaviour:
     rejoinCenter: {x: 0, y: 30, z: 339}
     rejoinSize: {x: 32, y: 24, z: 12}
   worldLeaderboard:
+    meta:
+      objectId: T0.WorldLeaderboard
+      friendlyName: 
+      zoneIdOverride: T0
     enabled: 1
     name: WorldLeaderboard
     position: {x: 0, y: 39, z: -170.6}
@@ -1296,6 +2150,10 @@ MonoBehaviour:
     backingMaterialKey: Stone
     glowMaterialKey: NeonCyan
   sky:
+    meta:
+      objectId: Level.Sky
+      friendlyName: 
+      zoneIdOverride: 
     enabled: 1
     starCount: 1200
     radius: 25
@@ -1305,6 +2163,10 @@ MonoBehaviour:
     eclipsePitchDeg: 22
     eclipseDiameterDeg: 38
   killZone:
+    meta:
+      objectId: Level.KillZone
+      friendlyName: 
+      zoneIdOverride: 
     name: KillZone
     center: {x: 0, y: -30, z: 180}
     size: {x: 240, y: 2, z: 760}
