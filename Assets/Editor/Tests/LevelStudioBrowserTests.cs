@@ -42,7 +42,7 @@ namespace VibeGame1.Tests
         {
             var rows = LevelStudioBrowser.Filter(hierarchy, "  BLUE SQUID ").ToArray();
 
-            CollectionAssert.AreEqual(new[] { "objects", "zone:T2", "route:T2:Shared Routes", "type:T2:Shared Routes:Sentry", "T2.Sentry.02" }, rows.Select(x => x.id));
+            CollectionAssert.AreEqual(new[] { "objects", "zone:T2", "route:T2:Shared Routes", "type:T2:Shared Routes:Sentry", "object:spawns[0]" }, rows.Select(x => x.key));
             Assert.AreEqual(0, LevelStudioBrowser.Filter(hierarchy, "no such object").Count);
             Assert.AreEqual(hierarchy.Count, LevelStudioBrowser.Filter(hierarchy, " ").Count);
         }
