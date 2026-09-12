@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
 
@@ -184,6 +185,15 @@ namespace VibeGame1.EditorTools
                     // Assets/WebGLTemplates/Playtest — full-viewport canvas, click-to-play pointer lock
                     // gesture, no mobile/diagnostics chrome. See that folder's index.html for why.
                     PlayerSettings.WebGL.template = "PROJECT:Playtest";
+                }
+                else
+                {
+                    // Unity 6.5's automatic Windows API selection chose D3D12 on the test machine, where
+                    // the player repeatedly died at swapchain presentation (DXGI 0x887a0001) before the
+                    // menu. The identical build remains stable under D3D11. A friend build must choose the
+                    // proven API itself instead of inheriting whichever API the editor last preferred.
+                    PlayerSettings.SetUseDefaultGraphicsAPIs(target, false);
+                    PlayerSettings.SetGraphicsAPIs(target, new[] { GraphicsDeviceType.Direct3D11 });
                 }
 
                 var options = new BuildPlayerOptions
@@ -387,6 +397,8 @@ namespace VibeGame1.EditorTools
                 "product_version=" + PlayerSettings.bundleVersion + "\n" +
                 "scripting_backend=" + PlayerSettings.GetScriptingBackend(named) + "\n" +
                 "managed_stripping=" + PlayerSettings.GetManagedStrippingLevel(named) + "\n" +
+                "graphics_apis=" + string.Join(",", PlayerSettings.GetGraphicsAPIs(
+                    named == NamedBuildTarget.WebGL ? BuildTarget.WebGL : BuildTarget.StandaloneWindows64)) + "\n" +
                 "scenes=" + string.Join(";", scenes) + "\n";
             File.WriteAllText(Path.Combine(outDir, "build-info.txt"), text);
         }

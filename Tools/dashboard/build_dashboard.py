@@ -42,6 +42,7 @@ DOC_ORDER = [
     ("docs/MOVEMENT-PRINCIPLES.md", "Movement principles"),
     ("docs/ANIMATION-VFX.md", "Animation & VFX"),
     ("docs/AUTHORING.md", "Authoring content"),
+    ("docs/LEVEL-VOCABULARY.md", "Level map vocabulary"),
     ("docs/TOOLING.md", "Tooling"),
     ("docs/SESSION-PROTOCOL.md", "Session protocol"),
     ("docs/GHOST-RACING.md", "Ghost racing"),
@@ -383,7 +384,24 @@ def yaml_list(text, key):
     return out
 
 
-def level_map():
+def level_vocabulary(text):
+    """Read the dashboard JSON block from the human-owned canonical vocabulary document."""
+    marker = "<!-- dashboard-level-vocabulary -->"
+    start = text.find(marker)
+    if start < 0:
+        return {"levels": [], "enemyTerms": {}}
+    block = re.search(r"```json\s*(\{.*?\})\s*```", text[start:], re.S)
+    if not block:
+        return {"levels": [], "enemyTerms": {}}
+    try:
+        return json.loads(block.group(1))
+    except json.JSONDecodeError:
+        return {"levels": [], "enemyTerms": {}}
+
+
+def level_map(vocabulary=None):
+    vocabulary = vocabulary or {"levels": [], "enemyTerms": {}}
+    vocab_by_file = {x.get("file", ""): x for x in vocabulary.get("levels", [])}
     levels = []
     for p in sorted((ROOT / "Assets" / "Data" / "Levels").rglob("*.asset")):
         t = read(p.relative_to(ROOT))
@@ -391,13 +409,20 @@ def level_map():
             continue
         name = re.search(r"displayName: (.*)", t)
         ps = re.search(r"playerStart: " + VEC, t)
+        rel = p.relative_to(ROOT).as_posix()
+        vocab = vocab_by_file.get(rel, {})
         levels.append({
-            "file": p.relative_to(ROOT).as_posix(), "name": name.group(1).strip() if name else p.stem,
+            "file": rel, "name": name.group(1).strip() if name else p.stem,
             "playerStart": [float(ps.group(1)), float(ps.group(2)), float(ps.group(3))] if ps else None,
             "platforms": [x for x in yaml_list(t, "platforms") if "center" in x and "size" in x],
+            "ramps": yaml_list(t, "ramps"),
             "spawns": yaml_list(t, "spawns"), "pickups": yaml_list(t, "pickups"),
             "checkpoints": yaml_list(t, "checkpoints"), "balloons": yaml_list(t, "balloons"),
             "waters": yaml_list(t, "waters"), "torches": yaml_list(t, "torches"),
+            "pedestals": yaml_list(t, "pedestals"), "arenas": yaml_list(t, "arenas"),
+            "projectileSequences": yaml_list(t, "projectileSequences"),
+            "insightRoutes": yaml_list(t, "insightRoutes"),
+            "zones": vocab.get("zones", []), "enemyTerms": vocabulary.get("enemyTerms", {}),
         })
     return levels
 
@@ -465,6 +490,7 @@ def enemies():
 def build():
     docs = collect_docs()
     by_path = {d["path"]: d["text"] for d in docs}
+    vocabulary = level_vocabulary(by_path.get("docs/LEVEL-VOCABULARY.md", ""))
     data = {
         "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "root": str(ROOT),
         "git": git_info(), "editMode": test_results(), "feature": feature_suite(by_path.get("docs/VERIFICATION-REPORT.md", "")),
@@ -473,7 +499,7 @@ def build():
         "graph": code_graph(), "events": event_bus(),
         "runtimeFlow": RUNTIME_FLOW,
         "maps": dataflow_maps(by_path.get("docs/DATAFLOW.md", "")),
-        "levels": level_map(), "enemies": enemies(), "docs": docs,
+        "levels": level_map(vocabulary), "enemies": enemies(), "docs": docs,
         "agentContract": {
             "path": "AGENTS.md",
             "specialists": len(list((ROOT / ".claude" / "agents").glob("*.md"))),
@@ -624,14 +650,25 @@ setTimeout(()=>{try{mermaid.run({nodes:document.querySelectorAll('pre.mermaid')}
 function levelView(){if(!D.levels.length)return '<div class="pane"><h2>Level map</h2><p>No LevelDefinition assets found.</p></div>';let h='';
 D.levels.forEach((L,i)=>{h+=`<div class="pane"><h2>${esc(L.name)} <span class="small">${esc(L.file)} · ${L.platforms.length} platforms · ${L.spawns.length} spawns · ${L.pickups.length} pickups · ${L.checkpoints.length} checkpoints · ${L.balloons.length} balloons · ${L.waters.length} water</span></h2>
 <div class="legend"><span><i style="background:#8a8fa0"></i>platform (lighter = higher)</span><span><i style="background:#ff5c5c"></i>enemy spawn</span><span><i style="background:#c9a227"></i>boss spawn</span><span><i style="background:#4fe0d0"></i>pickup</span><span><i style="background:#5fd28a"></i>checkpoint</span><span><i style="background:#ffd166"></i>balloon</span><span><i style="background:#3a8fff"></i>water</span><span><i style="background:#fff"></i>player start</span></div>
-<div id="lv${i}"></div><p class="small">Top: plan view, x across and z up the page. Bottom: elevation along z (the run's axis) with height y.</p></div>`});
+<div id="lv${i}"></div><p class="small">Top: plan view, x across and z up the page. Bottom: elevation along z (the run's axis) with height y. Coloured bands use the canonical zone names below.</p>${zoneVocabulary(L)}</div>`});
 setTimeout(()=>D.levels.forEach((L,i)=>drawLevel(L,'#lv'+i)),0);return h}
+function zoneVocabulary(L){if(!L.zones||!L.zones.length)return '';
+const zOf=o=>(o.position||o.center||o.basePosition||o.groundPosition||o.triggerPosition||[0,0,Infinity])[2];
+const inZone=(o,z)=>{const v=zOf(o);return v>=z.zMin&&v<z.zMax};
+const names=(items,z,format)=>items.filter(o=>inZone(o,z)).map(format).filter(Boolean);
+return '<h3>Canonical prompt vocabulary</h3><p class="small">Say the bold zone name or any alias, then name the shipped object. Example: “In T4 — Warden Descent, retime Spawn_T4_Surge_2.”</p><table><tr><th>zone / bounds</th><th>aliases</th><th>enemies</th><th>routes and traversal</th></tr>'+L.zones.map(z=>{
+const enemies=names(L.spawns,z,o=>{const term=L.enemyTerms[o.prefabKey]||{};return `${o.name} (${term.canonical||o.prefabKey})`});
+const traversal=names([...(L.ramps||[]),...(L.waters||[]),...(L.balloons||[]),...(L.checkpoints||[]),...(L.pickups||[])],z,o=>o.name);
+const prefix=z.id+'_';const routes=[...(L.projectileSequences||[]).map(o=>o.name),...(L.insightRoutes||[]).map(o=>o.routeId)].filter(n=>n&&n.startsWith(prefix));
+return `<tr><td><b>${esc(z.id+' — '+z.canonical)}</b><br><span class="small">z ${z.zMin} to ${z.zMax}</span><br>${esc(z.prompt)}</td><td>${z.aliases.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}</td><td>${enemies.map(x=>`<div class="mono">${esc(x)}</div>`).join('')||'<span class="small">—</span>'}</td><td>${[...routes,...traversal].map(x=>`<div class="mono">${esc(x)}</div>`).join('')||'<span class="small">—</span>'}</td></tr>`}).join('')+'</table>'}
 function drawLevel(L,sel){const el=$(sel);if(!el||!window.d3)return;const P=L.platforms;if(!P.length)return;
 const xs=P.flatMap(p=>[p.center[0]-p.size[0]/2,p.center[0]+p.size[0]/2]),zs=P.flatMap(p=>[p.center[2]-p.size[2]/2,p.center[2]+p.size[2]/2]),ys=P.flatMap(p=>[p.center[1]-p.size[1]/2,p.center[1]+p.size[1]/2]);
 const W=el.clientWidth||1100,pad=30;const spanX=d3.max(xs)-d3.min(xs),spanZ=d3.max(zs)-d3.min(zs);const scale=Math.min((W-2*pad)/spanX,(W-2*pad)/spanZ, 10);
 const H1=spanZ*scale+2*pad;const sx=x=>pad+(x-d3.min(xs))*scale,sz=z=>H1-pad-(z-d3.min(zs))*scale;const yc=d3.scaleSequential(d3.interpolateRgb('#3c3f4d','#e0e4ef')).domain([d3.min(ys),d3.max(ys)]);
 const svg=d3.select(el).append('svg').attr('width',W).attr('height',H1).style('background','rgba(0,0,0,.35)').style('border-radius','10px');
 const g=svg.append('g');svg.call(d3.zoom().scaleExtent([.5,6]).on('zoom',ev=>g.attr('transform',ev.transform)));
+const zoneColor=d3.scaleOrdinal(d3.schemeTableau10).domain((L.zones||[]).map(z=>z.id));
+(L.zones||[]).forEach(z=>{const a=Math.max(z.zMin,d3.min(zs)),b=Math.min(z.zMax,d3.max(zs));if(b<=a)return;g.append('rect').attr('x',0).attr('y',sz(b)).attr('width',W).attr('height',Math.max(1,sz(a)-sz(b))).attr('fill',zoneColor(z.id)).attr('fill-opacity',.075);g.append('text').attr('x',6).attr('y',sz(b)+12).attr('font-size',10).attr('fill',zoneColor(z.id)).text(z.id+' — '+z.canonical)});
 g.selectAll('rect.p').data(P).enter().append('rect').attr('x',p=>sx(p.center[0]-p.size[0]/2)).attr('y',p=>sz(p.center[2]+p.size[2]/2)).attr('width',p=>p.size[0]*scale).attr('height',p=>p.size[2]*scale).attr('fill',p=>yc(p.center[1]+p.size[1]/2)).attr('fill-opacity',.8).attr('stroke','#111').append('title').text(p=>`${p.name}\ncentre ${p.center.join(', ')}\nsize ${p.size.join(' × ')}\ntop y ${(p.center[1]+p.size[1]/2).toFixed(2)}`);
 (L.waters||[]).forEach(w=>{if(!w.center||!w.size)return;g.append('rect').attr('x',sx(w.center[0]-w.size[0]/2)).attr('y',sz(w.center[2]+w.size[2]/2)).attr('width',w.size[0]*scale).attr('height',w.size[2]*scale).attr('fill','#3a8fff').attr('fill-opacity',.6).append('title').text(w.name)});
 const dot=(list,key,color,r,label)=>list.forEach(o=>{const v=o[key];if(!v)return;g.append('circle').attr('cx',sx(v[0])).attr('cy',sz(v[2])).attr('r',r).attr('fill',color).attr('stroke','#000').append('title').text(`${label} ${o.name||''} ${o.prefabKey||o.itemKey||''}\n${v.join(', ')}`)});
@@ -641,7 +678,8 @@ g.selectAll('text.n').data(P.filter(p=>p.size[0]*scale>40)).enter().append('text
 // elevation
 const H2=Math.max(160,(d3.max(ys)-d3.min(ys))*scale+2*pad);const ey=y=>H2-pad-(y-d3.min(ys))*scale;const ez=z=>pad+(z-d3.min(zs))*scale;
 const s2=d3.select(el).append('svg').attr('width',W).attr('height',H2).style('background','rgba(0,0,0,.35)').style('border-radius','10px').style('margin-top','8px');
-s2.selectAll('rect').data(P).enter().append('rect').attr('x',p=>ez(p.center[2]-p.size[2]/2)).attr('y',p=>ey(p.center[1]+p.size[1]/2)).attr('width',p=>p.size[2]*scale).attr('height',p=>Math.max(2,p.size[1]*scale)).attr('fill',p=>yc(p.center[1]+p.size[1]/2)).attr('fill-opacity',.7).attr('stroke','#111').append('title').text(p=>p.name);
+(L.zones||[]).forEach(z=>{const a=Math.max(z.zMin,d3.min(zs)),b=Math.min(z.zMax,d3.max(zs));if(b<=a)return;s2.append('rect').attr('x',ez(a)).attr('y',0).attr('width',Math.max(1,ez(b)-ez(a))).attr('height',H2).attr('fill',zoneColor(z.id)).attr('fill-opacity',.075);s2.append('text').attr('x',ez(a)+4).attr('y',12).attr('font-size',9).attr('fill',zoneColor(z.id)).text(z.id)});
+s2.selectAll('rect.p').data(P).enter().append('rect').attr('class','p').attr('x',p=>ez(p.center[2]-p.size[2]/2)).attr('y',p=>ey(p.center[1]+p.size[1]/2)).attr('width',p=>p.size[2]*scale).attr('height',p=>Math.max(2,p.size[1]*scale)).attr('fill',p=>yc(p.center[1]+p.size[1]/2)).attr('fill-opacity',.7).attr('stroke','#111').append('title').text(p=>p.name);
 const dot2=(list,key,color,r)=>list.forEach(o=>{const v=o[key];if(!v)return;s2.append('circle').attr('cx',ez(v[2])).attr('cy',ey(v[1])).attr('r',r).attr('fill',color).attr('stroke','#000')});
 dot2(L.spawns,'position','#ff5c5c',3);dot2(L.pickups,'position','#4fe0d0',3);dot2(L.checkpoints,'position','#5fd28a',3);dot2(L.balloons||[],'position','#ffd166',4);if(L.playerStart)s2.append('circle').attr('cx',ez(L.playerStart[2])).attr('cy',ey(L.playerStart[1])).attr('r',4).attr('fill','#fff');
 s2.append('text').attr('x',6).attr('y',12).attr('font-size',10).attr('fill','#9a918a').text('elevation: z →, y ↑')}

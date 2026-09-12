@@ -1,24 +1,19 @@
 # Distribution
 
-How to cut a playtest build and share it through two channels. **Windows as a zipped GitHub Release is the
-primary friend-playtest build** because it preserves native timing, fidelity and frame pacing. **WebGL on
-GitHub Pages is an experimental convenience link**: easier to open, but not the authoritative gameplay
-build until that exact published payload passes an in-browser playtest.
+How to cut a playtest build. **Windows as a zipped GitHub Release is the friend-playtest build** because it
+preserves native timing, fidelity and frame pacing. The experimental GitHub Pages deployment failed its
+human browser playtest and its `gh-pages` branch was deliberately deleted on 2026-09-11.
 
 **No GameCI / Unity-in-Actions.** Building Unity headlessly in GitHub Actions needs a Unity licence secret
 the user has not provided. Builds happen locally, in the editor the lead session already has open. The
 `.github/` directory intentionally does not exist for this project — GitHub Pages here is served straight
 from a branch ("Deploy from a branch"), which needs no workflow file at all.
 
-## One-time GitHub settings (the user does this, once)
+## GitHub Pages is retired
 
-1. Repo → **Settings → Pages → Build and deployment → Source**: `Deploy from a branch`.
-2. **Branch**: `gh-pages`, folder `/ (root)`. (The branch does not need to exist yet — the first
-   `Publish-WebGL.ps1` run below creates it.)
-3. Save. After the first publish, the game is at `https://capsfan900.github.io/Unity-Vibe-Slop/`
-   (owner `Capsfan900`, repo `Unity-Vibe-Slop` → project Pages URL is `https://<owner>.github.io/<repo>/`).
-
-Nothing else to click. Releases need no settings — anyone with the repo URL can see them.
+Do not run `Publish-WebGL.ps1`: it is retained only as rollback evidence and would recreate the deleted
+branch. Re-enabling browser distribution requires a new user decision and a successful playtest of the
+exact browser payload. Releases need no Pages settings.
 
 ## Cutting a build (the lead runs this in the open editor)
 
@@ -86,11 +81,16 @@ Set in `BuildRunner`, not in the Inspector, so a build never depends on what som
   one setting here that can break the game at runtime rather than at build time, because the linker cannot
   see reflection. **Any change to it must be re-proved by launching the build**, not by a test suite —
   nothing in either suite runs the player.
+- **Windows graphics API: Direct3D 11 only.** Unity's automatic choice selected D3D12 on the build machine,
+  where the player failed at swapchain presentation with DXGI `0x887a0001` before reaching the menu. The
+  same player remained running under D3D11. `BuildRunner` pins the proven API so a friend does not inherit
+  an editor-machine preference.
 - `*_BurstDebugInformation_DoNotShip` folders are deleted from the output after every build. Obey the name.
 
 `build-info.txt` records the SHA, branch, full-repository dirtiness, **build-input dirtiness** for
 `Assets/`, `Packages/` and `ProjectSettings/`, UTC time, build duration, Unity version, scripting backend,
-stripping level and the exact scene list. Git failures are stamped `unknown`, never mistaken for clean.
+stripping level, graphics API and the exact scene list. Git failures are stamped `unknown`, never mistaken
+for clean.
 
 Unity first writes each build to a sibling `.staging` directory. The previous playable output remains
 untouched until the new build succeeds and its `build-info.txt` is written; only then is staging promoted.
@@ -137,16 +137,16 @@ Hub would cut the managed side further at the cost of much slower builds.
 
 ## Publishing
 
-### WebGL → GitHub Pages (experimental convenience link)
+### WebGL → GitHub Pages (retired; do not run)
 
 ```powershell
 ./Tools/publish/Publish-WebGL.ps1
 ```
 
-Mirrors `Builds/WebGL` into a throwaway git worktree at `.worktrees/gh-pages` (gitignored, never touches
+This retained rollback tool mirrors `Builds/WebGL` into a throwaway git worktree at `.worktrees/gh-pages` (gitignored, never touches
 `master`), checked out to the `gh-pages` branch (created as an orphan on first run), commits and pushes.
 Pages republishes automatically within a minute or two of the push, per the one-time setting above.
-The publisher refuses a stale SHA, a missing `build-info.txt`, or anything except
+It must not be used unless the user explicitly reauthorizes Pages. The publisher refuses a stale SHA, a missing `build-info.txt`, or anything except
 `build_inputs_dirty=no`; a public link must map back to reproducible game inputs. Local-only root files
 such as screenshots may make `git_dirty=YES` without poisoning a build, and remain visible in the metadata.
 

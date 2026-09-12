@@ -236,6 +236,8 @@ automatically.
 `TestResults.xml`, the feature suite from VERIFICATION-REPORT, uncommitted files, last commit), the handoff,
 the change log (commits + every engineering-log entry), a Tests view (per suite, failures, skips, slowest), a
 Systems view (DATAFLOW's maps, backlog sections), every doc rendered, and a search across all of them.
+The Level Map reads `docs/LEVEL-VOCABULARY.md` and overlays its canonical zone names, aliases, shipped
+enemy/spawner IDs, routes and traversal pieces on the geometry parsed from `Level_01_Level.asset`.
 `--serve` keeps it on `http://127.0.0.1:8765/`. Read-only and editor-free; re-run to refresh. The output
 folder is gitignored.
 

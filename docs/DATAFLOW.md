@@ -2881,3 +2881,29 @@ Music: Resources/Audio/Music/{ambient,boss}, crossfaded on BossStarted / BossDef
 **Invariants**
 - `Sfx` enum member names ARE the Resources folder names. Renaming a member silently breaks clip loading.
 - An `AudioSource` added and `Play()`ed in the same scene-load `Awake` never starts — start it in `Start()`.
+
+# Playtest build and publication
+
+```text
+MCP against the already-open, Hub-authenticated editor
+  → BuildRunner.Windows / WebGL
+     → derive MainMenu + LevelRegistry scenes + Sandbox
+     → refuse play mode / compilation failure / missing module
+     → enforce High stripping
+     → Windows: Direct3D11 only
+     → WebGL: Playtest template + gzip + decompression fallback
+     → BuildPipeline writes Builds/<target>.staging
+     → strip *_DoNotShip diagnostics
+     → build-info.txt (commit, dirtiness, target settings, graphics API, scenes)
+     → successful staging directory atomically replaces Builds/<target>
+  → publisher rejects stale SHA or dirty game inputs
+     → Windows zip / GitHub Release
+     → WebGL gh-pages publisher retained but retired; branch deleted after failed browser playtest
+```
+
+The CLI/Pipeline pilot is retained, but it is not the build authority: its five-second main-thread window
+can report HTTP 400 while Unity continues working. MCP owns the operation and asset/output readback. A
+Windows friend build is D3D11 because automatic D3D12 selection failed at swapchain presentation on the
+test machine before the menu; the same executable stayed alive under D3D11. Local-only content included in
+a private friend package must be named and hashed in that package rather than mistaken for a clean,
+reproducible public build.
