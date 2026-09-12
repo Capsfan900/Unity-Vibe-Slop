@@ -2008,6 +2008,79 @@ GRAPPLE BURST
 - **The motor's existing numbers are untouched.** Six new fields, all written by `PrefabFactory.BuildPlayer`
   and asserted by `PivotMovementTests`.
 
+### Level Studio vocabulary and zone metadata (foundation)
+
+`LevelDefinition.zones[]` owns physical zone bounds, stable zone ID, canonical/split names, aliases,
+order and display colour. Existing gameplay arrays retain their serialized names and values; this
+foundation adds `LevelObjectMeta` (stable object ID, editable friendly name, explicit zone override)
+to their records. `LevelDefinitionAuthoring.Apply` snapshots metadata by named authoring owner before
+regeneration, restores IDs/labels/overrides onto recreated records, then writes zones and assigns IDs
+after every object array and split endpoint exists. `ApplyLevelStudioMetadata` is also a metadata-only
+entry point for preserving the current shipped layout; the lead must invoke/save it through Unity.
+
+`LevelObjectCatalog.Enumerate(definition)` exposes the original array index/data reference, metadata,
+authoring anchor and type key through `LevelObjectRecord`. Null arrays/entries are skipped without
+renumbering; missing legacy metadata is hydrated in place. IDs are assigned only by `AssignZones`.
+The runtime editor's existing serialized `LevelPieceKind` is independent and unchanged. Spawn type keys
+come from an explicit prefab-key family map (`pshooter_enemy01/02/03` -> `Sentry/HeavySentry/SurgeTurret`,
+the three campaign legendaries -> `ThirteenthShade/IronPenitent/AshenChorister`, `Boss` -> `HollowWarden`);
+unknown keys block ID assignment. Other types use `LevelObjectKind`. Existing IDs must match their
+record's type segment; the zone prefix can differ from current ownership after a move.
+
+Nested records expose an `owner` record, full `path`, and `LevelObjectAnchor[]` with field paths and
+position snapshots for SceneTool handles. Entry/exit gates use the arena data with separate metadata;
+portals and engagement windows retain their own data/metadata references. Child ownership inherits
+the arena/sequence zone, so remote room coordinates never claim another primary zone. Matching child
+overrides warn; conflicting ones error. Optional disabled children are omitted and acquire no IDs.
+
+| Catalog object | Authoring anchor / ownership |
+|---|---|
+| Platform, Water | `center` |
+| Ramp, Torch | `basePosition` |
+| Spawn, Pickup, Checkpoint, Balloon | `position` |
+| Pedestal | `groundPosition` |
+| Arena | `triggerPosition` |
+| ProjectileSequence | `progressOrigin` |
+| InsightRoute (migration pending) | `entryCenter` |
+| RunSplit | Named `endSpawnerName` must resolve uniquely; anchor and zone follow that spawn, including its override |
+| Gate, ExitGate | Enabled arena's entry gate / optional exit gate; open and closed positions are two handles on one stable child |
+| BossPortal | Enabled SolarRealm; exterior/room centers, player entry/retry, enemy/pickup, exit/return positions are eight handles on one child |
+| ProjectileEngagementWindow | Each sequence window; `routeStart` and `routeEnd` handles, original window index and owner retained |
+| PlayerStart | `playerStart`; metadata on `playerStartMeta`; zone-owned singleton ID such as `T0.PlayerStart` |
+| WorldLeaderboard | `position`; zone-owned while enabled, singleton ID such as `T0.WorldLeaderboard`; disabled data remains in catalog |
+| Sky, KillZone | Global IDs `Level.Sky` / `Level.KillZone`; anchors zero / kill-volume center; no primary zone requirement |
+
+`AssignZones(definition)` validates finite positive zone bounds and unique well-formed zone IDs, sorts
+zones by order then ordinal ID, and classifies each authoring anchor against inclusive bounds. Zero
+or multiple matches are errors, including shared boundaries. A unique valid explicit override resolves
+spatial ambiguity and emits a warning; an invalid override never falls back to containment. An anchor
+within 0.1 m of a containing zone face warns. Split overrides cannot contradict the end spawner's zone;
+a matching override warns, and the zone's `splitName` must equal the scored split's `name`.
+
+All existing object IDs are reserved before blank IDs receive the first unused per-zone/type suffix
+(`T0.Platform.01`, `.02`, ...). Existing IDs survive moves, reorderings and friendly-name edits; their
+zone prefix records original identity, not current containment. Duplicate or malformed IDs are errors
+and are never silently rewritten. Spatial singleton IDs omit the numeric suffix; disabled leaderboard
+data waits until enabled for its first assignment. `Level` is reserved for global IDs. Validation returns
+`ZoneAssignmentReport.errors/warnings`; it can assign other valid blank records while reporting errors,
+so callers must validate a working copy before applying. No runtime combat or movement consumes this
+metadata, and no scene/prefab generation changes are included in this foundation.
+
+Level 1 names/aliases follow `LEVEL-VOCABULARY.md`, with split names Opening/Ninja/Knight/Spellsword/Warden.
+Physical assignment volumes follow the measured post-spacing anchors: T0 z[-166,7.8], T1 [7.9,136.7],
+T2 [136.8,260.7], T3 [260.8,392.9], T4 [393,520]. The deliberate 0.1 m gaps avoid inclusive face overlap;
+future objects inside a gap correctly fail validation. These physical bounds differ from the document's
+human longitudinal ranges, which remain semantic until the dashboard derives its map from the asset.
+Primary X[-128,128], Y[-64,128] contain main-course anchors. Explicit exceptions preserve layout: the
+leaderboard belongs to T0; zero-origin T1/T2/T3 route-only sequences override to their actual section;
+`Pickup_Boss_Hook` at its historical migration anchor belongs to T4. Existing authored overrides survive.
+Regeneration matches root records by load-bearing names (split endpoint/route ID
+where applicable), children by owner, and same-spawner engagement windows by occurrence within that
+sequence; changing duplicate-window ordering requires an explicit metadata migration.
+
+`InsightRoute` remains ordinal 11 only until Task 2: rename it to `ChallengeRoute` without changing the
+ordinal, migrate `*.InsightRoute.*` IDs and references explicitly, and verify anchors/metadata survive.
+
 ### The in-game level editor — `LevelEditor` + the one piece factory
 
 ```

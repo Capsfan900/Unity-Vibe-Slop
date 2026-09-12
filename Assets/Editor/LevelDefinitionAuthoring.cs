@@ -704,6 +704,7 @@ namespace VibeGame1.EditorTools
         /// </summary>
         public static string Apply(LevelDefinition def)
         {
+            var studioMetadata = CaptureStudioMetadata(def);
             // Solar spacing translates whole course sections. Put an already-authored asset back on the
             // canonical pre-spacing coordinates before the absolute rework tables below run, otherwise a
             // second Apply would mix freshly reset pieces with pieces that still carry the section shift.
@@ -813,12 +814,125 @@ namespace VibeGame1.EditorTools
             ApplyProjectileEncounterSequences(def);
             ApplyRunScoring(def);
             ApplyInsightRoutes(def);
+            RestoreStudioMetadata(def, studioMetadata);
+            var studioReport = ApplyLevelStudioMetadata(def);
+            if (studioReport.errors.Count > 0)
+                throw new System.InvalidOperationException("Level Studio metadata: " + string.Join("; ", studioReport.errors));
 
             return string.Format("Level_01 reworked: {0} boxes reshaped for openness, {1} perches, {2} spawns moved onto them, " +
                                  "{3} balloons (T3 arc), {4} water sheets, {5} ramps, {6} route beacons, {7} arena doors widened; " +
                                  "{8} platforms and {9} torches total.",
                                  reshaped, Perches.Length, moved, balloons.Count, waters.Count, def.ramps.Length,
                                  OpenRouteBeacons.Length, gated, def.platforms.Length, def.torches.Length);
+        }
+
+        /// <summary>
+        /// Writes only Level Studio metadata. Safe to call on the current shipped layout without
+        /// rerunning historical geometry reworks. Names/aliases follow LEVEL-VOCABULARY.md; physical
+        /// bounds follow the measured post-spacing anchor audit and leave 0.1 m gaps between zones.
+        /// </summary>
+        public static ZoneAssignmentReport ApplyLevelStudioMetadata(LevelDefinition def)
+        {
+            if (def == null) return LevelObjectCatalog.AssignZones(null);
+            def.zones = new[]
+            {
+                StudioZone("T0", "Opening Descent", "Opening", 0, -166f, 7.8f, Color.cyan,
+                    "first ramp", "opening ramp", "starting descent", "reliquary landing"),
+                StudioZone("T1", "Stone Causeway", "Ninja", 1, 7.9f, 136.7f, new Color(0.3f, 0.8f, 1f),
+                    "first parkour section", "causeway", "Ninja section"),
+                StudioZone("T2", "Helix Tower", "Knight", 2, 136.8f, 260.7f, new Color(1f, 0.8f, 0.2f),
+                    "tower", "wall-run tower", "Knight section"),
+                StudioZone("T3", "Balloon Aqueduct", "Spellsword", 3, 260.8f, 392.9f, new Color(0.3f, 0.5f, 1f),
+                    "balloon section", "water span", "Spellsword section"),
+                StudioZone("T4", "Warden Descent", "Warden", 4, 393f, 520f, new Color(0.8f, 0.6f, 1f),
+                    "last ramp", "final ramp", "Warden approach", "boss approach")
+            };
+            // These audit-only sequences have no progress gates and retain their historical origin zero.
+            // Their explicit metadata ownership must not move any gameplay/forecast coordinate.
+            foreach (var sequence in def.projectileSequences ?? new ProjectileSequenceDef[0])
+            {
+                if (sequence == null) continue;
+                if (sequence.meta == null) sequence.meta = new LevelObjectMeta();
+                if (!string.IsNullOrEmpty(sequence.meta.zoneIdOverride)) continue;
+                if (sequence.name == "T1_ParryRoute") sequence.meta.zoneIdOverride = "T1";
+                else if (sequence.name == "T2_ParryRoute") sequence.meta.zoneIdOverride = "T2";
+                else if (sequence.name == "T3_ParryRoute") sequence.meta.zoneIdOverride = "T3";
+            }
+            if (def.worldLeaderboard != null && def.worldLeaderboard.enabled)
+            {
+                if (def.worldLeaderboard.meta == null) def.worldLeaderboard.meta = new LevelObjectMeta();
+                if (string.IsNullOrEmpty(def.worldLeaderboard.meta.zoneIdOverride)) def.worldLeaderboard.meta.zoneIdOverride = "T0";
+            }
+            // This historical pickup anchor is moved into the Boss Solar Realm by the builder.
+            // It belongs to Warden/T4 even though its stored z=376 sits before the T4 entry.
+            foreach (var pickup in def.pickups ?? new PickupDef[0])
+            {
+                if (pickup == null || pickup.name != "Pickup_Boss_Hook") continue;
+                if (pickup.meta == null) pickup.meta = new LevelObjectMeta();
+                if (string.IsNullOrEmpty(pickup.meta.zoneIdOverride)) pickup.meta.zoneIdOverride = "T4";
+            }
+            return LevelObjectCatalog.AssignZones(def);
+        }
+
+        static ZoneDef StudioZone(string id, string canonical, string split, int order,
+            float zMin, float zMax, Color color, params string[] aliases)
+        {
+            // All main-course anchors fit this finite envelope. Remote realm points inherit arena
+            // ownership rather than expanding the primary course volumes out to x=700.
+            return new ZoneDef { zoneId = id, canonicalName = canonical, splitName = split, order = order,
+                center = new Vector3(0f, 32f, (zMin + zMax) * 0.5f), size = new Vector3(256f, 192f, zMax - zMin),
+                displayColor = color, aliases = aliases };
+        }
+
+        static Dictionary<string, LevelObjectMeta> CaptureStudioMetadata(LevelDefinition def)
+        {
+            var result = new Dictionary<string, LevelObjectMeta>(System.StringComparer.Ordinal);
+            foreach (var record in LevelObjectCatalog.Enumerate(def))
+            {
+                string key = StudioMetadataKey(record);
+                if (result.ContainsKey(key))
+                    throw new System.InvalidOperationException("Ambiguous authoring metadata owner: " + key);
+                result.Add(key, new LevelObjectMeta { objectId = record.meta.objectId,
+                    friendlyName = record.meta.friendlyName, zoneIdOverride = record.meta.zoneIdOverride });
+            }
+            return result;
+        }
+
+        static void RestoreStudioMetadata(LevelDefinition def, Dictionary<string, LevelObjectMeta> previous)
+        {
+            foreach (var record in LevelObjectCatalog.Enumerate(def))
+            {
+                LevelObjectMeta saved;
+                if (!previous.TryGetValue(StudioMetadataKey(record), out saved)) continue;
+                record.meta.objectId = saved.objectId;
+                record.meta.friendlyName = saved.friendlyName;
+                record.meta.zoneIdOverride = saved.zoneIdOverride;
+            }
+        }
+
+        static string StudioMetadataKey(LevelObjectRecord record)
+        {
+            string key = record.kind + "/";
+            if (record.owner != null)
+            {
+                key += StudioMetadataKey(record.owner);
+                if (record.kind == LevelObjectKind.ProjectileEngagementWindow)
+                {
+                    var window = (ProjectileEngagementWindowDef)record.data;
+                    var siblings = ((ProjectileSequenceDef)record.owner.data).engagementWindows;
+                    int occurrence = 0;
+                    for (int i = 0; i < record.index; i++)
+                        if (siblings[i] != null && siblings[i].spawnerName == window.spawnerName) occurrence++;
+                    key += "/" + window.spawnerName + "/" + occurrence;
+                }
+                return key;
+            }
+            if (record.index < 0) return key;
+            if (record.kind == LevelObjectKind.Arena) return key + ((ArenaDef)record.data).gateName;
+            if (record.kind == LevelObjectKind.InsightRoute) return key + ((InsightRouteDef)record.data).routeId;
+            if (record.kind == LevelObjectKind.RunSplit) return key + ((RunSplitDef)record.data).endSpawnerName;
+            // Every other top-level repeatable definition uses an existing, load-bearing name field.
+            return key + (string)record.data.GetType().GetField("name").GetValue(record.data);
         }
 
         /// <summary>Writes the campaign run contract as level data, never as a scorer-side level special case.</summary>

@@ -52,10 +52,14 @@ namespace VibeGame1
         [Tooltip("Ordered run checkpoints. A split closes only when its named spawner dies after all prior splits.")]
         public RunSplitDef[] runSplits = new RunSplitDef[0];
 
+        [Header("Level Studio zones")]
+        public ZoneDef[] zones = new ZoneDef[0];
+
 
         [Header("Player")]
         [Tooltip("Where the run begins. The Player prefab is placed here and LevelManager.startSpawn points at it.")]
         public Vector3 playerStart = new Vector3(0f, 1.2f, -4f);
+        public LevelObjectMeta playerStartMeta = new LevelObjectMeta();
 
         [Tooltip("Facing at the start, in degrees around Y.")]
         public float playerStartYaw = 0f;
@@ -113,6 +117,27 @@ namespace VibeGame1
         }
     }
 
+    [Serializable]
+    public class LevelObjectMeta
+    {
+        public string objectId = "";
+        public string friendlyName = "";
+        public string zoneIdOverride = "";
+    }
+
+    [Serializable]
+    public class ZoneDef
+    {
+        public string zoneId = "T0";
+        public string canonicalName = "Zone";
+        public string splitName = "Split";
+        public string[] aliases = new string[0];
+        public int order;
+        public Vector3 center;
+        public Vector3 size = new Vector3(10f, 10f, 10f);
+        public Color displayColor = Color.cyan;
+    }
+
     /// <summary>
     /// A presentation-only, world-space view of the existing local leaderboard. The builder puts every
     /// descendant on the Sky layer and removes colliders, so the display cannot alter traversal or the
@@ -121,6 +146,7 @@ namespace VibeGame1
     [Serializable]
     public class WorldLeaderboardDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public bool enabled = false;
         public string name = "WorldLeaderboard";
         public Vector3 position;
@@ -135,6 +161,7 @@ namespace VibeGame1
     [Serializable]
     public class PlatformDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         [Tooltip("Scene object name. Keep it descriptive — this is what you read in the Hierarchy when " +
                  "something is in the wrong place.")]
         public string name = "Platform";
@@ -178,6 +205,7 @@ namespace VibeGame1
     [Serializable]
     public class RampDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         [Tooltip("Scene object name.")]
         public string name = "Ramp";
 
@@ -266,6 +294,7 @@ namespace VibeGame1
     [Serializable]
     public class SpawnDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "Spawn_Grunt";
 
         [Tooltip("Prefab key: 'Enemy_Grunt' resolves to Assets/Prefabs/Enemy_Grunt.prefab. " +
@@ -285,6 +314,7 @@ namespace VibeGame1
     [Serializable]
     public class PickupDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "Pickup";
 
         [Tooltip("Item asset name in Assets/Data/Items, without the extension — 'Grapple', 'Rebound' or 'DeflectSigil'. " +
@@ -299,6 +329,7 @@ namespace VibeGame1
     [Serializable]
     public class CheckpointDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         [Tooltip("LevelManager.Warp() finds checkpoints BY NAME, and DebugKeys/TestMenu warp to " +
                  "'Checkpoint_1'..'Checkpoint_4'; DebugKeys F5 warps to the LAST one. Renaming " +
                  "these breaks those shortcuts.")]
@@ -315,6 +346,7 @@ namespace VibeGame1
     [Serializable]
     public class TorchDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "Torch";
 
         [Tooltip("The platform's TOP surface. The post and ember are built upward from here.")]
@@ -325,6 +357,9 @@ namespace VibeGame1
     [Serializable]
     public class ArenaDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
+        public LevelObjectMeta gateMeta = new LevelObjectMeta();
+        public LevelObjectMeta exitGateMeta = new LevelObjectMeta();
         [Tooltip("Off for levels with no boss.")]
         public bool enabled = false;
 
@@ -374,6 +409,7 @@ namespace VibeGame1
     [Serializable]
     public class RunSplitDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         [Tooltip("Stable display and telemetry name for this split.")]
         public string name = "Split";
 
@@ -410,6 +446,7 @@ namespace VibeGame1
     [Serializable]
     public class SolarRealmDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public bool enabled = false;
         public string themeMaterialKey = "SolarCyan";
 
@@ -456,6 +493,7 @@ namespace VibeGame1
     [Serializable]
     public class ProjectileEngagementWindowDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         [Tooltip("EnemySpawner name this route window authorizes. Multiple windows may name the same " +
                  "member when it covers alternate or vertically stacked routes.")]
         public string spawnerName = "";
@@ -483,6 +521,7 @@ namespace VibeGame1
     [Serializable]
     public class ProjectileSequenceDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "ProjectileSequence";
 
         [Tooltip("EnemySpawner object names in firing order.")]
@@ -543,6 +582,7 @@ namespace VibeGame1
     [Serializable]
     public class InsightRouteDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         [Tooltip("Stable telemetry key for this optional route. Keep it unique within a level.")]
         public string routeId = "InsightRoute";
 
@@ -571,6 +611,7 @@ namespace VibeGame1
     [Serializable]
     public class BalloonDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "Balloon";
         [Tooltip("Centre of the orb, world space.")]
         public Vector3 position;
@@ -590,6 +631,7 @@ namespace VibeGame1
     [Serializable]
     public class WaterDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "Water";
         [Tooltip("Centre of the sheet, world space. Its bottom face should sit on the floor.")]
         public Vector3 center;
@@ -605,6 +647,7 @@ namespace VibeGame1
     [Serializable]
     public class PedestalDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "WandPedestal_Start";
 
         [Tooltip("The FLOOR surface it stands on. The plinth, crystal and glow are built upward from here.")]
@@ -623,6 +666,7 @@ namespace VibeGame1
     [Serializable]
     public class SkyDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public bool enabled = true;
         public int starCount = 1200;
         public float radius = 25f;
@@ -643,6 +687,7 @@ namespace VibeGame1
     [Serializable]
     public class KillZoneDef
     {
+        public LevelObjectMeta meta = new LevelObjectMeta();
         public string name = "KillZone";
 
         [Tooltip("Centre of the kill volume. Keep it well below the lowest platform.")]
