@@ -22,7 +22,7 @@ that zone's boss dies. Solar Realms are the isolated boss arenas reached from th
 
 | Canonical enemy | Shipped key | Common aliases | Role |
 |---|---|---|---|
-| **Sentry** | `pshooter_enemy01` | blue squid, blue ghost, flare shooter | Floating projectile enemy; its successful defeat creates the optional faster/harder Insight flare route. |
+| **Sentry** | `pshooter_enemy01` | blue squid, blue ghost, flare shooter | Floating projectile enemy; its successful defeat creates the optional faster/harder Challenge Route. |
 | **Heavy Sentry** | `pshooter_enemy02` | heavy turret, reliquary turret, three-shot heavy | Stationary dark reliquary that fires a rapid three-shot phrase. The T0 pair are `Spawn_T0_Reliquary_1` and `_2`. |
 | **Surge Turret** | `pshooter_enemy03` | ramp turret, rapid turret | Small fixed projectile turret used on the long downhill routes. T0 and T4 suffixes identify shot order. |
 
@@ -35,8 +35,8 @@ the Sandbox-only V18 test boss). Never use “blue squid” to mean a Heavy Sent
 - **ramp**: a sloped traversal solid in `ramps[]`; “first ramp” means `T0_Ramp_Descent`, while “last ramp”
   means `T4_Ramp_Descent`.
 - **parry route**: an ordered `projectileSequences[]` firing schedule. This is not an alternate path.
-- **Insight route**: an optional faster/harder flare shortcut marked by the hand symbol and defined in
-  `insightRoutes[]`.
+- **Challenge Route**: an optional faster/harder flare shortcut defined in `challengeRoutes[]`. Its
+  invisible anchor exists only to preserve authoring and timing data.
 - **arena gate / Solar Realm**: the main-course gate and isolated boss arena belonging to a split.
 - **checkpoint**: the respawn anchor at the entrance of the next traversal zone.
 

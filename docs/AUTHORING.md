@@ -14,7 +14,7 @@ the "Still needs code" section at the bottom rather than working around it silen
 ## 1. Levels
 
 A level is one `LevelDefinition` asset: identity, platforms, ramps, spawns, pickups, checkpoints, torches,
-optional Insight routes and world leaderboard, the boss arena, the kill plane and the player start.
+optional Challenge Routes and world leaderboard, the boss arena, the kill plane and the player start.
 `LevelDefinitionBuilder` turns it into a scene.
 
 ### 1a. Migration: DONE. The level is data now.
@@ -47,11 +47,10 @@ Definition**, then rebuild and diff. The round trip is the proof the two represe
    - **worldLeaderboard** — optional physical local-record display: enable state, root name, world
      position/yaw, width/height, row count and backing/glow material keys. It is presentation only; the
      existing `Leaderboard` model owns the data.
-   - **insightRoutes** — optional faster/harder flare shortcuts. Give each a stable `routeId`, the blue
-     sentry `sourceSpawnerNames`, a marker pose/material, and shared `entry` / `rejoin` boxes. The builder
-     makes a colliderless glowing hand labeled `INSIGHT`; the boxes exist only for developer timing
-     comparison. The shortcut must rejoin before the next arena and normal route progress must never
-     depend on touching the hand or taking the flare.
+   - **challengeRoutes** — optional faster/harder flare shortcuts. Give each a stable `routeId`, the blue
+     sentry `sourceSpawnerNames`, and shared `entry` / `rejoin` boxes. The builder creates an invisible,
+     colliderless anchor solely for round-trip/export and developer timing comparison. The shortcut must
+     rejoin before the next arena and normal route progress must never depend on taking the flare.
    - **checkpoints** — `name` matters: `LevelManager.Warp()` finds checkpoints **by name**, and F5
      warps to the LAST one (`Checkpoint_4`). One per tile entrance.
    - **pedestals** — inscription altars. `groundPosition` is the floor it stands on; the plinth, crystal,

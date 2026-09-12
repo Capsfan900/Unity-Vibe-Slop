@@ -85,5 +85,33 @@ namespace VibeGame1.Tests
             Assert.AreEqual("DeflectSigil", def.pickups.Single(p => p.name == "Pickup_T3_Surge").itemKey);
             Assert.AreEqual("Rebound", def.pickups.Single(p => p.name == "Pickup_T3_Surge_2").itemKey);
         }
+
+        [Test]
+        public void ChallengeRoutesKeepTheExistingFlareSpawnersAndTimingAnchors()
+        {
+            Assert.AreEqual(3, def.challengeRoutes.Length);
+            var t1 = def.challengeRoutes.Single(route => route.routeId == "T1_Challenge_Flare");
+            var t2 = def.challengeRoutes.Single(route => route.routeId == "T2_Challenge_Flare");
+            var t3 = def.challengeRoutes.Single(route => route.routeId == "T3_Challenge_Flare");
+
+            CollectionAssert.AreEqual(new[] { "Spawn_T1_GruntA", "Spawn_T1_GruntB" }, t1.sourceSpawnerNames);
+            CollectionAssert.AreEqual(new[] { "Spawn_T2_GruntB", "Spawn_T2_GruntA" }, t2.sourceSpawnerNames);
+            CollectionAssert.AreEqual(new[] { "Spawn_T3_Grunt" }, t3.sourceSpawnerNames);
+            Assert.AreEqual(new Vector3(0f, 5f, 37f), t1.entryCenter);
+            Assert.AreEqual(new Vector3(42f, 16f, 10f), t1.entrySize);
+            Assert.AreEqual(new Vector3(0f, 7f, 70f), t1.rejoinCenter);
+            Assert.AreEqual(new Vector3(30f, 20f, 10f), t1.rejoinSize);
+            Assert.AreEqual(new Vector3(0f, 13f, 149f), t2.entryCenter);
+            Assert.AreEqual(new Vector3(52f, 32f, 12f), t2.entrySize);
+            Assert.AreEqual(new Vector3(0f, 22f, 198f), t2.rejoinCenter);
+            Assert.AreEqual(new Vector3(32f, 24f, 12f), t2.rejoinSize);
+            Assert.AreEqual(new Vector3(0f, 25f, 276f), t3.entryCenter);
+            Assert.AreEqual(new Vector3(42f, 28f, 12f), t3.entrySize);
+            Assert.AreEqual(new Vector3(0f, 30f, 339f), t3.rejoinCenter);
+            Assert.AreEqual(new Vector3(32f, 24f, 12f), t3.rejoinSize);
+            Assert.AreEqual("T1.ChallengeRoute.01", t1.meta.objectId);
+            Assert.AreEqual("T2.ChallengeRoute.01", t2.meta.objectId);
+            Assert.AreEqual("T3.ChallengeRoute.01", t3.meta.objectId);
+        }
     }
 }

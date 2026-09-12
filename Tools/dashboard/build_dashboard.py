@@ -411,6 +411,9 @@ def level_map(vocabulary=None):
         ps = re.search(r"playerStart: " + VEC, t)
         rel = p.relative_to(ROOT).as_posix()
         vocab = vocab_by_file.get(rel, {})
+        challenge_routes = yaml_list(t, "challengeRoutes")
+        if not challenge_routes:
+            challenge_routes = yaml_list(t, "insightRoutes")
         levels.append({
             "file": rel, "name": name.group(1).strip() if name else p.stem,
             "playerStart": [float(ps.group(1)), float(ps.group(2)), float(ps.group(3))] if ps else None,
@@ -421,7 +424,7 @@ def level_map(vocabulary=None):
             "waters": yaml_list(t, "waters"), "torches": yaml_list(t, "torches"),
             "pedestals": yaml_list(t, "pedestals"), "arenas": yaml_list(t, "arenas"),
             "projectileSequences": yaml_list(t, "projectileSequences"),
-            "insightRoutes": yaml_list(t, "insightRoutes"),
+            "challengeRoutes": challenge_routes,
             "zones": vocab.get("zones", []), "enemyTerms": vocabulary.get("enemyTerms", {}),
         })
     return levels
@@ -659,7 +662,7 @@ const names=(items,z,format)=>items.filter(o=>inZone(o,z)).map(format).filter(Bo
 return '<h3>Canonical prompt vocabulary</h3><p class="small">Say the bold zone name or any alias, then name the shipped object. Example: “In T4 — Warden Descent, retime Spawn_T4_Surge_2.”</p><table><tr><th>zone / bounds</th><th>aliases</th><th>enemies</th><th>routes and traversal</th></tr>'+L.zones.map(z=>{
 const enemies=names(L.spawns,z,o=>{const term=L.enemyTerms[o.prefabKey]||{};return `${o.name} (${term.canonical||o.prefabKey})`});
 const traversal=names([...(L.ramps||[]),...(L.waters||[]),...(L.balloons||[]),...(L.checkpoints||[]),...(L.pickups||[])],z,o=>o.name);
-const prefix=z.id+'_';const routes=[...(L.projectileSequences||[]).map(o=>o.name),...(L.insightRoutes||[]).map(o=>o.routeId)].filter(n=>n&&n.startsWith(prefix));
+const prefix=z.id+'_';const routes=[...(L.projectileSequences||[]).map(o=>o.name),...(L.challengeRoutes||[]).map(o=>o.routeId)].filter(n=>n&&n.startsWith(prefix));
 return `<tr><td><b>${esc(z.id+' — '+z.canonical)}</b><br><span class="small">z ${z.zMin} to ${z.zMax}</span><br>${esc(z.prompt)}</td><td>${z.aliases.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}</td><td>${enemies.map(x=>`<div class="mono">${esc(x)}</div>`).join('')||'<span class="small">—</span>'}</td><td>${[...routes,...traversal].map(x=>`<div class="mono">${esc(x)}</div>`).join('')||'<span class="small">—</span>'}</td></tr>`}).join('')+'</table>'}
 function drawLevel(L,sel){const el=$(sel);if(!el||!window.d3)return;const P=L.platforms;if(!P.length)return;
 const xs=P.flatMap(p=>[p.center[0]-p.size[0]/2,p.center[0]+p.size[0]/2]),zs=P.flatMap(p=>[p.center[2]-p.size[2]/2,p.center[2]+p.size[2]/2]),ys=P.flatMap(p=>[p.center[1]-p.size[1]/2,p.center[1]+p.size[1]/2]);

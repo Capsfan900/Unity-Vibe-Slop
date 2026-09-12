@@ -12,7 +12,7 @@ namespace VibeGame1
     {
         Platform = 0, Ramp = 1, Spawn = 2, Pickup = 3, Checkpoint = 4, Torch = 5,
         Pedestal = 6, Balloon = 7, Water = 8, Arena = 9, ProjectileSequence = 10,
-        InsightRoute = 11, RunSplit = 12, PlayerStart = 13, KillZone = 14, Sky = 15,
+        ChallengeRoute = 11, RunSplit = 12, PlayerStart = 13, KillZone = 14, Sky = 15,
         WorldLeaderboard = 16, Gate = 17, ExitGate = 18, BossPortal = 19,
         ProjectileEngagementWindow = 20
     }
@@ -112,7 +112,7 @@ namespace VibeGame1
                         Handle(path + ".routeStart", window.routeStart), Handle(path + ".routeEnd", window.routeEnd));
                 }
             }
-            foreach (var r in Records(level.insightRoutes, LevelObjectKind.InsightRoute, d => d.entryCenter, d => d.meta ?? (d.meta = new LevelObjectMeta()))) yield return r;
+            foreach (var r in Records(level.challengeRoutes, LevelObjectKind.ChallengeRoute, d => d.entryCenter, d => d.meta ?? (d.meta = new LevelObjectMeta()))) yield return r;
             foreach (var r in Records(level.runSplits, LevelObjectKind.RunSplit, d => SplitAnchor(level, d), d => d.meta ?? (d.meta = new LevelObjectMeta()))) yield return r;
             yield return Record(LevelObjectKind.PlayerStart, -1, level, level.playerStartMeta ?? (level.playerStartMeta = new LevelObjectMeta()), level.playerStart);
             if (level.killZone != null)
@@ -156,7 +156,7 @@ namespace VibeGame1
                 case LevelObjectKind.Water: return "waters[" + index + "]";
                 case LevelObjectKind.Arena: return "arenas[" + index + "]";
                 case LevelObjectKind.ProjectileSequence: return "projectileSequences[" + index + "]";
-                case LevelObjectKind.InsightRoute: return "insightRoutes[" + index + "]";
+                case LevelObjectKind.ChallengeRoute: return "challengeRoutes[" + index + "]";
                 case LevelObjectKind.RunSplit: return "runSplits[" + index + "]";
                 case LevelObjectKind.PlayerStart: return "playerStart";
                 case LevelObjectKind.WorldLeaderboard: return "worldLeaderboard";

@@ -2041,7 +2041,7 @@ overrides warn; conflicting ones error. Optional disabled children are omitted a
 | Pedestal | `groundPosition` |
 | Arena | `triggerPosition` |
 | ProjectileSequence | `progressOrigin` |
-| InsightRoute (migration pending) | `entryCenter` |
+| ChallengeRoute | `entryCenter` |
 | RunSplit | Named `endSpawnerName` must resolve uniquely; anchor and zone follow that spawn, including its override |
 | Gate, ExitGate | Enabled arena's entry gate / optional exit gate; open and closed positions are two handles on one stable child |
 | BossPortal | Enabled SolarRealm; exterior/room centers, player entry/retry, enemy/pickup, exit/return positions are eight handles on one child |
@@ -2078,8 +2078,8 @@ Regeneration matches root records by load-bearing names (split endpoint/route ID
 where applicable), children by owner, and same-spawner engagement windows by occurrence within that
 sequence; changing duplicate-window ordering requires an explicit metadata migration.
 
-`InsightRoute` remains ordinal 11 only until Task 2: rename it to `ChallengeRoute` without changing the
-ordinal, migrate `*.InsightRoute.*` IDs and references explicitly, and verify anchors/metadata survive.
+`ChallengeRoute` remains ordinal 11. Its stable IDs use `*.ChallengeRoute.*`; route source spawners and
+entry/rejoin anchors remain authored data through regeneration and export.
 
 ### The in-game level editor — `LevelEditor` + the one piece factory
 
@@ -2175,13 +2175,13 @@ start` records bounded in-memory movement samples plus projectile emission/cue/a
   useful crossings but never gate them at runtime. The final 48 m ramp's three single-shot Surge spawns are
   at progress 16/32/44 m on alternating x = -7/+7/-7 pads; the old third spawn was eight metres beyond the
   slope. `LevelFinalRampTurretPlacementTests` pins pad clearance, alternation and on-ramp progress.
-- **Insight flare shortcuts are level data, not a hidden enemy special case.**
-  `LevelDefinition.insightRoutes[]` stores a stable route id, the existing blue-sentry spawner names that
-  can offer the flare, a world-space hand pose/material, and shared entry/rejoin boxes. The builder creates
-  only a colliderless Sky-layer hand plus `INSIGHT`; the boxes are telemetry anchors and have no trigger or
-  gameplay effect. A normal run still answers the projectile line for speed. Destroying a blue sentry and
-  taking its flare selects the faster, harder optional line, which rejoins before its solar arena. The
-  exporter round-trips the marker component and skips every hand mesh as generic platform geometry.
+- **Challenge Routes are level data, not a hidden enemy special case.**
+  `LevelDefinition.challengeRoutes[]` stores a stable route id, the existing blue-sentry spawner names that
+  can offer the flare, and shared entry/rejoin boxes. The builder creates only an invisible, colliderless
+  anchor; the boxes are telemetry anchors and have no trigger or gameplay effect. A normal run still answers
+  the projectile line for speed. Destroying a blue sentry and taking its flare selects the faster, harder
+  optional line, which rejoins before its solar arena. The exporter round-trips the anchor component and
+  never exports it as platform geometry.
 - **Level_01's parkour-first layout is CODE that writes the asset** (`LevelDefinitionAuthoring.Apply`, menu
   `8a`): perches + spawn moves + the balloon arc + the water lines, idempotent. `LevelTraversalAnalyzer`
   flies the arc (pop = carry trimmed to `launchCarryCap`, `launchFloatSeconds` at `launchGravityScale`, the

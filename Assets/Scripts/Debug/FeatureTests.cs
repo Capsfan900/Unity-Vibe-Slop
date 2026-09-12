@@ -4957,13 +4957,14 @@ namespace VibeGame1
             Check("Reach_HybridTraversalIsRestored", missingTraversal.Count == 0,
                 "missing=" + string.Join(",", missingTraversal.ToArray()));
 
-            var insightMarkers = FindObjectsByType<InsightRouteMarker>(FindObjectsInactive.Include);
-            Check("Reach_ThreeInsightHandsExist", insightMarkers.Length == 3,
-                "count=" + insightMarkers.Length);
-            foreach (var marker in insightMarkers)
-                Check("Reach_Insight_" + marker.RouteId + "_IsColliderless",
-                    marker.GetComponentInChildren<Collider>(true) == null,
-                    "an Insight sign must never become gameplay geometry");
+            var challengeAnchors = FindObjectsByType<ChallengeRouteMarker>(FindObjectsInactive.Include);
+            Check("Reach_ThreeChallengeAnchorsExist", challengeAnchors.Length == 3,
+                "count=" + challengeAnchors.Length);
+            foreach (var marker in challengeAnchors)
+                Check("Reach_Challenge_" + marker.RouteId + "_IsInvisibleAndColliderless",
+                    marker.GetComponentInChildren<Collider>(true) == null &&
+                    marker.GetComponentInChildren<Renderer>(true) == null,
+                    "a Challenge Route anchor must never become gameplay or presentation geometry");
 
             int arcBalloons = 0;
             foreach (var balloon in FindObjectsByType<Balloon>(FindObjectsInactive.Include))

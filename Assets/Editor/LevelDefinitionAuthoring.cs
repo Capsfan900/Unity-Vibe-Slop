@@ -467,7 +467,7 @@ namespace VibeGame1.EditorTools
             // arc's landing (x -1.3) and the pillar hops, covering the last three pillars
             // from behind; east perch OUTSIDE and ABOVE the span wall (top 30), covering the three steps.
             // Above the west shoulder after pillar three, raised half a metre so the first pillar sees the
-            // enemy and its bolt over the next terrace instead of through it. This is the red Insight
+            // enemy and its bolt over the next terrace instead of through it. This is the red Challenge Route
             // carrier: its flare feeds the balloon branch.
             new Perch("T3_Perch_W", "Spawn_T3_Grunt", new Vector3(-18f, 23.5f, 220f), 140f, "T3_Pillar_1,T3_Pillar_2"),
             // Half a metre farther west preserves all three Heavy shot lines while keeping its support
@@ -813,7 +813,7 @@ namespace VibeGame1.EditorTools
             ApplySolarRealms(def);
             ApplyProjectileEncounterSequences(def);
             ApplyRunScoring(def);
-            ApplyInsightRoutes(def);
+            ApplyChallengeRoutes(def);
             RestoreStudioMetadata(def, studioMetadata);
             var studioReport = ApplyLevelStudioMetadata(def);
             if (studioReport.errors.Count > 0)
@@ -904,7 +904,9 @@ namespace VibeGame1.EditorTools
             {
                 LevelObjectMeta saved;
                 if (!previous.TryGetValue(StudioMetadataKey(record), out saved)) continue;
-                record.meta.objectId = saved.objectId;
+                record.meta.objectId = record.kind == LevelObjectKind.ChallengeRoute
+                    ? (saved.objectId ?? "").Replace(".InsightRoute.", ".ChallengeRoute.")
+                    : saved.objectId;
                 record.meta.friendlyName = saved.friendlyName;
                 record.meta.zoneIdOverride = saved.zoneIdOverride;
             }
@@ -929,10 +931,16 @@ namespace VibeGame1.EditorTools
             }
             if (record.index < 0) return key;
             if (record.kind == LevelObjectKind.Arena) return key + ((ArenaDef)record.data).gateName;
-            if (record.kind == LevelObjectKind.InsightRoute) return key + ((InsightRouteDef)record.data).routeId;
+            if (record.kind == LevelObjectKind.ChallengeRoute)
+                return key + CanonicalChallengeRouteId(((ChallengeRouteDef)record.data).routeId);
             if (record.kind == LevelObjectKind.RunSplit) return key + ((RunSplitDef)record.data).endSpawnerName;
             // Every other top-level repeatable definition uses an existing, load-bearing name field.
             return key + (string)record.data.GetType().GetField("name").GetValue(record.data);
+        }
+
+        static string CanonicalChallengeRouteId(string routeId)
+        {
+            return (routeId ?? "").Replace("_Insight_", "_Challenge_");
         }
 
         /// <summary>Writes the campaign run contract as level data, never as a scorer-side level special case.</summary>
@@ -954,49 +962,37 @@ namespace VibeGame1.EditorTools
         }
 
         /// <summary>
-        /// Signposts the optional flare shortcuts with a world-space hand marker and gives developer
+        /// Defines the optional flare shortcuts and gives developer
         /// timing capture one shared entry/rejoin interval per section. Crossing these boxes changes no
         /// gameplay; taking an attributed flare is what selects the expert branch inside the interval.
         /// Positions are final world coordinates because this runs after <see cref="ApplySolarRealms"/>.
         /// </summary>
-        static void ApplyInsightRoutes(LevelDefinition def)
+        static void ApplyChallengeRoutes(LevelDefinition def)
         {
-            def.insightRoutes = new[]
+            def.challengeRoutes = new[]
             {
-                new InsightRouteDef
+                new ChallengeRouteDef
                 {
-                    routeId = "T1_Insight_Flare",
+                    routeId = "T1_Challenge_Flare",
                     sourceSpawnerNames = new[] { "Spawn_T1_GruntA", "Spawn_T1_GruntB" },
-                    markerPosition = new Vector3(9f, 4.5f, 38f),
-                    markerEulerAngles = new Vector3(0f, 180f, 0f),
-                    markerScale = Vector3.one * 1.5f,
-                    markerMaterialKey = "NeonCyan",
                     entryCenter = new Vector3(0f, 5f, 37f),
                     entrySize = new Vector3(42f, 16f, 10f),
                     rejoinCenter = new Vector3(0f, 7f, 70f),
                     rejoinSize = new Vector3(30f, 20f, 10f),
                 },
-                new InsightRouteDef
+                new ChallengeRouteDef
                 {
-                    routeId = "T2_Insight_Flare",
+                    routeId = "T2_Challenge_Flare",
                     sourceSpawnerNames = new[] { "Spawn_T2_GruntB", "Spawn_T2_GruntA" },
-                    markerPosition = new Vector3(-18f, 13f, 150f),
-                    markerEulerAngles = new Vector3(0f, 180f, 0f),
-                    markerScale = Vector3.one * 1.5f,
-                    markerMaterialKey = "NeonYellow",
                     entryCenter = new Vector3(0f, 13f, 149f),
                     entrySize = new Vector3(52f, 32f, 12f),
                     rejoinCenter = new Vector3(0f, 22f, 198f),
                     rejoinSize = new Vector3(32f, 24f, 12f),
                 },
-                new InsightRouteDef
+                new ChallengeRouteDef
                 {
-                    routeId = "T3_Insight_Flare",
+                    routeId = "T3_Challenge_Flare",
                     sourceSpawnerNames = new[] { "Spawn_T3_Grunt" },
-                    markerPosition = new Vector3(-9f, 25f, 274f),
-                    markerEulerAngles = new Vector3(0f, 180f, 0f),
-                    markerScale = Vector3.one * 1.5f,
-                    markerMaterialKey = "NeonRed",
                     entryCenter = new Vector3(0f, 25f, 276f),
                     entrySize = new Vector3(42f, 28f, 12f),
                     rejoinCenter = new Vector3(0f, 30f, 339f),

@@ -83,7 +83,7 @@ namespace VibeGame1.EditorTools
             var pedestals = new List<PedestalDef>();
             var arenas = new List<ArenaDef>();
             var projectileSequences = new List<ProjectileSequenceDef>();
-            var insightRoutes = new List<InsightRouteDef>();
+            var challengeRoutes = new List<ChallengeRouteDef>();
 
             // Pass 1: find the arenas first, so their gates are not also exported as plain platforms, and
             // so the plinth of a wand altar is not exported as a platform the builder would then double.
@@ -160,12 +160,11 @@ namespace VibeGame1.EditorTools
                 skipNames.Add(volley.name);
             }
 
-            // Insight hands are generated scenery with data-only capture anchors. Read their component,
-            // never their child silhouette meshes, so a rebuild/export cycle cannot turn a marker into
-            // walkable platforms.
-            foreach (var marker in levelRoot.GetComponentsInChildren<InsightRouteMarker>(true))
+            // Challenge Route anchors are data-only. Read their component so a rebuild/export cycle
+            // never treats them as walkable platforms.
+            foreach (var marker in levelRoot.GetComponentsInChildren<ChallengeRouteMarker>(true))
             {
-                insightRoutes.Add(marker.ToDefinition());
+                challengeRoutes.Add(marker.ToDefinition());
                 skipNames.Add(marker.name);
             }
 
@@ -355,7 +354,7 @@ namespace VibeGame1.EditorTools
             def.waters = waters.ToArray();
             def.arenas = arenas.ToArray();
             def.projectileSequences = projectileSequences.ToArray();
-            def.insightRoutes = insightRoutes.ToArray();
+            def.challengeRoutes = challengeRoutes.ToArray();
         }
 
         /// <summary>'M_Platform' -> 'Platform'. Keys omit the prefix so definitions read cleanly.</summary>

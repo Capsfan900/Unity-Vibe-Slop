@@ -99,6 +99,6 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [DATAFLOW.md](DATAFLOW.md) · [EN
   doing (rule 1); water changes the carry, not the response (rule 3); both draw shapes (rule 7).
 - **Level rework** (built, human feel pending): T1–T3 keep 10–18 m-wide landing-to-landing spaces, while
   towers, lintels, wall-run/wall-jump faces, connector ramps and the T3 balloon arc return on the expanded
-  shoulders. Projectile parries still earn the first three realm approaches; hand-marked Insight flares
+  shoulders. Projectile parries still earn the first three realm approaches; Challenge Route flares
   offer faster, harder lines that rejoin the same course. Rules 4, 7, 8.
 - **Level editor** (after): expose the pieces that draw shapes, not raw numbers (rule 7).

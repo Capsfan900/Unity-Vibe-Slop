@@ -170,13 +170,13 @@ namespace VibeGame1.Tests
             level.waters = new[] { new WaterDef { center = new Vector3(9, 10, 11) } };
             level.arenas = new[] { new ArenaDef { triggerPosition = new Vector3(10, 11, 12) } };
             level.projectileSequences = new[] { new ProjectileSequenceDef { progressOrigin = new Vector3(11, 12, 13) } };
-            level.insightRoutes = new[] { new InsightRouteDef { entryCenter = new Vector3(12, 13, 14) } };
+            level.challengeRoutes = new[] { new ChallengeRouteDef { entryCenter = new Vector3(12, 13, 14) } };
             level.runSplits = new[] { new RunSplitDef { endSpawnerName = "End" } };
             var records = LevelObjectCatalog.Enumerate(level).ToArray();
             var kinds = new[] { LevelObjectKind.Platform, LevelObjectKind.Ramp, LevelObjectKind.Spawn,
                 LevelObjectKind.Pickup, LevelObjectKind.Checkpoint, LevelObjectKind.Torch,
                 LevelObjectKind.Pedestal, LevelObjectKind.Balloon, LevelObjectKind.Water,
-                LevelObjectKind.Arena, LevelObjectKind.ProjectileSequence, LevelObjectKind.InsightRoute };
+                LevelObjectKind.Arena, LevelObjectKind.ProjectileSequence, LevelObjectKind.ChallengeRoute };
             for (int i = 0; i < kinds.Length; i++)
             {
                 var record = records.Single(r => r.kind == kinds[i]);
