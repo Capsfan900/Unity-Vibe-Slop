@@ -51,6 +51,28 @@ DOC_ORDER = [
     ("Assets/Resources/Audio/Radio/README.md", "Radio audio"),
     ("CREDITS.md", "Credits"),
 ]
+CATEGORIES = ("Start Here", "Level Building", "Combat & Enemies", "Systems",
+              "Testing & Debugging", "Tools & Distribution", "Archive")
+
+
+def categorize_doc(path):
+    p = path.replace("\\", "/")
+    name = Path(p).name
+    if "/plans/" in p or "/handoffs/" in p or "/superpowers/" in p or name == "ENGINEERING-LOG.md":
+        return "Archive"
+    if name in {"HANDOFF.md", "AGENTS.md", "README.md", "HUMAN-DEVELOPMENT-GUIDE.md"}:
+        return "Start Here"
+    if name in {"LEVEL-EDITOR.md", "LEVEL-AUTHORING-TUTORIAL.md", "LEVEL-VOCABULARY.md", "AUTHORING.md"}:
+        return "Level Building"
+    if name in {"ARCHITECTURE.md", "DATAFLOW.md", "MOVEMENT-PRINCIPLES.md", "ANIMATION-VFX.md", "multiplayer-system-design.md"}:
+        return "Systems"
+    if name in {"TOOLING.md", "SESSION-PROTOCOL.md", "DISTRIBUTION.md", "CREDITS.md"} or "/skills/" in p:
+        return "Tools & Distribution"
+    if name in {"VERIFICATION-REPORT.md", "BACKLOG.md"} or "/agents/" in p:
+        return "Testing & Debugging"
+    if "enemy" in p.lower() or "combat" in p.lower():
+        return "Combat & Enemies"
+    return "Start Here"
 
 # ---------------------------------------------------------------------------- helpers
 
@@ -103,6 +125,8 @@ def collect_docs():
         if rel not in seen:
             docs.append({"path": rel, "title": "Shared workflow · " + p.parent.name.replace("-", " ").title(),
                          "text": read(rel)}); seen.add(rel)
+    for doc in docs:
+        doc["category"] = categorize_doc(doc["path"])
     return docs
 
 
@@ -502,7 +526,7 @@ def build():
         "graph": code_graph(), "events": event_bus(),
         "runtimeFlow": RUNTIME_FLOW,
         "maps": dataflow_maps(by_path.get("docs/DATAFLOW.md", "")),
-        "levels": level_map(vocabulary), "enemies": enemies(), "docs": docs,
+        "levels": level_map(vocabulary), "enemies": enemies(), "docs": docs, "categories": CATEGORIES,
         "agentContract": {
             "path": "AGENTS.md",
             "specialists": len(list((ROOT / ".claude" / "agents").glob("*.md"))),
@@ -533,6 +557,7 @@ nav{border-right:1px solid var(--edge);padding:14px 10px;position:sticky;top:0;h
 nav h3{font-size:11px;letter-spacing:.14em;color:var(--dim);margin:14px 8px 6px;text-transform:uppercase}
 nav button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--bone);padding:7px 10px;border-radius:8px;cursor:pointer;font:inherit}
 nav button:hover{background:rgba(255,255,255,.05)}nav button.active{background:rgba(79,224,208,.12);color:var(--teal)}
+nav details summary{cursor:pointer;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:7px 8px}
 main{padding:20px 26px;max-width:1400px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
 .tile{background:var(--pane);border:1px solid var(--edge);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35)}
@@ -569,7 +594,7 @@ $('#meta').textContent=`branch ${D.git.branch||'?'} · generated ${D.generated} 
 try{mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose',flowchart:{curve:'basis',nodeSpacing:30,rankSpacing:40}})}catch(e){}
 function nav(){const n=$('#nav');let h='<h3>Overview</h3><button data-v="home" class="active">Dashboard</button><button data-v="agents">Agent contract</button><button data-v="changes">Change log</button><button data-v="tests">Tests</button>';
 h+='<h3>Visuals</h3><button data-v="graph">Code graph</button><button data-v="events">Event bus</button><button data-v="maps">Dataflow maps</button><button data-v="level">Level map</button><button data-v="enemies">Enemy roster</button>';
-h+='<h3>Documentation</h3>';D.docs.forEach((d,i)=>h+=`<button data-v="doc:${i}">${esc(d.title)}</button>`);n.innerHTML=h;
+h+='<h3>Documentation</h3>';D.categories.forEach(category=>{const open=category!=='Archive';h+=`<details ${open?'open':''}><summary>${esc(category)}</summary>`;D.docs.forEach((d,i)=>{if(d.category===category)h+=`<button data-v="doc:${i}">${esc(d.title)}</button>`});h+='</details>'});n.innerHTML=h;
 n.querySelectorAll('button').forEach(b=>b.onclick=()=>{n.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');show(b.dataset.v)});}
 function tile(k,v,s,cls){return `<div class="tile"><div class="k">${k}</div><div class="v ${cls||''}">${v}</div><div class="s">${s||''}</div></div>`}
 function render(md){try{return marked.parse(md,{mangle:false,headerIds:false})}catch(e){return '<pre>'+esc(md)+'</pre>'}}
@@ -709,7 +734,7 @@ function show(v){const m=$('#main');const views={home,agents:agentsView,changes,
 if(views[v])m.innerHTML=views[v]();else if(v.startsWith('doc:'))m.innerHTML=doc(+v.slice(4));window.scrollTo(0,0)}
 $('#q').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();if(!q){show('home');return}let h='<div class="pane"><h2>Search: '+esc(q)+'</h2>';let any=false;
 D.docs.forEach((d,i)=>{const lines=d.text.split('\n').map((l,n)=>[l,n]).filter(([l])=>l.toLowerCase().includes(q)).slice(0,12);if(!lines.length)return;any=true;
-h+=`<h3><a href="#" onclick="document.querySelector('[data-v=\\'doc:${i}\\']').click();return false">${esc(d.title)}</a> <span class="small">${lines.length}+ lines</span></h3><ul class="small">`+lines.map(([l,n])=>`<li><span class="mono">${n+1}</span> ${esc(l).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig'),m=>'<span class="hit">'+m+'</span>')}</li>`).join('')+'</ul>'});
+h+=`<h3><a href="#" onclick="document.querySelector('[data-v=\\'doc:${i}\\']').click();return false">${esc(d.title)}</a> <span class="chip">${esc(d.category)}</span> <span class="small">${lines.length}+ lines</span></h3><ul class="small">`+lines.map(([l,n])=>`<li><span class="mono">${n+1}</span> ${esc(l).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'ig'),m=>'<span class="hit">'+m+'</span>')}</li>`).join('')+'</ul>'});
 if(!any)h+='<p class="small">nothing</p>';$('#main').innerHTML=h+'</div>'});
 nav();show('home');
 </script></body></html>
