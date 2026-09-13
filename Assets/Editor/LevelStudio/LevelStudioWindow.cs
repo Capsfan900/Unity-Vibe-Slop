@@ -27,6 +27,9 @@ namespace VibeGame1.EditorTools
         bool showZones = true;
         bool autosaveScheduled;
         string warningConfirmationFingerprint;
+        string capturePath = "";
+        ParryCaptureFile parryCapture;
+        ParryModuleReport parryReport;
 
         [MenuItem("VibeGame1/Level Studio")]
         public static void Open()
@@ -85,6 +88,7 @@ namespace VibeGame1.EditorTools
                 EditorGUILayout.BeginVertical(GUILayout.Width(380f));
                 DrawEditToolbar();
                 inspectorScroll = EditorGUILayout.BeginScrollView(inspectorScroll);
+                DrawParryGenerator();
                 if (LevelStudioInspector.Draw(openDraft.definition, SelectedRecords())) Changed(false);
                 EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
@@ -240,6 +244,32 @@ namespace VibeGame1.EditorTools
             EditorGUILayout.EndHorizontal();
         }
 
+        void DrawParryGenerator()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Parry Module", EditorStyles.boldLabel);
+            if (GUILayout.Button("Select Capture"))
+            {
+                string selected = EditorUtility.OpenFilePanel("Select parry capture", Path.Combine(Application.persistentDataPath, "timing-captures"), "json");
+                if (!string.IsNullOrEmpty(selected))
+                {
+                    try { parryCapture = JsonUtility.FromJson<ParryCaptureFile>(File.ReadAllText(selected)); capturePath = selected; parryReport = null; }
+                    catch (Exception e) { message = "Capture load failed: " + e.Message; }
+                }
+            }
+            if (parryCapture == null) return;
+            EditorGUILayout.LabelField(Path.GetFileName(capturePath) + "  •  " + parryCapture.desiredBeats.Count + " beats", EditorStyles.miniLabel);
+            if (GUILayout.Button("Generate Module"))
+            {
+                var result = new ParryModuleSolver().Solve(parryCapture, openDraft.definition, new ParrySolverSettings());
+                parryReport = result.report;
+                if (result.success) { ParryModuleSolver.ApplyToDraft(result, openDraft, result.module.zoneId); Changed(true); message = "Generated " + result.module.spawns.Length + " projectile placements."; }
+                else message = "Module generation failed; inspect the beat report.";
+            }
+            if (parryReport != null)
+                foreach (var beat in parryReport.beats) EditorGUILayout.LabelField("Beat " + beat.ordinal + "  " + (beat.satisfied ? beat.enemyKey : beat.failure), EditorStyles.miniLabel);
+        }
+
         void OnSceneGUI(SceneView sceneView)
         {
             if (openDraft == null || sceneTool == null) return;
@@ -261,6 +291,16 @@ namespace VibeGame1.EditorTools
                 foreach (var sequence in openDraft.definition.projectileSequences ?? new ProjectileSequenceDef[0])
                     foreach (var window in sequence == null ? new ProjectileEngagementWindowDef[0] : sequence.engagementWindows ?? new ProjectileEngagementWindowDef[0])
                         if (window != null) Handles.DrawLine(window.routeStart, window.routeEnd);
+            }
+            if (parryCapture != null)
+            {
+                Handles.color = Color.magenta;
+                for (int i = 0; i < parryCapture.desiredBeats.Count; i++)
+                {
+                    var beat = parryCapture.desiredBeats[i];
+                    Handles.DrawWireDisc(beat.position, Vector3.up, .45f);
+                    if (i > 0) Handles.DrawLine(parryCapture.desiredBeats[i - 1].position, beat.position);
+                }
             }
             var records = SelectedRecords(); var active = records.FirstOrDefault(x => "object:" + x.path == selection.activeKey) ?? records.FirstOrDefault();
             if (active == null) return;

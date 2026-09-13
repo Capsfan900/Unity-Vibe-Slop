@@ -2233,6 +2233,13 @@ exists; observed projectile emission/cue/arrival/result events remain diagnostic
 `InputReader`, `FirstPersonMotor`, `LevelPiece`, `LevelRunScorer` and `Projectile` state and never drives input,
 combat, velocity or time scale.
 
+`Level Studio → Select Capture → Generate Module` parses that same version-2 file, previews its path/beats,
+and sends every desired beat through `ParryModuleSolver`. The editor-only solver reads the shipped Sentry/Heavy
+`EnemyData` and the shared `ProjectileFlightMath`, tests fixed left/right perch candidates inside the selected
+zone, groups only cadence-compatible triples into a Heavy phrase, and emits a stable placement plus one
+`ParryBeatFit` per requested beat. Unsatisfied beats remain explicit report failures. `ApplyToDraft` appends the
+successful generated spawns to the working copy under one Undo step; it never writes the campaign asset.
+
 **Invariants**
 - **A ramp is authored as a RISE over a RUN, never as an angle** (`RampDef`, 2026-09-07 — the game's only
   non-axis-aligned geometry). `basePosition` is the centre of the LOW edge of the walkable face; `run` is
