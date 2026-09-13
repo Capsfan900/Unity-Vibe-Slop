@@ -110,6 +110,7 @@ namespace VibeGame1.EditorTools
             if (record == null || !TryRootArray(record.path, out field, out index)) return null;
             var serialized = new SerializedObject(definition); var array = serialized.FindProperty(field);
             if (array == null || !array.isArray || index < 0 || index >= array.arraySize) return null;
+            Undo.IncrementCurrentGroup();
             Undo.RecordObject(definition, "Duplicate Level Object");
             array.InsertArrayElementAtIndex(index);
             var copy = array.GetArrayElementAtIndex(index + 1);
@@ -127,6 +128,7 @@ namespace VibeGame1.EditorTools
             if (record == null || !TryRootArray(record.path, out field, out index)) return false;
             var serialized = new SerializedObject(definition); var array = serialized.FindProperty(field);
             if (array == null || !array.isArray || index < 0 || index >= array.arraySize) return false;
+            Undo.IncrementCurrentGroup();
             Undo.RecordObject(definition, "Delete Level Object");
             array.DeleteArrayElementAtIndex(index);
             serialized.ApplyModifiedProperties();
