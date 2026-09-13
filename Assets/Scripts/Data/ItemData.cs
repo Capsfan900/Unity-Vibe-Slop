@@ -17,6 +17,9 @@ namespace VibeGame1
         Rebound = 2,
         /// <summary>Waits for the next Perfect, then adds speed stacks and a forward impulse.</summary>
         DeflectSigil = 3,
+        /// <summary>Throw the equipped sword; DASH at it (in flight or lodged) to be pulled to it.
+        /// Unarmed until it returns.</summary>
+        BladeThrow = 4,
     }
 
     /// <summary>
@@ -66,6 +69,28 @@ namespace VibeGame1
         [Min(1)] public int deflectSigilBonusStacks = 2;
         [Tooltip("Extra forward metres/second paid with the qualifying Perfect.")]
         public float deflectSigilImpulse = 5f;
+
+        [Header("Blade throw")]
+        [Tooltip("Metres per second the sword leaves the hand at, along the aim.")]
+        public float bladeSpeed = 24f;
+        [Tooltip("Metres per second squared of drop on the throw's arc. Low: a tomahawk, not a lob.")]
+        public float bladeGravity = 8f;
+        [Tooltip("Seconds the sword flies before it returns on its own. Speed x this is the throw's reach cap.")]
+        public float bladeFlightSeconds = 1.1f;
+        [Tooltip("Seconds a lodged sword stays recallable before it returns on its own.")]
+        public float bladeLodgeSeconds = 3.5f;
+        [Tooltip("Degrees per second of end-over-end tumble in flight.")]
+        public float bladeSpinDegreesPerSecond = 1080f;
+        [Tooltip("Metres. Furthest the sword can be and still be recalled to.")]
+        public float bladeRecallRange = 30f;
+        [Tooltip("Degrees off the aim inside which the sword is a recall target. Generous: it is moving.")]
+        public float bladeRecallConeDeg = 25f;
+        [Tooltip("Seconds of pull to the sword. The hook's 0.35.")]
+        public float bladePullSeconds = 0.35f;
+        [Tooltip("An enemy the sword lodges in takes the equipped weapon's posture damage times this. No health damage.")]
+        public float bladePostureMultiplier = 1.5f;
+        [Tooltip("World size of the thrown model relative to the weapon's viewmodel scale.")]
+        public float bladeModelScale = 1.6f;
 
         [Header("Retired serialized data")]
         [Tooltip("Legacy Wall Surge duration. Kept only so old serialized assets remain readable; no shipped item uses it.")]

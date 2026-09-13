@@ -575,8 +575,8 @@ dagger's is nine small stabs in a narrow cone. A super that could belong to any 
 **Every inscription (`WandData`, retained serialized name) carries a `cooldown`.** It gates the riposte
 *blast* only — while it runs the deathblow still lands as the melee execute. Written in `WandFactory`.
 
-**Items: exactly three live moves.** `ItemEffect` appends `{ Grapple = 0, WallSurge = 1 (retired),
-Rebound = 2, DeflectSigil = 3 }`; never reuse value 1 because old serialized assets must not silently
+**Items: four live moves.** `ItemEffect` appends `{ Grapple = 0, WallSurge = 1 (retired),
+Rebound = 2, DeflectSigil = 3, BladeThrow = 4 }`; never reuse value 1 because old serialized assets must not silently
 become another item. Each live item is a `DataFactory` block, and a level places one by
 `PickupDef.itemKey`. Rule 9 applies:
 every tunable below is written in `DataFactory`.

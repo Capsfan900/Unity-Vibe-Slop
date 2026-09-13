@@ -38,6 +38,18 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void RecordingStagesAreNeverCampaignLevels()
+        {
+            var registry = AssetDatabase.LoadAssetAtPath<LevelRegistry>("Assets/Data/LevelRegistry.asset");
+            Assert.IsNotNull(registry);
+            foreach (var level in registry.levels)
+            {
+                string path = AssetDatabase.GetAssetPath(level);
+                StringAssert.DoesNotContain("/Recording/", path, "Create Data must not adopt a recording stage into the campaign");
+            }
+        }
+
+        [Test]
         public void DownhillPlayerStartsOnTheRampSurface()
         {
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>("Assets/Data/Levels/Recording/Recording_Downhill.asset");

@@ -71,7 +71,8 @@ namespace VibeGame1
             var input = InputReader.I;
 
             int slot = input.WeaponSlotPressed;
-            if (slot >= 0 && slot < loadout.Length && slot != Index) Equip(slot);
+            // No swapping the sword that is currently in the air (BladeThrow).
+            if (slot >= 0 && slot < loadout.Length && slot != Index && !ThrownBlade.IsAway) Equip(slot);
 
             if (input.AttackPressed) TryAttack();
         }
@@ -84,6 +85,7 @@ namespace VibeGame1
         public bool TryAttack()
         {
             if (Current == null) return false;
+            if (ThrownBlade.IsAway) return false;   // the sword is in the air: nothing to swing or execute with
             if (combat != null && combat.IsStaggered) return false;
             if (exec != null && exec.TryExecute()) { CancelAttack(); return true; }
             if (exec != null && exec.IsExecuting) return false;

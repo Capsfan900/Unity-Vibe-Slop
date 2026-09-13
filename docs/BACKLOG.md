@@ -16,6 +16,29 @@ Related: [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md) — what is proven and
 
 ---
 
+## Current (2026-09-13)
+
+### Blade Throw book spell — built in source, awaiting editor pass and playtest
+User ask: throw the sword like a tomahawk and teleport to it like the flare, at any point in its flight;
+it may lodge in something. Built with the combat-designer plan's defaults: book item, aim + DASH recall,
+unarmed while away, 26.4 m reach cap, no bolt deflection, no cost. **Not yet done:** a Level_01 pickup
+(level-designer lane, keep clear of the four duel arenas and audit each 28 m circle), human feel pass
+(spin read, wall-arrival disorientation, unarmed fairness under the bolt beat).
+
+### Spellbook design notes (Fable review 2026-09-13) — kept in mind, NOT authorised
+The user said to keep these in mind; do not build without a new ask.
+1. Wheel with < 2 spells is silent — give it a click and "NO SPELLS" flash (`PlayerItems.CycleSelection`).
+2. Orb hue is the only selection read and hues collide (Rebound/Gravecall green, Sigil/Voidspine/fallback
+   violet); split core = inscription, rune bars = carried spells.
+3. `SpellbookVisual.OrbEmission` normalises max channel to 2.1 — gold blooms white; normalise by luminance.
+4. No castability tell (Grapple target known before E but never shown).
+5. Cast has no anticipation/contact; DATAFLOW:654-657 riposte-to-centre claim is false.
+6. Idle page flutter/orb bob sits in the parry quadrant — halve and check against a bolt approach.
+7. Only Emberlance is reachable without dev access (a player inscription picker would be a new mechanic).
+8. Doc drift: ARCHITECTURE:903, :971-976; ANIMATION-VFX:472; dead `ItemSlotView` path in HUDController.
+
+---
+
 ## 0. The pivot (2026-09-04): parkour first, enemies as tools — ALL SIX BUILT, none played
 
 The user's words: *"instead having small enemies in the between levels parkour just focus on making the

@@ -778,6 +778,8 @@ namespace VibeGame1.EditorTools
             root.AddComponent<PlayerItems>();
             // The FLARE GRAPPLE (2026-09-06, replaces the sentry dash): DASH at a glowing sentry flare pulls you
             // to it and tosses you up. Rule 9: written here, not left to the initialiser.
+            // BLADE THROW recall (2026-09-13): DASH at your own thrown sword. Numbers live on the item asset.
+            root.AddComponent<BladeRecall>();
             var flareGrapple = root.AddComponent<FlareGrapple>();
             flareGrapple.range = 30f; flareGrapple.coneDeg = 20f; flareGrapple.pullSeconds = 0.35f;
             // 2026-09-06 (the user): higher, and about two seconds of hangtime, ONLY that. 18 m/s against

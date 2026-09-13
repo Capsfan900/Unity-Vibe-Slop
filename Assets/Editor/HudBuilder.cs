@@ -762,7 +762,7 @@ namespace VibeGame1.EditorTools
 
         // ---------------- test menu ----------------
 
-        static readonly string[] ItemAssetNames = { "Grapple", "Rebound", "DeflectSigil" };
+        static readonly string[] ItemAssetNames = { "Grapple", "Rebound", "DeflectSigil", "BladeThrow" };
 
 
         /// <summary>

@@ -20,6 +20,8 @@ namespace VibeGame1
         public const string Execute = "execute";
         /// <summary>FlareGrapple — "GRAPPLE  [DASH]".</summary>
         public const string Grapple = "grapple";
+        /// <summary>BladeRecall — "RECALL  [DASH]". Its own key so it and the flare never blank each other.</summary>
+        public const string Recall = "recall";
         /// <summary>PlayerItems — the wall-surge countdown.</summary>
         public const string Surge = "surge";
         /// <summary>WandPedestal — the dev altar's "[F]" cue.</summary>

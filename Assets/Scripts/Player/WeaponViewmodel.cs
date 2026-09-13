@@ -166,6 +166,7 @@ namespace VibeGame1
                 // and needs its Seg*/Tip*/Float* parts bound after instantiation.
                 BindGlow(instance, w.neon);
                 CloseHandOn(instance);
+                if (bladeAway) instance.SetActive(false);
             }
             if (w != null) { current = w.idle; ApplyPose(current); }
             // Swapping weapons with the guard still held must come back up in the stance, not idle.
@@ -775,7 +776,20 @@ namespace VibeGame1
                 if (Application.isPlaying) Destroy(overrideInstance); else DestroyImmediate(overrideInstance);
             }
             overrideInstance = null;
-            if (instance != null) { instance.SetActive(true); CloseHandOn(instance); }
+            if (instance != null) { instance.SetActive(!bladeAway); CloseHandOn(instance); }
+        }
+
+        bool bladeAway;
+        /// <summary>True while the sword is thrown (BladeThrow). The melee model stays hidden through any
+        /// Interrupt/ClearOverride/SetWeapon until the blade returns.</summary>
+        public bool BladeAway => bladeAway;
+
+        /// <summary>Hide or restore the held melee model for a thrown sword. The only writer is PlayerItems.</summary>
+        public void SetBladeAway(bool away)
+        {
+            bladeAway = away;
+            if (away) { Stop(); holding = false; guarding = false; if (trail != null) trail.Clear(); }
+            if (instance != null && overrideInstance == null) instance.SetActive(!away);
         }
 
         /// <summary>Raise the wand and hold it charged. Holds until a fire/clear call releases it.</summary>

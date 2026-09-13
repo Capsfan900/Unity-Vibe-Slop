@@ -2219,6 +2219,25 @@ namespace VibeGame1.EditorTools
                 i.description = "Arm until your next Perfect. Blocks and misses do not spend it; the Perfect " +
                                 "adds two speed stacks and a stronger forward impulse.";
             });
+            Item("BladeThrow", i =>
+            {
+                i.displayName = "Blade Throw"; i.shortLabel = "BLADE";
+                i.effect = ItemEffect.BladeThrow;
+                i.color = Hdr("#FFB347", 4f);   // ember amber: distinct from Hook cyan, Rebound green, Sigil violet
+                // 24 m/s x 1.1 s = 26.4 m reach, under the Hook's 28 m envelope Level_01 already tolerates.
+                i.bladeSpeed = 24f;
+                i.bladeGravity = 8f;
+                i.bladeFlightSeconds = 1.1f;
+                i.bladeLodgeSeconds = 3.5f;
+                i.bladeSpinDegreesPerSecond = 1080f;
+                i.bladeRecallRange = 30f;
+                i.bladeRecallConeDeg = 25f;
+                i.bladePullSeconds = 0.35f;
+                i.bladePostureMultiplier = 1.5f;
+                i.bladeModelScale = 1.6f;
+                i.description = "Throw your sword. Aim at it and DASH at any point in its flight - or where it " +
+                                "bites - to be pulled to it. You are unarmed until it is back in your hand.";
+            });
             AssetDatabase.DeleteAsset(ItemsDir + "/WallSurge.asset");
 
             // ---------------- Singletons ----------------
@@ -2389,6 +2408,8 @@ namespace VibeGame1.EditorTools
         /// <summary>
         /// Adds every LevelDefinition in Assets/Data/Levels to the registry that is not already there.
         /// Additive only — existing order is preserved, because campaign order is authored, not derived.
+        /// The parry recording stages under <see cref="RecordingLevelsDir"/> are tooling, never campaign
+        /// levels: they are skipped, and removed if an earlier run adopted them.
         /// </summary>
         static void AdoptLevelDefinitions(LevelRegistry registry)
         {
@@ -2398,14 +2419,22 @@ namespace VibeGame1.EditorTools
             var list = new System.Collections.Generic.List<LevelDefinition>();
             if (registry.levels != null)
                 for (int i = 0; i < registry.levels.Length; i++)
-                    if (registry.levels[i] != null) list.Add(registry.levels[i]);
+                    if (registry.levels[i] != null && !IsRecordingStage(registry.levels[i])) list.Add(registry.levels[i]);
 
             for (int i = 0; i < guids.Length; i++)
             {
                 var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(AssetDatabase.GUIDToAssetPath(guids[i]));
-                if (def != null && !list.Contains(def)) list.Add(def);
+                if (def != null && !IsRecordingStage(def) && !list.Contains(def)) list.Add(def);
             }
             registry.levels = list.ToArray();
+        }
+
+        const string RecordingLevelsDir = LevelsDir + "/Recording";
+
+        static bool IsRecordingStage(LevelDefinition def)
+        {
+            string path = AssetDatabase.GetAssetPath(def);
+            return !string.IsNullOrEmpty(path) && path.Replace('\\', '/').StartsWith(RecordingLevelsDir + "/");
         }
 
         /// <summary>Creates or rewrites a moveset asset. Reset to defaults first, like Attack()/Item().</summary>

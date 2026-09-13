@@ -122,6 +122,7 @@ namespace VibeGame1
 
         bool CanGuard()
         {
+            if (ThrownBlade.IsAway) return false;          // BladeThrow: no steel in hand, no guard
             if (combat == null) return true;
             if (combat.IsStaggered) return false;          // a broken guard is the punish; it must stay broken
             if (combat.IsExecuting || combat.IsDrinking) return false;
@@ -168,6 +169,7 @@ namespace VibeGame1
         bool CanParry()
         {
             if (Current != State.Idle) return false;
+            if (ThrownBlade.IsAway) return false;          // BladeThrow: unarmed until the sword returns
             if (combat != null && combat.IsStaggered) return false;
             if (combat != null && (combat.IsExecuting || combat.IsDrinking)) return false;
             return true;

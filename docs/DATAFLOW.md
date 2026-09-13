@@ -789,13 +789,26 @@ E → PlayerItems.UseCurrent (InputReader.UseItemPressed; casts the selected ind
                → Block / Hit retain it
                → Perfect consumes it, adds two EXTRA general ParrySurge stacks and +5 m/s look impulse
                → death / respawn / disable clears it
+  BladeThrow (2026-09-13) → refuses (kept) with no weapon, mid-pull, mid-execute or a blade already away
+          → ThrownBlade.Spawn(eye + aim·0.6, aim, WeaponController.Current, item, motor.WorldMask)
+          → WeaponViewmodel.SetBladeAway(true): model hidden through Interrupt/ClearOverride/SetWeapon
+          → while ThrownBlade.IsAway: WeaponController.TryAttack and slot swaps refuse,
+            ParryController.CanParry / CanGuard are false (unarmed; incoming blows resolve as Hit)
+          → FLIGHT (scaled time, BladeMath arc 24 m/s, g 8, 1.1 s, 1080°/s tumble) sphere-sweeps
+            WorldMask|Enemy: first contact LODGES (enemy: parent + Posture.Add(weapon.postureDamage × 1.5),
+            never health); KillZone overlap or flight/lodge timeout → Return
+          → BladeRecall (Player, order -51, before FlareGrapple): recallable blade in 30 m / 25° / world LOS
+            → "RECALL  [DASH]" (PromptOwner.Recall) → DashPressed → Consume + motor.BeginPull(PullTarget, 0.35)
+            → on pull end into a staggered lodged enemy → ExecuteInteractor.ExecuteNow
+          → ThrownBlade.Ended(recalled) → PlayerItems.OnBladeEnded → SetBladeAway(false)
+          → PlayerDied / respawn / disable → ClearArmedEffects → ThrownBlade.ClearActive
 
   `ItemEffect.WallSurge = 1` remains a retired serialization tombstone. The factory deletes its asset and
   level authoring migrates every old pickup key to Rebound or DeflectSigil; value 1 is never reinterpreted.
 
 THE PROMPT LINE — two channels (2026-09-06)
   GameEvents.PromptChanged (owner, string) → PromptView.standing : a cue true while a condition holds
-        "DEATHBLOW  [ATTACK]" (ExecuteInteractor), "GRAPPLE  [DASH]" (FlareGrapple),
+        "DEATHBLOW  [ATTACK]" (ExecuteInteractor), "GRAPPLE  [DASH]" (FlareGrapple), "RECALL  [DASH]" (BladeRecall),
         the level editor's PLAYING line. Every writer is EDGE-TRIGGERED (raises only when its own string changes).
   GameEvents.PromptFlash (string, seconds) → PromptView.flash : momentary, drawn OVER the standing cue and then
         gone — "PERFECT", "WALL EXIT [SPACE]", "DASH JUMP [SPACE]" (PlayerFeedback),

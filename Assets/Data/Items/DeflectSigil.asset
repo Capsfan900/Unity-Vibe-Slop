@@ -29,4 +29,14 @@ MonoBehaviour:
   reboundBonusSpeed: 3
   deflectSigilBonusStacks: 2
   deflectSigilImpulse: 5
+  bladeSpeed: 24
+  bladeGravity: 8
+  bladeFlightSeconds: 1.1
+  bladeLodgeSeconds: 3.5
+  bladeSpinDegreesPerSecond: 1080
+  bladeRecallRange: 30
+  bladeRecallConeDeg: 25
+  bladePullSeconds: 0.35
+  bladePostureMultiplier: 1.5
+  bladeModelScale: 1.6
   surgeSeconds: 8

@@ -57,6 +57,7 @@ namespace VibeGame1
             GameEvents.PlayerRespawned += ClearAll;
             GameEvents.PlayerDied += ClearArmedEffects;
             GameEvents.ParryResolved += OnParryResolved;
+            ThrownBlade.Ended += OnBladeEnded;
         }
 
         void OnDisable()
@@ -65,6 +66,7 @@ namespace VibeGame1
             GameEvents.PlayerDied -= ClearArmedEffects;
             GameEvents.ParryResolved -= OnParryResolved;
             ClearArmedEffects();
+            ThrownBlade.Ended -= OnBladeEnded;
         }
 
         void Start() { Broadcast(); }
@@ -176,6 +178,7 @@ namespace VibeGame1
                 case ItemEffect.Grapple: return TryGrapple(item);
                 case ItemEffect.Rebound: return TryArmRebound(item);
                 case ItemEffect.DeflectSigil: return TryArmSigil(item);
+                case ItemEffect.BladeThrow: return TryThrowBlade(item);
                 case ItemEffect.WallSurge: return false; // retired serialized value; never reinterpret it
             }
             return false;
@@ -381,6 +384,39 @@ namespace VibeGame1
             }
         }
 
+        // ---- Blade throw ------------------------------------------------------------------------
+
+        /// <summary>Throw the equipped sword along the aim. Refused (kept) with no weapon, mid-pull,
+        /// mid-execute, or with a blade already away. The weapon viewmodel hides until
+        /// <see cref="ThrownBlade.Ended"/>; BladeRecall does the pull.</summary>
+        bool TryThrowBlade(ItemData item)
+        {
+            if (ThrownBlade.IsAway) return false;
+            if (motor != null && motor.IsPulling) return false;
+            if (exec != null && exec.IsExecuting) return false;
+            var weapons = GetComponent<WeaponController>();
+            if (weapons == null || weapons.Current == null) return false;
+            weapons.CancelAttack();
+
+            Vector3 eye = look != null && look.Cam != null ? look.Cam.position : transform.position + Vector3.up * 1.6f;
+            Vector3 aim = look != null ? look.AimForward : transform.forward;
+            int mask = motor != null ? motor.WorldMask : ~((1 << Layers.Player) | (1 << Layers.Enemy) | (1 << Layers.Interactable));
+            if (ThrownBlade.Spawn(eye + aim * 0.6f, aim, weapons.Current, item, mask) == null) return false;
+
+            var vm = GetComponentInChildren<WeaponViewmodel>(true);
+            if (vm != null) vm.SetBladeAway(true);
+            if (CameraFX.I != null) CameraFX.I.FovKick(4f);
+            AudioManager.Play(Sfx.Dash, 0.7f, 1.35f);
+            return true;
+        }
+
+        void OnBladeEnded(bool recalled)
+        {
+            var vm = GetComponentInChildren<WeaponViewmodel>(true);
+            if (vm != null) vm.SetBladeAway(false);
+            AudioManager.Play(Sfx.Click, 0.6f, recalled ? 1.1f : 0.8f);
+        }
+
         // ---- Armed items -----------------------------------------------------------------------
 
         bool TryArmRebound(ItemData item)
@@ -418,6 +454,7 @@ namespace VibeGame1
 
         void ClearArmedEffects()
         {
+            ThrownBlade.ClearActive();   // death and reset put the sword back in the hand
             DeflectSigilArmed = false;
             armedSigil = null;
             if (motor != null) motor.ClearItemMovementBonuses();
