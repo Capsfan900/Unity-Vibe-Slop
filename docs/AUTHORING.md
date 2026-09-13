@@ -100,6 +100,12 @@ default material rather than failing the whole level.
 
 Prefab keys resolve against `Assets/Prefabs/`.
 
+### Parry recording stages
+
+Run **VibeGame1 → 10. Build Parry Recording Stages** to regenerate the four clean capture templates in
+`Assets/Data/Levels/Recording/`. Flat, downhill, ice/water and mixed variants each have one `T0` zone, safe
+bounds and no shooters, leaving the designer's `timing prime` run as the sole source of desired parry beats.
+
 ---
 
 ### 1a′. The parkour-first rework of Level_01 — `8a. Rework Level_01 (parkour first)`
