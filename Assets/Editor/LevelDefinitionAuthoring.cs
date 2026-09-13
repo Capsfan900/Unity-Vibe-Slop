@@ -1321,12 +1321,11 @@ namespace VibeGame1.EditorTools
             // reads as a widening of the lane rather than an object in it. The last pair share one
             // connected open Z-shaped dais whose offset decks leave both downward shot lines clear.
             var spawns = new List<SpawnDef>(def.spawns);
-            var spawnMeta = spawns.Where(s => s != null && s.meta != null)
-                .ToDictionary(s => s.name, s => s.meta, StringComparer.Ordinal);
             LevelObjectMeta preserveMeta(string name, string objectId)
             {
-                LevelObjectMeta meta;
-                return spawnMeta.TryGetValue(name, out meta) ? meta : new LevelObjectMeta { objectId = objectId };
+                foreach (var existing in spawns)
+                    if (existing != null && existing.name == name && existing.meta != null) return existing.meta;
+                return new LevelObjectMeta { objectId = objectId };
             }
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_") ||
                                   s.name.StartsWith("Spawn_T0_Reliquary_"));
