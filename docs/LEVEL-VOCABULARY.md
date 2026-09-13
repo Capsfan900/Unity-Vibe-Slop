@@ -42,8 +42,8 @@ the Sandbox-only V18 test boss). Never use “blue squid” to mean a Heavy Sent
 
 ## Dashboard data
 
-The development dashboard parses this block and overlays it on the shipped level geometry. Keep it valid
-JSON and update it whenever a zone boundary or canonical term changes.
+The development dashboard derives bounds, splits, placed IDs, types and data keys from the shipped
+`LevelDefinition` asset. This small JSON block contains aliases only; it is not a second placed-object inventory.
 
 <!-- dashboard-level-vocabulary -->
 ```json
@@ -52,11 +52,11 @@ JSON and update it whenever a zone boundary or canonical term changes.
     {
       "file": "Assets/Data/Levels/Level_01_Level.asset",
       "zones": [
-        {"id": "T0", "canonical": "Opening Descent", "zMin": -162.3, "zMax": 8, "aliases": ["first ramp", "opening ramp", "starting descent", "reliquary landing"], "prompt": "Opening downhill parry tutorial and paired Heavy Sentries."},
-        {"id": "T1", "canonical": "Stone Causeway", "zMin": 8, "zMax": 145.625, "aliases": ["first parkour section", "causeway", "Ninja section"], "prompt": "Stepping stones, water shortcut and Thirteenth Shade split."},
-        {"id": "T2", "canonical": "Helix Tower", "zMin": 145.625, "zMax": 267, "aliases": ["tower", "wall-run tower", "Knight section"], "prompt": "Vertical wall-run circuit and Iron Penitent split."},
-        {"id": "T3", "canonical": "Balloon Aqueduct", "zMin": 267, "zMax": 393.15, "aliases": ["balloon section", "water span", "Spellsword section"], "prompt": "Balloon and elevated-water traversal into the Ashen Chorister split."},
-        {"id": "T4", "canonical": "Warden Descent", "zMin": 393.15, "zMax": 520, "aliases": ["last ramp", "final ramp", "Warden approach", "boss approach"], "prompt": "Final Surge Turret descent into the Hollow Warden split."}
+        {"id": "T0", "aliases": ["first ramp", "opening ramp", "starting descent", "reliquary landing"]},
+        {"id": "T1", "aliases": ["first parkour section", "causeway", "Ninja section"]},
+        {"id": "T2", "aliases": ["tower", "wall-run tower", "Knight section"]},
+        {"id": "T3", "aliases": ["balloon section", "water span", "Spellsword section"]},
+        {"id": "T4", "aliases": ["last ramp", "final ramp", "Warden approach", "boss approach"]}
       ]
     }
   ],

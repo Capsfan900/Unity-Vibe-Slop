@@ -22,6 +22,12 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("broken-local-link", {f["code"] for f in findings})
         self.assertIn("obsolete-current-term", {f["code"] for f in findings})
 
+    def test_level_map_groups_objects_under_zone(self):
+        fixture = """  zones:\n  - zoneId: T2\n    canonicalName: Helix Tower\n    splitName: Knight\n    center: {x: 0, y: 10, z: 200}\n    size: {x: 40, y: 30, z: 100}\n  spawns:\n  - meta:\n      objectId: T2.Sentry.02\n      zoneIdOverride: T2\n    prefabKey: pshooter_enemy01\n    position: {x: 10, y: 20, z: 210}\n"""
+        level = dashboard.parse_level_asset(fixture)
+        self.assertEqual("Knight", level["zones"]["T2"]["split"])
+        self.assertEqual("pshooter_enemy01", level["objects"]["T2.Sentry.02"]["dataKey"])
+
 
 if __name__ == "__main__":
     unittest.main()

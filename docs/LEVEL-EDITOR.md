@@ -20,6 +20,8 @@ and its size), and a 7-cell grid decal drawn on whatever surface the preview sit
 Related: [AUTHORING.md](AUTHORING.md) §1 (LevelDefinition) · [DATAFLOW.md](DATAFLOW.md) → *Level editor* ·
 [BACKLOG.md](BACKLOG.md) §0 · [TOOLING.md](TOOLING.md)
 
+For an unambiguous editing request, use: `<zone ID/name> / <canonical object ID or alias> / <requested change>`.
+
 ---
 
 ## Opening and closing

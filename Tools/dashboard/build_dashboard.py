@@ -443,6 +443,30 @@ def yaml_list(text, key):
     return out
 
 
+LEVEL_OBJECT_ARRAYS = ("platforms", "ramps", "spawns", "pickups", "checkpoints", "torches",
+                       "pedestals", "balloons", "waters", "arenas", "projectileSequences", "challengeRoutes")
+
+
+def parse_level_asset(text):
+    zones = {}
+    for zone in yaml_list(text, "zones"):
+        center, size = zone.get("center", [0, 0, 0]), zone.get("size", [0, 0, 0])
+        zone_id = zone.get("zoneId", "")
+        zones[zone_id] = {"id": zone_id, "canonical": zone.get("canonicalName", zone_id),
+                          "split": zone.get("splitName", ""), "center": center, "size": size,
+                          "zMin": center[2] - size[2] / 2, "zMax": center[2] + size[2] / 2,
+                          "aliases": []}
+    objects = {}
+    for kind in LEVEL_OBJECT_ARRAYS:
+        for item in yaml_list(text, kind):
+            object_id = item.get("objectId", "")
+            if not object_id:
+                continue
+            objects[object_id] = {"id": object_id, "kind": kind, "zone": item.get("zoneIdOverride", ""),
+                                  "dataKey": item.get("prefabKey", item.get("itemKey", ""))}
+    return {"zones": zones, "objects": objects}
+
+
 def level_vocabulary(text):
     """Read the dashboard JSON block from the human-owned canonical vocabulary document."""
     marker = "<!-- dashboard-level-vocabulary -->"
@@ -473,6 +497,13 @@ def level_map(vocabulary=None):
         challenge_routes = yaml_list(t, "challengeRoutes")
         if not challenge_routes:
             challenge_routes = yaml_list(t, "insightRoutes")
+        derived = parse_level_asset(t)
+        derived_zones = list(derived["zones"].values())
+        for zone in derived_zones:
+            old = next((x for x in vocab.get("zones", []) if x.get("id") == zone["id"]), {})
+            zone["aliases"] = old.get("aliases", [])
+            zone["prompt"] = old.get("prompt", "")
+            zone["objects"] = [x for x in derived["objects"].values() if x["zone"] == zone["id"]]
         levels.append({
             "file": rel, "name": name.group(1).strip() if name else p.stem,
             "playerStart": [float(ps.group(1)), float(ps.group(2)), float(ps.group(3))] if ps else None,
@@ -484,7 +515,7 @@ def level_map(vocabulary=None):
             "pedestals": yaml_list(t, "pedestals"), "arenas": yaml_list(t, "arenas"),
             "projectileSequences": yaml_list(t, "projectileSequences"),
             "challengeRoutes": challenge_routes,
-            "zones": vocab.get("zones", []), "enemyTerms": vocabulary.get("enemyTerms", {}),
+            "zones": derived_zones, "objects": derived["objects"], "enemyTerms": vocabulary.get("enemyTerms", {}),
         })
     return levels
 
