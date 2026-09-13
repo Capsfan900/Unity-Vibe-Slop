@@ -6,6 +6,15 @@
             "id": "df70fa95-8a34-4494-b137-73ab6b9c7d37",
             "actions": [
                 {
+                    "name": "TimingCaptureToggle",
+                    "type": "Button",
+                    "id": "645087a4-cfad-4a1f-97ad-8836ddf4605a",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "LevelEditor",
                     "type": "Button",
                     "id": "ae38140c-3dd5-461c-9395-6d5b41e8cb6f",
@@ -520,6 +529,17 @@
                 }
             ],
             "bindings": [
+                {
+                    "name": "",
+                    "id": "535a365b-75bd-4e87-9e1a-aecaf5244679",
+                    "path": "<Keyboard>/0",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "TimingCaptureToggle",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
                 {
                     "name": "",
                     "id": "baef9c00-1902-4dfb-91b5-d5d2232fc894",

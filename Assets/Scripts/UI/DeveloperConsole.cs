@@ -29,7 +29,7 @@ namespace VibeGame1
 
         const int MaxLines = 12;
         public const string LockedHelpText = "help  |  clear  |  enter developer passphrase";
-        public const string UnlockedHelpText = "help  |  clear  |  timing start/stop/status/export/discard  |  F1/F5-F10/4/R enabled";
+        public const string UnlockedHelpText = "help  |  clear  |  timing prime/stop/status/export/discard  |  F1/F5-F10/4/R enabled";
         public static string HelpText { get { return DeveloperAccess.IsUnlocked ? UnlockedHelpText : LockedHelpText; } }
 
         public struct CommandResult
@@ -171,14 +171,11 @@ namespace VibeGame1
 
             switch (normalized)
             {
+                case "timing prime":
                 case "timing start":
-                {
-                    string message;
-                    PlayerTimingCapture.StartCapture(out message);
-                    return new CommandResult(false, message);
-                }
+                    return new CommandResult(false, PlayerTimingCapture.Prime());
                 case "timing stop":
-                    return new CommandResult(false, PlayerTimingCapture.StopCapture());
+                    return new CommandResult(false, PlayerTimingCapture.StopAndExport());
                 case "timing status":
                     return new CommandResult(false, PlayerTimingCapture.Status());
                 case "timing export":

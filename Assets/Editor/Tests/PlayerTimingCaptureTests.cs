@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace VibeGame1.Tests
 {
@@ -25,7 +27,7 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void ConsoleRoutesTimingCommandsWithoutImplicitExport()
+        public void ConsoleRoutesTimingCommandsThroughPrimeWithoutImplicitExport()
         {
             DeveloperAccess.LockForTests();
             try
@@ -39,7 +41,7 @@ namespace VibeGame1.Tests
 
                 DeveloperAccess.UnlockForTests();
                 var help = DeveloperConsole.ExecuteCommand("help");
-                StringAssert.Contains("timing start/stop/status/export/discard", help.message);
+                StringAssert.Contains("timing prime/stop/status/export/discard", help.message);
 
                 var status = DeveloperConsole.ExecuteCommand(" timing    status ");
                 StringAssert.StartsWith("TIMING CAPTURE", status.message);
@@ -63,6 +65,54 @@ namespace VibeGame1.Tests
             StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.StopCapture());
             StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.Export());
             StringAssert.Contains("REQUIRES DEVELOPER ACCESS", PlayerTimingCapture.Discard());
+        }
+
+        [Test]
+        public void VersionTwoCaptureRoundTripsDesiredBeatContext()
+        {
+            var capture = new ParryCaptureFile();
+            capture.desiredBeats.Add(new DesiredParryBeat
+            {
+                ordinal = 1,
+                captureSeconds = 2.5f,
+                position = new Vector3(1f, 2f, 3f),
+                velocity = Vector3.forward * 12f,
+                lookDirection = Vector3.forward,
+                playerSpeed = 12f,
+                surfaceType = "Ramp",
+                zoneId = "T0",
+                splitName = "Opening",
+                grounded = true,
+                sliding = true
+            });
+
+            var restored = JsonUtility.FromJson<ParryCaptureFile>(JsonUtility.ToJson(capture));
+
+            Assert.AreEqual(2, restored.formatVersion);
+            Assert.AreEqual(1, restored.desiredBeats.Count);
+            Assert.AreEqual("T0", restored.desiredBeats[0].zoneId);
+            Assert.AreEqual("Ramp", restored.desiredBeats[0].surfaceType);
+            Assert.Greater(restored.desiredBeats[0].lookDirection.sqrMagnitude, .9f);
+            Assert.Greater(restored.desiredBeats[0].playerSpeed, 0f);
+        }
+
+        [Test]
+        public void AtomicExportLeavesOneJsonAndNoTemporaryFile()
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "vibegame1-parry-capture-" + System.Guid.NewGuid());
+            try
+            {
+                string path;
+                string error;
+                Assert.IsTrue(PlayerTimingCapture.TryWriteAtomic(new ParryCaptureFile(), directory, out path, out error), error);
+                Assert.IsTrue(File.Exists(path));
+                Assert.AreEqual(1, Directory.GetFiles(directory, "*.json").Length);
+                Assert.IsEmpty(Directory.GetFiles(directory, "*.tmp"));
+            }
+            finally
+            {
+                if (Directory.Exists(directory)) Directory.Delete(directory, true);
+            }
         }
     }
 }

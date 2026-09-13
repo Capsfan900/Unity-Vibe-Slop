@@ -2224,11 +2224,14 @@ projectile lines are presentation-only handles and never add scene objects or ga
 - The campaign wrapper is the sole owner of destructive lifecycle work and uses this same seam, so it cannot drift
   from preview construction through a copied factory path.
 
-`PlayerTimingCapture` is an explicitly unlocked, opt-in, local-only diagnostic in every build. `timing
-start` records bounded in-memory movement samples plus projectile emission/cue/arrival/result events;
-`timing stop` freezes the trace without writing a file; `timing export` writes JSON under
-`Application.persistentDataPath/timing-captures/`. It observes `InputReader`, `FirstPersonMotor` and
-`Projectile` read-only state and never drives input, combat or velocity.
+`PlayerTimingCapture` is an explicitly unlocked, opt-in, local-only diagnostic in every build. `timing prime`
+(`timing start` remains an alias) creates the recorder in `Primed`; only then does the developer-gated
+`InputReader.TimingCaptureTogglePressed` (`0`) start a fresh take. The next `0` stops and atomically renames one
+version-2 JSON file under `Application.persistentDataPath/timing-captures/`, then returns to `Primed`. Each human
+parry press records a desired beat with movement, look, surface, zone and split context even when no projectile
+exists; observed projectile emission/cue/arrival/result events remain diagnostic evidence. The recorder reads
+`InputReader`, `FirstPersonMotor`, `LevelPiece`, `LevelRunScorer` and `Projectile` state and never drives input,
+combat, velocity or time scale.
 
 **Invariants**
 - **A ramp is authored as a RISE over a RUN, never as an angle** (`RampDef`, 2026-09-07 — the game's only

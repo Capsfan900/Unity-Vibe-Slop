@@ -30,5 +30,7 @@ namespace VibeGame1
         public const string LevelEditor = "leveleditor";
         /// <summary>DebugKeys — dev-key confirmations.</summary>
         public const string Debug = "debug";
+        /// <summary>PlayerTimingCapture — the developer recording state.</summary>
+        public const string TimingCapture = "timingcapture";
     }
 }

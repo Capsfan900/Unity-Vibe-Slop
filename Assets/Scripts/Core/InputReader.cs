@@ -59,7 +59,7 @@ namespace VibeGame1
                     weaponTwirl, consoleToggle, consoleSubmit;
         InputAction useItem, testMenu, wandCycle, interact, lockOn, slide;
         // The in-game level editor (LevelEditor). Optional: a map without them must not crash startup.
-        InputAction levelEditor, editorPlace, editorDelete, editorGrab, editorRotate, editorGrow, editorShrink,
+        InputAction timingCaptureToggle, levelEditor, editorPlace, editorDelete, editorGrab, editorRotate, editorGrow, editorShrink,
                     editorPrev, editorNext, editorVariant, editorCursor, editorFree, editorFast, editorDown,
                     editorWheelUp, editorWheelDown, editorUndo, editorRedo, editorDuplicate, editorCancel, editorPlaceHere, editorPick;
         // The radio (LevelRadio). Optional like the editor actions.
@@ -110,6 +110,7 @@ namespace VibeGame1
             weaponTwirl = map.FindAction(WeaponTwirlActionName, false);
             consoleToggle = map.FindAction(ConsoleToggleActionName, false);
             consoleSubmit = map.FindAction(ConsoleSubmitActionName, false);
+            timingCaptureToggle = map.FindAction("TimingCaptureToggle", false);
             levelEditor = map.FindAction("LevelEditor", false);
             editorPlace = map.FindAction("EditorPlace", false);
             editorDelete = map.FindAction("EditorDelete", false);
@@ -207,6 +208,7 @@ namespace VibeGame1
         public bool DebugSoulsPressed => DeveloperAccess.IsUnlocked && debugSouls != null && debugSouls.WasPressedThisFrame();
         public bool DebugGodModePressed => DeveloperAccess.IsUnlocked && debugGodMode != null && debugGodMode.WasPressedThisFrame();
         public bool DebugWallRunDiagPressed => DeveloperAccess.IsUnlocked && debugWallRunDiag != null && debugWallRunDiag.WasPressedThisFrame();
+        public bool TimingCaptureTogglePressed => DeveloperAccess.IsUnlocked && timingCaptureToggle != null && timingCaptureToggle.WasPressedThisFrame();
 
         // ---- the weapon flourish: a real player action, and the one rebindable key ------------------
 
