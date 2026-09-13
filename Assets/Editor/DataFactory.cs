@@ -2234,7 +2234,9 @@ namespace VibeGame1.EditorTools
                 i.bladeRecallConeDeg = 25f;
                 i.bladePullSeconds = 0.35f;
                 i.bladePostureMultiplier = 1.5f;
-                i.bladeModelScale = 1.6f;
+                // 2026-09-13 (the user): "the sword is tiny and hard to see, it needs to be much bigger".
+                // 1.6 gave a 1.1 m sword; 4.5 is ~3.2 m, readable across a span.
+                i.bladeModelScale = 4.5f;
                 i.description = "Throw your sword. Aim at it and DASH at any point in its flight - or where it " +
                                 "bites - to be pulled to it. You are unarmed until it is back in your hand.";
             });

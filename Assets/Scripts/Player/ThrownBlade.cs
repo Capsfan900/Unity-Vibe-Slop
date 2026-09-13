@@ -35,6 +35,8 @@ namespace VibeGame1
         Vector3 lodgeNormal;
         EnemyController lodgedEnemy;
         Transform model;
+        Transform modelInstance;
+        float modelLength = 1f;
         LineRenderer trail;
         Vector3[] trailBuf;
         float trailTimer, pulseTimer;
@@ -78,6 +80,7 @@ namespace VibeGame1
             Color hue = item.color.maxColorComponent > 0.01f ? item.color : new Color(1f, 0.6f, 0.25f);
             var pivot = new GameObject("Spin").transform;
             pivot.SetParent(transform, false);
+            pivot.localScale = Vector3.one * 0.15f;
             model = pivot;
             if (weapon != null && weapon.viewmodelPrefab != null)
             {
@@ -87,14 +90,20 @@ namespace VibeGame1
                 m.transform.localPosition = Vector3.zero;
                 m.transform.localScale = Vector3.one * Mathf.Max(0.01f, weapon.viewmodelScale * item.bladeModelScale);
                 foreach (var c in m.GetComponentsInChildren<Collider>(true)) Destroy(c);
-                foreach (var r in m.GetComponentsInChildren<Renderer>(true))
+                var renderers = m.GetComponentsInChildren<Renderer>(true);
+                Bounds bounds = renderers.Length > 0 ? renderers[0].bounds : new Bounds(m.transform.position, Vector3.one);
+                foreach (var r in renderers)
                 {
                     r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                     r.receiveShadows = false;
+                    bounds.Encapsulate(r.bounds);
                 }
+                modelInstance = m.transform;
+                modelLength = Mathf.Max(0.1f, Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z)));
             }
             var mat = SlashFx.CreateAdditiveMaterial(hue);
-            trail = SlashFx.CreateLine(transform, "Trail", 6, 0.22f, 0.02f, false, mat);
+            // The ribbon scales with the thrown model so a big blade leaves a trail you can follow at range.
+            trail = SlashFx.CreateLine(transform, "Trail", 6, 0.14f * Mathf.Max(1f, item.bladeModelScale), 0.02f, false, mat);
             trail.useWorldSpace = true;
             trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             trail.receiveShadows = false;
@@ -137,7 +146,13 @@ namespace VibeGame1
                 }
             }
             transform.position = next;
-            if (model != null) model.localRotation = Quaternion.AngleAxis(BladeMath.SpinAngle(age, spinRate), Vector3.right);
+            if (model != null)
+            {
+                model.localRotation = Quaternion.AngleAxis(BladeMath.SpinAngle(age, spinRate), Vector3.right);
+                // A multi-metre blade born 0.6 m in front of the lens would fill the screen: grow it to full
+                // size over the first 0.15 s, by which time it is ~3.6 m out.
+                model.localScale = Vector3.one * Mathf.Lerp(0.15f, 1f, Mathf.Clamp01(age / 0.15f));
+            }
 
             if (FellIntoKillZone()) { Finish(false, true); return; }
 
@@ -159,7 +174,9 @@ namespace VibeGame1
             lodgeNormal = hit.normal;
             transform.position = hit.point - dir * 0.1f;
             transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-            if (model != null) model.localRotation = Quaternion.identity;
+            if (model != null) { model.localRotation = Quaternion.identity; model.localScale = Vector3.one; }
+            // Bite with the point, not the middle: pull the model back so only its tip sinks in.
+            if (modelInstance != null) modelInstance.localPosition = Vector3.back * (modelLength * 0.35f);
             if (trail != null) trail.enabled = false;
             Color hue = item.color.maxColorComponent > 0.01f ? item.color : new Color(1f, 0.6f, 0.25f);
             SlashFx.Sparks(hit.point, hit.normal, hue, 10, 6f, 70f);

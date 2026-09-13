@@ -39,5 +39,5 @@ MonoBehaviour:
   bladeRecallConeDeg: 25
   bladePullSeconds: 0.35
   bladePostureMultiplier: 1.5
-  bladeModelScale: 1.6
+  bladeModelScale: 4.5
   surgeSeconds: 8

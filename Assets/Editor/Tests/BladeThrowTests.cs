@@ -58,6 +58,7 @@ namespace VibeGame1.Tests
             Assert.LessOrEqual(item.bladeRecallRange, 30f);
             Assert.AreEqual(0.35f, item.bladePullSeconds, 1e-4f);
             Assert.Greater(item.bladeLodgeSeconds, 0f);
+            Assert.GreaterOrEqual(item.bladeModelScale, 4f, "the user asked for a much bigger, visible thrown sword");
         }
     }
 }

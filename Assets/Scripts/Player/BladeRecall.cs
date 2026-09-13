@@ -80,7 +80,9 @@ namespace VibeGame1
             pullEnemy = b.LodgedEnemy;
             ItemVfx.GrappleLine(transform.position + Vector3.up * 1.2f, b.transform.position, hue);
             if (CameraFX.I != null) CameraFX.I.FovKick(8f);
-            AudioManager.Play(Sfx.Teleport, 0.85f, 1.1f, 0.03f);
+            // The warp: the real dash whoosh pitched down for weight, under the rising teleport shimmer.
+            AudioManager.Play(Sfx.Dash, 1f, 0.82f);
+            AudioManager.Play(Sfx.Teleport, 1f, 1.15f, 0.03f);
             float seconds = item != null ? Mathf.Max(0.05f, item.bladePullSeconds) : 0.35f;
             b.Consume();   // the sword is back in the hand the moment you commit
             motor.BeginPull(target, seconds, true);
@@ -96,6 +98,7 @@ namespace VibeGame1
             var e = pullEnemy;
             pullEnemy = null;
             if (CameraShake.I != null) CameraShake.I.Small();
+            AudioManager.Play(Sfx.Dash, 0.8f, 1.2f);   // arrival snap
             SlashFx.Ring(transform.position, Vector3.up, new Color(1f, 0.7f, 0.35f), 1.2f, 0.25f);
             // Recalled into a body that is already open: the one execute path, exactly as the Hook does.
             if (arrived && e != null && e.IsAlive && e.IsStaggered && exec != null) exec.ExecuteNow(e);
