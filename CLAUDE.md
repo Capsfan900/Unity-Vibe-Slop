@@ -13,6 +13,29 @@ invisible the moment the user picks up the project in another tool, and that div
 
 This file holds only what is specific to running as Claude Code.
 
+### How to read the project as it is now (the user, 2026-09-13)
+
+The project was revamped under the tool-neutral `astra-engineering-company` workflow, largely from Codex.
+Take it **as it is** and interpret it; do not restructure the config or re-litigate its direction.
+
+- **One campaign level, on purpose.** `Level_01` ("The Hollow Ascent", zones T0–T4 in
+  `docs/LEVEL-VOCABULARY.md`) is being polished. Level Studio, the zone/object vocabulary and parry
+  choreography exist to work out its kinks, so they are not scope drift and Level 2 is not the next step.
+  Name places as zone then object ID ("T4, `Spawn_T4_Surge_2`").
+- **The user records runs themselves** (`timing prime`, key `0`, then Level Studio → Generate Module, per
+  `docs/PARRY-CHOREOGRAPHY.md`). Keep that workflow working; judging feel is theirs.
+- **Windows exe is the only ship target.** `VibeGame1/Build/Windows` → GitHub Release (`docs/DISTRIBUTION.md`).
+  Treat every WebGL mention (the Environment line in AGENTS.md, `Build/WebGL`, Pages) as legacy — do not run
+  or maintain it unless asked.
+- **Leave the four gated Legendary duels and the Warden alone** — no proposals to cut, reorder or make
+  them optional.
+- **Git:** work on `master` in this checkout, where the Codex/Astra commits are. The stray worktrees
+  (`.worktrees/level-studio`, `.claude/worktrees/agent-*`) are not in use; ignore them and don't delete them.
+- **Where to start a session:** `docs/HANDOFF.md` (in flight and preserved user-owned files), then
+  `docs/HUMAN-DEVELOPMENT-GUIDE.md` (which tool for which job). Current proof is in
+  `docs/VERIFICATION-REPORT.md`; open bugs are in `docs/ASTRA-SYSTEMS-AUDIT-2026-09-07.md` and `docs/BACKLOG.md`.
+- **Never stage the user's in-progress files** listed under "Preserved user-owned files" in `docs/HANDOFF.md`.
+
 ### Skills — invoke with the `Skill` tool
 
 | Skill | When |
