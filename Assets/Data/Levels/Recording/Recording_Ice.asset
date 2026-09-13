@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70d8dc2c5fc39a14ca92e3297daaf391, type: 3}
+  m_Name: Recording_Ice
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.LevelDefinition
+  levelId: recording_ice
+  displayName: Ice / Water Slideway
+  sceneName: ParryRecording
+  parTime: 120
+  orderIndex: 0
+  requiredRunSouls: 0
+  requiredRegularKills: 0
+  gradeBonuses:
+    dSouls: 0
+    cSouls: 0
+    bSouls: 0
+    aSouls: 0
+    sSouls: 0
+  runSplits: []
+  zones:
+  - zoneId: T0
+    canonicalName: Ice / Water Slideway
+    splitName: Recording
+    aliases: []
+    order: 0
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 40, y: 30, z: 120}
+    displayColor: {r: 0, g: 1, b: 1, a: 1}
+  playerStart: {x: 0, y: 1.5, z: -46}
+  playerStartMeta:
+    objectId: 
+    friendlyName: 
+    zoneIdOverride: 
+  playerStartYaw: 0
+  platforms:
+  - meta:
+      objectId: T0.IceDeck.01
+      friendlyName: 
+      zoneIdOverride: T0
+    name: IceDeck
+    center: {x: 0, y: 0, z: 0}
+    size: {x: 12, y: 1, z: 100}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
+  ramps: []
+  spawns: []
+  pickups: []
+  checkpoints: []
+  torches: []
+  pedestals: []
+  balloons: []
+  waters:
+  - meta:
+      objectId: T0.IceLine.01
+      friendlyName: 
+      zoneIdOverride: T0
+    name: IceLine
+    center: {x: 0, y: 0.52, z: 0}
+    size: {x: 10, y: 0.04, z: 96}
+    flowDirection: {x: 0, y: 0, z: 1}
+    flowSpeed: 6
+  arenas: []
+  projectileSequences: []
+  challengeRoutes: []
+  worldLeaderboard:
+    meta:
+      objectId: 
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 0
+    name: WorldLeaderboard
+    position: {x: 0, y: 0, z: 0}
+    yaw: 180
+    size: {x: 10, y: 5}
+    rowCount: 8
+    backingMaterialKey: Stone
+    glowMaterialKey: NeonCyan
+  sky:
+    meta:
+      objectId: 
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 0
+    starCount: 1200
+    radius: 25
+    seed: 20260830
+    includeEclipse: 1
+    eclipseYawDeg: 0
+    eclipsePitchDeg: 22
+    eclipseDiameterDeg: 38
+  killZone:
+    meta:
+      objectId: 
+      friendlyName: 
+      zoneIdOverride: 
+    name: KillZone
+    center: {x: 0, y: -15, z: 0}
+    size: {x: 50, y: 2, z: 130}
