@@ -38,8 +38,8 @@ namespace VibeGame1
             new RebindableBinding("UseItem", "USE ITEM", "UseItem", "<Keyboard>/e"),
             new RebindableBinding("Interact", "INTERACT", "Interact", "<Keyboard>/f"),
             new RebindableBinding("LockOn", "LOCK ON", "LockOn", "<Mouse>/middleButton"),
-            new RebindableBinding("Previous", "PREVIOUS WEAPON", "Previous", "<Mouse>/scroll/down"),
-            new RebindableBinding("Next", "NEXT WEAPON", "Next", "<Mouse>/scroll/up"),
+            new RebindableBinding("Previous", "PREVIOUS BOOK SPELL", "Previous", "<Mouse>/scroll/down"),
+            new RebindableBinding("Next", "NEXT BOOK SPELL", "Next", "<Mouse>/scroll/up"),
             new RebindableBinding("Weapon1", "WEAPON SLOT 1", "WeaponSlot1", "<Keyboard>/1"),
             new RebindableBinding("Weapon2", "WEAPON SLOT 2", "WeaponSlot2", "<Keyboard>/2"),
             new RebindableBinding("Weapon3", "WEAPON SLOT 3", "WeaponSlot3", "<Keyboard>/3"),
@@ -194,7 +194,7 @@ namespace VibeGame1
         /// <summary>
         /// Middle mouse (or right stick click): Souls target lock. One key acquires, switches and
         /// releases — <see cref="LockOnController.TryLockOn"/> resolves which by where you are aiming.
-        /// Middle mouse was free; the scroll wheel, the other Souls convention, is Previous/Next weapon
+        /// Middle mouse was free; the scroll wheel selects the previous/next carried book spell
         /// cycling and could not be shared.
         /// </summary>
         public bool LockOnPressed => lockOn != null && lockOn.WasPressedThisFrame();

@@ -72,8 +72,6 @@ namespace VibeGame1
 
             int slot = input.WeaponSlotPressed;
             if (slot >= 0 && slot < loadout.Length && slot != Index) Equip(slot);
-            else if (input.NextPressed) Equip((Index + 1) % loadout.Length);
-            else if (input.PrevPressed) Equip((Index - 1 + loadout.Length) % loadout.Length);
 
             if (input.AttackPressed) TryAttack();
         }

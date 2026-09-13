@@ -587,7 +587,7 @@ every tunable below is written in `DataFactory`.
 | **Rebound** (green) | `Assets/Data/Items/Rebound.asset` | `reboundExitMultiplier` 1.18, `reboundBonusSpeed` 3 | Arms the next successful airborne dash or wall jump, strengthens the capped exit and refreshes air dash. |
 | **Deflect Sigil** (violet) | `Assets/Data/Items/DeflectSigil.asset` | `deflectSigilBonusStacks` 2, `deflectSigilImpulse` 5 | Waits through Block/Hit; the next Perfect consumes it for two extra general speed stacks and forward impulse. |
 
-`SpellbookFactory` builds the one persistent open offhand book. The selected inscription and FIFO front item
+`SpellbookFactory` builds the one persistent open offhand book. The selected inscription and wheel-selected carried spell
 only recolour its floating orb/runes; accepted casts animate the same book and originate at `CastOrigin`.
 Legacy wand/item viewmodel assets remain serialized for compatibility and future content, not player display.
 

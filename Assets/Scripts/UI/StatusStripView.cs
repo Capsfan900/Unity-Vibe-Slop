@@ -6,7 +6,7 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// The top-left status strip: one line per HELD item (FIFO order, the front one marked as the one
+    /// The top-left status strip: one line per HELD book spell (selection order, the front one marked as the one
     /// [E] fires) and one line per ACTIVE EFFECT — "REBOUND ARMED", "SIGIL ARMED", "GOD MODE",
     /// "SPEED SURGE x3", plus the level's persistent run-soul / encounter requirement when configured.
     ///
@@ -178,7 +178,7 @@ namespace VibeGame1
                 string hex = ColorUtility.ToHtmlStringRGB(ItemSlotView.Normalize(item.color));
                 string name = string.IsNullOrEmpty(item.displayName) ? item.shortLabel : item.displayName;
                 if (rows > 0) sb.Append('\n');
-                // The front item is the one [E] fires; the rest queue behind it, dimmed.
+                // The selected front spell is the one [E] fires; the rest remain dimmed.
                 if (i == 0) sb.Append("<color=#").Append(hex).Append(">> ").Append(name.ToUpperInvariant()).Append("</color>");
                 else sb.Append("<alpha=#8C><color=#").Append(hex).Append(">  ").Append(name.ToUpperInvariant()).Append("</color><alpha=#FF>");
                 rows++;

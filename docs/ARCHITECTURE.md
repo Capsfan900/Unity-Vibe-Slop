@@ -898,11 +898,12 @@ invisible (see [ENGINEERING-LOG](ENGINEERING-LOG.md)).
 
 ## Items
 
-Neon White style: found in the level, carried in a small slot row, consumed on use, restored on respawn.
-`Player/PlayerItems.cs` holds them; `Level/ItemPickup.cs` is the world object; `UI/ItemSlotView.cs` is the
-HUD slot.
+Neon White style: found in the level, carried as selectable spells in the persistent book, consumed on use,
+and restored on respawn. `Player/PlayerItems.cs` holds them; `Level/ItemPickup.cs` is the world object; the
+book's orb/pages are the primary selection read while the top-left status strip remains the text fallback.
 
-- **Capacity 3, FIFO** — the leftmost HUD slot is the one that fires. Key `E` (`UseItem`).
+- **Capacity 3, wheel-selectable** — wheel rotates the selected spell to index 0; `E` (`UseItem`) casts it.
+  Weapon selection stays on `1`–`3`; the redundant wheel weapon-cycle path is removed.
 - Pickup is a real `OnTriggerEnter` on layer `Interactable`. Collection disables the collider and
   renderers; `GameEvents.PlayerRespawned` restores them, so a run always starts from the same state.
 - Colour comes from `ItemData.color` (HDR) via `MaterialPropertyBlock`, so one prefab serves every item.
@@ -975,8 +976,9 @@ Also cycled with **`R`** (`WandCycle`, compatibility name) as a debug convenienc
 `GameEvents.WandChanged` for the HUD. With no inscription equipped the melee deathblow runs unchanged.
 
 `SpellbookFactory` generates `VM_Spellbook.prefab`: open leather covers, ten warm parchment leaves, three
-loose flowing pages, fixed ink marks, and a spell-tinted core/eight-rune halo above `CastOrigin`.
-`SpellbookVisual` animates on `PlayerDelta`; selections and FIFO item changes update display state only.
+loose flowing pages, fixed ink marks, and a spell-tinted core/eight-rune halo above `CastOrigin`. The orb reuses
+`EnergyGlow`, so weapon energy, pickups and the held spell share one fluorescent visual language.
+`SpellbookVisual` animates on `PlayerDelta`; inscription and carried-spell selections update display state only.
 
 Assets live in `Assets/Data/Wands/`, built by `VibeGame1/3b. Create Wands` — which **must run before
 `4. Build Prefabs`**, because the prefab step assigns the viewmodels back onto the wand assets.

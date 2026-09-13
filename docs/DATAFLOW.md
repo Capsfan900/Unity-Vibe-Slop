@@ -662,8 +662,9 @@ InputReader.AttackPressed → WeaponController.TryAttack()
   value as much as a gameplay one: under ~2m the camera ends up inside a 0.45m-radius capsule at 95° FOV
   and the entire riposte plays behind a wall of black.
 - **The book remains open and readable in motion.** Ten fixed leaves flutter on `PlayerDelta`, three loose
-  pages orbit without physics, and a core plus eight separated runes show the current inscription/item.
-  Parchment self-light stays below bloom; only the spell orb owns the hot channel.
+  pages orbit without physics, and a pickup-material core plus eight separated runes show the current
+  inscription/item. `EnergyGlow` owns their fluorescent emission, motes and rune orbit; parchment stays below
+  bloom and only the selected spell owns the hot channel.
 - Screen flash and chromatic aberration are capped low on purpose. Both were previously loud enough
   (0.55 alpha, 1.0 chroma) to destroy the wand they were meant to punctuate.
 - Poses, scales and the standoff all live on the Player prefab or on `WandData`, so **`PrefabFactory` and
@@ -743,12 +744,14 @@ InputReader.UltimatePressed → UltimateAbility.Update → TrySuper()
 ```
 ItemPickup (trigger, layer Interactable)
   OnTriggerEnter ← player CharacterController
-  → PlayerItems.TryPickup(ItemData)     capacity 3, FIFO
-  ⇢ ItemPickedUp → HUD toast     ⇢ ItemsChanged → HUD slot row
+  → PlayerItems.TryPickup(ItemData)     capacity 3, selected spell stays at index 0
+  ⇢ ItemPickedUp → HUD toast
 
   ⇢ ItemsChanged → StatusStripView (top-left strip: held list, front item marked)
 
-E → PlayerItems.UseCurrent (InputReader.UseItemPressed; FIFO, no swap step)
+wheel → PlayerItems.CycleSelection(±1) rotates the held list and republishes ItemsChanged
+      → SpellbookVisual.SetFrontItem(Current) changes the page/orb read
+E → PlayerItems.UseCurrent (InputReader.UseItemPressed; casts the selected index-0 spell)
   → Apply(item) FIRST — returns false to REFUSE, and a refused item is kept and nothing is announced
   → held.Remove → ⇢ ItemsChanged, ⇢ ItemUsed, Sfx.ItemUse
 
@@ -984,7 +987,7 @@ FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEF
 - **The pull is motor state on the motor clock.** Hitstop can neither freeze nor stretch it (rule 1),
   it allocates nothing, and every write is a `cc.Move`, so walls still stop it.
 
-### Persistent spellbook, inscriptions and FIFO items
+### Persistent spellbook, inscriptions and selectable carried spells
 
 ```
 WandController = serialized compatibility owner of the selected riposte inscription
@@ -992,8 +995,8 @@ WandController = serialized compatibility owner of the selected riposte inscript
    selection   → SpellbookVisual.SetSelectedSpell(Current); never swap the book instance
    riposte     → book raises/casts; blast originates at SpellbookVisual.CastOrigin
 
-PlayerItems = FIFO inventory/effect state
-   pickup/use/respawn → ItemsChanged → HUD slots + SpellbookVisual.SetFrontItem(Current)
+PlayerItems = selectable carried-spell/effect state
+   pickup/use/respawn/wheel cycle → ItemsChanged → StatusStrip + SpellbookVisual.SetFrontItem(Current)
    accepted use       → CaptureAcceptedCast(item) BEFORE removal, then PlayUse(item)
    NEVER ShowItem/ShowWand: an item changes the orb, not the book model or its scale
 ```
@@ -2158,7 +2161,8 @@ DeveloperAccess (one process-local capability; plain passphrase is never stored)
    wrong/empty → no state change; accepted → IsUnlocked=true until the process restarts
    ├─ InputReader permits F1, F5-F10 and weapon slot 4
    ├─ DeveloperConsole permits timing commands
-   ├─ TestMenu.Open and its public toggles permit mutation
+   ├─ TestMenu.Open and its public toggles permit mutation; its DEV DASHBOARD button opens the generated
+      whole-game human guide from the Unity project only (player builds do not bundle or launch it)
    ├─ MainMenuController exposes Sandbox/custom rows; SandboxController otherwise disables itself
    └─ LevelEditor entry, Sandbox controller/wake-switch mutations, wand pedestal, DebugHarness and
       FrameFilm re-check at entry
@@ -2747,7 +2751,7 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
                         ember for soulsFlashSeconds 0.45 with a 1.14 punch about its LEFT pivot.
                         A gain rolls, a SPEND snaps — the label never shows souls the wallet does not
                         hold. Formats only when the displayed integer changes (the run timer's rule).
-   item slots → ItemSlotView          deathblow banner, toasts, popups → TMP
+   book spell selection → persistent in-world SpellbookVisual; pickup toast / deathblow banner / popups → TMP
    PromptChanged (standing) / PromptFlash (momentary) → PromptView, ONE line at (0, −132).
                         The throb now SETTLES: PromptView.PulseAmount(age, settleSeconds 0.6) scales the
                         wobble to zero 0.6 s after the shown string changes, and a settled line at rest
@@ -2761,7 +2765,7 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
    PlayerDied / PlayerRespawned → HUDController.ClearMomentary(): the parry popup and the item toast are
                         CANCELLED, not left to fade over the death card.
    GameManager.State == Editing (F10) → HUDController hides editorHiddenRoots by ROOT and restores them
-                        on the way out: Vitals, Loadout, Clock, ItemSlots, StatusStrip (+ the PYRE READY
+                        on the way out: Vitals, Loadout, Clock, StatusStrip (+ the PYRE READY
                         banner, re-derived from the last PyreChanged since it has no pane to hang off).
                         The editor parks the CharacterController, so every one of those was a frozen
                         readout claiming to be live. NOT in the list, on purpose — ONE OWNER PER PANE:
@@ -2787,8 +2791,8 @@ gameplay ⇢ GameEvents  →  HUDController → widgets
                                        ControlsInfo.Text → the settings INFO card (SettingsPanelKit, one
                                        emitter for the pause path AND the title path) and F1 → INFO
    ItemsChanged → StatusStripView (top-left, one gap under the loadout pane at y −144)
-                                                            one line per HELD item, FIFO,
-                                                            "> GRAPPLE" front / dimmed queue
+                                                            one line per HELD spell, selected first,
+                                                            "> GRAPPLE" selected / other spells dimmed
                   + RunScoreChanged / per-frame scorer read → persistent two-level run contract:
                                                                "RUN souls/required" in mint, then quieter
                                                                "FOES n/required   SPLITS n/total"

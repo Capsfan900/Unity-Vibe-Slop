@@ -4378,8 +4378,8 @@ namespace VibeGame1
                 CheckBarAnchor("HUD_BossPostureBar", bossBar.posture, 0.7f);
             }
 
-            // Item slots are wired.
-            Check("HUD_ItemSlotsWired", hud.itemSlots != null && hud.itemSlots.Length >= 3,
+            // The book owns spell selection; the duplicate bottom hotbar is gone.
+            Check("HUD_ItemHotbarRemoved", hud.itemSlots != null && hud.itemSlots.Length == 0,
                 "slots=" + (hud.itemSlots != null ? hud.itemSlots.Length : 0));
             Check("HUD_DeathblowBannerWired", hud.deathblowText != null);
             Check("HUD_TextWidgetsWired",

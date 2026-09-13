@@ -28,10 +28,53 @@ namespace VibeGame1.Tests
             Assert.IsTrue(book.gripAnchor.name.StartsWith("Grip"), "hand anchor must retain the Grip* contract");
             Assert.IsNotNull(book.castOrigin, "future item/spell casts need a named origin");
             Assert.IsNotNull(book.orbAnchor, "orb must be anchored rather than spawned per item update");
+            Assert.IsNotNull(book.orbGlow, "the selected spell must reuse the established weapon-energy treatment");
+            Assert.Less(book.gripAnchor.localPosition.y, -0.15f,
+                "the hand must grip below the page block instead of intersecting it");
+            Assert.Greater(book.gripAnchor.localPosition.z, 0.075f,
+                "the palm belongs under the cover, not inside the pages");
+            Assert.Less(Mathf.Abs(book.gripAnchor.localPosition.x), 0.03f,
+                "the palm should support the spine, not one loose corner");
             Assert.AreEqual(10, book.pagePivots.Length, "five leaves per open half gives the book its readable body");
             Assert.AreEqual(book.pagePivots.Length, book.pageRestEuler.Length, "each page needs a cached authored rest pose");
             Assert.AreEqual(3, book.floatingPagePivots.Length, "the persistent loose leaves are the page-flow layer");
             Assert.AreEqual(9, book.orbRenderers.Length, "core + eight-rune halo are fixed generated geometry, not a runtime effect");
+        }
+
+        [Test]
+        public void GeneratedPrefab_ReadsAsAnOpenUpturnedBookWithMagicOverItsPages()
+        {
+            SpellbookVisual book = NewInstance();
+            try
+            {
+                Transform left = book.bookRoot.Find("CoverLeft");
+                Transform right = book.bookRoot.Find("CoverRight");
+                Transform gutter = book.bookRoot.Find("PageGutter");
+                Transform orb = book.orbAnchor.Find("TipSpellOrbCore");
+                Assert.IsNotNull(left); Assert.IsNotNull(right); Assert.IsNotNull(gutter); Assert.IsNotNull(orb);
+                Assert.Greater(Vector3.Dot(book.bookRoot.localRotation * Vector3.back, Vector3.up), 0.5f,
+                    "the visible page normal must tilt upward like a book held for reading");
+                Assert.Less(book.bookRoot.localEulerAngles.z > 180f
+                    ? book.bookRoot.localEulerAngles.z - 360f : book.bookRoot.localEulerAngles.z, -10f,
+                    "the open book should sit level in the palm instead of canting like a shield");
+                Assert.Greater(Vector3.Angle(left.forward, right.forward), 50f,
+                    "the two covers must read as visibly open rather than one flat figurine");
+                Assert.Greater(left.localScale.y, 0.25f, "the held book is too small at gameplay FOV");
+                Assert.Less(Mathf.Abs(book.orbAnchor.localPosition.y), 0.11f,
+                    "the spell must hover over the page field, not beyond the book's top edge");
+                Assert.Less(book.orbAnchor.localPosition.z, -0.08f,
+                    "the spell must hover above the visible page surface, not hide behind the leaves");
+                Assert.Greater(orb.localScale.x, 0.065f, "the selected spell must remain readable without staring at the hand");
+                Assert.Less(orb.localScale.x, 0.09f, "the solid core must not read as an opaque coin on the pages");
+                Assert.Greater(book.orbBobMetres, 0.02f, "the selected spell's hover must be visible in motion");
+                Assert.GreaterOrEqual(book.orbPulseScale, 0.06f, "the selected spell needs a readable magical breath");
+                Assert.Greater(book.orbGlow.moteCount, 0, "the spell needs the same drifting energy flecks as glowing weapons");
+                Material page = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_SpellbookPage.mat");
+                Assert.IsNotNull(page);
+                Assert.Greater(page.GetColor("_EmissionColor").maxColorComponent, 0.15f,
+                    "upturned parchment must remain readable under the level's dark sky lighting");
+            }
+            finally { Object.DestroyImmediate(book.gameObject); }
         }
 
         [Test]
@@ -40,9 +83,8 @@ namespace VibeGame1.Tests
             SpellbookVisual book = NewInstance();
             try
             {
-                Assert.Less(book.orbAnchor.localPosition.x, -0.03f, "orb crosses the book-centred aiming lane");
-                Vector3 castInBook = book.bookRoot.InverseTransformPoint(book.castOrigin.position);
-                Assert.Less(castInBook.x, -0.03f, "cast origin crosses the book-centred aiming lane");
+                Assert.Less(book.orbAnchor.position.x, -0.03f, "orb crosses the prefab's aiming lane");
+                Assert.Less(book.castOrigin.position.x, -0.03f, "cast origin crosses the prefab's aiming lane");
                 foreach (Vector3 origin in book.floatingPageOrigins)
                     Assert.Less(origin.x, -0.03f, "a floating page is authored through the aiming lane");
             }
@@ -109,17 +151,18 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void OrbEmission_IsCappedBelowCombatTellBloom()
+        public void OrbEmission_UsesTheFluorescentItemRange()
         {
             Color result = SpellbookVisual.OrbEmission(new Color(4f, 1f, 0.5f, 1f));
             float peak = Mathf.Max(result.r, Mathf.Max(result.g, result.b));
             Assert.AreEqual(SpellbookVisual.OrbEmissionPeak, peak, 0.0001f);
-            Assert.Less(peak, 1.05f, "carried orb must not compete with a projectile/parry tell");
+            Assert.GreaterOrEqual(peak, 1.8f, "the selected spell must bloom like a glowing pickup");
+            Assert.LessOrEqual(peak, 2.4f, "the held spell should not become a full-screen light source");
 
             Color castResult = SpellbookVisual.OrbEmission(new Color(4f, 1f, 0.5f, 1f), 1.18f);
             float castPeak = Mathf.Max(castResult.r, Mathf.Max(castResult.g, castResult.b));
             Assert.LessOrEqual(castPeak, SpellbookVisual.OrbEmissionPeak,
-                "the cast pose may saturate the resting cap, never become a bloom exception");
+                "the cast pose may saturate the authored carried-orb cap");
         }
 
         [Test]

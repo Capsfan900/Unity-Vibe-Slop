@@ -2,7 +2,7 @@
 
 What is actually proven about `vibegame1`, how it was proven, and — just as important — what is **not**.
 
-Latest run date: 2026-09-12. The dated sections below retain earlier results for history; reproduce the
+Latest run date: 2026-09-13. The dated sections below retain earlier results for history; reproduce the
 current checks with the commands in [TOOLING.md](TOOLING.md).
 
 Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -10,6 +10,27 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 ---
 
 ## Results
+
+### Selectable spellbook and whole-game human dashboard — 2026-09-13
+
+- **Quick EditMode: 1174/1174 passed**, zero failures/skips, with 41 slow `LevelLines` fixtures excluded.
+  Focused spellbook/settings coverage also passed **22/22**; dashboard unit coverage passed **7/7**.
+- **Fresh Level_01 FeatureTests: 813 passed, 0 failed, 1 intentional Sandbox-only skip**, after proving
+  `GameManager.I != null` and `Time.timeScale == 1`.
+- Runtime and editor assemblies compile with zero errors. The editor build retains the 18 known descent-probe
+  and Forge DTO warnings. Health Check reported no error section and the existing broad serialized-null warnings.
+- The generated spellbook keeps one instance while the mouse wheel wraps through carried spells and `E` casts
+  the selected entry. The bottom item hotbar is removed. Its under-spine grip, upward page field, fluorescent
+  pickup-material core, weapon-energy pulse/motes, and rotating rune halo were inspected in a live Level_01
+  player-eye capture; the cast origin and complete book remain left of the aiming lane.
+- The generated dashboard now keeps the complete documentation library under task categories with only Start
+  Here expanded by default. The Human Development Guide routes changes across the whole game, and the docs audit
+  reports zero broken/current-structure findings. The gated F1 menu's **DEV DASHBOARD** button opens the local
+  generated guide in the Unity project and does not bundle or launch it in player builds.
+
+**Still human-only:** judge the revised grip and fluorescent orb while moving/casting, exercise wheel selection
+with multiple carried spells, and click the F1 dashboard button in the editor. Automated checks prove wiring,
+assets, wrap order, and documentation integrity, not final hand feel or visual taste.
 
 ### Level Studio, parry choreography, and dashboard — 2026-09-12
 

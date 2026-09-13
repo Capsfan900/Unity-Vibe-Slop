@@ -32,7 +32,7 @@ namespace VibeGame1
             "Parry to break their POSTURE, then deathblow. Blocking costs YOUR posture. Every parry stokes PYRE.\n" +
             "\n" +
             H + "ITEMS AND MENUS" + HE + "\n" +
-            D + "E" + DE + "  cast book item      " + D + "F" + DE + "  flask (or CHOOSE INSCRIPTION at an altar)      " + D + "1 2 3 / wheel" + DE + "  weapon      " + D + "Tab" + DE + "  level up      " + D + "Esc" + DE + "  pause\n" +
+            D + "Wheel" + DE + "  select book spell      " + D + "E" + DE + "  cast selected spell      " + D + "1 2 3" + DE + "  weapon      " + D + "F" + DE + "  flask / altar      " + D + "Tab" + DE + "  level up      " + D + "Esc" + DE + "  pause\n" +
             D + "F11" + DE + "  weapon flourish (cosmetic - rebind it under SETTINGS > CONTROL > FLOURISH KEY)\n" +
             D + "Backquote" + DE + "  command console";
 

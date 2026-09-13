@@ -72,9 +72,14 @@ def categorize_doc(path):
         return "Archive"
     if name in {"HANDOFF.md", "AGENTS.md", "README.md", "HUMAN-DEVELOPMENT-GUIDE.md"}:
         return "Start Here"
-    if name in {"LEVEL-EDITOR.md", "LEVEL-AUTHORING-TUTORIAL.md", "LEVEL-VOCABULARY.md", "AUTHORING.md"}:
+    if name in {"LEVEL-EDITOR.md", "LEVEL-AUTHORING-TUTORIAL.md", "LEVEL-VOCABULARY.md", "README_Sandbox.md"} or \
+            p.endswith(("/level-designer.md", "/editor-controls.md")):
         return "Level Building"
-    if name in {"ARCHITECTURE.md", "DATAFLOW.md", "MOVEMENT-PRINCIPLES.md", "ANIMATION-VFX.md", "multiplayer-system-design.md"}:
+    if name == "PARRY-CHOREOGRAPHY.md" or p.endswith(("/enemy-designer.md", "/combat-designer.md")):
+        return "Combat & Enemies"
+    if name in {"ARCHITECTURE.md", "DATAFLOW.md", "MOVEMENT-PRINCIPLES.md", "ANIMATION-VFX.md",
+                "AUTHORING.md", "CODE-TREE.md", "GHOST-RACING.md", "multiplayer-system-design.md",
+                "README.md"} or p.endswith(("/vfx-art-team.md", "/audio-engineer.md", "/ui-designer.md")):
         return "Systems"
     if name in {"TOOLING.md", "SESSION-PROTOCOL.md", "DISTRIBUTION.md", "CREDITS.md"} or "/skills/" in p:
         return "Tools & Distribution"
@@ -83,6 +88,10 @@ def categorize_doc(path):
     if "enemy" in p.lower() or "combat" in p.lower():
         return "Combat & Enemies"
     return "Start Here"
+
+
+def category_expanded_by_default(category):
+    return category == "Start Here"
 
 # ---------------------------------------------------------------------------- helpers
 
@@ -607,6 +616,7 @@ def build():
         "runtimeFlow": RUNTIME_FLOW,
         "maps": dataflow_maps(by_path.get("docs/DATAFLOW.md", "")),
         "levels": level_map(vocabulary), "enemies": enemies(), "docs": docs, "categories": CATEGORIES,
+        "categoryDefaults": {category: category_expanded_by_default(category) for category in CATEGORIES},
         "docFindings": audit_docs(docs),
         "agentContract": {
             "path": "AGENTS.md",
@@ -675,7 +685,7 @@ $('#meta').textContent=`branch ${D.git.branch||'?'} · generated ${D.generated} 
 try{mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose',flowchart:{curve:'basis',nodeSpacing:30,rankSpacing:40}})}catch(e){}
 function nav(){const n=$('#nav');let h='<h3>Overview</h3><button data-v="home" class="active">Dashboard</button><button data-v="agents">Agent contract</button><button data-v="changes">Change log</button><button data-v="tests">Tests</button><button data-v="docHealth">Documentation Health</button>';
 h+='<h3>Visuals</h3><button data-v="graph">Code graph</button><button data-v="events">Event bus</button><button data-v="maps">Dataflow maps</button><button data-v="level">Level map</button><button data-v="enemies">Enemy roster</button>';
-h+='<h3>Documentation</h3>';D.categories.forEach(category=>{const open=category!=='Archive';h+=`<details ${open?'open':''}><summary>${esc(category)}</summary>`;D.docs.forEach((d,i)=>{if(d.category===category)h+=`<button data-v="doc:${i}">${esc(d.title)}</button>`});h+='</details>'});n.innerHTML=h;
+h+='<h3>Documentation</h3>';D.categories.forEach(category=>{const open=D.categoryDefaults[category];h+=`<details ${open?'open':''}><summary>${esc(category)}</summary>`;D.docs.forEach((d,i)=>{if(d.category===category)h+=`<button data-v="doc:${i}">${esc(d.title)}</button>`});h+='</details>'});n.innerHTML=h;
 n.querySelectorAll('button').forEach(b=>b.onclick=()=>{n.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');show(b.dataset.v)});}
 function tile(k,v,s,cls){return `<div class="tile"><div class="k">${k}</div><div class="v ${cls||''}">${v}</div><div class="s">${s||''}</div></div>`}
 function render(md){try{return marked.parse(md,{mangle:false,headerIds:false})}catch(e){return '<pre>'+esc(md)+'</pre>'}}

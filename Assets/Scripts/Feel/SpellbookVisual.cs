@@ -19,9 +19,8 @@ namespace VibeGame1
     [DisallowMultipleComponent]
     public class SpellbookVisual : MonoBehaviour
     {
-        /// <summary>The maximum channel emitted by the resting orb. It deliberately remains below the
-        /// 1.05 bloom cap: carried magic is a near-field identity read, never an attack tell.</summary>
-        public const float OrbEmissionPeak = 0.94f;
+        /// <summary>The selected spell's fluorescent peak, matching the project's pickup-energy range.</summary>
+        public const float OrbEmissionPeak = 2.1f;
         public const float DefaultCastSeconds = 0.32f;
 
         [Header("Generated anchors")]
@@ -31,6 +30,7 @@ namespace VibeGame1
         /// <summary>Where a later cast effect originates. Deliberately camera-left of the aim lane.</summary>
         public Transform castOrigin;
         public Transform orbAnchor;
+        public EnergyGlow orbGlow;
 
         [Header("Generated geometry")]
         public Renderer[] orbRenderers;
@@ -46,6 +46,7 @@ namespace VibeGame1
         public float floatingPageSpeed = 1.45f;
         public float orbBobMetres = 0.012f;
         public float orbBobSpeed = 2.15f;
+        public float orbPulseScale = 0.08f;
         public Vector3 castBookOffset = new Vector3(0.035f, 0.018f, 0.055f);
         public Vector3 castBookEuler = new Vector3(-8f, 10f, -4f);
 
@@ -60,20 +61,16 @@ namespace VibeGame1
         public bool IsCasting { get; private set; }
         public Vector3 CastOriginWorldPosition => castOrigin != null ? castOrigin.position : transform.position;
 
-        MaterialPropertyBlock orbBlock;
         Vector3 bookRootRestPosition;
         Quaternion bookRootRestRotation;
         Vector3 orbAnchorRestPosition;
+        Vector3 orbAnchorRestScale;
         float phase;
         float castSecondsRemaining;
         float castPose;
 
-        static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
-        static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-
         void Awake()
         {
-            orbBlock = new MaterialPropertyBlock();
             CacheAuthoredTransforms();
             DisplayColor = ResolveDisplayColor(FrontItem, SelectedSpell, emptyOrbColor);
             CapturedCastColor = DisplayColor;
@@ -177,7 +174,11 @@ namespace VibeGame1
                 bookRootRestPosition = bookRoot.localPosition;
                 bookRootRestRotation = bookRoot.localRotation;
             }
-            if (orbAnchor != null) orbAnchorRestPosition = orbAnchor.localPosition;
+            if (orbAnchor != null)
+            {
+                orbAnchorRestPosition = orbAnchor.localPosition;
+                orbAnchorRestScale = orbAnchor.localScale;
+            }
         }
 
         void ApplyLiveColorUnlessCasting()
@@ -190,13 +191,8 @@ namespace VibeGame1
 
         void ApplyOrbColor(Color hue, float multiplier)
         {
-            if (orbRenderers == null) return;
-            if (orbBlock == null) orbBlock = new MaterialPropertyBlock();
             Color emission = OrbEmission(hue, multiplier);
-            orbBlock.SetColor(EmissionId, emission);
-            orbBlock.SetColor(BaseColorId, Color.black);
-            for (int i = 0; i < orbRenderers.Length; i++)
-                if (orbRenderers[i] != null) orbRenderers[i].SetPropertyBlock(orbBlock);
+            if (orbGlow != null) orbGlow.SetTint(emission);
         }
 
         void LateUpdate()
@@ -261,10 +257,11 @@ namespace VibeGame1
         void AnimateOrb()
         {
             if (orbAnchor == null) return;
-            orbAnchor.localPosition = orbAnchorRestPosition + Vector3.up * (Mathf.Sin(phase * orbBobSpeed) * orbBobMetres);
-            orbAnchor.localRotation = Quaternion.Euler(0f, phase * 60f, 0f);
-            // Breath is size-neutral: it changes the restrained emission instead of the book silhouette.
-            float breath = 0.84f + 0.16f * Mathf.Sin(phase * orbBobSpeed * 1.6f);
+            orbAnchor.localPosition = orbAnchorRestPosition + Vector3.back * (Mathf.Sin(phase * orbBobSpeed) * orbBobMetres);
+            orbAnchor.localRotation = Quaternion.Euler(0f, 0f, phase * 90f);
+            float breath = 0.92f + 0.08f * Mathf.Sin(phase * orbBobSpeed * 1.6f);
+            float pulse = 1f + Mathf.Sin(phase * orbBobSpeed * 1.6f) * orbPulseScale + castPose * 0.20f;
+            orbAnchor.localScale = orbAnchorRestScale * pulse;
             ApplyOrbColor(IsCasting ? CapturedCastColor : DisplayColor, breath * (IsCasting ? 1.18f : 1f));
         }
     }

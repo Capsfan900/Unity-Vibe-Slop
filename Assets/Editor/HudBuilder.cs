@@ -201,14 +201,9 @@ namespace VibeGame1.EditorTools
             hud.flaskText.characterSpacing = 2f;
             Rect(hud.flaskText.gameObject, BottomLeft, BottomLeft, BottomLeft, new Vector2(Inset, 14f), new Vector2(BarW, 20f));
 
-            // ---------------- Bottom-centre: single-use item slots ----------------
-            // Three glass tiles. No caption: a row of three framed squares above the crosshair reads as
-            // slots without being told, and the key hint appears on the front slot when it has an item.
-            var itemsRoot = Group("ItemSlots", t, BottomCenter, BottomCenter, BottomCenter, new Vector2(0f, 32f), new Vector2(304f, 96f));
-
-            hud.itemSlots = new ItemSlotView[3];
-            for (int i = 0; i < hud.itemSlots.Length; i++)
-                hud.itemSlots[i] = ItemSlot("ItemSlot" + i, itemsRoot, (i - 1) * 104f);
+            // The persistent spellbook is the carried-spell selector. Keep pickup toasts, but do not
+            // duplicate the inventory as a bottom-centre hotbar.
+            hud.itemSlots = System.Array.Empty<ItemSlotView>();
 
             // ---------------- Top-left: the loadout pane ----------------
             // Two lines: the weapon you are holding, and the souls you are carrying. The wand's name and
@@ -440,7 +435,6 @@ namespace VibeGame1.EditorTools
                 bl.parent.gameObject,        // Vitals
                 tl.parent.gameObject,        // Loadout
                 tc.parent.gameObject,        // Clock
-                itemsRoot.gameObject,        // ItemSlots
                 hud.statusStrip.gameObject,  // StatusStrip
                 flowGroup.gameObject,        // FlowMeter — a RUN readout: boost stacks and the parry chain
             };
@@ -1010,6 +1004,8 @@ namespace VibeGame1.EditorTools
             menu.levelEditorButton = MenuBtn(p, "Enemy", "LEVEL EDITOR [F10]", 360f, firstY - step * 4f);
             // The key reference: opens the settings screen straight onto its INFO card (ControlsInfo).
             menu.infoButton = MenuBtn(p, "Enemy", "CONTROLS INFO", 360f, firstY - step * 3f);
+            // The human-facing whole-game manual. TestMenu keeps the actual file launch editor-only.
+            menu.dashboardButton = MenuBtn(p, "Enemy", "DEV DASHBOARD", 360f, firstY - step * 5f);
 
             // Live readout
             var readoutBg = Img("ReadoutBg", p, new Color(1f, 1f, 1f, 0.04f));

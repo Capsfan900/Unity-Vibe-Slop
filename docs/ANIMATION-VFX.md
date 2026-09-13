@@ -472,13 +472,15 @@ playtest.
 The visible offhand wand is retired. `SpellbookFactory` builds one persistent open book with dark burgundy
 leather, ten warm page leaves, ink strokes, three loose orbiting pages and a fixed core/eight-rune spell
 halo. `SpellbookVisual` moves on `PlayerDelta`, so hitstop never freezes the player's cast. The current
-riposte inscription supplies the orb hue until a FIFO item sits at the front; an accepted cast captures
-that item's colour before inventory removal. Nothing replaces or rescales the book.
+riposte inscription supplies the orb hue until a wheel-selected carried spell sits at the front; an
+accepted cast captures that spell's colour before inventory removal. Nothing replaces the book.
 
-The first live screenshot caught two faults the structural tests could not: unlit parchment collapsed into
-the cover, and nested opaque core/halo spheres read as one flat ball. Parchment now has restrained 0.10×
-self-light below bloom, carries dark ink strokes, and the halo is eight separated tinted bars with negative
-space. The generated model stays camera-left and `CastOrigin` remains outside the crosshair lane.
+Live player-eye captures caught faults the structural tests could not: unlit parchment collapsed into the
+cover, nested opaque spheres read as a flat ball, and the hand anchor occupied the page volume. Parchment now
+has restrained 0.28× self-light below bloom and dark ink strokes. A smaller pickup-material core and eight
+separated runes reuse `EnergyGlow` for the established fluorescent weapon pulse, drifting motes and rune
+orbit. The grip sits beneath the centre spine, the page normal faces upward, and the covers read as open. The
+generated model stays camera-left and `CastOrigin` remains outside the crosshair lane.
 
 Player Pyre now throws `FireSlashFx`: a broad hot inner edge, torn fringe and ember breakup following the
 weapon's authored radius, arc and multi-hit progress. Damage waits for the visible contact beat. The old

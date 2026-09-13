@@ -20,14 +20,14 @@ namespace VibeGame1
     }
 
     /// <summary>
-    /// A Neon White style single-use pickup. Found in the level, carried in a small slot row,
+    /// A Neon White style single-use spell. Found in the level, selected in the persistent book,
     /// consumed on use, and restored when the level resets.
     /// </summary>
     [CreateAssetMenu(menuName = "VibeGame1/Item")]
     public class ItemData : ScriptableObject
     {
         public string displayName = "Item";
-        [Tooltip("Short all-caps label for the HUD slot, e.g. HOOK.")]
+        [Tooltip("Short all-caps label for compact spell readouts, e.g. HOOK.")]
         public string shortLabel = "ITEM";
         [TextArea] public string description;
 

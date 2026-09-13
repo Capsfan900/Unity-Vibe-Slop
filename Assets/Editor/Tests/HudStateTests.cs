@@ -12,7 +12,7 @@ namespace VibeGame1.Tests
     ///
     /// <para>Pressing F10 disables the CharacterController, parks the player and flies a camera. Nothing
     /// behind the vitals moves after that: health, stamina, posture, the Pyre and the flask freeze at
-    /// whatever the level left them holding, the item slots still offer items [E] cannot fire, and the
+    /// whatever the level left them holding, the spell list still offers spells [E] cannot fire, and the
     /// clock sits at the time the run was paused at (<c>SpeedrunTimer.Update</c> only advances in
     /// <c>Playing</c> or <c>Dead</c>). A frozen readout that looks live is the definition of a HUD that
     /// lies, so <c>HUDController</c> hides them by ROOT while <c>GameManager.State</c> is
@@ -54,9 +54,12 @@ namespace VibeGame1.Tests
                 names.Add(go.name);
             }
 
-            foreach (var must in new[] { "Vitals", "Loadout", "Clock", "ItemSlots", "StatusStrip" })
+            foreach (var must in new[] { "Vitals", "Loadout", "Clock", "StatusStrip" })
                 CollectionAssert.Contains(names, must,
                     must + " stays on screen in the level editor, frozen at whatever the run left in it");
+
+            Assert.IsNull(Hud().transform.Find("ItemSlots"),
+                "the spellbook is the carried-spell selector; the old bottom item hotbar must not ship beside it");
         }
 
         [Test]

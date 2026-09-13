@@ -8,8 +8,16 @@ from Tools.dashboard import build_dashboard as dashboard
 class DashboardTests(unittest.TestCase):
     def test_current_and_history_are_separated(self):
         self.assertEqual("Level Building", dashboard.categorize_doc("docs/LEVEL-EDITOR.md"))
+        self.assertEqual("Combat & Enemies", dashboard.categorize_doc("docs/PARRY-CHOREOGRAPHY.md"))
+        self.assertEqual("Systems", dashboard.categorize_doc("docs/AUTHORING.md"))
+        self.assertEqual("Combat & Enemies", dashboard.categorize_doc(".claude/agents/enemy-designer.md"))
         self.assertEqual("Archive", dashboard.categorize_doc("docs/plans/old-plan.md"))
         self.assertEqual("Archive", dashboard.categorize_doc("docs/ENGINEERING-LOG.md"))
+
+    def test_only_start_here_is_expanded_by_default(self):
+        self.assertTrue(dashboard.category_expanded_by_default("Start Here"))
+        self.assertFalse(dashboard.category_expanded_by_default("Level Building"))
+        self.assertFalse(dashboard.category_expanded_by_default("Archive"))
 
     def test_audit_finds_broken_link_and_current_insight_term(self):
         with tempfile.TemporaryDirectory() as directory:

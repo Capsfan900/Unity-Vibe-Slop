@@ -5,7 +5,7 @@ using UnityEngine;
 namespace VibeGame1
 {
     /// <summary>
-    /// Carries single-use pickups and spends them. FIFO: the leftmost HUD slot is the one that fires.
+    /// Carries single-use book spells. The wheel rotates the selected spell to the front; E casts it.
     ///
     /// <para>HOOK converts a matching turret bolt into a movement kill, REBOUND strengthens the next
     /// legal airborne exit, and DEFLECT SIGIL waits for a real Perfect before paying out. Nothing here
@@ -71,9 +71,34 @@ namespace VibeGame1
 
         void Update()
         {
-            // E casts the first carried item from the persistent book, with no swapping step.
+            // The wheel rotates the carried spellbook pages; E casts the selected front page.
             if (!GameManager.IsPlaying || InputReader.I == null) return;
+            if (InputReader.I.NextPressed) CycleSelection(1);
+            else if (InputReader.I.PrevPressed) CycleSelection(-1);
             if (InputReader.I.UseItemPressed) UseCurrent();
+        }
+
+        /// <summary>Rotate the carried spell list so the selected spell remains the existing front-item
+        /// contract consumed by E, the book, and the status strip.</summary>
+        public bool CycleSelection(int direction)
+        {
+            if (held.Count < 2 || direction == 0) return false;
+            if (direction > 0)
+            {
+                ItemData first = held[0];
+                held.RemoveAt(0);
+                held.Add(first);
+            }
+            else
+            {
+                int lastIndex = held.Count - 1;
+                ItemData last = held[lastIndex];
+                held.RemoveAt(lastIndex);
+                held.Insert(0, last);
+            }
+            Broadcast();
+            AudioManager.Play(Sfx.Click, 0.45f, direction > 0 ? 1.08f : 0.92f);
+            return true;
         }
 
         public bool TryPickup(ItemData item)

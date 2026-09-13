@@ -52,6 +52,8 @@ namespace VibeGame1
         public Button levelEditorButton;
         [Tooltip("Opens the settings screen straight onto its INFO card (the key reference).")]
         public Button infoButton;
+        [Tooltip("Editor-only link to the generated whole-game human development dashboard.")]
+        public Button dashboardButton;
 
         static readonly Vector3 ArenaEntrance = new Vector3(0f, 28.2f, 296f);
         const float NearbyRadius = 40f;
@@ -90,6 +92,7 @@ namespace VibeGame1
             Wire(godModeButton, ToggleGodMode);
             Wire(levelEditorButton, OpenLevelEditor);
             Wire(infoButton, OpenInfo);
+            Wire(dashboardButton, OpenDevelopmentDashboard);
             Wire(giveSoulsButton, GiveSouls);
             Wire(breakPostureButton, BreakPosture);
             Wire(statusEffectsButton, ToggleStatusEffects);
@@ -142,6 +145,22 @@ namespace VibeGame1
         {
             Close();
             if (SettingsMenu.I != null) SettingsMenu.I.OpenInfo();
+        }
+
+        void OpenDevelopmentDashboard()
+        {
+#if UNITY_EDITOR
+            string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,
+                "../Tools/dashboard/out/index.html"));
+            if (!System.IO.File.Exists(path))
+            {
+                Debug.LogWarning("[TestMenu] Development dashboard is not built. Run: python Tools/dashboard/build_dashboard.py");
+                return;
+            }
+            Application.OpenURL(new System.Uri(path).AbsoluteUri);
+#else
+            Debug.Log("[TestMenu] The development dashboard is available from the Unity project, not a player build.");
+#endif
         }
 
         public void Close()

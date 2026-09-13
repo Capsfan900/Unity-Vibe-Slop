@@ -194,6 +194,17 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(p.objectReferenceValue, "TestMenu.infoButton is null — F1 → INFO would do nothing");
         }
 
+        [Test]
+        public void TheTestMenuLinksTheHumanDevelopmentDashboard()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HUD.prefab");
+            Assert.IsNotNull(prefab, "HUD.prefab missing — run VibeGame1/5. Build HUD");
+            var menu = prefab.GetComponent<VibeGame1.TestMenu>();
+            Assert.IsNotNull(menu);
+            Assert.IsNotNull(menu.dashboardButton,
+                "F1 needs a direct link to the generated whole-game development manual");
+        }
+
         // ------------------------------------------------------------------ the rebind row
 
         [Test]

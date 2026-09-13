@@ -53,7 +53,7 @@ namespace VibeGame1
                  "its PLAYING banner to the other.")]
         public GameObject[] editorHiddenRoots;
 
-        public ItemSlotView[] itemSlots;
+        public ItemSlotView[] itemSlots; // Legacy serialized seam; the spellbook replaces the bottom hotbar.
         public TMP_Text itemToastText;
         /// <summary>Top-left held-items / active-effects strip. Self-driving; see StatusStripView.</summary>
         public StatusStripView statusStrip;
