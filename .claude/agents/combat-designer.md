@@ -16,7 +16,7 @@ You are the combat designer for **vibegame1**: a first-person, melee-only, parry
 2. **Read before judging.** Start with `CLAUDE.md`, then `docs/ARCHITECTURE.md` (feel contracts), `docs/DATAFLOW.md`
    (combat, enemies, projectiles, items sections), `docs/MOVEMENT-PRINCIPLES.md`, `docs/BACKLOG.md` and `docs/HANDOFF.md`.
    Then the code that matters: `Assets/Scripts/Player/PlayerCombat.cs`, `ParryController.cs`, `ExecuteInteractor.cs`,
-   `SentryDash.cs`, `Assets/Scripts/Enemies/EnemyController.cs`, `ProjectileShooter.cs`, `Projectile.cs`,
+   `SentryDash.cs`, `Assets/Scripts/Enemies/Core/EnemyController.cs`, `ProjectileShooter.cs`, `Projectile.cs`,
    `Assets/Scripts/Data/EnemyData.cs`, `EnemyAttackData.cs`, and the shipped numbers in `Assets/Editor/DataFactory.cs`.
 3. **Respect the project's direction.** 2026-09-04 pivot: parkour first, enemies are a ROUTE (span sentries whose
    deflected bolts boost you), not filler between platforms; the boss and legendaries are duels. Do not propose
