@@ -70,6 +70,21 @@ namespace VibeGame1.Tests
             Assert.AreEqual(1, environment.restores);
         }
 
+        [Test]
+        public void ProductionTraversalAdapterRejectsABrokenLevelOneRoute()
+        {
+            var shipped = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelArcReport.DefaultLevel);
+            var adapter = new UnityLevelApplyEnvironment(new LevelDraftStore(root));
+            string error;
+            Assert.IsTrue(adapter.TryValidate(shipped, out error), error);
+            var broken = Clone(shipped);
+            broken.platforms = new PlatformDef[0];
+
+            Assert.IsFalse(adapter.TryValidate(broken, out error));
+            StringAssert.Contains("NO clean arc", error);
+            UnityEngine.Object.DestroyImmediate(broken);
+        }
+
         static LevelDefinition ValidDefinition()
         {
             var d = ScriptableObject.CreateInstance<LevelDefinition>();

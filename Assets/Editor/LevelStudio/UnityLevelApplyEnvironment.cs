@@ -93,7 +93,14 @@ namespace VibeGame1.EditorTools
         public bool HasItem(string key) { return AssetDatabase.LoadAssetAtPath<ItemData>("Assets/Data/Items/" + key + ".asset") != null; }
         public bool HasMaterial(string key) { return AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_" + key + ".mat") != null; }
         public bool IsProjectileCapable(string key) { var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data(key)); return data != null && data.shootsProjectiles; }
-        public bool TryValidate(LevelDefinition definition, out string error) { error = null; return true; }
+        public bool TryValidate(LevelDefinition definition, out string error)
+        {
+            string report = LevelArcReport.Build(definition);
+            bool valid = report.EndsWith("VERDICT: every authored traversal has a clean arc.\r\n", StringComparison.Ordinal)
+                      || report.EndsWith("VERDICT: every authored traversal has a clean arc.\n", StringComparison.Ordinal);
+            error = valid ? null : report;
+            return valid;
+        }
 
         [Serializable] sealed class ApplyJournal { public string sourceGuid, sourcePath, scenePath, sourceFingerprint, stage; public int draftRevision; }
     }

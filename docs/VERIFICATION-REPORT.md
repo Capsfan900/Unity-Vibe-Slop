@@ -11,6 +11,31 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Level Studio, parry choreography, and dashboard — 2026-09-12
+
+- **Full EditMode: 1212/1212 passed**, zero failures/skips, 81.1 s. The suite includes draft storage and
+  recovery, hierarchy, validation/diff/apply rollback, SceneView editing/Undo, timing capture, recording
+  stages, module solving, the opening-descent stable-metadata regression, and production apply's exact
+  in-memory traversal gate.
+- **Fresh Level_01 FeatureTests: 813 passed, 0 failed, 1 intentional skip**, 61.2 s, after proving
+  `GameManager.I != null` and `Time.timeScale == 1`. The skip is the documented Sandbox-only V18 fixture.
+- **Focused Level Studio/parry gate: 140/140 passed.** Runtime and editor assemblies build with zero errors;
+  the editor assembly retains 18 known warnings in the descent probe and Forge manifest DTOs.
+- **Reports:** Health Check has 0 errors (3334 broad serialized-null warnings); Projectile Encounter Report
+  passes every campaign shooter at 11/17.6/27.5 m/s; the offline level-arc sight report completes; its parser
+  regression plus dashboard tests pass 5/5. The dashboard regenerates with 178 classes, 1292 references,
+  32 events, 29 maps, 5 levels, and 15 enemies.
+- **Delivered:** protected campaign drafts and recovery, searchable hierarchy, inert scene preview, native
+  transform/zone editing with Undo, deterministic validation/diff/apply/rollback, F10 draft bridge, gated
+  one-key parry capture, four regenerable recording stages, deterministic draft-only module generation,
+  categorized dashboard navigation/Archive/search/docs health/Level Map, and the human editing/debugging and
+  parry choreography guides.
+
+**Still human-only:** exercise Level Studio selection/handles/multi-edit/hide/isolate and autosave recovery in
+the visible editor; try both a blocked and successful apply on a disposable working copy; record real runs on
+all four surfaces and judge repeated generated modules; click through the generated dashboard. Automation
+proves state transitions and data integrity, not usability, route rhythm, or parry feel.
+
 ### Spellbook, Pyre fire slash, slide-only ice and Sentry route visibility — 2026-09-12
 
 - **Full EditMode: 991/991 passed**, zero failures/skips, 49.4 s

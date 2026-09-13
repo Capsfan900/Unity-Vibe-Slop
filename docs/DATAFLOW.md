@@ -2132,6 +2132,8 @@ fingerprint. The Unity environment snapshots the canonical asset and scene bytes
 backup directory, persists into the existing asset GUID, runs the structured canonical build and verifier, then
 atomically rebases the draft. Any failure after backup restores and verifies both byte snapshots; the journal is
 removed only after the rebase succeeds.
+Its preflight traversal adapter runs `LevelArcReport.Build` directly against the in-memory draft, so broken Level 1
+routes are rejected before backup or source writes rather than validating the unchanged on-disk asset.
 
 ### The in-game level editor — `LevelEditor` + the one piece factory
 

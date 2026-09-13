@@ -89,9 +89,15 @@ namespace VibeGame1.EditorTools
 
         public static string Build(string levelPath)
         {
-            var sb = new StringBuilder();
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(levelPath);
             if (def == null) return "FAIL: " + levelPath + " not found.";
+            return Build(def);
+        }
+
+        public static string Build(LevelDefinition def)
+        {
+            if (def == null) return "FAIL: level definition not found.";
+            var sb = new StringBuilder();
 
             A.MoveProfile p; string err;
             if (!A.TryLoadProfile(out p, out err)) return "FAIL: " + err;
