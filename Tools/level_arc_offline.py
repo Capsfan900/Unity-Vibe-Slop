@@ -65,14 +65,19 @@ class Box(object):
 
 V = r"\{x: ([-\d.eE+]+), y: ([-\d.eE+]+), z: ([-\d.eE+]+)\}"
 
-def load_boxes():
-    t = open(ASSET).read()
+def parse_boxes(t):
     body = t.split("platforms:")[1].split("\n  spawns:")[0]
     out = []
-    for m in re.finditer(r"  - name: (\S+)\s*\n\s+center: %s\s*\n\s+size: %s" % (V, V), body):
-        g = m.groups()
-        out.append(Box(g[0], tuple(float(x) for x in g[1:4]), tuple(float(x) for x in g[4:7])))
+    for item in re.split(r"^  - ", body, flags=re.M)[1:]:
+        name = re.search(r"^\s*name: (\S+)", item, re.M)
+        center = re.search(r"^\s*center: %s" % V, item, re.M)
+        size = re.search(r"^\s*size: %s" % V, item, re.M)
+        if name and center and size:
+            out.append(Box(name.group(1), tuple(float(x) for x in center.groups()), tuple(float(x) for x in size.groups())))
     return out
+
+def load_boxes():
+    return parse_boxes(open(ASSET).read())
 
 def load_spawns():
     t = open(ASSET).read()
