@@ -130,6 +130,41 @@ def collect_docs():
     return docs
 
 
+GUIDE_HEADINGS = ("Purpose", "Common Tasks", "Where Data Lives", "Safe Editing", "Regeneration",
+                  "Verification", "Debugging Symptoms", "Rollback")
+
+
+def audit_docs(docs, repo_root=ROOT):
+    findings, titles = [], {}
+    for doc in docs:
+        path, text, category = doc["path"], doc["text"], doc.get("category", "")
+        if category not in CATEGORIES:
+            findings.append({"severity": "error", "code": "uncategorized", "path": path, "message": "Document has no known category."})
+        title = doc.get("title", "")
+        if title in titles:
+            findings.append({"severity": "error", "code": "duplicate-title", "path": path, "message": "Duplicates title used by " + titles[title]})
+        titles[title] = path
+        if category != "Archive" and re.search(r"\binsight route\b", text, re.I):
+            findings.append({"severity": "error", "code": "obsolete-current-term", "path": path, "message": "Use Challenge Route in current documentation."})
+        for target in ([] if category == "Archive" else re.findall(r"\[[^]]*\]\(([^)]+)\)", text)):
+            target = target.split("#", 1)[0]
+            if not target or "://" in target or target.startswith(("mailto:", "/")):
+                continue
+            resolved = (repo_root / Path(path).parent / target).resolve()
+            if not resolved.exists():
+                findings.append({"severity": "error", "code": "broken-local-link", "path": path, "message": "Missing link target: " + target})
+        for target in re.findall(r"`((?:Assets|Tools|docs)/[^`\n]+)`", text):
+            if not (repo_root / target.rstrip(".,:;)")).exists():
+                findings.append({"severity": "warning", "code": "missing-source-path", "path": path, "message": "Backtick path does not exist: " + target})
+    guide = next((d for d in docs if d["path"] == "docs/HUMAN-DEVELOPMENT-GUIDE.md"), None)
+    if guide:
+        present = set(headings(guide["text"]))
+        for required in GUIDE_HEADINGS:
+            if required not in present:
+                findings.append({"severity": "error", "code": "missing-guide-heading", "path": guide["path"], "message": "Missing section: " + required})
+    return sorted(findings, key=lambda f: (f["severity"], f["code"], f["path"], f["message"]))
+
+
 def git_info():
     branch = sh("git", "rev-parse", "--abbrev-ref", "HEAD")
     commits = []
@@ -527,6 +562,7 @@ def build():
         "runtimeFlow": RUNTIME_FLOW,
         "maps": dataflow_maps(by_path.get("docs/DATAFLOW.md", "")),
         "levels": level_map(vocabulary), "enemies": enemies(), "docs": docs, "categories": CATEGORIES,
+        "docFindings": audit_docs(docs),
         "agentContract": {
             "path": "AGENTS.md",
             "specialists": len(list((ROOT / ".claude" / "agents").glob("*.md"))),
@@ -592,7 +628,7 @@ const FOLDER_COLOURS={Player:'#4fe0d0',Enemies:'#ff7a1e',Combat:'#b41e2e',Feel:'
 const fc=f=>FOLDER_COLOURS[f]||'#aaa';
 $('#meta').textContent=`branch ${D.git.branch||'?'} · generated ${D.generated} · ${D.root}`;
 try{mermaid.initialize({startOnLoad:false,theme:'dark',securityLevel:'loose',flowchart:{curve:'basis',nodeSpacing:30,rankSpacing:40}})}catch(e){}
-function nav(){const n=$('#nav');let h='<h3>Overview</h3><button data-v="home" class="active">Dashboard</button><button data-v="agents">Agent contract</button><button data-v="changes">Change log</button><button data-v="tests">Tests</button>';
+function nav(){const n=$('#nav');let h='<h3>Overview</h3><button data-v="home" class="active">Dashboard</button><button data-v="agents">Agent contract</button><button data-v="changes">Change log</button><button data-v="tests">Tests</button><button data-v="docHealth">Documentation Health</button>';
 h+='<h3>Visuals</h3><button data-v="graph">Code graph</button><button data-v="events">Event bus</button><button data-v="maps">Dataflow maps</button><button data-v="level">Level map</button><button data-v="enemies">Enemy roster</button>';
 h+='<h3>Documentation</h3>';D.categories.forEach(category=>{const open=category!=='Archive';h+=`<details ${open?'open':''}><summary>${esc(category)}</summary>`;D.docs.forEach((d,i)=>{if(d.category===category)h+=`<button data-v="doc:${i}">${esc(d.title)}</button>`});h+='</details>'});n.innerHTML=h;
 n.querySelectorAll('button').forEach(b=>b.onclick=()=>{n.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');show(b.dataset.v)});}
@@ -632,6 +668,7 @@ if(e.skippedNames.length)h+='<div class="pane"><h2 class="warn">Skipped / ignore
 h+='<div class="two"><div class="pane"><h2>Per suite</h2><table><tr><th>suite</th><th>pass</th><th>fail</th><th>skip</th></tr>'+Object.entries(e.suites).sort().map(([k,v])=>`<tr><td>${esc(k)}</td><td class="ok">${v.passed}</td><td class="${v.failed?'bad':''}">${v.failed}</td><td>${v.skipped}</td></tr>`).join('')+'</table></div>';
 h+='<div class="pane"><h2>Slowest</h2><table>'+e.slow.map(s=>`<tr><td>${s.seconds.toFixed(1)} s</td><td class="mono">${esc(s.name.split('.').slice(-2).join('.'))}</td></tr>`).join('')+'</table></div></div>';
 const f=D.feature;h+='<div class="pane"><h2>Feature suite (play mode)</h2>'+(f?`<p><span class="ok">${f.passed} passed</span> · ${f.failed} failed · ${f.skipped} skipped — as recorded in docs/VERIFICATION-REPORT.md</p>`:'<p>not recorded</p>')+'</div>';return h}
+function docHealth(){const errors=D.docFindings.filter(f=>f.severity==='error').length;let h='<div class="tiles">'+tile('Documentation errors',errors,'',errors?'bad':'ok')+tile('Warnings',D.docFindings.length-errors)+'</div><div class="pane"><h2>Documentation Health</h2><table><tr><th>severity</th><th>code</th><th>document</th><th>finding</th></tr>';h+=D.docFindings.map(f=>`<tr><td class="${f.severity==='error'?'bad':'warn'}">${esc(f.severity)}</td><td class="mono">${esc(f.code)}</td><td class="mono">${esc(f.path)}</td><td>${esc(f.message)}</td></tr>`).join('');return h+'</table></div>'}
 // ---------------------------------------------------------------- code graph
 function graphView(){let h='<div class="pane"><h2>Code graph — who references whom</h2><div class="ctl"><label>folder <select id="gf"><option value="">all</option>'+D.graph.folders.map(f=>`<option>${f}</option>`).join('')+'</select></label><label>min references <input id="gw" type="range" min="1" max="12" value="2"><span id="gwv">2</span></label><span>drag nodes · click a node for its links · ring = singleton · square = ScriptableObject</span></div>';
 h+='<div class="legend">'+D.graph.folders.map(f=>`<span><i style="background:${fc(f)}"></i>${f}</span>`).join('')+'</div><svg class="graph" id="gsvg"></svg><div id="ginfo" class="small" style="margin-top:8px">—</div></div>';
@@ -730,7 +767,7 @@ function doc(i){const d=D.docs[i];let html=render(d.text);
 html=html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,(m,src)=>'<pre class="mermaid">'+src+'</pre>');
 setTimeout(()=>{try{mermaid.run({nodes:document.querySelectorAll('.doc pre.mermaid')})}catch(e){}},0);
 return `<p class="small mono">${esc(d.path)}</p><div class="doc">${html}</div>`}
-function show(v){const m=$('#main');const views={home,agents:agentsView,changes,tests,graph:graphView,events:eventsView,maps:mapsView,level:levelView,enemies:enemiesView};
+function show(v){const m=$('#main');const views={home,agents:agentsView,changes,tests,docHealth,graph:graphView,events:eventsView,maps:mapsView,level:levelView,enemies:enemiesView};
 if(views[v])m.innerHTML=views[v]();else if(v.startsWith('doc:'))m.innerHTML=doc(+v.slice(4));window.scrollTo(0,0)}
 $('#q').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();if(!q){show('home');return}let h='<div class="pane"><h2>Search: '+esc(q)+'</h2>';let any=false;
 D.docs.forEach((d,i)=>{const lines=d.text.split('\n').map((l,n)=>[l,n]).filter(([l])=>l.toLowerCase().includes(q)).slice(0,12);if(!lines.length)return;any=true;
