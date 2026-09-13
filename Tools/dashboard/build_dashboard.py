@@ -29,6 +29,16 @@ OUT_DIR = ROOT / "Tools" / "dashboard" / "out"
 OUT = OUT_DIR / "index.html"
 TEST_XML = Path(os.environ.get("LOCALAPPDATA", "")).parent / "LocalLow" / "vibegame1" / "vibegame1" / "TestResults.xml"
 
+
+def timing_capture_dir():
+    return Path(os.environ.get("LOCALAPPDATA", "")).parent / "LocalLow" / "vibegame1" / "vibegame1" / "timing-captures"
+
+
+def resolve_action(action):
+    if action != "open-timing-captures":
+        raise ValueError("Unknown dashboard action")
+    return timing_capture_dir()
+
 DOC_ORDER = [
     ("docs/HANDOFF.md", "Handoff"),
     ("AGENTS.md", "Agent contract (tool-neutral)"),
@@ -153,8 +163,11 @@ def audit_docs(docs, repo_root=ROOT):
             resolved = (repo_root / Path(path).parent / target).resolve()
             if not resolved.exists():
                 findings.append({"severity": "error", "code": "broken-local-link", "path": path, "message": "Missing link target: " + target})
-        for target in re.findall(r"`((?:Assets|Tools|docs)/[^`\n]+)`", text):
-            if not (repo_root / target.rstrip(".,:;)")).exists():
+        for target in ([] if category == "Archive" else re.findall(r"`((?:Assets|Tools|docs)/[^`\n]+)`", text)):
+            clean = re.sub(r":\d+(?:-\d+)?$", "", target.rstrip(".,:;)"))
+            if any(c in clean for c in "*<>{}"):
+                continue
+            if not (repo_root / clean).exists():
                 findings.append({"severity": "warning", "code": "missing-source-path", "path": path, "message": "Backtick path does not exist: " + target})
     guide = next((d for d in docs if d["path"] == "docs/HUMAN-DEVELOPMENT-GUIDE.md"), None)
     if guide:
@@ -586,6 +599,7 @@ def build():
     vocabulary = level_vocabulary(by_path.get("docs/LEVEL-VOCABULARY.md", ""))
     data = {
         "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "root": str(ROOT),
+        "timingCapturePath": str(timing_capture_dir()),
         "git": git_info(), "editMode": test_results(), "feature": feature_suite(by_path.get("docs/VERIFICATION-REPORT.md", "")),
         "logEntries": headings(by_path.get("docs/ENGINEERING-LOG.md", "")),
         "backlogSections": headings(by_path.get("docs/BACKLOG.md", "")),
@@ -797,7 +811,8 @@ return `<div class="card"><b>${esc(a.name)}</b> ${a.unblockable?'<span class="ch
 function doc(i){const d=D.docs[i];let html=render(d.text);
 html=html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,(m,src)=>'<pre class="mermaid">'+src+'</pre>');
 setTimeout(()=>{try{mermaid.run({nodes:document.querySelectorAll('.doc pre.mermaid')})}catch(e){}},0);
-return `<p class="small mono">${esc(d.path)}</p><div class="doc">${html}</div>`}
+const timing=d.path==='docs/PARRY-CHOREOGRAPHY.md'?`<div class="pane"><code>${esc(D.timingCapturePath)}</code> <button onclick="fetch('/actions/open-timing-captures',{method:'POST'})">Open timing captures</button></div>`:'';
+return `<p class="small mono">${esc(d.path)}</p>${timing}<div class="doc">${html}</div>`}
 function show(v){const m=$('#main');const views={home,agents:agentsView,changes,tests,docHealth,graph:graphView,events:eventsView,maps:mapsView,level:levelView,enemies:enemiesView};
 if(views[v])m.innerHTML=views[v]();else if(v.startsWith('doc:'))m.innerHTML=doc(+v.slice(4));window.scrollTo(0,0)}
 $('#q').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();if(!q){show('home');return}let h='<div class="pane"><h2>Search: '+esc(q)+'</h2>';let any=false;
@@ -819,13 +834,22 @@ def main():
     print(f"dashboard written: {out}  ({len(data['graph']['nodes'])} classes, {len(data['graph']['edges'])} refs, "
           f"{len(data['events'])} events, {len(data['maps'])} maps, {len(data['levels'])} levels, {len(data['enemies'])} enemies)")
     if a.serve:
-        import http.server, functools
-        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(OUT_DIR))
+        import http.server
+        class Handler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=str(OUT_DIR), **kwargs)
+            def do_POST(self):
+                if self.path != "/actions/open-timing-captures":
+                    self.send_error(404); return
+                folder = resolve_action("open-timing-captures")
+                folder.mkdir(parents=True, exist_ok=True)
+                subprocess.Popen(["explorer.exe", str(folder)])
+                self.send_response(204); self.end_headers()
         url = f"http://127.0.0.1:{a.port}/"
         print(f"serving {url} (Ctrl+C to stop)")
         if a.open:
             webbrowser.open(url)
-        http.server.ThreadingHTTPServer(("127.0.0.1", a.port), handler).serve_forever()
+        http.server.ThreadingHTTPServer(("127.0.0.1", a.port), Handler).serve_forever()
     elif a.open:
         webbrowser.open(out.as_uri())
 

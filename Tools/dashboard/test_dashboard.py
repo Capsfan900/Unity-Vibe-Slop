@@ -28,6 +28,11 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual("Knight", level["zones"]["T2"]["split"])
         self.assertEqual("pshooter_enemy01", level["objects"]["T2.Sentry.02"]["dataKey"])
 
+    def test_only_timing_capture_action_is_allowed(self):
+        self.assertEqual(dashboard.timing_capture_dir(), dashboard.resolve_action("open-timing-captures"))
+        with self.assertRaises(ValueError):
+            dashboard.resolve_action("../../Windows")
+
 
 if __name__ == "__main__":
     unittest.main()
