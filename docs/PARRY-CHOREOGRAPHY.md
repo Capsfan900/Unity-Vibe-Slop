@@ -5,10 +5,13 @@ editable best-fit module. The recorder observes the player; it never changes mov
 
 ## Record a run
 
-1. Run **VibeGame1 → 10. Build Parry Recording Stages**, then open the flat, downhill, ice/water, or mixed
-   `LevelDefinition` template from `Assets/Data/Levels/Recording/`.
-2. Enter play mode, open the Backquote console, and enter the private developer passphrase.
-3. Enter `timing prime`. The `0` key is inert until this succeeds.
+1. Run **VibeGame1 → 10. Build Parry Recording Stages** (outside play mode). It writes the four
+   `LevelDefinition` templates in `Assets/Data/Levels/Recording/` AND builds one playable scene per stage,
+   `Assets/Scenes/ParryRecording_Flat|Downhill|Ice|Mixed.unity`.
+2. Open `MainMenu.unity` and press Play. Open the Backquote console and enter the private developer passphrase,
+   then **LEVEL SELECT** shows a `RECORD …` row per stage (editor only; loaded by path, not from the build list).
+   Pick one. (Opening a `ParryRecording_*` scene directly and pressing Play works too.)
+3. In the stage, enter `timing prime` in the console. The `0` key is inert until this succeeds.
 4. Press `0` to start. Run the route and tap Parry at each intended empty-air contact beat.
 5. Press `0` again. The take stops, atomically exports one JSON file, and returns to Primed.
 6. Find the JSON in the dashboard's allowlisted **Open timing captures** action, or at the displayed local path.

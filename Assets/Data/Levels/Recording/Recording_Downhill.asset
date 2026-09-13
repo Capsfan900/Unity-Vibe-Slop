@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.LevelDefinition
   levelId: recording_downhill
   displayName: Downhill Ramp
-  sceneName: ParryRecording
+  sceneName: ParryRecording_Downhill
   parTime: 120
   orderIndex: 0
   requiredRunSouls: 0
@@ -35,7 +35,7 @@ MonoBehaviour:
     center: {x: 0, y: 0, z: 0}
     size: {x: 40, y: 30, z: 120}
     displayColor: {r: 0, g: 1, b: 1, a: 1}
-  playerStart: {x: 0, y: 1.5, z: -46}
+  playerStart: {x: 0, y: 9.111111, z: -44}
   playerStartMeta:
     objectId: 
     friendlyName: 

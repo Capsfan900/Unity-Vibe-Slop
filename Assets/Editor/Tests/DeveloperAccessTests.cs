@@ -153,6 +153,36 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void MainMenu_UnlockCreatesRecordingRowsWithoutReopeningLevelSelect()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MainMenu.prefab");
+            if (prefab == null) Assert.Ignore("MainMenu.prefab missing — run VibeGame1/9. Build Main Menu.");
+            DeveloperAccess.LockForTests();
+            var instance = Object.Instantiate(prefab);
+            try
+            {
+                var menu = instance.GetComponent<MainMenuController>();
+                typeof(MainMenuController).GetMethod("Start", BindingFlags.NonPublic | BindingFlags.Instance)
+                    .Invoke(menu, null);
+                menu.OpenLevelSelect();
+                Assert.AreEqual(0, menu.RecordingRowCount);
+
+                DeveloperAccess.UnlockForTests();
+
+                int expected = 0;
+                foreach (var stage in ParryRecordingStages.All)
+                    if (File.Exists(stage.ScenePath)) expected++;
+                Assert.Greater(expected, 0, "run VibeGame1/10. Build Parry Recording Stages");
+                Assert.AreEqual(expected, menu.RecordingRowCount,
+                    "unlock should populate recording stages without closing and reopening LEVEL SELECT");
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
+        }
+
+        [Test]
         public void SandboxWakeSwitch_CannotMutateAnEnemyWhileLocked()
         {
             var enemyObject = new GameObject("GateTestEnemy");

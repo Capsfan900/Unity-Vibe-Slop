@@ -11,6 +11,17 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
 
 ## Results
 
+### Playable parry-recording stages — 2026-09-13
+
+- **Quick EditMode: 1177/1177 passed**, zero failures/skips, with 41 slow `LevelLines` fixtures excluded
+  (`TestResults/EditMode-20260913-180239.xml`). This includes immediate RECORD-row population after developer
+  unlock, unique scene assets for all four stages, and the downhill spawn-to-ramp geometry regression.
+- Both runtime and editor assemblies compile with zero errors; the editor assembly retains its 18 known warnings.
+- Menu step 10 regenerated all four stage scenes through `LevelDefinitionBuilder`. A fresh live downhill run
+  settled the player at `(-0.265, 7.717, -41.232)` with `GameState.Playing`, `Time.timeScale == 1`, and zero deaths.
+
+**Still human-only:** record a full desired rhythm on each surface and judge the generated module in Level Studio.
+
 ### Selectable spellbook and whole-game human dashboard — 2026-09-13
 
 - **Quick EditMode: 1174/1174 passed**, zero failures/skips, with 41 slow `LevelLines` fixtures excluded.

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.LevelDefinition
   levelId: recording_flat
   displayName: Flat Walkway
-  sceneName: ParryRecording
+  sceneName: ParryRecording_Flat
   parTime: 120
   orderIndex: 0
   requiredRunSouls: 0

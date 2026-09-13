@@ -2187,6 +2187,15 @@ LevelEditor.Update  (GameState.Editing; InputReader is the only input reader —
            → Teleport to playerStart → spawners spawn → GameState.Playing; F10 / EDIT → BackToEditing()
    EXIT ─► Exit(): destroy customRoot, restore returnPosition, GameState.Playing
 MainMenuController.RefreshCustomRows ─► one CUSTOM row per levels/*.json → LevelEditor.PendingLoadPath → load Sandbox → Play
+   └─ RefreshRecordingRows (editor + DeveloperAccess only) ─► one RECORD row per ParryRecordingStages.All whose
+      Assets/Scenes/ParryRecording_<Stage>.unity exists → LoadScenePath → EditorSceneManager.LoadSceneInPlayMode
+      (by path; never in the build list). LoadScene also falls back to that path in the editor when a scene
+      (e.g. a Level Studio draft target) is missing from the build list.
+DeveloperAccess.Changed ─► MainMenuController.Refresh() ─► campaign + Sandbox/editor + CUSTOM + RECORD rows
+   (unlocking while LEVEL SELECT is already open must populate every developer row immediately)
+ParryRecordingStageFactory (menu 10) ─► 4 LevelDefinitions (sceneName = ParryRecording_<Stage>)
+   → per stage: open/create scene → LevelDefinitionBuilder.Build → save → reopen previous scene
+   → Downhill playerStart is derived one metre along and 1.2 m above its ramp surface; never use the shared flat spawn
 
 DeveloperConsole (HUD overlay; Backquote/Enter actions live in InputReader)
    LOCKED: `help` | `clear` | bare secret passphrase (only its digest ships)
@@ -2919,6 +2928,7 @@ MainMenuBuilder ("9. Build Main Menu", edit mode only)
 MainMenuController  (on the prefab; the whole front end)
    Awake / Start   Cursor.lockState = None, visible = true          <- BOTH: see the invariants
    Start           ShowTitle() -> Refresh()
+                   DeveloperAccess.Changed -> Refresh() so dynamic CUSTOM / RECORD rows follow unlock in place
 
    Refresh()   THE LEVEL LIST IS DATA
        registry.Ordered()                      <- Assets/Data/LevelRegistry.asset

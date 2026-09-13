@@ -67,6 +67,9 @@ namespace VibeGame1
         readonly System.Collections.Generic.List<Row> customRows = new System.Collections.Generic.List<Row>();
         /// <summary>Custom rows shown on the last Refresh. For tests.</summary>
         public int CustomRowCount { get; private set; }
+        readonly System.Collections.Generic.List<Row> recordingRows = new System.Collections.Generic.List<Row>();
+        /// <summary>Parry recording stage rows shown on the last Refresh (editor + developer only). For tests.</summary>
+        public int RecordingRowCount { get; private set; }
 
         [Tooltip("Vertical spacing between rows, in canvas units. Used when cloning extra rows for a " +
                  "registry that has grown since the menu prefab was built.")]
@@ -84,7 +87,7 @@ namespace VibeGame1
             ReleaseCursor();
         }
 
-        void OnDestroy() { DeveloperAccess.Changed -= RefreshDeveloperRows; if (I == this) I = null; }
+        void OnDestroy() { DeveloperAccess.Changed -= Refresh; if (I == this) I = null; }
 
         void Start()
         {
@@ -100,7 +103,7 @@ namespace VibeGame1
                 sandboxRow.button.onClick.AddListener(LoadSandbox);
             if (levelEditorRow != null && levelEditorRow.button != null)
                 levelEditorRow.button.onClick.AddListener(LoadLevelStudioDraft);
-            DeveloperAccess.Changed += RefreshDeveloperRows;
+            DeveloperAccess.Changed += Refresh;
 
             ShowTitle();
             Refresh();
@@ -279,27 +282,16 @@ namespace VibeGame1
         {
             foreach (var r in customRows) if (r != null && r.root != null) Destroy(r.root);
             customRows.Clear();
+            foreach (var r in recordingRows) if (r != null && r.root != null) Destroy(r.root);
+            recordingRows.Clear();
             CustomRowCount = 0;
+            RecordingRowCount = 0;
             if (customTemplate == null || customTemplate.root == null) return;
             if (!DeveloperAccess.IsUnlocked) return;
             var names = LevelEditor.ListSaved();
-            var parent = customTemplate.root.transform.parent;
-            var templateRt = customTemplate.root.GetComponent<RectTransform>();
             for (int i = 0; i < names.Count; i++)
             {
-                var go = Instantiate(customTemplate.root, parent);
-                go.name = "CustomRow_" + i;
-                go.SetActive(true);
-                var rt = go.GetComponent<RectTransform>();
-                if (rt != null && templateRt != null) rt.anchoredPosition = templateRt.anchoredPosition - new Vector2(0f, rowStride * i);
-                var row = new Row
-                {
-                    root = go,
-                    title = Find<TMP_Text>(go, customTemplate.title),
-                    meta = Find<TMP_Text>(go, customTemplate.meta),
-                    status = Find<TMP_Text>(go, customTemplate.status),
-                    button = go.GetComponentInChildren<Button>(true),
-                };
+                var row = CloneDeveloperRow("CustomRow_" + i, i);
                 string name = names[i];
                 if (row.title != null) row.title.text = "CUSTOM   " + name.ToUpperInvariant();
                 // Custom rows exist only after the shared developer capability is granted. F10 consumes
@@ -320,6 +312,55 @@ namespace VibeGame1
                 customRows.Add(row);
             }
             CustomRowCount = customRows.Count;
+            RefreshRecordingRows(names.Count);
+        }
+
+        /// <summary>
+        /// One developer row per parry-choreography recording stage (<see cref="ParryRecordingStages"/>),
+        /// listed under the custom rows. Editor only: the stages exist to feed Level Studio, and their
+        /// scenes are loaded by path so they never need to be in the build scene list.
+        /// </summary>
+        void RefreshRecordingRows(int firstSlot)
+        {
+#if UNITY_EDITOR
+            var stages = ParryRecordingStages.All;
+            for (int i = 0; i < stages.Length; i++)
+            {
+                var stage = stages[i];
+                if (!System.IO.File.Exists(stage.ScenePath)) continue;
+                var row = CloneDeveloperRow("RecordingRow_" + i, firstSlot + recordingRows.Count);
+                if (row.title != null) row.title.text = "RECORD   " + stage.displayName.ToUpperInvariant();
+                if (row.meta != null) row.meta.text = "parry timing stage  -  ` console: timing prime, then 0";
+                if (row.status != null) row.status.text = "REC";
+                if (row.button != null)
+                {
+                    row.button.interactable = true;
+                    row.button.onClick.RemoveAllListeners();
+                    string path = stage.ScenePath;
+                    row.button.onClick.AddListener(() => LoadScenePath(path));
+                }
+                recordingRows.Add(row);
+            }
+#endif
+            RecordingRowCount = recordingRows.Count;
+        }
+
+        Row CloneDeveloperRow(string name, int slot)
+        {
+            var go = Instantiate(customTemplate.root, customTemplate.root.transform.parent);
+            go.name = name;
+            go.SetActive(true);
+            var rt = go.GetComponent<RectTransform>();
+            var templateRt = customTemplate.root.GetComponent<RectTransform>();
+            if (rt != null && templateRt != null) rt.anchoredPosition = templateRt.anchoredPosition - new Vector2(0f, rowStride * slot);
+            return new Row
+            {
+                root = go,
+                title = Find<TMP_Text>(go, customTemplate.title),
+                meta = Find<TMP_Text>(go, customTemplate.meta),
+                status = Find<TMP_Text>(go, customTemplate.status),
+                button = go.GetComponentInChildren<Button>(true),
+            };
         }
 
         static string Safe(string s) { return string.IsNullOrEmpty(s) ? "UNTITLED" : s; }
@@ -389,8 +430,29 @@ namespace VibeGame1
                 return;
             }
             AudioManager.Play(Sfx.Click);
+#if UNITY_EDITOR
+            // A Level Studio draft or recording stage can target a scene that is not in the build list;
+            // the editor can still play it by path.
+            string editorPath = "Assets/Scenes/" + sceneName + ".unity";
+            if (!Application.CanStreamedLevelBeLoaded(sceneName) && System.IO.File.Exists(editorPath))
+            {
+                LoadScenePath(editorPath);
+                return;
+            }
+#endif
             SceneManager.LoadScene(sceneName);
         }
+
+#if UNITY_EDITOR
+        /// <summary>Editor-only: play a scene by asset path, whether or not it is in the build list.</summary>
+        public void LoadScenePath(string scenePath)
+        {
+            if (!DeveloperAccess.IsUnlocked) { Debug.LogWarning("[MainMenu] " + scenePath + " rejected: developer access is locked."); return; }
+            AudioManager.Play(Sfx.Click);
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(scenePath,
+                new LoadSceneParameters(LoadSceneMode.Single));
+        }
+#endif
 
         // ---- quit -------------------------------------------------------------------------------
 
