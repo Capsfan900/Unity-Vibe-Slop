@@ -2126,6 +2126,13 @@ traversal adapter. `LevelDraftDiff.Compare` stops on any validation error, then 
 authored and disabled nested records by canonical stable ID. It emits immutable, deterministic Add/Remove,
 Transform, Tuning and Zone changes; array order is one collection-level change rather than index-based object churn.
 
+`LevelApplyTransaction` owns apply ordering while `ILevelApplyEnvironment` owns Unity and filesystem effects. It
+rejects stale/missing sources and dirty/wrong scenes before writes; warning confirmation is bound to the exact draft
+fingerprint. The Unity environment snapshots the canonical asset and scene bytes plus a journal under the draft's
+backup directory, persists into the existing asset GUID, runs the structured canonical build and verifier, then
+atomically rebases the draft. Any failure after backup restores and verifies both byte snapshots; the journal is
+removed only after the rebase succeeds.
+
 ### The in-game level editor — `LevelEditor` + the one piece factory
 
 ```

@@ -284,10 +284,17 @@ namespace VibeGame1.EditorTools
                 menu.sandboxRow.status.color = Blood;
             }
 
+            float editorY = sandboxY - stride;
+            menu.levelEditorRow = BuildRow("LevelEditorRow", rowsRoot.transform, Cyan, editorY, stride);
+            if (menu.levelEditorRow.title != null) menu.levelEditorRow.title.text = "LEVEL EDITOR";
+            if (menu.levelEditorRow.meta != null) menu.levelEditorRow.meta.text = "resume the active protected draft";
+            if (menu.levelEditorRow.status != null) { menu.levelEditorRow.status.text = "DEV"; menu.levelEditorRow.status.color = Cyan; }
+            menu.levelEditorRow.root.SetActive(false);
+
             // CUSTOM levels (the in-game level editor's saves): a divider and a hidden template row under
             // the sandbox row. MainMenuController clones one per saved file on every Refresh, so the list
             // is data read at runtime, never authored here.
-            float customY = sandboxY - stride;
+            float customY = editorY - stride;
             var customDivider = Img("CustomDivider", rowsRoot.transform, new Color(1f, 1f, 1f, 0.045f));
             customDivider.raycastTarget = false;
             Rect(customDivider.gameObject, Center, Center, Center, new Vector2(0f, customY + stride * 0.5f), new Vector2(1100f, 1f));

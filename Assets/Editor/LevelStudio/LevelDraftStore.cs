@@ -187,6 +187,23 @@ namespace VibeGame1.EditorTools
             }
         }
 
+        public void RebaseApplied(LevelDraft draft, string sourceFingerprint)
+        {
+            ValidateDraft(draft);
+            if (string.IsNullOrEmpty(sourceFingerprint)) throw new ArgumentException("A source fingerprint is required.", "sourceFingerprint");
+            string oldBase = draft.baseDefinitionJson;
+            LevelDraftManifest oldManifest = CopyManifest(draft.manifest);
+            try
+            {
+                draft.baseDefinitionJson = PayloadJson(draft.definition);
+                draft.manifest.sourceFingerprint = sourceFingerprint;
+                draft.manifest.appliedUtc = UtcNow();
+                draft.manifest.appliedRevision = draft.manifest.revision + 1;
+                Save(draft);
+            }
+            catch { draft.baseDefinitionJson = oldBase; draft.manifest = oldManifest; throw; }
+        }
+
         object Sync(string id) { return DraftLocks.GetOrAdd(DraftPath(id), _ => new object()); }
         void BeginWrite(string id)
         {

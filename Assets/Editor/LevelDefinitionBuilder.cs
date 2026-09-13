@@ -8,6 +8,8 @@ using SceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace VibeGame1.EditorTools
 {
+    public sealed class LevelBuildResult { public bool success; public string message, scenePath; }
+
     /// <summary>
     /// Builds a scene from a <see cref="LevelDefinition"/> asset.
     ///
@@ -369,6 +371,18 @@ namespace VibeGame1.EditorTools
                 counts = counts,
                 builtSpawners = context.builtSpawners
             };
+        }
+
+        public static LevelBuildResult TryBuild(LevelDefinition def)
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return new LevelBuildResult { message = "Build refused during play mode." };
+            if (def == null) return new LevelBuildResult { message = "Level definition is missing." };
+            string scoringError;
+            if (!RunScoreMath.TryValidateDefinition(def, out scoringError)) return new LevelBuildResult { message = scoringError };
+            var active = SceneManager.GetActiveScene();
+            if (!string.IsNullOrEmpty(def.sceneName) && active.name != def.sceneName) return new LevelBuildResult { message = "The active scene does not match the level definition." };
+            try { Build(def); return new LevelBuildResult { success = true, scenePath = active.path, message = "Level built." }; }
+            catch (System.Exception e) { return new LevelBuildResult { message = e.Message, scenePath = active.path }; }
         }
 
         /// <summary>

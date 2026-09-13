@@ -61,6 +61,7 @@ namespace VibeGame1
         public Transform rowParent;
         public Row[] rows;
         public Row sandboxRow;
+        public Row levelEditorRow;
         [Tooltip("Hidden template row for CUSTOM levels (saved by the in-game level editor); cloned per file on Refresh.")]
         public Row customTemplate;
         readonly System.Collections.Generic.List<Row> customRows = new System.Collections.Generic.List<Row>();
@@ -83,7 +84,7 @@ namespace VibeGame1
             ReleaseCursor();
         }
 
-        void OnDestroy() { if (I == this) I = null; }
+        void OnDestroy() { DeveloperAccess.Changed -= RefreshDeveloperRows; if (I == this) I = null; }
 
         void Start()
         {
@@ -97,6 +98,9 @@ namespace VibeGame1
 
             if (sandboxRow != null && sandboxRow.button != null)
                 sandboxRow.button.onClick.AddListener(LoadSandbox);
+            if (levelEditorRow != null && levelEditorRow.button != null)
+                levelEditorRow.button.onClick.AddListener(LoadLevelStudioDraft);
+            DeveloperAccess.Changed += RefreshDeveloperRows;
 
             ShowTitle();
             Refresh();
@@ -189,12 +193,7 @@ namespace VibeGame1
 
             VisibleRowCount = visible;
 
-            bool developer = DeveloperAccess.IsUnlocked;
-            if (sandboxRow != null)
-            {
-                if (sandboxRow.root != null) sandboxRow.root.SetActive(developer);
-                if (sandboxRow.button != null) sandboxRow.button.interactable = developer;
-            }
+            RefreshDeveloperRows();
             RefreshCustomRows();
 
             if (playSubtitle != null)
@@ -346,6 +345,34 @@ namespace VibeGame1
                 return;
             }
             LoadScene(sandboxSceneName);
+        }
+
+        public void RefreshDeveloperRows()
+        {
+            bool developer = DeveloperAccess.IsUnlocked;
+            if (sandboxRow != null)
+            {
+                if (sandboxRow.root != null) sandboxRow.root.SetActive(developer);
+                if (sandboxRow.button != null) sandboxRow.button.interactable = developer;
+            }
+            bool levelStudio = false;
+#if UNITY_EDITOR
+            levelStudio = developer && LevelEditor.HasResumableDraft != null && LevelEditor.HasResumableDraft();
+#endif
+            if (levelEditorRow != null)
+            {
+                if (levelEditorRow.root != null) levelEditorRow.root.SetActive(levelStudio);
+                if (levelEditorRow.button != null) levelEditorRow.button.interactable = levelStudio;
+            }
+        }
+
+        public void LoadLevelStudioDraft()
+        {
+#if UNITY_EDITOR
+            if (!DeveloperAccess.IsUnlocked || LevelEditor.QueueActiveDraftScene == null) return;
+            string scene = LevelEditor.QueueActiveDraftScene();
+            if (!string.IsNullOrEmpty(scene)) LoadScene(scene);
+#endif
         }
 
         /// <summary>

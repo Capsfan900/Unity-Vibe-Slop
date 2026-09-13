@@ -94,16 +94,22 @@ rule 7). A player start is one per level; placing another moves it.
   To bake it into a campaign scene: create a scene of that name, open it, select the asset, run
   `VibeGame1/8. Build Level From Definition`; add it to `LevelRegistry` and rebuild the main menu (`9`) for
   a level-select row.
+- When F10 is attached to a protected Level Studio draft, **SAVE** autosaves that draft and PLAY → EDIT
+  autosaves any changes. NEW, LOAD, legacy file selection and EXPORT are disabled so no second JSON lineage is
+  created. Stopping play mode flushes the same draft once more only when it is dirty.
 
-The JSON is `LevelDocument`, a one-to-one mirror of `LevelDefinition` (platforms, spawns, pickups,
-checkpoints, torches, balloons, water sheets, player start). Loading a file from an older build with a
-missing list is safe (missing lists come back empty).
+The JSON is `LevelDocument`. Its editable lists cover platforms, spawns, pickups, checkpoints, torches,
+balloons, water sheets and player start; a complete embedded definition snapshot preserves every unedited campaign
+field and stable ID during a Level Studio round trip. Loading an older file with a missing list is safe.
 
 ## The main menu
 
 **LEVEL SELECT** lists every saved JSON under a **CUSTOM** divider below the sandbox row. Clicking one
 loads the sandbox scene with the level queued (`LevelEditor.PendingLoadPath`); the editor builds it and
 puts you straight into PLAY. Long lists run off the bottom of the panel in v1.
+
+In the Unity editor, unlocking developer access also reveals **LEVEL EDITOR** when Level Studio has a resumable
+active draft. It queues that draft ID, loads its target scene, and enters PLAY through the editor-only bridge.
 
 ## How it is built
 

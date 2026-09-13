@@ -38,6 +38,12 @@ namespace VibeGame1
 
         /// <summary>Set by the main menu's CUSTOM rows before loading the sandbox: the JSON to load and play.</summary>
         public static string PendingLoadPath;
+        public static string PendingDraftId;
+        public static Func<string, LevelDocument> LoadDraft;
+        public static Func<string, LevelDocument, string> AutosaveDraft;
+        public static Action<string> DraftChanged;
+        public static Func<bool> HasResumableDraft;
+        public static Func<string> QueueActiveDraftScene;
 
         public enum Mode { Off, Editing, Playing }
         public Mode CurrentMode { get; private set; }
@@ -120,6 +126,8 @@ namespace VibeGame1
         public string SelectedSpawnKey { get { return spawnKeys.Length > 0 ? spawnKeys[Mathf.Clamp(spawnIndex, 0, spawnKeys.Length - 1)] : "Enemy_Grunt"; } }
         public string SelectedItemKey { get { return itemKeys.Length > 0 ? itemKeys[Mathf.Clamp(itemIndex, 0, itemKeys.Length - 1)] : "Grapple"; } }
         public Transform CustomRoot { get { return customRoot; } }
+        public string AttachedDraftId { get { return attachedDraftId; } }
+        public string AttachedDraftDiagnostic { get { return attachedDraftDiagnostic; } }
 
         LevelDocument doc;
         LevelPieceKind kind = LevelPieceKind.Platform;
@@ -165,6 +173,8 @@ namespace VibeGame1
         int loadIndex;
         LevelPieceContext ctx;
         readonly List<EnemySpawner> liveSpawners = new List<EnemySpawner>();
+        string attachedDraftId, attachedDraftDiagnostic;
+        bool attachedDraftDirty;
 
         public static string LevelsDirectory
         {
@@ -202,11 +212,21 @@ namespace VibeGame1
 #endif
         }
 
-        void OnDestroy() { if (I == this) I = null; }
+        void OnDisable() { FlushAttachedDraft(false); }
+        void OnDestroy() { FlushAttachedDraft(false); if (I == this) I = null; }
 
         void Start()
         {
-            if (!string.IsNullOrEmpty(PendingLoadPath)) StartCoroutine(LoadPendingAndPlay());
+            if (!string.IsNullOrEmpty(PendingDraftId)) StartCoroutine(LoadPendingDraftAndPlay());
+            else if (!string.IsNullOrEmpty(PendingLoadPath)) StartCoroutine(LoadPendingAndPlay());
+        }
+
+        IEnumerator LoadPendingDraftAndPlay()
+        {
+            string id = PendingDraftId; PendingDraftId = null; PendingLoadPath = null;
+            yield return null;
+            if (!AttachDraft(id) || !Enter()) yield break;
+            Play();
         }
 
         IEnumerator LoadPendingAndPlay()
@@ -293,6 +313,7 @@ namespace VibeGame1
         public void Exit()
         {
             if (CurrentMode == Mode.Off) return;
+            FlushAttachedDraft(false);
             if (CurrentMode == Mode.Playing) DespawnAll();
             Highlight(null);
             TearDown();
@@ -344,12 +365,57 @@ namespace VibeGame1
             if (playHint != null) playHint.SetActive(false);
             GameEvents.RaisePromptChanged(PromptOwner.LevelEditor, "");
             RefreshPanel();
+            FlushAttachedDraft(false);
         }
 
         // ---------------------------------------------------------------- documents
 
+        public bool AttachDraft(string draftId)
+        {
+            if (string.IsNullOrEmpty(draftId) || LoadDraft == null)
+            { attachedDraftDiagnostic = "Level Studio draft bridge is unavailable."; return false; }
+            LevelDocument loaded;
+            try { loaded = LoadDraft(draftId); }
+            catch (Exception e) { attachedDraftDiagnostic = e.Message; return false; }
+            if (loaded == null) { attachedDraftDiagnostic = "Draft is missing, corrupt, or read-only."; return false; }
+            doc = loaded; attachedDraftId = draftId; attachedDraftDirty = false; attachedDraftDiagnostic = null;
+            PendingLoadPath = null;
+            if (undoStack != null) undoStack.Clear();
+            if (nameField != null) nameField.text = doc.levelId;
+            SetAttachedButtons();
+            if (CurrentMode != Mode.Off) Rebuild();
+            RefreshPanel();
+            return true;
+        }
+
+        bool FlushAttachedDraft(bool force)
+        {
+            if (string.IsNullOrEmpty(attachedDraftId) || doc == null || (!force && !attachedDraftDirty)) return true;
+            if (AutosaveDraft == null) { attachedDraftDiagnostic = "Level Studio draft autosave bridge is unavailable."; return false; }
+            try
+            {
+                string error = AutosaveDraft(attachedDraftId, doc);
+                if (!string.IsNullOrEmpty(error)) { attachedDraftDiagnostic = error; return false; }
+                attachedDraftDirty = false; attachedDraftDiagnostic = null;
+                if (DraftChanged != null) DraftChanged(attachedDraftId);
+                return true;
+            }
+            catch (Exception e) { attachedDraftDiagnostic = e.Message; return false; }
+        }
+
+        void SetAttachedButtons()
+        {
+            bool enabled = string.IsNullOrEmpty(attachedDraftId);
+            if (newButton != null) newButton.interactable = enabled;
+            if (loadPrevButton != null) loadPrevButton.interactable = enabled;
+            if (loadNextButton != null) loadNextButton.interactable = enabled;
+            if (loadButton != null) loadButton.interactable = enabled;
+            if (exportButton != null) exportButton.interactable = enabled;
+        }
+
         public void NewDocument(string name)
         {
+            if (!string.IsNullOrEmpty(attachedDraftId)) { attachedDraftDiagnostic = "NEW is unavailable while editing a shared draft."; return; }
             if (undoStack != null) undoStack.Clear();
             doc = LevelDocument.NewDefault(name);
             if (nameField != null) nameField.text = doc.levelId;
@@ -360,6 +426,7 @@ namespace VibeGame1
         public void Save(string name)
         {
             if (doc == null) return;
+            if (!string.IsNullOrEmpty(attachedDraftId)) { FlushAttachedDraft(true); return; }
             doc.levelId = LevelEditorMath.SafeFileName(name);
             if (string.IsNullOrEmpty(doc.displayName) || doc.displayName == "Custom level") doc.displayName = doc.levelId;
             Directory.CreateDirectory(LevelsDirectory);
@@ -370,10 +437,11 @@ namespace VibeGame1
             RefreshPanel();
         }
 
-        public bool Load(string name) { return LoadFile(PathFor(name)); }
+        public bool Load(string name) { return string.IsNullOrEmpty(attachedDraftId) && LoadFile(PathFor(name)); }
 
         public bool LoadFile(string path)
         {
+            if (!string.IsNullOrEmpty(attachedDraftId)) { attachedDraftDiagnostic = "LOAD is unavailable while editing a shared draft."; return false; }
             if (!File.Exists(path)) { Debug.LogWarning("[LevelEditor] No level file at " + path); return false; }
             var d = LevelDocument.FromJson(File.ReadAllText(path));
             if (d == null) { Debug.LogWarning("[LevelEditor] Could not parse " + path); return false; }
@@ -417,6 +485,7 @@ namespace VibeGame1
         public void ExportToAsset()
         {
 #if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(attachedDraftId)) { attachedDraftDiagnostic = "EXPORT is unavailable while editing a shared draft."; return; }
             if (doc == null) return;
             const string dir = "Assets/Data/Levels/Custom";
             if (!UnityEditor.AssetDatabase.IsValidFolder("Assets/Data/Levels")) UnityEditor.AssetDatabase.CreateFolder("Assets/Data", "Levels");
@@ -652,7 +721,7 @@ namespace VibeGame1
 
         // ---------------------------------------------------------------- undo / redo
 
-        void PushUndo() { if (undoStack != null && doc != null) undoStack.Push(doc.ToJson()); }
+        void PushUndo() { if (undoStack != null && doc != null) undoStack.Push(doc.ToJson()); if (!string.IsNullOrEmpty(attachedDraftId)) attachedDraftDirty = true; }
 
         public void Undo()
         {
@@ -662,6 +731,7 @@ namespace VibeGame1
             var d = LevelDocument.FromJson(s);
             if (d == null) return;
             doc = d; grabbed = null; pressActive = false;
+            if (!string.IsNullOrEmpty(attachedDraftId)) attachedDraftDirty = true;
             if (CurrentMode != Mode.Off) Rebuild();
             RefreshPanel();
         }
@@ -674,6 +744,7 @@ namespace VibeGame1
             var d = LevelDocument.FromJson(s);
             if (d == null) return;
             doc = d; grabbed = null; pressActive = false;
+            if (!string.IsNullOrEmpty(attachedDraftId)) attachedDraftDirty = true;
             if (CurrentMode != Mode.Off) Rebuild();
             RefreshPanel();
         }

@@ -23,6 +23,7 @@ namespace VibeGame1
     [Serializable]
     public class LevelDocument
     {
+        [SerializeField] string completeDefinitionJson;
         public string levelId = "custom";
         public string displayName = "Custom level";
         public float parTime = 120f;
@@ -51,25 +52,18 @@ namespace VibeGame1
 
         public static LevelDocument FromDefinition(LevelDefinition def)
         {
-            var d = new LevelDocument
-            {
-                levelId = def.SafeLevelId, displayName = def.displayName, parTime = def.parTime,
-                playerStart = def.playerStart, playerStartYaw = def.playerStartYaw,
-            };
-            if (def.platforms != null) d.platforms.AddRange(def.platforms);
-            if (def.ramps != null) d.ramps.AddRange(def.ramps);
-            if (def.spawns != null) d.spawns.AddRange(def.spawns);
-            if (def.pickups != null) d.pickups.AddRange(def.pickups);
-            if (def.checkpoints != null) d.checkpoints.AddRange(def.checkpoints);
-            if (def.torches != null) d.torches.AddRange(def.torches);
-            if (def.balloons != null) d.balloons.AddRange(def.balloons);
-            if (def.waters != null) d.waters.AddRange(def.waters);
+            if (def == null) return null;
+            string json = JsonUtility.ToJson(def);
+            var d = JsonUtility.FromJson<LevelDocument>(json) ?? new LevelDocument();
+            d.completeDefinitionJson = json;
+            d.NormalizeLists();
             return d;
         }
 
         /// <summary>Write every piece onto a definition (arenas, pedestals, sky and kill zone are left as they are).</summary>
         public void CopyTo(LevelDefinition def)
         {
+            if (!string.IsNullOrEmpty(completeDefinitionJson)) JsonUtility.FromJsonOverwrite(completeDefinitionJson, def);
             def.levelId = levelId; def.displayName = displayName; def.parTime = parTime;
             def.playerStart = playerStart; def.playerStartYaw = playerStartYaw;
             def.platforms = platforms.ToArray(); def.ramps = ramps.ToArray();
@@ -84,12 +78,17 @@ namespace VibeGame1
         {
             var d = JsonUtility.FromJson<LevelDocument>(json);
             if (d == null) return null;
-            // JsonUtility leaves a missing list null; the editor indexes every one of them.
-            d.platforms = d.platforms ?? new List<PlatformDef>(); d.spawns = d.spawns ?? new List<SpawnDef>();
-            d.pickups = d.pickups ?? new List<PickupDef>(); d.checkpoints = d.checkpoints ?? new List<CheckpointDef>();
-            d.torches = d.torches ?? new List<TorchDef>(); d.balloons = d.balloons ?? new List<BalloonDef>();
-            d.waters = d.waters ?? new List<WaterDef>(); d.ramps = d.ramps ?? new List<RampDef>();
+            d.NormalizeLists();
             return d;
+        }
+
+        void NormalizeLists()
+        {
+            // JsonUtility leaves a missing list null; the editor indexes every one of them.
+            platforms = platforms ?? new List<PlatformDef>(); spawns = spawns ?? new List<SpawnDef>();
+            pickups = pickups ?? new List<PickupDef>(); checkpoints = checkpoints ?? new List<CheckpointDef>();
+            torches = torches ?? new List<TorchDef>(); balloons = balloons ?? new List<BalloonDef>();
+            waters = waters ?? new List<WaterDef>(); ramps = ramps ?? new List<RampDef>();
         }
 
         public int PieceCount

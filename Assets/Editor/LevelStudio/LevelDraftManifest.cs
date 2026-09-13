@@ -20,5 +20,7 @@ namespace VibeGame1.EditorTools
         public string createdUtc;
         public string savedUtc;
         public string autosavedUtc;
+        public string appliedUtc;
+        public int appliedRevision;
     }
 }

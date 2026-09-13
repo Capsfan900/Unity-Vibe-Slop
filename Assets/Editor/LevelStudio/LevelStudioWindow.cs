@@ -26,6 +26,7 @@ namespace VibeGame1.EditorTools
         string message = "No draft open.";
         bool showZones = true;
         bool autosaveScheduled;
+        string warningConfirmationFingerprint;
 
         [MenuItem("VibeGame1/Level Studio")]
         public static void Open()
@@ -40,6 +41,7 @@ namespace VibeGame1.EditorTools
             SceneView.duringSceneGui += OnSceneGUI;
             Undo.undoRedoPerformed += OnUndoRedo;
             Selection.selectionChanged += OnSceneSelectionChanged;
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
             ReloadLibrary();
         }
 
@@ -52,6 +54,7 @@ namespace VibeGame1.EditorTools
             SceneView.duringSceneGui -= OnSceneGUI;
             Undo.undoRedoPerformed -= OnUndoRedo;
             Selection.selectionChanged -= OnSceneSelectionChanged;
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
         }
 
         void OnGUI()
@@ -60,6 +63,7 @@ namespace VibeGame1.EditorTools
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             if (GUILayout.Button("Refresh", EditorStyles.toolbarButton)) ReloadLibrary();
             if (openDraft != null && GUILayout.Button("Save", EditorStyles.toolbarButton)) { store.Save(openDraft); message = "Draft saved."; }
+            if (openDraft != null && GUILayout.Button("Apply", EditorStyles.toolbarButton)) ApplyDraft();
             showZones = GUILayout.Toggle(showZones, "Zones", EditorStyles.toolbarButton);
             GUILayout.FlexibleSpace();
             GUILayout.Label(ValidationLabel(), EditorStyles.miniLabel);
@@ -166,6 +170,7 @@ namespace VibeGame1.EditorTools
             if (draft == null) throw new InvalidOperationException("No valid draft was available.");
             if (openDraft != null) openDraft.Dispose();
             openDraft = draft;
+            SessionState.SetString(LevelStudioPlayBridge.ActiveDraftKey, draft.manifest.draftId);
             // Enumerate may hydrate legacy metadata, so it is intentionally never called on a campaign asset.
             hierarchyRows.Clear();
             hierarchyRows.AddRange(LevelStudioBrowser.BuildHierarchy(openDraft.definition, vocabulary));
@@ -297,6 +302,28 @@ namespace VibeGame1.EditorTools
         }
 
         void OnUndoRedo() { if (openDraft != null) Changed(true); }
+        void OnPlayModeChanged(PlayModeStateChange state)
+        {
+            if (state != PlayModeStateChange.EnteredEditMode) return;
+            string id = SessionState.GetString(LevelStudioPlayBridge.ActiveDraftKey, "");
+            if (string.IsNullOrEmpty(id) || !LevelStudioPlayBridge.ConsumeChanged(id)) return;
+            ResumeDraft(id);
+        }
+        void ApplyDraft()
+        {
+            string fingerprint = LevelDraftStore.Fingerprint(openDraft.definition);
+            var transaction = new LevelApplyTransaction(store);
+            var result = transaction.Apply(openDraft, new ApplyOptions { allowWarningsFingerprint = warningConfirmationFingerprint }, new UnityLevelApplyEnvironment(store));
+            if (result.stage == LevelApplyStage.WarningConfirmation)
+            {
+                warningConfirmationFingerprint = fingerprint;
+                message = result.validation.warnings.Count + " warnings. Click Apply again without editing to confirm.";
+                return;
+            }
+            warningConfirmationFingerprint = null;
+            message = result.message;
+            if (result.success) ReloadLibrary();
+        }
         void OnSceneSelectionChanged()
         {
             if (openDraft == null || preview == null) return;
