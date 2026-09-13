@@ -2017,6 +2017,7 @@ to their records. `LevelDefinitionAuthoring.Apply` snapshots metadata by named a
 regeneration, restores IDs/labels/overrides onto recreated records, then writes zones and assigns IDs
 after every object array and split endpoint exists. `ApplyLevelStudioMetadata` is also a metadata-only
 entry point for preserving the current shipped layout; the lead must invoke/save it through Unity.
+`LevelObjectCatalog.SpawnTypeKey` is the shared read-only source for enemy-family spawn IDs.
 
 `LevelObjectCatalog.Enumerate(definition)` exposes the original array index/data reference, metadata,
 authoring anchor and type key through `LevelObjectRecord`. Null arrays/entries are skipped without
@@ -2115,6 +2116,15 @@ only their headers reach summaries. A corrupt manual is retained and cannot be i
 Failure injection covers before/after directory creation, enumeration/read, temp creation/write/flush,
 move/replace publication, trim/delete, quarantine and cleanup. Reads repair interrupted current-format work
 without a later save. Returned `LevelDraft` objects own their cloned `LevelDefinition` and implement `IDisposable`.
+
+### Level Studio validation and diff
+
+`LevelStudioValidator.Validate` reads an in-memory `LevelDefinition` without hydrating IDs or changing assets. It
+returns immutable, deterministically sorted errors and warnings for schema, run scoring, stable IDs, zones,
+owner/split agreement, named references, campaign flow, projectile windows, resources and the exact Level 1
+traversal adapter. `LevelDraftDiff.Compare` stops on any validation error, then inventories root, zone, singleton,
+authored and disabled nested records by canonical stable ID. It emits immutable, deterministic Add/Remove,
+Transform, Tuning and Zone changes; array order is one collection-level change rather than index-based object churn.
 
 ### The in-game level editor — `LevelEditor` + the one piece factory
 

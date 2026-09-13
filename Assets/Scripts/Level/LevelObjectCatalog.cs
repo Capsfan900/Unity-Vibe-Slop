@@ -133,12 +133,17 @@ namespace VibeGame1
 
         static LevelObjectRecord Record(LevelObjectKind kind, int index, object data, LevelObjectMeta meta, Vector3 anchor)
         {
-            string typeKey = kind.ToString();
-            if (kind == LevelObjectKind.Spawn)
-                EnemyFamilies.TryGetValue(((SpawnDef)data).prefabKey ?? "", out typeKey);
+            string typeKey = kind == LevelObjectKind.Spawn ? SpawnTypeKey(((SpawnDef)data).prefabKey) : kind.ToString();
             string path = RootPath(kind, index);
             return new LevelObjectRecord { kind = kind, index = index, data = data, meta = meta,
                 anchor = anchor, typeKey = typeKey, path = path };
+        }
+
+        public static string SpawnTypeKey(string prefabKey)
+        {
+            string typeKey;
+            EnemyFamilies.TryGetValue(prefabKey ?? "", out typeKey);
+            return typeKey;
         }
 
         static string RootPath(LevelObjectKind kind, int index)
