@@ -29,7 +29,13 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 | [docs/AUTHORING.md](docs/AUTHORING.md) | **Adding a level, enemy, moveset or item.** Content is data — ScriptableObjects plus a menu item, not new code. |
 | [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL.md) | Session start/end checklist and token discipline. |
 | `/dashboard` | **Seeing everything at once.** Builds `Tools/dashboard/out/index.html`: every doc, the tool-neutral `AGENTS.md` contract, specialist briefs/shared workflows, change log, tests, systems map and search. Any tool can run `python Tools/dashboard/build_dashboard.py --open`. |
-| [docs/LEVEL-EDITOR.md](docs/LEVEL-EDITOR.md) | **The in-game level editor** (F10): keys, files, PLAY, EXPORT, and how it shares the campaign's piece factory. |
+| [docs/LEVEL-VOCABULARY.md](docs/LEVEL-VOCABULARY.md) | **Naming anything in a level.** Zones, stable `objectId`s and challenge routes — say "T4, `Spawn_T4_Surge_2`", never "the third turret". Never rename an authored ID. |
+| [docs/PARRY-CHOREOGRAPHY.md](docs/PARRY-CHOREOGRAPHY.md) | **Placing projectiles to a run's rhythm.** Console `timing prime`, key `0` capture, the recording stages, and draft-only generated parry modules. |
+| [docs/GHOST-RACING.md](docs/GHOST-RACING.md) | Local ghost racing and the physical spawn leaderboard. |
+| [docs/HUMAN-DEVELOPMENT-GUIDE.md](docs/HUMAN-DEVELOPMENT-GUIDE.md) | **The human's routing table** — which tool or window to open for each everyday job. |
+| [docs/CODE-TREE.md](docs/CODE-TREE.md) | Where a file lives and what folder owns what. |
+| [docs/ASTRA-SYSTEMS-AUDIT-2026-09-07.md](docs/ASTRA-SYSTEMS-AUDIT-2026-09-07.md) | The 09-07 systems audit — several findings (retry/restart coherence, controller focus) are still open. |
+| [docs/LEVEL-EDITOR.md](docs/LEVEL-EDITOR.md) | **The in-game level editor** (F10): keys, files, PLAY, EXPORT, how it shares the campaign's piece factory, and how it plays a Level Studio draft (draft-ID bridge). |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **Picking up where the last chat stopped.** Rewritten every session: what is in flight, uncommitted, and what to do first. |
 | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | **Cutting a playtest build or sharing a link.** `BuildRunner`, GitHub Pages (WebGL) and Releases (Windows), one-time GitHub settings, tracing a bug report to a build SHA. |
 | [docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md) | What is proven vs unproven, current test results, and what still needs a human playtest. |
@@ -47,20 +53,24 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 - `Library/` is gitignored — never commit it. Commit before large refactors.
 
 ## Hard rules
-- **Model boundary (the user's rule, 2026-09-03).** The game's systems were written by **Fable**. A session
-  running as **Opus** ADDS features - new files, new components, new content - and does **not** rewrite,
-  retune or refactor a system Fable wrote unless the user says so in that session. Bug fixes the user
-  explicitly reports ("you reversed the lean") are fixes, not overrides, and are in scope. When a feature
-  genuinely cannot be added without changing a Fable system, name the file and the line and ask first.
-  The user's words: *"don't touch any core system written by Fable ... only let Opus override Fable-made
-  game systems if I say."*
-- **Regression guard for any work not done by Fable or Opus (the user's rule, 2026-09-06).** Sonnet
-  workers, subagents and any other model REFINE systems Fable and Opus built; they never invent a mechanic,
-  input, resource or screen (propose it in the report and stop). They verify offline only (`dotnet build`);
-  the lead session owns the Unity editor. The lead commits each such pass as ONE commit prefixed with the
-  worker's name after re-running the generators the report names and both suites, and tags the tree before a
-  batch (`pre-<theme>-<date>`), so any regression is a single `git revert`. Details: `docs/TOOLING.md`
+- **Authorship boundary is by ROLE, not by model brand (the user's rule, restated 2026-09-13).** The
+  **lead** role — named *Astra* in `.claude/skills/astra-engineering-company` — is held by whichever frontier
+  model the user runs as lead (Astra, Fable, Opus, …). Only the lead may change a core system (the motor,
+  parry/combat resolution, `TimeScaleController`, `InputReader`, enemy brains) and it names every such change
+  by file in the commit body. History: the core systems were first written by Fable (2026-08-30 → 09-07);
+  the 09-08 → 09-12 revamp (Level Studio, parry choreography, spellbook, dashboard) was led as Astra.
+  Bug fixes the user explicitly reports are fixes, in scope for any role.
+- **Regression guard for every non-lead worker (the user's rule, 2026-09-06).** Senior, Engineer and
+  Utility tier workers, subagents and specialist briefs REFINE what the lead built; they never invent a
+  mechanic, input, resource or screen (propose it in the report and stop). They verify offline only
+  (`dotnet build`); the lead owns the Unity editor. The lead commits each such pass as ONE commit after
+  re-running the generators the report names and both suites, and tags the tree before a batch
+  (`pre-<theme>-<date>`), so any regression is a single `git revert`. Details: `docs/TOOLING.md`
   "Subagent teams".
+- **Every commit logs who did it — role AND model.** Subject prefix is the role or lane: `[Astra]`,
+  `[level-designer]`, `[ui-designer]`. The body ends with a trailer naming the actual model and harness,
+  e.g. `Model: Fable 5.1 (Claude Code)` or `Model: Opus 5 (Claude Code)`. A worker pass names the worker's
+  model and the lead's. Never claim a model the harness did not actually run.
 - **Adding or changing a system means updating its map in `docs/DATAFLOW.md` in the same change.** A map that lies is worse than no map.
 - **New content is authored as data, not code.** New levels, enemies and movesets are assets built by a menu item — see `docs/AUTHORING.md` before writing another hardcoded builder.
 
@@ -82,24 +92,30 @@ read only the one you need. See [docs/SESSION-PROTOCOL.md](docs/SESSION-PROTOCOL
 
 ## Rebuild pipeline — `VibeGame1/…`
 
-`0. Rebuild Everything` runs steps 1-6 in the only order that works. Prefer it.
+`0. Rebuild Everything` runs steps 1-6 (including 3b) in the only order that works. Prefer it.
 
 | Step | Function | Produces |
 |---|---|---|
 | 1. Project Setup | `ProjectSetup.Run()` | Layers (Player 6, Enemy 7, Interactable 8), physics matrix, HDR grading, volume profile, fog/light, `runInBackground` |
 | 2. Create Materials | `MaterialFactory.CreateAll()` | `Assets/Materials/M_*.mat` |
 | 3. Create Data | `DataFactory.CreateAll()` | ScriptableObjects — **overwrites Inspector tuning** |
+| 3b. Create Wands | `WandFactory.CreateAll()` | Wand/inscription data. **Must precede 4** — prefabs assign wand viewmodels back onto these; skip it and every riposte silently falls back to the melee deathblow |
 | 4. Build Prefabs | `PrefabFactory.BuildAll()` | Player (with `PlayerBody` legs), Managers, enemies, boss, weapons, pickups |
 | 4a. Split Forge Animation Clips | `ForgeClipSplitter.SplitAll()` | Named `AnimationClip`s from each `Assets/Enemies/*.clips.json`. **Not in Rebuild Everything** — run after importing or re-exporting an animated forge FBX |
 | 4b. Build Mini-Bosses | `MiniBossFactory.CreateAll()` | The six `Legendary_*` prefabs, plus the generated Animator controller and named-clip table for any animated one. **Not in Rebuild Everything** |
+| 4c. Build Spellbook Visual | `SpellbookFactory.CreateAll()` | The selectable spellbook viewmodel. **Not in Rebuild Everything** |
 | 5. Build HUD | `HudBuilder.Build()` | `Assets/Prefabs/HUD.prefab` |
 | 6. Build Level | `LevelGreyboxBuilder.Build()` | `Level` root, NavMesh bake, scene instances |
-| 7. Build Sandbox | `SandboxBuilder.Build()` | `Assets/Scenes/Sandbox.unity` |
+| 7. Build Sandbox Scene | `SandboxBuilder.Build()` | `Assets/Scenes/Sandbox.unity` |
+| 8. Build Level From Definition | `LevelDefinitionBuilder.BuildSelected()` | A level scene from its `LevelDefinition` asset (8b is the headless variant). `8a. Rework Level_01` = `LevelDefinitionAuthoring.ReworkLevel01()` rewrites Level 1's data. **Not in Rebuild Everything** |
 | 9. Build Main Menu | `MainMenuBuilder.Build()` | `Assets/Prefabs/MainMenu.prefab` + `Assets/Scenes/MainMenu.unity`, **build index 0**. Rows come from `LevelRegistry`. Not in Rebuild Everything. |
+| 10. Build Parry Recording Stages | `ParryRecordingStageFactory.CreateAll()` | The four `Assets/Data/Levels/Recording/Recording_*` capture stages. **Not in Rebuild Everything** |
 
-Also: `Health Check` (read-only validator — run after any rebuild), `Run Feature Tests`,
-`Run Quick EditMode Tests` (the EditMode suite minus the slow `[Category("LevelLines")]` fixtures — 400 tests in ~6 s
-against the full 538 in ~194 s) and `Run Full EditMode Tests`, `Open Test Level`, `Open Sandbox Scene`, `Rebuild NavMesh`.
+Also: `Level Studio` (window — draft, validate, diff and apply level edits; `LevelStudioWindow.Open()`),
+`Projectile Encounter Report` (re-run after moving or retuning any shooter), `Level Arc Report`, `Build/Windows|WebGL|All|Preflight`,
+`Health Check` (read-only validator — run after any rebuild), `Run Feature Tests`,
+`Run Quick EditMode Tests` (the EditMode suite minus the slow `[Category("LevelLines")]` fixtures; counts and
+timings in `docs/VERIFICATION-REPORT.md`) and `Run Full EditMode Tests`, `Open Test Level`, `Open Sandbox Scene`, `Rebuild NavMesh`.
 
 Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 
@@ -108,7 +124,7 @@ Call from MCP as `VibeGame1.EditorTools.<Class>.<Method>()`.
 | Layer | How |
 |---|---|
 | Project state | `VibeGame1/Health Check` |
-| Pure logic | MCP `run_tests`, `mode: EditMode` (`Assets/Editor/Tests/`) — works unfocused |
+| Pure logic | `VibeGame1.EditorTools.QuickTestRunner.RunQuick()` / `.RunFull()`, then poll for a new `TestResults/*.xml` (`Assets/Editor/Tests/`). MCP `run_tests` cannot start this suite — see CLAUDE.md trap 3 |
 | Behaviour | Play mode, then `VibeGame1.EditorTools.FeatureTestRunner.Start()` and `.Poll()` |
 | Whole fights | Play mode, then `VibeGame1.DebugHarness.Run("parry")` / `("boss")` / `("death")`, read `.Log` |
 
@@ -129,14 +145,16 @@ They prove the state machine, **never** that the game feels good or is fair.
 
 ## Additional player controls
 
-`F11` weapon flourish (rebindable in Settings) · `E` use item · Backquote command console (all builds;
+`F11` weapon flourish (rebindable in Settings) · mouse wheel selects a spellbook inscription · `E` casts
+the selected inscription (the old item hotbar is gone) · Backquote command console (all builds;
 the private passphrase grants the shared developer capability for this process only and is never persisted)
 
 ## Dev keys — private process-local access only
 
 Open the Backquote console and enter the private passphrase first. The grant resets when the game process
-ends and is never saved. Then: `4` dev blade · `R` cycle wand · `F1` test menu · `F5` warp to boss ·
-`F6` full restore · `F7` +1000 souls · `F8` god mode · `F9` wall-run diagnostic · `F10` level editor.
+ends and is never saved. Then: `4` dev blade · `R` cycle inscription · `F1` test menu (in the editor, a button opens the dev dashboard) · `F5` warp to boss ·
+`F6` full restore · `F7` +1000 souls · `F8` god mode · `F9` wall-run diagnostic · `F10` level editor ·
+`0` start/stop parry-choreography capture after `timing prime` in the console.
 The console, Sandbox/custom rows and timing capture consume the same `DeveloperAccess` capability in every build.
 
 ## Driving the Unity editor
@@ -163,7 +181,7 @@ the files it must not touch — that knowledge is the point, the delegation is j
 
 | Brief | Owns |
 |---|---|
-| `level-designer` | The SHAPE of a level: space, sightlines, pacing, the arc of a span, where a route opens and pinches, ramps and slide lines, where each enemy perch sits so its bolt crosses the line the player is running. Authors levels as DATA through `LevelDefinitionAuthoring`. |
+| `level-designer` | The SHAPE of a level: space, sightlines, pacing, the arc of a span, where a route opens and pinches, ramps and slide lines, where each enemy perch sits so its bolt crosses the line the player is running. Authors levels as DATA through `LevelDefinitionAuthoring`; also owns USING Level Studio, the zone/object vocabulary and parry-choreography authoring (Level Studio's source stays lead-owned). |
 | `enemy-designer` | A NEW enemy the project's own way: an `EnemyData` asset written by `DataFactory`, a prefab built by `PrefabFactory`, a moveset, and the smallest additive component if it does something no existing enemy does. |
 | `combat-designer` | Review, critique and plans for combat, enemies, parry/deflect, hit response, difficulty and game feel. **Plans only by default** — it does not edit unless told to. |
 | `vfx-art-team` | Effects, materials, shaders, colour, the light budget, and the readability of every tell. Never gameplay timing, combat resolution or movement. |

@@ -33,7 +33,12 @@ the file, then use `general-purpose` with the brief inlined for the rest of the 
 **Fence off the files you hold.** Every brief must name a do-not-touch list, because two agents editing one
 file clobber each other. This has already cost this project a pass.
 
-**One commit per worker pass**, prefixed with the worker's name, after re-running the generators the report
+**Claude Code maps the company tiers onto its models** (`astra-engineering-company`): the lead is the
+session model, and a worker's tier is picked with the Agent tool's `model` (`fable` / `opus` / `sonnet` /
+`haiku`). Record the model that actually ran in each commit's `Model:` trailer, e.g.
+`Model: Opus 5 (Claude Code)`.
+
+**One commit per worker pass**, prefixed with the worker's role, after re-running the generators the report
 names and both suites — so a regression is a single `git revert`. Tag before a batch
 (`pre-<theme>-<date>`). Details in AGENTS.md under "Hard rules".
 

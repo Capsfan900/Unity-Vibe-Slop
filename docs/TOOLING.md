@@ -540,23 +540,27 @@ keeps the Unity editor with the lead, and supplies a compact context-packet cont
 `references/vibegame1.md` adapter applies the authorship and regression rules below; `AGENTS.md` remains the
 authority if the adapter ever disagrees.
 
-Five project subagents live in `.claude/agents/`. They exist to REFINE systems Fable and Opus built, never to
-add mechanics; each is scoped to its own files and verifies offline (`dotnet build`) — the lead session owns the
-Unity editor and runs the generators and suites after a pass.
+Eight project briefs live in `.claude/agents/` (roster and owners in `AGENTS.md`). Workers exist to REFINE
+systems the lead built, never to add mechanics; each is scoped to its own files and verifies offline
+(`dotnet build`) — the lead owns the Unity editor and runs the generators and suites after a pass. The model
+column is the Claude Code default tier mapping; any harness may substitute an equivalent tier.
 
-| Agent | Model | Owns | Mode |
+| Agent | Default tier (Claude Code model) | Owns | Mode |
 |---|---|---|---|
-| `combat-designer` | Opus | combat, enemies, parry, difficulty | plan only unless told to implement |
-| `editor-controls` | Sonnet | the F10 level editor's controls | edits |
-| `ui-designer` | Opus | HUD, menus, bars, prompts, readouts | edits; **leads and delegates** its own lanes on a multi-part pass (`lead-and-delegate`) |
-| `vfx-art-team` | Opus | effects, materials, shaders, colour, light budget, tells | edits |
-| `audio-engineer` | Sonnet | every sound: cues, hits, movement, the radio, music beds, the mix; CC0 sourcing | edits |
+| `combat-designer` | Senior (Opus) | combat, enemies, parry, difficulty | plan only unless told to implement |
+| `enemy-designer` | Senior (Opus) | a new enemy as data + prefab + moveset | edits |
+| `level-designer` | Senior (Opus) | level shape, Level Studio use, zone/object vocabulary, parry choreography authoring | edits level data |
+| `editor-controls` | Engineer (Sonnet) | the F10 level editor's controls | edits |
+| `ui-designer` | Senior (Opus) | HUD, menus, bars, prompts, readouts | edits; **leads and delegates** its own lanes on a multi-part pass (`astra-engineering-company`) |
+| `vfx-art-team` | Senior (Opus) | effects, materials, shaders, colour, light budget, tells | edits |
+| `audio-engineer` | Engineer (Sonnet) | every sound: cues, hits, movement, the radio, music beds, the mix; CC0 sourcing | edits |
+| `unbuilt-asks` | Utility | claims-vs-existence audit | read-only |
 
-**This applies to ANY work not done by Fable or Opus** — a one-off Sonnet worker, a fork on another model, a
-remote job — not only the four named teams (CLAUDE.md, "Regression guard").
+**This applies to ANY non-lead work** — a one-off worker, a fork on another model, a remote job — not only the
+named briefs (`AGENTS.md`, "Regression guard").
 
-**Version control.** A team never commits. The lead commits each pass as ONE commit prefixed with the team's name
-(`[ui-designer] …`, `[vfx-art-team] …`) after re-running the generators the report names and both suites, so a
+**Version control.** A team never commits. The lead commits each pass as ONE commit prefixed with the team's role
+(`[ui-designer] …`, `[vfx-art-team] …`) with a `Model:` trailer naming the model(s) that ran, after re-running the generators the report names and both suites, so a
 regression is one `git revert <sha>`. Before a batch of team passes the lead tags the tree
 (`git tag pre-<theme>-<date>`) as the coarse revert point.
 

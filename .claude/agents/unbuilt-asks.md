@@ -37,7 +37,9 @@ Three fingerprints of a promise, zero implementation. That is the shape you hunt
   Grep for "the user", "asked", "wanted", "requested", "deliberately not", "left out", "follow-up",
   "a later pass", "TODO", "not done", "stopped".
 - `docs/ARCHITECTURE.md`, `docs/DATAFLOW.md`, `docs/VERIFICATION-REPORT.md`, `docs/ANIMATION-VFX.md`,
-  `docs/MOVEMENT-PRINCIPLES.md`, `README.md`, `CREDITS.md`.
+  `docs/MOVEMENT-PRINCIPLES.md`, `docs/LEVEL-VOCABULARY.md`, `docs/PARRY-CHOREOGRAPHY.md`, `docs/GHOST-RACING.md`,
+  `docs/HUMAN-DEVELOPMENT-GUIDE.md`, `docs/CODE-TREE.md`, `docs/ASTRA-SYSTEMS-AUDIT-2026-09-07.md`, `README.md`,
+  `CREDITS.md`.
 
 **2. Verify EXISTENCE.** For each claim, go and look. Does the enum value exist? The field? The prefab?
 The asset? Is it referenced by anything that runs, or is it dead code? This is the half that a normal

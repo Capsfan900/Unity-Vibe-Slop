@@ -54,8 +54,15 @@ Uncommitted work is the thing most likely to be lost, so it goes first.
 - If the editor is free (check `is_playing` first — see the `unity-editor`
   skill), run the suites and record the real numbers, not yesterday's.
 - Commit in the project's units: one commit per coherent change, and one commit
-  per subagent pass prefixed with the team's name (`[ui-designer] …`), which is
-  the CLAUDE.md regression guard. A regression must stay revertible alone.
+  per subagent pass prefixed with the role (`[ui-designer] …`, `[level-designer]
+  …`), which is the CLAUDE.md regression guard. A regression must stay
+  revertible alone. Every commit subject carries the `[<role>]` prefix and the
+  body a `Model: <actual model> (<harness>)` trailer, e.g. `Model: Fable 5.1
+  (Claude Code)` — the lead role name (e.g. Astra) is not a model name.
+- Carry the **Preserved user-owned files** list from the current
+  `docs/HANDOFF.md` forward verbatim before rewriting it, and never `git add`
+  any path on that list — a session that stages one of them can overwrite work
+  the user is mid-edit on outside the repo's own commits.
 - If something genuinely cannot be committed — a broken experiment worth keeping
   — say so explicitly in the handoff and leave it uncommitted rather than
   burying it in an unrelated commit.
@@ -63,21 +70,27 @@ Uncommitted work is the thing most likely to be lost, so it goes first.
 ### 3. Rewrite docs/HANDOFF.md
 
 Rewrite it; do not append. It describes a moment, and a handoff carrying six
-sessions of history is one nobody finishes reading. Keep the newest state at the
-top under `## What happened`, and keep these sections honest:
+sessions of history is one nobody finishes reading. Match the file's current
+section order — check it before writing, since it drifts — and keep these
+sections honest:
 
-- **What happened** — this session's work in a short paragraph, newest first,
-  naming the systems and the commits. Lead with anything that changes how the
-  project behaves.
-- **State of the tree** — committed vs not, the tag or sha to revert to, which
-  generators have been run since the last code change (this is the one people
-  forget, and stale prefabs present as impossible bugs).
-- **Verification** — the actual suite numbers with their date, and which of them
-  you ran yourself versus inherited. Say plainly what is unproven and what only
-  a human playtest can settle.
-- **Do first next session** — three items at most, ordered, each with enough
-  context to start without asking. This is the section that earns the file.
-- **Open questions for the user** — decisions you could not make. Five at most.
+- **Current state** — this session's work in a short paragraph or list, naming
+  the systems, the commits, and the tag or sha to revert to if the batch turns
+  out bad. Lead with anything that changes how the project behaves, and name
+  which generators have been run since the last code change (this is the one
+  people forget, and stale prefabs present as impossible bugs). Point at a plan
+  doc under `docs/superpowers/plans/` rather than restating it if one exists.
+- **Verification — <date>** — the actual suite numbers with their date, and
+  which of them you ran yourself versus inherited. Say plainly what is unproven
+  and what only a human playtest can settle.
+- **Next action** — what remains, ordered, each item with enough context to
+  start without asking. This is the section that earns the file.
+- **Preserved user-owned files** — carry this list forward **verbatim** from the
+  previous handoff, adding anything new this session left uncommitted on
+  purpose. Never stage, remove, overwrite or relocate anything on it.
+
+If the user's decisions are genuinely blocked, add an **Open questions for the
+user** section (five at most) rather than guessing.
 
 Two habits that make a handoff trustworthy: convert relative dates to absolute
 ones (*"tomorrow"* is meaningless to the next session), and separate what you

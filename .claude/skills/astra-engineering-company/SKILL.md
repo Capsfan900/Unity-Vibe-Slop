@@ -9,7 +9,10 @@ Use several agents to reduce elapsed time and expensive-model context, while kee
 
 ## Authority
 
-The root lead is Astra when available, otherwise the strongest available reasoning/coding model. The lead owns:
+Astra is a role, not a model — it is held by whichever frontier model the user is running as lead for the
+session (Astra, Fable, Opus, or another). Every commit records both: subject prefix `[<role>]`, body trailer
+`Model: <actual model> (<harness>)`. The root lead is that model when available, otherwise the strongest
+available reasoning/coding model. The lead owns:
 
 - the user's actual intent, scope, architecture, and irreversible decisions;
 - the work graph, file ownership, integration, live Unity editor, final verification, and user report;

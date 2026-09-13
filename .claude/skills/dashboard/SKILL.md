@@ -26,11 +26,20 @@ What is on it: status tiles (EditMode from the runner's `TestResults.xml`, the f
 `docs/VERIFICATION-REPORT.md`, uncommitted files, last commit, log-entry and backlog counts), the handoff
 page, the last engineering-log entries, code counts; a Change log view (commits, uncommitted files, every
 log entry); a Tests view (per suite, failures, skips, slowest); a Systems view (DATAFLOW's maps, the backlog
-sections); every doc rendered; and a search box over all of them. `AGENTS.md` is the primary contract shown;
-`CLAUDE.md` is labelled only as an adapter. Plain-Markdown specialist briefs and shared workflows are
-discovered too, so the dashboard remains useful from any coding-agent harness.
-The dedicated **Agent contract** view links that one source of truth, all specialist briefs, and all shared
-workflows without treating any harness adapter as authoritative.
+sections, a derived Level Map drawn from `Level_01_Level.asset` in the shipped level/zone/object vocabulary,
+not hand-authored); every doc rendered under categorized navigation (Start Here, Level Building, Combat &
+Enemies, Systems, Testing & Debugging, Tools & Distribution, Archive); a documentation-health/audit view that
+flags uncategorized docs, duplicate titles, obsolete terminology and broken local links/paths; and a search
+box over all of them. `AGENTS.md` is the primary contract shown; `CLAUDE.md` is labelled only as an adapter.
+Plain-Markdown specialist briefs and shared workflows are discovered too, so the dashboard remains useful
+from any coding-agent harness. The dedicated **Agent contract** view links that one source of truth, all
+specialist briefs, and all shared workflows without treating any harness adapter as authoritative.
+
+In-game, the F1 test menu's **DEV DASHBOARD** button opens `Tools/dashboard/out/index.html` directly (editor
+only) so a build does not need to be rebuilt to see it — it just needs the page regenerated first.
 
 If `TestResults.xml` is missing the tiles say so — run the EditMode suite in the editor first (see the
-`unity-editor` skill). Do not edit the generator to add a doc: drop a `.md` under `docs/` and it is picked up.
+`unity-editor` skill: `VibeGame1.EditorTools.QuickTestRunner.RunQuick()` / `.RunFull()`). Do not edit the
+generator to add a doc: drop a `.md` under `docs/` and it is picked up and categorized automatically.
+`Tools/test_level_arc_offline.py` proves the offline arc parser the dashboard's Level Map reuses, without
+Unity — useful to re-run after touching `LevelDefinitionAuthoring.cs` or the dashboard's own arc parsing.
