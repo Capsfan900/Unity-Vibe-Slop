@@ -2200,6 +2200,12 @@ Level Studio preview supplies PreviewSafe: after shared construction it disables
 MonoBehaviour and Collider, retaining authored renderer/mesh/marker/collider data while preventing gameplay
 participation. The presentation-only `CloudSea` stays enabled because disabling it releases its generated mesh. The
 seam never opens, saves or clears scenes, bakes NavMesh, creates campaign roots or writes global gameplay state.
+
+`LevelStudioWindow` edits only the draft clone through `LevelStudioSceneTool`. Native SceneView selection and W/E/R
+handles, the serialized numeric inspector, multi-edit, duplicate/copy/paste/delete and zone bounds all register Undo
+on that clone; changes autosave through `LevelDraftStore`. `LevelStudioPreview` owns one hidden, unsaved PreviewSafe
+root, updates transform-only edits in place, and rebuilds it after structural or arbitrary serialized edits. Route and
+projectile lines are presentation-only handles and never add scene objects or gameplay state.
 ```
 
 **Invariants**
