@@ -1321,6 +1321,13 @@ namespace VibeGame1.EditorTools
             // reads as a widening of the lane rather than an object in it. The last pair share one
             // connected open Z-shaped dais whose offset decks leave both downward shot lines clear.
             var spawns = new List<SpawnDef>(def.spawns);
+            var spawnMeta = spawns.Where(s => s != null && s.meta != null)
+                .ToDictionary(s => s.name, s => s.meta, StringComparer.Ordinal);
+            LevelObjectMeta preserveMeta(string name, string objectId)
+            {
+                LevelObjectMeta meta;
+                return spawnMeta.TryGetValue(name, out meta) ? meta : new LevelObjectMeta { objectId = objectId };
+            }
             spawns.RemoveAll(s => s.name.StartsWith("Spawn_T0_Surge_") ||
                                   s.name.StartsWith("Spawn_T0_Reliquary_"));
             platforms.RemoveAll(p => p.name.StartsWith("T0_TurretPad_") ||
@@ -1347,6 +1354,7 @@ namespace VibeGame1.EditorTools
                 });
                 spawns.Add(new SpawnDef
                 {
+                    meta = preserveMeta("Spawn_T0_Surge_" + suffix, "T0.SurgeTurret." + (i + 1).ToString("D2")),
                     name = "Spawn_T0_Surge_" + suffix, prefabKey = "pshooter_enemy03",
                     position = shot, yaw = shot.x > 0f ? 210f : 150f
                 });
@@ -1415,6 +1423,7 @@ namespace VibeGame1.EditorTools
                 var shot = overheadShots[i];
                 spawns.Add(new SpawnDef
                 {
+                    meta = preserveMeta("Spawn_T0_Surge_" + (i + 4), "T0.SurgeTurret." + (i + 4).ToString("D2")),
                     name = "Spawn_T0_Surge_" + (i + 4), prefabKey = "pshooter_enemy03",
                     position = shot, yaw = shot.x > 0f ? 195f : 165f
                 });
@@ -1442,6 +1451,7 @@ namespace VibeGame1.EditorTools
                 });
                 spawns.Add(new SpawnDef
                 {
+                    meta = preserveMeta("Spawn_T0_Reliquary_" + suffix, "T0.HeavySentry." + (i + 1).ToString("D2")),
                     name = "Spawn_T0_Reliquary_" + suffix, prefabKey = "pshooter_enemy02",
                     position = shot, yaw = shot.x > 0f ? 210f : 150f
                 });
