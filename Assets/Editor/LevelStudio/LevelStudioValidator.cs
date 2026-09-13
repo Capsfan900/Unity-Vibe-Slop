@@ -132,8 +132,11 @@ namespace VibeGame1.EditorTools
             if (entry.path.StartsWith("$", StringComparison.Ordinal) || entry.path.StartsWith("zones[", StringComparison.Ordinal)) return;
             string id = entry.meta == null ? "" : entry.meta.objectId ?? "";
             if (entry.meta == null || string.IsNullOrWhiteSpace(id)) report.Add(LevelValidationSeverity.Error, "MissingObjectId", id, entry.path, "Every authored record needs a stable object ID.");
-            else if (!ValidIdForEntry(entry, id)) report.Add(LevelValidationSeverity.Error, "MalformedObjectId", id, entry.path + ".meta.objectId", "Object ID must use this record's canonical kind and singleton form.");
-            else if (!entry.ids.Add(id)) report.Add(LevelValidationSeverity.Error, "DuplicateObjectId", id, entry.path + ".meta.objectId", "Object ID is duplicated.");
+            else
+            {
+                if (!ValidIdForEntry(entry, id)) report.Add(LevelValidationSeverity.Error, "MalformedObjectId", id, entry.path + ".meta.objectId", "Object ID must use this record's canonical kind and singleton form.");
+                if (!entry.ids.Add(id)) report.Add(LevelValidationSeverity.Error, "DuplicateObjectId", id, entry.path + ".meta.objectId", "Object ID is duplicated.");
+            }
             if (entry.meta != null && !string.IsNullOrEmpty(entry.meta.zoneIdOverride) && !(zones ?? new ZoneDef[0]).Any(z => z != null && z.zoneId == entry.meta.zoneIdOverride))
                 report.Add(LevelValidationSeverity.Error, "InvalidZoneOverride", id, entry.path + ".meta.zoneIdOverride", "Zone override does not resolve.");
             if (!entry.global && entry.primary && (zones == null || zones.Length == 0))
