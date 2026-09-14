@@ -200,6 +200,10 @@ namespace VibeGame1
                 shoulderClipPending = true;
                 PlayPresentationClip(clipRun, 1f);
                 ReserveAnimatorUntil(impactAt + followThroughSeconds);
+                // Ember push-off (2026-09-13 VFX pass): sparks kicked back off the floor as the charge commits.
+                Vector3 feet = transform.root.position + Vector3.up * 0.05f;
+                SlashFx.Ring(feet, Vector3.up, new Color(0.95f, 0.45f, 0.15f, 0.4f), 1.3f, 0.35f);
+                SlashFx.Sparks(feet, -transform.root.forward + Vector3.up * 0.4f, new Color(1f, 0.5f, 0.15f, 1f), 10, 5f, 55f);
             }
             else if (atk.name == stormAttack)
             {

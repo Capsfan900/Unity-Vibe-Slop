@@ -127,6 +127,10 @@ namespace VibeGame1
                 shoulderClipPending = true;
                 PlayPresentationClip(clipRun, 1f);
                 ReserveAnimatorUntil(impactAt + followThroughSeconds);
+                // Push-off dust (2026-09-13 VFX pass): the charge starts FROM the floor, not from nowhere.
+                Vector3 feet = transform.root.position + Vector3.up * 0.05f;
+                SlashFx.Ring(feet, Vector3.up, new Color(0.6f, 0.55f, 0.5f, 0.45f), 1.3f, 0.35f);
+                SlashFx.Sparks(feet, -transform.root.forward + Vector3.up * 0.3f, new Color(0.6f, 0.55f, 0.5f, 1f), 8, 4f, 50f);
             }
             else if (atk.name == clapAttack)
             {
