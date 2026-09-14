@@ -33,6 +33,9 @@ namespace VibeGame1
         public string shoulderChargeAttack = "CinderJudge_ShoulderCharge";
         public string shoulderChargeClip = "ShoulderCharge";
         public string roarClip = "Roar";
+        [Tooltip("The shield raise: a held stance. Its clip is staged over the wind-up and HELD through the strike.")]
+        public string shieldRaiseAttack = "CinderJudge_ShieldRaise";
+        public string shieldRaiseClip = "ShieldRaise";
         public string jumpClip = "Jump";
         [Tooltip("Inserted between LungeRoot and SpinRoot by MiniBossFactory; the ONLY transform the storm writes.")]
         public Transform stormRoot;
@@ -179,7 +182,7 @@ namespace VibeGame1
 
         protected override bool UseDefaultAttackClipPlayback(EnemyAttackData atk)
         {
-            return atk == null || (atk.name != shoulderChargeAttack && atk.name != stormAttack);
+            return atk == null || (atk.name != shoulderChargeAttack && atk.name != stormAttack && atk.name != shieldRaiseAttack);
         }
 
         public override void Telegraph(EnemyAttackData atk, float seconds)
@@ -204,6 +207,15 @@ namespace VibeGame1
                 Vector3 feet = transform.root.position + Vector3.up * 0.05f;
                 SlashFx.Ring(feet, Vector3.up, new Color(0.95f, 0.45f, 0.15f, 0.4f), 1.3f, 0.35f);
                 SlashFx.Sparks(feet, -transform.root.forward + Vector3.up * 0.4f, new Color(1f, 0.5f, 0.15f, 1f), 10, 5f, 55f);
+            }
+            else if (atk.name == shieldRaiseAttack)
+            {
+                // AEGIS: the arms come up over the wind-up and the non-looping clip clamps on its last frame,
+                // so the raised pose is HELD for the whole stance instead of locomotion reclaiming the Animator.
+                float raiseLength = ClipLength(shieldRaiseClip, 0.75f);
+                PlayPresentationClip(shieldRaiseClip,
+                    Mathf.Clamp(raiseLength / Mathf.Max(0.05f, seconds + atk.impactDelay), minClipSpeed, maxClipSpeed));
+                ReserveAnimatorUntil(impactAt + atk.strikeDuration);
             }
             else if (atk.name == stormAttack)
             {

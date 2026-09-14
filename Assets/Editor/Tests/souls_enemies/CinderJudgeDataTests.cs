@@ -32,6 +32,7 @@ namespace VibeGame1.Tests
             "CinderJudge_Jab2", "CinderJudge_Swing", "CinderJudge_ComboFinisher", "CinderJudge_Stab",
             "CinderJudge_Kick", "CinderJudge_Heavy", "CinderJudge_ShoulderCharge",
             CinderJudgeAuthoring.StormAttackName,
+            CinderJudgeAuthoring.ShieldRaiseAttackName, CinderJudgeAuthoring.ShieldBashAttackName,
         };
 
         static EnemyData Data() => AssetDatabase.LoadAssetAtPath<EnemyData>(
@@ -84,7 +85,7 @@ namespace VibeGame1.Tests
             // The user's move list, plus the two reactions PuppetVisuals requires (Hit, Death). Nothing
             // from the larger source export -- no Block, IdleCombat, Spawn, Jab1, Hook, Uppercut,
             // LightAttack, Stance or Backstep -- may creep in with a re-export.
-            Assert.AreEqual(15, CinderJudgeAuthoring.ClipAllowlist.Length);
+            Assert.AreEqual(17, CinderJudgeAuthoring.ClipAllowlist.Length);
             CollectionAssert.DoesNotContain(ForgeClipSplitter.ClipsWithEvent(Fbx, "OnAttackHit"), "Roar",
                 "Roar is a roar, not a strike; 4b must bake its explicit storm profile, not an invented event.");
             float roar;
@@ -100,13 +101,13 @@ namespace VibeGame1.Tests
             var importer = AssetImporter.GetAtPath(Fbx) as ModelImporter;
             Assert.IsNotNull(importer);
             Assert.AreEqual(ModelImporterAnimationType.Generic, importer.animationType);
-            Assert.AreEqual(15, importer.clipAnimations.Length,
+            Assert.AreEqual(17, importer.clipAnimations.Length,
                 "run VibeGame1/4a. Split Forge Animation Clips");
             foreach (var c in importer.clipAnimations)
                 Assert.AreEqual(0, c.events.Length, c.name + " has gameplay AnimationEvents.");
 
             var imported = PuppetAnimatorFactory.ClipsIn(Fbx);
-            Assert.AreEqual(15, imported.Count);
+            Assert.AreEqual(17, imported.Count);
             var importedNames = new List<string>();
             foreach (var c in imported)
             {
@@ -121,7 +122,7 @@ namespace VibeGame1.Tests
                 PuppetAnimatorFactory.ControllerDir + "/Legendary_CinderJudge_Animator.controller");
             Assert.IsNotNull(controller, "run VibeGame1/4b. Build Mini-Bosses");
             var states = controller.layers[0].stateMachine.states;
-            Assert.AreEqual(15, states.Length);
+            Assert.AreEqual(17, states.Length);
             var stateNames = new List<string>();
             foreach (var child in states)
             {
@@ -259,6 +260,49 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0f, entry.minRange, 0.001f);
             Assert.AreEqual(4.5f, entry.maxRange, 0.001f);
             Assert.AreEqual(14f, entry.cooldown, 0.001f);
+        }
+
+        [Test]
+        public void Aegis_IsARaiseThenBashCombo_WithAReadableTellAndABreakablePunish()
+        {
+            var raise = Atk(CinderJudgeAuthoring.ShieldRaiseAttackName);
+            var bash = Atk(CinderJudgeAuthoring.ShieldBashAttackName);
+            Assert.IsNotNull(raise); Assert.IsNotNull(bash);
+            Assert.AreEqual("ShieldRaise", raise.clip);
+            Assert.AreEqual("ShieldBash", bash.clip);
+            Assert.AreEqual(0f, raise.damage, 0.001f, "the raise is a stance: it never lands a blow");
+            Assert.AreEqual(0f, raise.range, 0.001f);
+            Assert.GreaterOrEqual(raise.windup, 0.45f, "the arms coming up IS the tell");
+            Assert.IsFalse(bash.unblockable, "the bash must be parryable: a Perfect on it is how the shield breaks");
+            Assert.Greater(bash.damage, 0f);
+
+            MovesetEntry entry = null;
+            foreach (var e in Data().moveset.entries)
+                if (e.combo.hits.Length == 2 && e.combo.hits[0] == raise && e.combo.hits[1] == bash) entry = e;
+            Assert.IsNotNull(entry, "raise then bash is one schedule");
+            Assert.Greater(entry.cooldown, 8f, "a signature, not a loop");
+
+            var shield = Prefab().GetComponent<CinderJudgeShield>();
+            Assert.IsNotNull(shield, "CinderJudgeShield on the root");
+            Assert.AreEqual(raise.name, shield.raiseAttack);
+            Assert.AreEqual(bash.name, shield.bashAttack);
+            Assert.AreEqual(18f, shield.recoilPosture, 0.001f);
+            Assert.AreEqual(0.35f, shield.shatterPostureFraction, 0.001f);
+            Assert.Less(shield.domeColor.maxColorComponent, 1.05f, "the dome stays under bloom at rest");
+            Assert.IsTrue(Prefab().GetComponent<IPlayerHitDeflector>() != null);
+        }
+
+        [Test]
+        public void Aegis_HoldsOnlyThroughTheRaiseAndTheBashWindup()
+        {
+            const string r = "R", b = "B";
+            Assert.IsTrue(CinderJudgeShield.HoldsShield(true, EnemyController.State.Windup, r, r, b));
+            Assert.IsTrue(CinderJudgeShield.HoldsShield(true, EnemyController.State.Strike, r, r, b));
+            Assert.IsTrue(CinderJudgeShield.HoldsShield(true, EnemyController.State.Windup, b, r, b));
+            Assert.IsFalse(CinderJudgeShield.HoldsShield(true, EnemyController.State.Strike, b, r, b), "dropped for the shove itself");
+            Assert.IsFalse(CinderJudgeShield.HoldsShield(true, EnemyController.State.Recover, r, r, b));
+            Assert.IsFalse(CinderJudgeShield.HoldsShield(false, EnemyController.State.Strike, r, r, b));
+            Assert.IsFalse(CinderJudgeShield.HoldsShield(true, EnemyController.State.Strike, "CinderJudge_Swing", r, b));
         }
 
         [Test]

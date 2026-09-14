@@ -1344,6 +1344,7 @@ GameObject:
   - component: {fileID: 6917040733151198096}
   - component: {fileID: 9080627665688362270}
   - component: {fileID: 233318931585412953}
+  - component: {fileID: 2468594451074296180}
   m_Layer: 7
   m_Name: Legendary_CinderJudge
   m_TagString: Untagged
@@ -1488,6 +1489,27 @@ MonoBehaviour:
   radius: 3.6
   height: 4.5
   floorSlack: 0.6
+--- !u!114 &2468594451074296180
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5170910814211256600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b9c803af994c9804ab5de65c0021ead2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.CinderJudgeShield
+  raiseAttack: CinderJudge_ShieldRaise
+  bashAttack: CinderJudge_ShieldBash
+  recoilPosture: 18
+  shatterPostureFraction: 0.35
+  brokenSeconds: 2.5
+  domeRadius: 1.25
+  domeForward: 0.7
+  domeHeight: 1.35
+  domeColor: {r: 0.55, g: 0.3025, b: 0.09900001, a: 0.55}
 --- !u!1 &5639852431593662632
 GameObject:
   m_ObjectHideFlags: 0
@@ -1795,7 +1817,9 @@ MonoBehaviour:
   - ShoulderCharge
   - HeavyAttack
   - ComboFinisher
+  - ShieldBash
   - Roar
+  - ShieldRaise
   namedClipLengths:
   - 0.791667
   - 0.62500095
@@ -1804,7 +1828,9 @@ MonoBehaviour:
   - 0.6250019
   - 1.625
   - 1.5
+  - 0.91666794
   - 1.208334
+  - 0.79166794
   namedClipHits:
   - 0.55
   - 0.55
@@ -1813,7 +1839,9 @@ MonoBehaviour:
   - 0.667
   - 0.343
   - 0.2
+  - 0.5
   - 0.4
+  - 0.85
   minClipSpeed: 0.4
   walkStrideSpeed: 2.2587702
   runStrideSpeed: 3.6016936
@@ -1833,6 +1861,8 @@ MonoBehaviour:
   shoulderChargeAttack: CinderJudge_ShoulderCharge
   shoulderChargeClip: ShoulderCharge
   roarClip: Roar
+  shieldRaiseAttack: CinderJudge_ShieldRaise
+  shieldRaiseClip: ShieldRaise
   jumpClip: Jump
   stormRoot: {fileID: 3634278320470899440}
   entranceProbeDelay: 0.12

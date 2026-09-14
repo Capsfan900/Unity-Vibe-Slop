@@ -2035,6 +2035,27 @@ namespace VibeGame1.EditorTools
                 a.range = 3.10f; a.coneDeg = 360f; a.damage = 6f; a.lungeDistance = 0f;
                 a.comboGap = 0.35f; a.unblockable = true;
             });
+            // AEGIS OF JUDGEMENT (2026-09-13, boss roster): the Judge raises a magic ember dome that
+            // DEFLECTS player swings (CinderJudgeShield -> PlayerHitDeflection; the player recoils and pays
+            // 18 guard posture), holds it, then BASHES. A Perfect on the bash, or a Blade Throw into the dome,
+            // shatters it: 35 % posture and Recover. Clips from the cinder_judge_v2 forge retrofit.
+            //   raise  windup 0.55 (the arms come up: the tell) + strike 2.40 (held stance, no contact:
+            //          range 0 / cone 0 / damage 0) -> comboGap 0.10 -> bash
+            //   bash   windup 0.75 (dome still up), a blue, parryable 22-damage shove at 2.6 m
+            var cjShieldRaise = Attack(CinderJudgeAuthoring.ShieldRaiseAttackName, a =>
+            {
+                a.clip = "ShieldRaise";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 2.40f; a.recovery = 0.10f;
+                a.range = 0f; a.coneDeg = 0f; a.damage = 0f; a.lungeDistance = 0f;
+                a.comboGap = 0.10f;
+            });
+            var cjShieldBash = Attack(CinderJudgeAuthoring.ShieldBashAttackName, a =>
+            {
+                a.clip = "ShieldBash";
+                a.windup = 0.75f; a.impactDelay = 0.06f; a.strikeDuration = 0.25f; a.recovery = 1.20f;
+                a.range = 2.60f; a.coneDeg = 70f; a.damage = 22f; a.lungeDistance = 0f;
+                a.comboGap = 0.30f;
+            });
 
             var judge = GetOrCreate<EnemyData>(EnemyPaths.Data(CinderJudgeAuthoring.EnemyName));
             judge.displayName = "THE CINDER JUDGE";
@@ -2074,6 +2095,8 @@ namespace VibeGame1.EditorTools
                 // 0..4.5: thrown when you are near enough to be inside the ring. 14 s: about once per
                 // health bar at the Judge's tempo, so it stays a signature and never a loop.
                 EntryCd("STORM JUDGEMENT (float, spin, ticking ring)",       1.0f, 0f,   4.5f, 14f, cjStorm),
+                // Close band, 11 s: a stance you wait out, bait with a Perfect on the bash, or break with a thrown blade.
+                EntryCd("AEGIS OF JUDGEMENT (shield raise, then BASH)",      1.3f, 0f,   3.6f, 11f, cjShieldRaise, cjShieldBash),
             });
             judge.combos = judge.moveset.ToComboArray();
             EditorUtility.SetDirty(judge);

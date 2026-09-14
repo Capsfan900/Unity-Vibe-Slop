@@ -325,6 +325,21 @@ namespace VibeGame1.EditorTools
                 storm.radius = 3.6f;
                 storm.height = 4.5f;
                 storm.floorSlack = 0.6f;
+
+                // ---- AEGIS OF JUDGEMENT: the magic shield, on the ROOT beside the brain (2026-09-13) --
+                cj.shieldRaiseAttack = CinderJudgeAuthoring.ShieldRaiseAttackName;
+                cj.shieldRaiseClip = "ShieldRaise";
+                var shield = root.AddComponent<CinderJudgeShield>();
+                shield.raiseAttack = CinderJudgeAuthoring.ShieldRaiseAttackName;
+                shield.bashAttack = CinderJudgeAuthoring.ShieldBashAttackName;
+                shield.recoilPosture = 18f;
+                shield.shatterPostureFraction = 0.35f;
+                shield.brokenSeconds = 2.5f;
+                shield.domeRadius = 1.25f;
+                shield.domeForward = 0.7f;
+                shield.domeHeight = 1.35f;
+                // Additive ember at 0.55: under the 1.05 bloom threshold at rest, flashes to ~1.2 on a deflect.
+                shield.domeColor = new Color(1f, 0.55f, 0.18f, 1f) * 0.55f;
             }
 
             if (visuals is OrbitDancerVisuals od)

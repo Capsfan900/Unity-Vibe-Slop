@@ -1,28 +1,31 @@
 namespace VibeGame1.EditorTools
 {
     /// <summary>
-    /// Stable authoring identity for the sandbox-only Cinder Judge elite body, built the same way as
-    /// <see cref="FlurryBrawlerV18Authoring"/>. The source FBX is SHA-256
-    /// E33A9D238114BF1A25A829A1AA47FDCD449DBE1DE0A92C4C22E142FCB9E40C58 and its unfiltered source
-    /// manifest is SHA-256 CAD0809492410F0B39606E395A6F9C85EAD3150E96DAA95A14F0562DDF651FAC. The project
-    /// manifest is a smaller allowlist: the user's move list (idle, walk, run, jump, swing, stab, kick,
-    /// stagger, roar, combo finisher, heavy, shoulder charge, jab2) plus the Hit and Death reactions
-    /// PuppetVisuals requires. Importing an extra source take is a content change, not a side effect.
+    /// Stable authoring identity for the Cinder Judge elite body, built the same way as
+    /// <see cref="FlurryBrawlerV18Authoring"/>. Since 2026-09-13 the source is the <c>cinder_judge_v2</c>
+    /// retrofit (same raw mesh, cached limb map and rig as v1 — Blender measurements identical — with
+    /// ShieldBash and ShieldRaise appended for the magic shield). The source FBX is SHA-256
+    /// 3EB62843E9B642C2ABFECEB8B90A815CBA700E9F3537ED347C06D1EC6650891E and its unfiltered source
+    /// manifest is SHA-256 59995B87C78F575182964FF20B8300B152FFE2F6626E446FB38A1DDA599202E5. The project
+    /// manifest is a smaller allowlist: the user's move list plus Hit/Death and the two shield takes.
     /// </summary>
     public static class CinderJudgeAuthoring
     {
         public const string EnemyName = "Legendary_CinderJudge";
         public const string ModelName = "CinderJudge";
-        public const string SourceFbxSha256 = "E33A9D238114BF1A25A829A1AA47FDCD449DBE1DE0A92C4C22E142FCB9E40C58";
-        public const string SourceManifestSha256 = "CAD0809492410F0B39606E395A6F9C85EAD3150E96DAA95A14F0562DDF651FAC";
+        public const string SourceFbxSha256 = "3EB62843E9B642C2ABFECEB8B90A815CBA700E9F3537ED347C06D1EC6650891E";
+        public const string SourceManifestSha256 = "59995B87C78F575182964FF20B8300B152FFE2F6626E446FB38A1DDA599202E5";
 
         /// <summary>The storm's attack asset name: the one attack CinderJudgeStorm ticks for.</summary>
         public const string StormAttackName = "CinderJudge_StormJudgement";
+        /// <summary>The shield raise (a held stance) and its bash, read by CinderJudgeShield.</summary>
+        public const string ShieldRaiseAttackName = "CinderJudge_ShieldRaise";
+        public const string ShieldBashAttackName = "CinderJudge_ShieldBash";
 
         public static readonly string[] ClipAllowlist =
         {
             "Idle", "Walk", "Run", "Jump", "AttackSwing", "AttackStab", "AttackKick", "Hit", "Stagger",
-            "Roar", "Death", "Jab2", "ShoulderCharge", "HeavyAttack", "ComboFinisher",
+            "Roar", "Death", "Jab2", "ShoulderCharge", "HeavyAttack", "ComboFinisher", "ShieldBash", "ShieldRaise",
         };
 
         /// <summary>
@@ -38,6 +41,20 @@ namespace VibeGame1.EditorTools
             if (enemyName == EnemyName && clipName == "Roar")
             {
                 normalized = 0.40f;
+                return true;
+            }
+            // ShieldBash: the manifest's #auto put OnAttackHit at 0.13 (after a re-roll), but the measured
+            // arm span peaks at mid-clip (Blender span 0.24/0.30/0.24 at 25/50/75%): the shove lands at 0.50.
+            if (enemyName == EnemyName && clipName == "ShieldBash")
+            {
+                normalized = 0.50f;
+                return true;
+            }
+            // ShieldRaise is a stance, not a strike: the "contact" is the frame the arms are fully up, where
+            // the dome is complete and deflecting (0.85).
+            if (enemyName == EnemyName && clipName == "ShieldRaise")
+            {
+                normalized = 0.85f;
                 return true;
             }
             normalized = 0f;
