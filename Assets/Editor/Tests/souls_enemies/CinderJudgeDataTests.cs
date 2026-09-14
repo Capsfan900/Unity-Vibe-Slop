@@ -521,15 +521,16 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void NeverInTheCampaign()
+        public void IsTheT2RealmBoss()
         {
-            // Sandbox only: no LevelDefinition asset may spawn him and no registry row may list him.
-            foreach (var guid in AssetDatabase.FindAssets("t:LevelDefinition", new[] { "Assets/Data" }))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                StringAssert.DoesNotContain("Legendary_CinderJudge", File.ReadAllText(path),
-                    path + " references the sandbox-only Cinder Judge.");
-            }
+            // Boss roster seated 2026-09-13 (LevelDefinitionAuthoring.SeatBossRoster): the T2 realm's
+            // spawner name stays the contract, the occupant is this body.
+            var level = AssetDatabase.LoadAssetAtPath<LevelDefinition>("Assets/Data/Levels/Level_01_Level.asset");
+            Assert.IsNotNull(level);
+            SpawnDef seat = null;
+            foreach (var s in level.spawns) if (s != null && s.name == "Spawn_Legendary_Knight") seat = s;
+            Assert.IsNotNull(seat, "Spawn_Legendary_Knight missing from Level_01");
+            Assert.AreEqual("Legendary_CinderJudge", seat.prefabKey);
         }
 
         // ------------------------------------------------------------------ helpers

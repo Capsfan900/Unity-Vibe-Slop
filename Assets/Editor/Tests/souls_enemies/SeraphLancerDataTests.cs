@@ -846,23 +846,16 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void NotYetInTheCampaign()
+        public void IsTheT1RealmBoss()
         {
-            // Sandbox for now. The boss-roster plan's Stage 5 places him as the T1 realm boss (the
-            // Spawn_Legendary_Ninja spawner's prefab key); when it does, this test becomes "is the T1
-            // realm boss" -- it is NOT a "never" like the Judge's was.
-            foreach (var guid in AssetDatabase.FindAssets("t:LevelDefinition", new[] { "Assets/Data" }))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                StringAssert.DoesNotContain("Legendary_SeraphLancer", File.ReadAllText(path),
-                    path + " references the Seraph Lancer before Stage 5 placed him.");
-            }
-            foreach (var guid in AssetDatabase.FindAssets("t:LevelRegistry", new[] { "Assets/Data" }))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                StringAssert.DoesNotContain("Legendary_SeraphLancer", File.ReadAllText(path),
-                    path + " lists the Seraph Lancer before Stage 5 placed him.");
-            }
+            // Boss roster seated 2026-09-13 (LevelDefinitionAuthoring.SeatBossRoster): the T1 realm's
+            // spawner name stays the contract, the occupant is this body.
+            var level = AssetDatabase.LoadAssetAtPath<LevelDefinition>("Assets/Data/Levels/Level_01_Level.asset");
+            Assert.IsNotNull(level);
+            SpawnDef seat = null;
+            foreach (var s in level.spawns) if (s != null && s.name == "Spawn_Legendary_Ninja") seat = s;
+            Assert.IsNotNull(seat, "Spawn_Legendary_Ninja missing from Level_01");
+            Assert.AreEqual("Legendary_SeraphLancer", seat.prefabKey);
         }
 
         // ------------------------------------------------------------------ helpers

@@ -9,13 +9,13 @@ valid shorthand, but the canonical name and shipped ID remove ambiguity.
 | Canonical zone | Longitudinal bounds | Common aliases | Route identity |
 |---|---:|---|---|
 | **T0 — Opening Descent** | z -162.3 to 8 | first ramp, opening ramp, starting descent, reliquary landing | The long downhill projectile-parry tutorial, ending at the paired Heavy Sentries. |
-| **T1 — Stone Causeway** | z 8 to 145.625 | first parkour section, causeway, Ninja section | Stepping stones and water shortcut into the Thirteenth Shade split. |
-| **T2 — Helix Tower** | z 145.625 to 267 | tower, wall-run tower, Knight section | The vertical wall-run/wall-jump circuit into the Iron Penitent split. |
-| **T3 — Balloon Aqueduct** | z 267 to 393.15 | balloon section, water span, Spellsword section | Balloons, elevated water and the Ashen Chorister split. |
+| **T1 — Stone Causeway** | z 8 to 145.625 | first parkour section, causeway, Lancer section | Stepping stones and water shortcut into the Lancer split (the Seraph Lancer realm). |
+| **T2 — Helix Tower** | z 145.625 to 267 | tower, wall-run tower, Judge section | The vertical wall-run/wall-jump circuit into the Judge split (the Cinder Judge realm). |
+| **T3 — Balloon Aqueduct** | z 267 to 393.15 | balloon section, water span, Dancer section | Balloons, elevated water and the Dancer split (the Orbit Dancer realm). |
 | **T4 — Warden Descent** | z 393.15 to 514.4 | last ramp, final ramp, Grappler section, grappler approach | The downhill Surge Turret sequence that flies you into the fourth mini-boss realm at its foot: the Grappler split. |
 | **T5 — Warden Court** | z 514.5 to 600 | Warden approach, boss approach, Warden court, final deck | The return deck from the fourth realm, `Checkpoint_4`, and the Hollow Warden's sun: the Warden split. |
 
-The split name is the boss-clear timing segment: **Ninja**, **Knight**, **Spellsword**, **Grappler**, then
+The split name is the boss-clear timing segment: **Lancer**, **Judge**, **Dancer**, **Grappler**, then
 **Warden**. “Zone” describes a physical stretch of the main course; “split” describes the scored interval that
 ends when that zone's boss dies. A zone carries exactly one split (the catalog and the Level Studio validator
 both hold `zone.splitName == split.name` for the split's end spawner), which is why the fourth realm made T5 a
@@ -42,7 +42,15 @@ place, not renumbered.
 | **Heavy Sentry** | `pshooter_enemy02` | heavy turret, reliquary turret, three-shot heavy | Stationary dark reliquary that fires a rapid three-shot phrase. The T0 pair are `Spawn_T0_Reliquary_1` and `_2`. |
 | **Surge Turret** | `pshooter_enemy03` | ramp turret, rapid turret | Small fixed projectile turret used on the long downhill routes. T0 and T4 suffixes identify shot order. |
 
-| **The Grappler** (placeholder) | `Legendary_FlurryBrawlerV18` on `Spawn_Legendary_V18Grappler` | T4 mini-boss, fourth realm, V18 | The fourth mini realm's occupant. The spawner NAME is the stable contract; the prefab key is the boss-roster plan's final occupant standing in until Stage 5 seats it with its grab-fly-throw. |
+| **The Grappler** | `Legendary_FlurryBrawlerV18` on `Spawn_Legendary_V18Grappler` | T4 mini-boss, fourth realm, V18 | Skyfall Suplex: grabs, flies up, throws. |
+| **The Seraph Lancer** | `Legendary_SeraphLancer` on `Spawn_Legendary_Ninja` | T1 mini-boss | Sky Verdict: rises on light-wings, three parryable javelins. |
+| **The Cinder Judge** | `Legendary_CinderJudge` on `Spawn_Legendary_Knight` | T2 mini-boss | Storm Judgement lightning tornado + Aegis of Judgement magic shield. |
+| **The Orbit Dancer** | `Legendary_OrbitDancer` on `Spawn_Legendary_Spellsword` | T3 mini-boss | Orbit Storm: ricochet discs. |
+
+Boss roster seated 2026-09-13 (`LevelDefinitionAuthoring.SeatBossRoster`): the spawner NAMES are historical
+(Ninja/Knight/Spellsword) and stay the stable contract for splits, gates and clear logic; only the prefab keys
+changed, and the three spawns received fresh family object IDs. The Thirteenth Shade, Iron Penitent and Ashen
+Chorister remain as Sandbox fixtures.
 
 The parkour projectile lineage above is separate from the Souls melee lineage (`Legendary_*`, `Boss`).
 Never use “blue squid” to mean a Heavy Sentry or Surge Turret.
@@ -76,9 +84,9 @@ The development dashboard derives bounds, splits, placed IDs, types and data key
       "file": "Assets/Data/Levels/Level_01_Level.asset",
       "zones": [
         {"id": "T0", "aliases": ["first ramp", "opening ramp", "starting descent", "reliquary landing"]},
-        {"id": "T1", "aliases": ["first parkour section", "causeway", "Ninja section"]},
-        {"id": "T2", "aliases": ["tower", "wall-run tower", "Knight section"]},
-        {"id": "T3", "aliases": ["balloon section", "water span", "Spellsword section"]},
+        {"id": "T1", "aliases": ["first parkour section", "causeway", "Lancer section"]},
+        {"id": "T2", "aliases": ["tower", "wall-run tower", "Judge section"]},
+        {"id": "T3", "aliases": ["balloon section", "water span", "Dancer section"]},
         {"id": "T4", "aliases": ["last ramp", "final ramp", "Grappler section", "grappler approach"]},
         {"id": "T5", "aliases": ["Warden approach", "boss approach", "Warden court", "final deck"]}
       ]
@@ -88,9 +96,12 @@ The development dashboard derives bounds, splits, placed IDs, types and data key
     "pshooter_enemy01": {"canonical": "Sentry", "aliases": ["blue squid", "blue ghost", "flare shooter"]},
     "pshooter_enemy02": {"canonical": "Heavy Sentry", "aliases": ["heavy turret", "reliquary turret", "three-shot heavy"]},
     "pshooter_enemy03": {"canonical": "Surge Turret", "aliases": ["ramp turret", "rapid turret"]},
-    "Legendary_Ninja": {"canonical": "The Thirteenth Shade", "aliases": ["Ninja", "T1 sub-boss"]},
-    "Legendary_Knight": {"canonical": "The Iron Penitent", "aliases": ["Knight", "T2 sub-boss"]},
-    "Legendary_Spellsword": {"canonical": "The Ashen Chorister", "aliases": ["Spellsword", "T3 sub-boss"]},
+    "Legendary_Ninja": {"canonical": "The Thirteenth Shade", "aliases": ["Ninja"]},
+    "Legendary_SeraphLancer": {"canonical": "The Seraph Lancer", "aliases": ["Lancer", "sky knight", "T1 sub-boss"]},
+    "Legendary_Knight": {"canonical": "The Iron Penitent", "aliases": ["Knight"]},
+    "Legendary_CinderJudge": {"canonical": "The Cinder Judge", "aliases": ["Judge", "T2 sub-boss"]},
+    "Legendary_Spellsword": {"canonical": "The Ashen Chorister", "aliases": ["Spellsword"]},
+    "Legendary_OrbitDancer": {"canonical": "The Orbit Dancer", "aliases": ["Dancer", "disc duelist", "T3 sub-boss"]},
     "Legendary_FlurryBrawlerV18": {"canonical": "The Grappler", "aliases": ["Grappler", "T4 mini-boss", "fourth realm", "V18"]},
     "Boss": {"canonical": "The Hollow Warden", "aliases": ["Warden", "main boss"]}
   }

@@ -5367,6 +5367,16 @@ namespace VibeGame1
             GameObject spellsword = spellswordSpawner != null ? spellswordSpawner.prefab : null;
             GameObject knight = knightSpawner != null ? knightSpawner.prefab : null;
 
+            // 2026-09-13 boss roster: Level_01's T2/T3 realms now seat the Cinder Judge and the Orbit Dancer
+            // (LevelDefinitionAuthoring.SeatBossRoster); the Chorister and Penitent live on as Sandbox pads,
+            // where this suite still pins their bodies and tuning.
+            if ((spellsword != null && spellsword.name != "Legendary_Spellsword") ||
+                (knight != null && knight.name != "Legendary_Knight"))
+            {
+                Skip("Legendaries_LegacyBodies", "this scene's realms seat the 2026-09-13 roster; run in Sandbox.unity");
+                yield break;
+            }
+
             CheckLegendaryBody("Legendary_Spellsword", spellsword);
             CheckLegendaryBody("Legendary_Knight", knight);
 

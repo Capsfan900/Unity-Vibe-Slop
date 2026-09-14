@@ -818,6 +818,7 @@ namespace VibeGame1.EditorTools
             ApplyRunScoring(def);
             ApplyChallengeRoutes(def);
             RestoreStudioMetadata(def, studioMetadata);
+            SeatBossRoster(def);
             var studioReport = ApplyLevelStudioMetadata(def);
             if (studioReport.errors.Count > 0)
                 throw new System.InvalidOperationException("Level Studio metadata: " + string.Join("; ", studioReport.errors));
@@ -841,11 +842,11 @@ namespace VibeGame1.EditorTools
             {
                 StudioZone("T0", "Opening Descent", "Opening", 0, -166f, 7.8f, Color.cyan,
                     "first ramp", "opening ramp", "starting descent", "reliquary landing"),
-                StudioZone("T1", "Stone Causeway", "Ninja", 1, 7.9f, 136.7f, new Color(0.3f, 0.8f, 1f),
+                StudioZone("T1", "Stone Causeway", "Lancer", 1, 7.9f, 136.7f, new Color(0.3f, 0.8f, 1f),
                     "first parkour section", "causeway", "Ninja section"),
-                StudioZone("T2", "Helix Tower", "Knight", 2, 136.8f, 260.7f, new Color(1f, 0.8f, 0.2f),
+                StudioZone("T2", "Helix Tower", "Judge", 2, 136.8f, 260.7f, new Color(1f, 0.8f, 0.2f),
                     "tower", "wall-run tower", "Knight section"),
-                StudioZone("T3", "Balloon Aqueduct", "Spellsword", 3, 260.8f, 392.9f, new Color(0.3f, 0.5f, 1f),
+                StudioZone("T3", "Balloon Aqueduct", "Dancer", 3, 260.8f, 392.9f, new Color(0.3f, 0.5f, 1f),
                     "balloon section", "water span", "Spellsword section"),
                 // 2026-09-13: the fourth mini realm sits at the foot of the descent, so T4 now ends in the
                 // Grappler split and the Warden's court becomes its own short zone. A zone carries exactly
@@ -919,6 +920,34 @@ namespace VibeGame1.EditorTools
             return result;
         }
 
+        /// <summary>
+        /// The 2026-09-13 boss roster (user-approved, teach-first order). Spawner NAMES stay the stable
+        /// contract for splits, gates, clear logic and challenge routes; only the prefab key changes. A spawn
+        /// whose occupant changed family cannot keep its old family-bearing objectId (the catalog rejects
+        /// "T1.ThirteenthShade.01" on a Seraph Lancer), so its id and friendly name are cleared and the
+        /// catalog assigns a fresh one. Runs AFTER RestoreStudioMetadata so a saved id cannot resurrect.
+        /// </summary>
+        public static readonly string[][] BossRoster =
+        {
+            new[] { "Spawn_Legendary_Ninja", "Legendary_SeraphLancer" },       // T1: projectile parry, the lesson
+            new[] { "Spawn_Legendary_Knight", "Legendary_CinderJudge" },       // T2: storm + magic shield
+            new[] { "Spawn_Legendary_Spellsword", "Legendary_OrbitDancer" },   // T3: ricochet discs
+        };
+
+        static void SeatBossRoster(LevelDefinition def)
+        {
+            if (def.spawns == null) return;
+            foreach (var seat in BossRoster)
+                foreach (var spawn in def.spawns)
+                {
+                    if (spawn == null || spawn.name != seat[0] || spawn.prefabKey == seat[1]) continue;
+                    spawn.prefabKey = seat[1];
+                    if (spawn.meta == null) spawn.meta = new LevelObjectMeta();
+                    spawn.meta.objectId = "";
+                    spawn.meta.friendlyName = "";
+                }
+        }
+
         static void RestoreStudioMetadata(LevelDefinition def, Dictionary<string, LevelObjectMeta> previous)
         {
             foreach (var record in LevelObjectCatalog.Enumerate(def))
@@ -968,18 +997,18 @@ namespace VibeGame1.EditorTools
         static void ApplyRunScoring(LevelDefinition def)
         {
             // User contract: every scored run answers all four sub-bosses, the Warden, and any four
-            // authored regular enemies. 400 + 600 + 900 + 480 + 1500 + (4 * 40) = 4040 baseline souls
-            // (the fourth realm's placeholder occupant, Legendary_FlurryBrawlerV18, ships soulValue 480;
-            // retune this with the split par when Stage 5 seats the roster). Split bonuses are additional
-            // rewards and never substitute for the boss/regular gates.
-            def.requiredRunSouls = 4040;
+            // authored regular enemies. Boss roster seated 2026-09-13 (SeatBossRoster): Seraph Lancer 520 +
+            // Cinder Judge 620 + Orbit Dancer 560 + V18 Grappler 480 + Warden 1500 + (4 * 40) = 3840
+            // baseline souls. Split bonuses are additional rewards and never substitute for the gates.
+            def.requiredRunSouls = 3840;
             def.requiredRegularKills = 4;
             def.gradeBonuses = new RunGradeBonusDef { dSouls = 0, cSouls = 25, bSouls = 50, aSouls = 75, sSouls = 100 };
             def.runSplits = new[]
             {
-                Split("Ninja", "Spawn_Legendary_Ninja", 55f),
-                Split("Knight", "Spawn_Legendary_Knight", 60f),
-                Split("Spellsword", "Spawn_Legendary_Spellsword", 70f),
+                // Spawner names are the stable contract; the occupants are the 2026-09-13 roster.
+                Split("Lancer", "Spawn_Legendary_Ninja", 55f),
+                Split("Judge", "Spawn_Legendary_Knight", 60f),
+                Split("Dancer", "Spawn_Legendary_Spellsword", 70f),
                 // The descent plus the fourth realm: ~60 s S par is a placeholder until the occupant is seated.
                 Split("Grappler", GrapplerSpawner, 60f),
                 Split("Warden", "Spawn_Boss", 40f),

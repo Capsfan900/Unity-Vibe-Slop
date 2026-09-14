@@ -190,7 +190,7 @@ namespace VibeGame1.Tests
             Assert.Greater(checkpoint.position.z, ramp.TopPosition.z);
             Assert.Less(checkpoint.position.z, arena.gateClosedPosition.z);
             var splits = def.runSplits.Select(s => s.name).ToArray();
-            CollectionAssert.AreEqual(new[] { "Ninja", "Knight", "Spellsword", "Grappler", "Warden" }, splits);
+            CollectionAssert.AreEqual(new[] { "Lancer", "Judge", "Dancer", "Grappler", "Warden" }, splits);
         }
 
         static int Array_IndexOf<T>(T[] array, T item) { return System.Array.IndexOf(array, item); }

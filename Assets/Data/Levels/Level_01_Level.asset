@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  requiredRunSouls: 4040
+  requiredRunSouls: 3840
   requiredRegularKills: 4
   gradeBonuses:
     dSouls: 0
@@ -30,7 +30,7 @@ MonoBehaviour:
       objectId: T1.RunSplit.01
       friendlyName: 
       zoneIdOverride: 
-    name: Ninja
+    name: Lancer
     endSpawnerName: Spawn_Legendary_Ninja
     sSeconds: 55
     aSeconds: 63.25
@@ -40,7 +40,7 @@ MonoBehaviour:
       objectId: T2.RunSplit.01
       friendlyName: 
       zoneIdOverride: 
-    name: Knight
+    name: Judge
     endSpawnerName: Spawn_Legendary_Knight
     sSeconds: 60
     aSeconds: 69
@@ -50,7 +50,7 @@ MonoBehaviour:
       objectId: T3.RunSplit.01
       friendlyName: 
       zoneIdOverride: 
-    name: Spellsword
+    name: Dancer
     endSpawnerName: Spawn_Legendary_Spellsword
     sSeconds: 70
     aSeconds: 80.5
@@ -91,7 +91,7 @@ MonoBehaviour:
     displayColor: {r: 0, g: 1, b: 1, a: 1}
   - zoneId: T1
     canonicalName: Stone Causeway
-    splitName: Ninja
+    splitName: Lancer
     aliases:
     - first parkour section
     - causeway
@@ -102,7 +102,7 @@ MonoBehaviour:
     displayColor: {r: 0.3, g: 0.8, b: 1, a: 1}
   - zoneId: T2
     canonicalName: Helix Tower
-    splitName: Knight
+    splitName: Judge
     aliases:
     - tower
     - wall-run tower
@@ -113,7 +113,7 @@ MonoBehaviour:
     displayColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   - zoneId: T3
     canonicalName: Balloon Aqueduct
-    splitName: Spellsword
+    splitName: Dancer
     aliases:
     - balloon section
     - water span
@@ -1112,11 +1112,11 @@ MonoBehaviour:
     yaw: 180
     isBoss: 0
   - meta:
-      objectId: T1.ThirteenthShade.01
+      objectId: T1.SeraphLancer.01
       friendlyName: 
       zoneIdOverride: 
     name: Spawn_Legendary_Ninja
-    prefabKey: Legendary_Ninja
+    prefabKey: Legendary_SeraphLancer
     position: {x: 0, y: 4.1, z: 90}
     yaw: 180
     isBoss: 0
@@ -1139,11 +1139,11 @@ MonoBehaviour:
     yaw: 205
     isBoss: 0
   - meta:
-      objectId: T2.IronPenitent.01
+      objectId: T2.CinderJudge.01
       friendlyName: 
       zoneIdOverride: 
     name: Spawn_Legendary_Knight
-    prefabKey: Legendary_Knight
+    prefabKey: Legendary_CinderJudge
     position: {x: 0, y: 20.1, z: 173}
     yaw: 180
     isBoss: 0
@@ -1166,11 +1166,11 @@ MonoBehaviour:
     yaw: 60
     isBoss: 0
   - meta:
-      objectId: T3.AshenChorister.01
+      objectId: T3.OrbitDancer.01
       friendlyName: 
       zoneIdOverride: 
     name: Spawn_Legendary_Spellsword
-    prefabKey: Legendary_Spellsword
+    prefabKey: Legendary_OrbitDancer
     position: {x: 0, y: 28.1, z: 273}
     yaw: 180
     isBoss: 0

@@ -420,7 +420,7 @@ namespace VibeGame1.Tests
                 var anchors = LevelObjectCatalog.Enumerate(copy).Select(r => r.anchor).ToArray();
                 Assert.IsEmpty(LevelDefinitionAuthoring.ApplyLevelStudioMetadata(copy).errors);
                 CollectionAssert.AreEqual(anchors, LevelObjectCatalog.Enumerate(copy).Select(r => r.anchor).ToArray());
-                CollectionAssert.AreEqual(new[] { "Opening", "Ninja", "Knight", "Spellsword", "Grappler", "Warden" }, copy.zones.Select(z => z.splitName));
+                CollectionAssert.AreEqual(new[] { "Opening", "Lancer", "Judge", "Dancer", "Grappler", "Warden" }, copy.zones.Select(z => z.splitName));
                 CollectionAssert.AreEqual(new[] { "T0", "T1", "T2", "T3", "T4", "T5" }, copy.zones.Select(z => z.zoneId));
                 var lower = new[] { -166f, 7.9f, 136.8f, 260.8f, 393f, 514.5f };
                 var upper = new[] { 7.8f, 136.7f, 260.7f, 392.9f, 514.4f, 600f };

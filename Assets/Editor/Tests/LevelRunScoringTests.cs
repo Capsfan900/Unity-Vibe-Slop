@@ -272,7 +272,7 @@ namespace VibeGame1.Tests
             try
             {
                 LevelDefinitionAuthoring.Apply(def);
-                Assert.AreEqual(4040, def.requiredRunSouls,
+                Assert.AreEqual(3840, def.requiredRunSouls,
                     "four sub-bosses (400 + 600 + 900 + 480) + Warden 1500 + four 40-soul regulars define the Level_01 baseline");
                 Assert.AreEqual(4, def.requiredRegularKills);
                 CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
@@ -323,10 +323,10 @@ namespace VibeGame1.Tests
         public void ShippedAssetCarriesTheRunContractAfterAuthoring()
         {
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelDefinitionAuthoring.Level01);
-            Assert.AreEqual(4040, def.requiredRunSouls);
+            Assert.AreEqual(3840, def.requiredRunSouls);
             Assert.AreEqual(4, def.requiredRegularKills);
             Assert.AreEqual(5, def.runSplits.Length);
-            CollectionAssert.AreEqual(new[] { "Ninja", "Knight", "Spellsword", "Grappler", "Warden" },
+            CollectionAssert.AreEqual(new[] { "Lancer", "Judge", "Dancer", "Grappler", "Warden" },
                 System.Array.ConvertAll(def.runSplits, s => s.name));
             CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
                 "Spawn_Legendary_Spellsword", "Spawn_Legendary_V18Grappler", "Spawn_Boss" },
@@ -355,7 +355,7 @@ namespace VibeGame1.Tests
                 }
                 Assert.IsNotNull(scorer, "rebuild Level_01 after adding LevelRunScorer");
                 Assert.IsNotNull(scorer.definition);
-                Assert.AreEqual(4040, scorer.definition.requiredRunSouls);   // +480: the T4 grappler realm (2026-09-13)
+                Assert.AreEqual(3840, scorer.definition.requiredRunSouls);   // seated boss roster (2026-09-13)
                 Assert.IsNotNull(scorer.registry);
             }
             finally
