@@ -1193,6 +1193,7 @@ you can see the whole enemy when it commits.
 | Legendary_Spellsword (The Ashen Chorister) | 4.3 |
 | Legendary_Marionette (The Pale Marionette) — *prototype, sandbox only* | 3.7 |
 | Legendary_FlurryBrawlerV18 — *TEST, sandbox only* | 2.0 |
+| Legendary_CinderJudge — *sandbox elite, movement park only* | 2.4 |
 | Boss (The Hollow Warden) | 4.6 |
 
 The three campaign `Legendary_*` mini-bosses and the separate sandbox prototypes are ordinary
@@ -1322,6 +1323,69 @@ emitting the existing ring/sparks once, even on a miss. Dash and Shoulder travel
 `EnemyAttackData.lungeDistance`; `TravelRoot` cancels Hips XZ and the Animator never applies root motion.
 Jump on wake and Block on ordinary recovery are presentation only. Damage during a committed attack
 keeps the staged sequence visible; recoil, stagger, death, and non-committed hits may interrupt it.
+
+#### Cinder Judge — Storm Judgement: one schedule, a ticking zone, a tornado
+
+`Legendary_CinderJudge` (2026-09-13) is the second body built the V18 way — an additive **sandbox-only
+elite** in the movement park, an ordinary melee `EnemyController` with V18's staging pattern in
+`CinderJudgeVisuals`. Ordinary attacks (jab2, swing, finisher, stab, kick, heavy) use `PuppetVisuals`;
+ShoulderCharge holds `Run` then stages `ShoulderCharge` at contact exactly as V18 does. What is new is
+one attack, and it adds a second READER of the brain's clock, never a second clock:
+
+```
+DataFactory.CreateAll
+   → Legendary_CinderJudge EnemyData, Legendary_CinderJudge_Moveset, CinderJudge_* attacks
+   → CinderJudge_StormJudgement: windup 1.60, impactDelay 0.45, strike 3.20, recovery 3.00,
+                                 range 3.10 (= 3.6 − DoImpact's 0.5 slack), cone 360, damage 6 PER TICK,
+                                 unblockable
+4a. ForgeClipSplitter → CinderJudge.fbx: exactly 15 Generic, nonempty, eventless clips
+4b. MiniBossFactory  → Legendary_CinderJudge prefab: EnemyController + CinderJudgeStorm on the root,
+                       Visual/CinderJudgeVisuals, LungeRoot ─ StormRoot ─ SpinRoot ─ TravelRoot ─ Model
+7.  SandboxBuilder   → pad/spawner/wake switch at CinderJudgePadPosition (136, 20)
+
+EnemyController.BeginWindup(storm, 0)                                        ── the CHARGE (1.60 s)
+   → CinderJudgeVisuals.Telegraph: Roar bent onto the wind-up, sparks crackle off the body,
+     CinderJudgeStormFx draws the ground ring GROWING to the full 3.6 m radius (the tell: the circle
+     you must leave is on the floor before anything hurts). Base dark-sink + alert marker as always.
+   → FireCue (impact − 0.28): the RED cue, while he is already rising.
+EnemyController.BeginStrike                                                  ── the RISE (0.45 s)
+   → CinderJudgeVisuals.Strike re-anchors every deadline to NextImpactTime; Jump plays from its
+     take-off frame at the rate that lands its apex on the impact; StormRoot lifts to 2.4 m
+     (StormLift: smoothstep); the tornado strands ignite; Sfx.Thunder.
+   → DoImpact at impactTime: the brain's ONE contact = tick zero, through PlayerCombat.ReceiveAttack
+     (cone 360; range + 0.5 slack = the same 3.6 m circle the component tests).
+CinderJudgeStorm.Update (root, beside the brain)                            ── the SPIN (3.20 s)
+   → active iff controller.Current == Strike && CurrentAttack.name == stormAttack
+   → nextTick = ImpactTime + 0.30·n, n ≥ 1: while due, if InsideCylinder(feet, playerFeet, 3.6, 4.5, 0.6)
+        → playerCombat.ReceiveAttack({ attack = storm, attacker, damage 6, unblockable })   ← rule 3
+     ParryMath sees unblockable → always Hit: health 6, posture 6 × 0.5 × 1.5, the grounded 2 m/s
+     shove away from the attacker (PlayerCombat's own, hard rule 10 untouched), Sfx.Hurt, vignette.
+     Worst case 11 contacts = 66 health, 49.5 posture: lethal to stand in, never a stagger by itself.
+   → CinderJudgeVisuals meanwhile: Jump frozen at its apex, StormRoot yaw += 540°/s, a
+     LightningEffect.Bundle from the chest to the ring's rim every 0.36 s (≥ BundleSeconds: at most
+     two point lights alive), the aura at stormGlow 0.60 flickering at 14 Hz.
+   → last 0.35 s (stormDescendSeconds): Jump resumes into its landing frame, StormRoot descends,
+     yaw unwinds FORWARD to the next full turn (SquaringRate) so touchdown is square-on.
+EnemyController: Strike ends → NextHitOrRecover → ClearTelegraph → Settle    ── the LANDING
+   → CinderJudgeVisuals.ClearTelegraph on the strike-end frame = Land(): ring + sparks in the accent,
+     Sfx.Land, tornado off. Recovery 3.00 × (1 − 0.65 × 0.70) = 1.64 s of real opening: the punish.
+Anything that leaves Strike early (HandleBroken → Staggered, Die, execute)
+   → CinderJudgeStorm goes inactive on the next frame (its active test IS the brain's state);
+     CinderJudgeVisuals cancels: tornado off, the body FALLS (stormFallSeconds 0.22) and unwinds.
+```
+
+**Invariants**
+- **One combat clock.** `CinderJudgeStorm` never schedules, only reads `NextImpactTime` once per storm
+  and ticks at fixed multiples after it; it cannot land a tick on the brain's frame, and a dropped frame
+  cannot slide the cadence. Scaled time, like the brain: hitstop freezes the storm with the world.
+- **Every tick is `PlayerCombat.ReceiveAttack`.** Dead player, god mode, executes: all its call. The
+  component writes nothing on the player.
+- **The picture is the arithmetic.** The ring is drawn at `CinderJudgeStorm.radius`; the attack's
+  `range` is that radius minus the brain's slack; `CinderJudgeDataTests` holds the three together.
+- **One writer per transform.** `StormRoot` is written only by `CinderJudgeVisuals`; `LungeRoot`,
+  `SpinRoot` and `TravelRoot` keep their existing owners. `BodyPoint` adds the lift so the lock-on
+  follows the body into the air. The aura (`SetAura`) has one writer: this class — there is no
+  `EmberAura` on the prefab.
 
 #### The blade trail — `EnemyWeaponTrail`
 

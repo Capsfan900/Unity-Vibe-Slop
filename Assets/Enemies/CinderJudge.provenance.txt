@@ -1,0 +1,26 @@
+Cinder Judge sandbox elite body
+
+Source directory (read-only during integration):
+C:/Users/tyler/Main Storage/ai_skelly_tool/output/cinder_judge_v1
+
+Copied source files:
+- cinder_judge_v1.mv.fbx -> CinderJudge.fbx
+  SHA-256 E33A9D238114BF1A25A829A1AA47FDCD449DBE1DE0A92C4C22E142FCB9E40C58
+- cinder_judge_v1.mv.albedo.png -> CinderJudge_albedo.png
+  SHA-256 9BE30B0112985193BC8DB5A0E746A15C023C4135BA6CFF950645C81876E4BF81
+- view_front.png -> CinderJudge_source.png
+  SHA-256 B5E5EB9AC831E0DC94C4A881FA3E2F7D7DECEEAF573C26683991E45261EBA0FC
+
+The source cinder_judge_v1.mv.clips.json has SHA-256
+CAD0809492410F0B39606E395A6F9C85EAD3150E96DAA95A14F0562DDF651FAC.
+CinderJudge.clips.json is deliberately filtered to the approved 15-state project allowlist
+(the user's move list plus the Hit and Death reactions PuppetVisuals requires); it is not a
+byte-for-byte copy of that 25-state source manifest. IdleCombat, Block, Spawn, Jab1, Hook,
+Uppercut, LightAttack, Stance and Backstep are provenance, not permission to import another take.
+
+Measured in Blender on this exact FBX (Tools/measure_forge_fbx.py, Unity axes), 2026-09-13:
+bounds x -0.45..0.44, y 0.00..1.95, z -0.22..0.40; feet zmean +0.02, head +0.17, crown +0.23
+(faces +Z); Hips (0,1.06,0), Chest (0,1.40,-0.06), Head (0,1.76,-0.02),
+RightUpperArm (0.15,1.63,-0.03), RightHand (0.39,0.84,-0.07).
+Clip Hips travel: Walk 1.98 m, Run 2.16 m, ShoulderCharge dz +3.09 (3.12 m, sidecar 2.675),
+HeavyAttack dx +1.14 dz +0.75 (1.36 m, sidecar 1.104), Jab2 dx -0.28 dz -0.10, ComboFinisher 0.09 m.

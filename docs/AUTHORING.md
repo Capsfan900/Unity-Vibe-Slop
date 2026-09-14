@@ -264,6 +264,7 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Legendary_Halberdier` — *The Argent Halberdier* | `Legendary_Halberdier` | `Legendary_Halberdier_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x 0.75, between the Heavy pad and the Warden's).** REACH: it holds at `preferredRange 4.0`, the furthest of the roster, with wide sweeps and a thrust at that distance, an unblockable shoulder charge that closes the far band, an unblockable kick for a player who turtles inside it, and a heavy whose recovery is the punish. **Imported ANIMATED body with GENERATED clips** (`Assets/Enemies/ArgentHalberdier.fbx`, from `ai_skelly_tool`): nine attacks, nine clips, each attack naming its own via `EnemyAttackData.clip`, and the travelling clips' distance shipped as `lungeDistance`. See §2b. |
 | `Legendary_FlurryBrawler` — *The Flurry Brawler* | `Legendary_FlurryBrawler` | `Legendary_FlurryBrawler_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x −22, z −26, the second row).** The roster's first FLURRY enemy: UNARMED, and where the Halberdier is REACH and the Revenant is a READ, this one is a **LADDER** — strings of two punches, then four, then eight (`Burst2` → `Burst4` → `Burst8`), all on the same 0.73 s beat, each rung telling longer and paying a bigger punish window, and the top rung deflected clean **breaks the bar outright**. A 1.05 s rising `LOAD` announces the top rung; the hammerfist is the tempo break, the 150° clap is the answer to circling, the kick is the anti-turtle and a 1.55 m leap-in is the anti-kiter. Twelve attacks, twelve clips, every one named on the attack. **Imported ANIMATED body with GENERATED clips** (`Assets/Enemies/FlurryBrawler.fbx`, **v15, 32 clips**). See §2b. |
 | `Legendary_FlurryBrawlerV18` — *The Flurry Brawler V18 (TEST)* | `Legendary_FlurryBrawlerV18` | `Legendary_FlurryBrawlerV18_Moveset` | `EnemyController` + `FlurryBrawlerV18Visuals` | **ADDITIVE TEST, sandbox only; it does not replace v15.** A separate Souls melee enemy (`shootsProjectiles = false`, `rangedOnly = false`) with no boss or parkour-projectile components. Its filtered `FlurryBrawlerV18.fbx` library contains exactly 18 approved clips; Shoulder, Clap, Combo2, Jump and Block use V18-only presentation staging while every attack remains one data-scheduled `PlayerCombat.ReceiveAttack`. Separate pad/spawner/wake switch at `(112, 20)`. See §2b and DATAFLOW → *Flurry Brawler V18*. |
+| `Legendary_CinderJudge` — *The Cinder Judge* | `Legendary_CinderJudge` | `Legendary_CinderJudge_Moveset` | `EnemyController` + `CinderJudgeVisuals` + `CinderJudgeStorm` | **ADDITIVE SANDBOX ELITE, movement park only (pad `(136, 20)`); never in a level.** V18's method on a new forge body (blackened bronze, ember seams, yellow visor slot): the user's move list only — jab2, swing, combo finisher, stab, kick, heavy, shoulder charge, roar, jump — a beat slower and heavier than V18, with a red jab-into-shoulder chain. One signature, **STORM JUDGEMENT**: Roar charge, rise to 2.4 m, spin inside a lightning tornado for 3.2 s while a 3.6 m cylinder ticks 6 damage every 0.30 s through `PlayerCombat.ReceiveAttack` (unblockable — the answer is *leave*), then land into a 3.0 s recovery. See §2b → *Cinder Judge profile* and DATAFLOW → *Cinder Judge*. |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
 
 ### 2a. Importing a forge model — and the one source-art exception
@@ -446,6 +447,34 @@ Mini-Bosses → 7 Build Sandbox**. This remains a Souls duel: ordinary `EnemyCon
 posture/deathblow, no `BossController` and none of the parkour shooter components. Jump and Block are
 presentation-only; Dash and Shoulder move through data `lungeDistance`; Clap and Combo2 still schedule
 one combat contact each. See DATAFLOW for the V18-only staging clock.
+
+#### Cinder Judge profile — the V18 method, reused
+
+`Legendary_CinderJudge` (2026-09-13) is the second body built exactly the V18 way, and the template for
+the next one. Its source of truth is:
+
+- `Assets/Editor/CinderJudgeAuthoring.cs`: the enemy name, the source hashes, the 15-clip allowlist and
+  the one explicit contact (`Roar` at 0.40, its `OnRoar` moment, because the storm attack names Roar as
+  its wind-up performance and Roar carries no `OnAttackHit`).
+- `CinderJudge.clips.json`: exactly `Idle`, `Walk`, `Run`, `Jump`, `AttackSwing`, `AttackStab`,
+  `AttackKick`, `Hit`, `Stagger`, `Roar`, `Death`, `Jab2`, `ShoulderCharge`, `HeavyAttack`,
+  `ComboFinisher` — the user's move list plus the two reactions `PuppetVisuals` requires. The 25-clip
+  source export is recorded in `CinderJudge.provenance.txt`, together with the Blender measurements
+  (`Tools/measure_forge_fbx.py`) every `ModelSpec` and `lungeDistance` number came from.
+- `DataFactory`, *THE CINDER JUDGE*: the `EnemyData`, its moveset, and `CinderJudge_*` attacks. "Combo"
+  in the user's list has no clip in the export, so it is the three-hit STRING (Jab2 → Swing →
+  ComboFinisher); ComboFinisher appears nowhere else.
+- `MiniBossFactory`: the measured `ModelSpec` (visor SLOT, not V18's round port), the
+  `CinderJudgeVisuals` profile, the `CinderJudgeStorm` component on the root, and the `StormRoot`
+  transform inserted between `LungeRoot` and `SpinRoot` — the one transform the storm writes.
+- `SandboxBuilder`: `CinderJudgePadPosition` `(136, 20)` and `CinderJudgeWakeOffset` 7.5 m in the
+  movement park, 24 m east of V18's pad (beyond both bodies' 18 m aggro). Never a `LevelDefinition`
+  or `LevelRegistry` row; `CinderJudgeDataTests.NeverInTheCampaign` holds that.
+
+Regenerate in this order, out of play mode: **let the editor import the three new files under
+`Assets/Enemies/` → 4a Split Forge Animation Clips → 3 Create Data → 4b Build Mini-Bosses → 7 Build
+Sandbox → Health Check**. The storm is the only thing on this body no other enemy has, and it still
+schedules through `EnemyController` — see DATAFLOW → *Cinder Judge — Storm Judgement*.
 
 ---
 

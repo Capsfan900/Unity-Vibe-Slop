@@ -1930,6 +1930,154 @@ namespace VibeGame1.EditorTools
             brawler18.combos = brawler18.moveset.ToComboArray();
             EditorUtility.SetDirty(brawler18);
 
+            // --- CinderJudge: THE CINDER JUDGE. ADDITIVE SANDBOX ELITE (2026-09-13). -----------------
+            // Built the V18 way (the user: "by far the best enemy implementation") with V18's move list
+            // on a new forge body, plus ONE signature: STORM JUDGEMENT, a floating lightning tornado
+            // with a ticking zone. Sandbox movement park only; never in a LevelDefinition or LevelRegistry.
+            // Source FBX SHA-256: E33A9D238114BF1A25A829A1AA47FDCD449DBE1DE0A92C4C22E142FCB9E40C58.
+            // Source manifest SHA-256: CAD0809492410F0B39606E395A6F9C85EAD3150E96DAA95A14F0562DDF651FAC.
+            //
+            // THE JOB IN ONE SENTENCE: he fights V18's brawl a beat slower and heavier, and once you have
+            // learned to stand your ground against him he lifts off and turns the ground you are standing
+            // on into a storm you must LEAVE -- then lands into the biggest opening he has.
+            //
+            // What is DIFFERENT from V18, on purpose (the "spice"):
+            //   1. Heavier profile: 240 HP / 200 posture, 4.6 m/s, preferredRange 2.4, aggression 0.70.
+            //      A judge is deliberate. Every wind-up is 0.05-0.10 s longer than V18's and pays more.
+            //   2. A RED chain at contact range: jab-two into SHOULDER. Parry the jab, then DO NOT parry --
+            //      the unblockable charge follows 0.18 s later, and the answer is a sidestep. V18's jab
+            //      chains into a swing; the Judge's chains into a threat you cannot deflect.
+            //   3. The visor is a SLOT, the seams burn (CinderJudgeVisuals owns an ember aura), and he
+            //      roars on wake where V18 hops. See MiniBossFactory for the presentation profile.
+            var cjJab2 = Attack("CinderJudge_Jab2", a =>
+            {
+                // The shared opener, as on V18: the one attack that must read identically on both bodies
+                // so the player's first parry transfers. Jab2 travels 0.29 m SIDEWAYS in the art (dx
+                // -0.28, dz -0.10, measured); TravelRoot cancels it and nothing lunges backward: 0.
+                a.clip = "Jab2";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
+                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
+            });
+            var cjSwing = Attack("CinderJudge_Swing", a =>
+            {
+                // 0.60 against V18's 0.55 and 20 against 18: the same cut, a beat heavier.
+                a.clip = "AttackSwing";
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.80f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 20f; a.lungeDistance = 0f;
+                a.comboGap = 0.24f; a.parryPostureMultiplier = 1.15f;
+            });
+            var cjFinisher = Attack("CinderJudge_ComboFinisher", a =>
+            {
+                // The close of the three-hit string ("a person steps forward and swings both fists
+                // downward"). Its source clip carries 1.08 s of recovery after a 0.20 contact, so the
+                // data gives it the string's punish: 1.30 s. Stays put in the art (root.motion false).
+                a.clip = "ComboFinisher";
+                a.windup = 0.70f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 1.30f;
+                a.range = 2.60f; a.coneDeg = 70f; a.damage = 26f; a.lungeDistance = 0f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.6f;
+            });
+            var cjStab = Attack("CinderJudge_Stab", a =>
+            {
+                a.clip = "AttackStab";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
+                a.range = 2.45f; a.coneDeg = 40f; a.damage = 20f; a.lungeDistance = 0f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.4f;
+            });
+            var cjKick = Attack("CinderJudge_Kick", a =>
+            {
+                a.clip = "AttackKick";
+                a.windup = 0.65f; a.impactDelay = 0.05f; a.strikeDuration = 0.22f; a.recovery = 0.90f;
+                a.range = 2.45f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 0f;
+                a.comboGap = 0.28f; a.unblockable = true;
+            });
+            var cjHeavy = Attack("CinderJudge_Heavy", a =>
+            {
+                // "smashes downward with both fists". Airborne in the manifest (0.343-0.40), so 4b keeps
+                // its 0.343 contact: the body is the blow. It walks the Hips 1.36 m in the art but 1.14
+                // of that is SIDEWAYS (measured dx +1.14, dz +0.75); the lunge system has no lateral
+                // channel, so the FORWARD component ships and TravelRoot cancels the rest.
+                a.clip = "HeavyAttack";
+                a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.30f; a.recovery = 1.40f;
+                a.range = 2.70f; a.coneDeg = 80f; a.damage = 36f; a.lungeDistance = 0.75f;
+                a.comboGap = 0.32f; a.parryPostureMultiplier = 1.9f;
+            });
+            var cjShoulder = Attack("CinderJudge_ShoulderCharge", a =>
+            {
+                // 3.32 m is the CLIP's Hips travel as Unity imports it (EveryLungeIsTheClipsOwnForwardTravel,
+                // 2026-09-13; Blender read 3.12, the sidecar says 2.675). Airborne 0.333-0.667, contact 0.667 kept.
+                a.clip = "ShoulderCharge";
+                a.windup = 1.00f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.10f;
+                a.range = 2.70f; a.coneDeg = 50f; a.damage = 30f; a.lungeDistance = 3.32f;
+                a.comboGap = 0.32f; a.unblockable = true;
+            });
+            var cjStorm = Attack(CinderJudgeAuthoring.StormAttackName, a =>
+            {
+                // STORM JUDGEMENT. One EnemyController schedule, read two ways:
+                //   windup 1.60      the charge tell: Roar, crackle, the ground ring GROWING to full radius
+                //                    (long enough to read at range and walk out; the red cue still fires
+                //                    0.28 s before the first contact, while he is already rising)
+                //   impactDelay 0.45 the rise to 2.4 m (CinderJudgeVisuals.stormFloatHeight)
+                //   impact           the brain's one DoImpact = tick zero, cone 360, range = radius - 0.5
+                //                    (DoImpact adds 0.5 m of slack; written so the brain's contact uses
+                //                    exactly the 3.6 m cylinder CinderJudgeStorm ticks)
+                //   strike 3.20      the spin: ticks every 0.30 s AFTER the impact through
+                //                    CinderJudgeStorm -> PlayerCombat.ReceiveAttack, unblockable, so the
+                //                    answer is LEAVE. 1 + floor(3.2 / 0.3) = 11 contacts x 6 = 66 damage
+                //                    and 11 x 6 x 0.5 x 1.5 = 49.5 posture for a player who never moves:
+                //                    lethal to stand in, never a stagger machine (player bar 100).
+                //                    The last 0.35 s of the strike is the descent.
+                //   recovery 3.00    the punish. Aggression 0.70 scales it to 3.0 x (1 - 0.65 x 0.70) =
+                //                    1.64 s of real opening on the floor -- bigger than the Heavy's.
+                // damage 6 is PER TICK, the Minecraft-lava number: small, repeated, unmistakable.
+                a.clip = "Roar";
+                a.windup = 1.60f; a.impactDelay = 0.45f; a.strikeDuration = 3.20f; a.recovery = 3.00f;
+                a.range = 3.10f; a.coneDeg = 360f; a.damage = 6f; a.lungeDistance = 0f;
+                a.comboGap = 0.35f; a.unblockable = true;
+            });
+
+            var judge = GetOrCreate<EnemyData>(EnemyPaths.Data(CinderJudgeAuthoring.EnemyName));
+            judge.displayName = "THE CINDER JUDGE";
+            // Heavier than V18 on both bars (190/160) so the fight lasts long enough to see the storm
+            // twice; posture regen a touch slower (5 vs 6) because the storm is the one move you cannot
+            // deflect for posture, and the bar must still be reachable around it.
+            judge.maxHP = 240f; judge.maxPosture = 200f; judge.postureRegen = 5f;
+            judge.postureRegenDelay = 3f; judge.staggerSeconds = 3.5f;
+            judge.moveSpeed = 4.6f; judge.turnSpeed = 300f; judge.aggroRange = 18f;
+            judge.attackRange = 2.2f; judge.attackCooldown = 0.35f;
+            judge.parryRecoilSeconds = 0.32f; judge.aggression = 0.70f;
+            judge.windupTurnMultiplier = 0.30f; judge.stepSpeedMultiplier = 0.55f;
+            judge.stepAcceleration = 8f; judge.stepDeadzone = 0.90f;
+            judge.comboBreathSeconds = 0.45f; judge.readyDistanceMultiplier = 1.5f;
+            // 2.4: inside the storm's 3.6 m radius, so a player at fighting distance IS in the zone
+            // when it ignites and has to move. V18 holds 2.0.
+            judge.preferredRange = 2.4f; judge.commitTolerance = 0.3f;
+            judge.repositionDeadzone = 0.40f;
+            judge.backStepSpeedMultiplier = 0.35f; judge.strafeSpeedMultiplier = 0.40f;
+            judge.lungeMinDistance = 0.9f; judge.soulValue = 620;
+            // Near-white base for a textured body (EnemyVisuals tints _BaseColor every frame); the
+            // accent is ember orange -- the parry glow's tint and the landing ring's hue.
+            judge.bodyColor = Hex("#F2EEE8"); judge.emission = Hex("#FF7A1E") * 1.9f;
+            judge.scale = 1f; judge.flaskPunishChance = 0.7f;
+            judge.shootsProjectiles = false; judge.rangedOnly = false;
+            judge.moveset = Moveset("Legendary_CinderJudge_Moveset", "The Cinder Judge", new[]
+            {
+                // "combo": the user's word maps to the three-hit STRING, since the export has no Combo
+                // clip; ComboFinisher is its close and appears nowhere else.
+                Entry("jab-two, swing, FINISHER (the combo)",                2.6f, 0f,   3.4f, cjJab2, cjSwing, cjFinisher),
+                Entry("stab",                                                1.4f, 0f,   3.4f, cjStab),
+                EntryCd("jab-two into SHOULDER (red chain)",                 1.6f, 0f,   3.2f, 6f, cjJab2, cjShoulder),
+                EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.9f, 5f, cjKick),
+                EntryCd("HEAVY tempo break",                                 1.2f, 0f,   3.6f, 6f, cjHeavy),
+                // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
+                EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 6.5f, 7f, cjShoulder),
+                // 0..4.5: thrown when you are near enough to be inside the ring. 14 s: about once per
+                // health bar at the Judge's tempo, so it stays a signature and never a loop.
+                EntryCd("STORM JUDGEMENT (float, spin, ticking ring)",       1.0f, 0f,   4.5f, 14f, cjStorm),
+            });
+            judge.combos = judge.moveset.ToComboArray();
+            EditorUtility.SetDirty(judge);
+
             // ---------------- Weapons ----------------
             //
             // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette

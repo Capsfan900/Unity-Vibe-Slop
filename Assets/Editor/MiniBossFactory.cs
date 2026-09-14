@@ -76,6 +76,11 @@ namespace VibeGame1.EditorTools
             BuildMiniBoss(FlurryBrawlerV18Authoring.EnemyName,
                 EnemyDataDir + "/" + FlurryBrawlerV18Authoring.EnemyName + ".asset",
                 Silhouette.FlurryBrawlerV18);
+            // ADDITIVE SANDBOX ELITE (2026-09-13). The Cinder Judge: V18's method on a new forge body,
+            // plus the Storm Judgement ticking zone. Movement park only. See DataFactory, THE CINDER JUDGE.
+            BuildMiniBoss(CinderJudgeAuthoring.EnemyName,
+                EnemyDataDir + "/" + CinderJudgeAuthoring.EnemyName + ".asset",
+                Silhouette.CinderJudge);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -87,10 +92,10 @@ namespace VibeGame1.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
-            Debug.Log("[MiniBossFactory] Built 9 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 10 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18 }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18, CinderJudge }
 
         // ------------------------------------------------------------------ the rig
 
@@ -143,6 +148,8 @@ namespace VibeGame1.EditorTools
             EnemyVisuals visuals;
             if (shape == Silhouette.FlurryBrawlerV18)
                 visuals = visual.AddComponent<FlurryBrawlerV18Visuals>();
+            else if (shape == Silhouette.CinderJudge)
+                visuals = visual.AddComponent<CinderJudgeVisuals>();
             else if (animated)
                 visuals = visual.AddComponent<PuppetVisuals>();
             else
@@ -217,6 +224,91 @@ namespace VibeGame1.EditorTools
                 v18.clapSparkCount = 14;
                 v18.clapSparkSpeed = 7f;
                 v18.clapSparkSpread = 120f;
+            }
+
+            if (visuals is CinderJudgeVisuals cj)
+            {
+                // ---- StormRoot: the ONE transform the storm writes ------------------------------
+                // Inserted between LungeRoot (the base lean/lunge) and SpinRoot (PuppetVisuals' idle
+                // wobble) so the lift and the tornado yaw never share a channel with either. Four
+                // transforms, four owners: LungeRoot = EnemyVisuals, StormRoot = CinderJudgeVisuals,
+                // SpinRoot = PuppetVisuals, TravelRoot = CompensateTravel.
+                if (cj.spinRoot != null)
+                {
+                    var stormRoot = new GameObject("StormRoot");
+                    stormRoot.transform.SetParent(cj.spinRoot.parent, false);
+                    stormRoot.transform.localPosition = Vector3.zero;
+                    stormRoot.transform.localRotation = Quaternion.identity;
+                    cj.spinRoot.SetParent(stormRoot.transform, false);
+                    cj.stormRoot = stormRoot.transform;
+                }
+                else
+                {
+                    Debug.LogError("[MiniBossFactory] " + name + " has no SpinRoot to insert StormRoot above; " +
+                                   "the storm will not lift the body.");
+                }
+
+                // Rule 9: every presentation-profile value is rebuilt onto the prefab.
+                cj.stormAttack = CinderJudgeAuthoring.StormAttackName;
+                cj.shoulderChargeAttack = "CinderJudge_ShoulderCharge";
+                cj.shoulderChargeClip = "ShoulderCharge";
+                cj.roarClip = "Roar";
+                cj.jumpClip = "Jump";
+                cj.entranceProbeDelay = 0.12f;
+                cj.entranceHoldSeconds = 1.20f;   // Roar is 1.25 s at 1x
+                cj.hitHoldSeconds = 0.50f;
+                // The float: 2.4 m is the middle of the brief's "2-3 m" -- above a standing player's eye
+                // (so the spinning body is SEEN against the sky, not the floor) and low enough that the
+                // capsule on the ground still reads as his. The descent is the strike's last 0.35 s.
+                cj.stormFloatHeight = 2.4f;
+                cj.stormDescendSeconds = 0.35f;
+                // 540 deg/s = 1.5 rev/s: a tornado, not the Marionette's 5.8 rev/s blur. 9 deg a frame
+                // at 60 fps, so it never aliases and the silhouette still reads as a body turning.
+                cj.stormSpinDegPerSec = 540f;
+                cj.stormFallSeconds = 0.22f;
+                // From the manifest's Jump events: OnJumpTakeoff 0.28, OnJumpLand 0.85; the apex is the
+                // midpoint of the airborne window.
+                cj.jumpTakeoffNormalized = 0.28f;
+                cj.jumpApexNormalized = 0.56f;
+                cj.jumpLandNormalized = 0.85f;
+                cj.landingHoldSeconds = 0.40f;
+                cj.chargeSparkInterval = 0.12f;
+                // >= LightningEffect.BundleSeconds (0.34): never two bundles alive, so the storm costs at
+                // most two point lights at any instant.
+                cj.stormArcInterval = 0.36f;
+                cj.stormArcScale = 0.75f;
+                cj.stormStrands = 4;
+                cj.stormCoreIntensity = 1.4f;    // blooms modestly; parry glow 3.2 and alert tell 3.0 stay louder
+                cj.stormCrackleSeconds = 0.05f;
+                cj.stormJitterMetres = 0.22f;
+                // The visor's yellow, not the seams' orange: the storm is a different substance from the
+                // body's fire, and yellow is nowhere else in his read (the cue is red, the parry pale steel).
+                cj.stormHue = new Color(1f, 0.82f, 0.29f, 1f);
+                cj.landingRingSeconds = 0.34f;
+                cj.landingSparkCount = 14;
+                cj.landingSparkSpeed = 7f;
+                cj.landingSparkSpread = 120f;
+                // Ember seams: the Revenant's aura numbers (EmberAura precedent), written on THIS
+                // component because it is the aura's only writer here. Rest a touch dimmer than the
+                // Revenant (0.18 vs 0.22) because the albedo already paints the seams orange; the storm
+                // peak is the 0.60 EmberAura documents as the ceiling before the parry read suffers.
+                cj.emberHot = new Color(1f, 0.45f, 0.12f, 1f) * 1.5f;
+                cj.glowAtRest = 0.18f;
+                cj.glowAtBreak = 0.50f;
+                cj.stormGlow = 0.60f;
+                cj.pulseSpeed = 1.7f;
+                cj.pulseAmount = 0.14f;
+                cj.stormFlickerHz = 14f;
+
+                // ---- the ticking zone, on the ROOT beside the brain ------------------------------
+                var storm = root.AddComponent<CinderJudgeStorm>();
+                storm.stormAttack = CinderJudgeAuthoring.StormAttackName;
+                storm.tickInterval = 0.30f;
+                // 3.6 m: V18's Clap radius, the circle the player already knows -- and 1.2 m outside the
+                // Judge's 2.4 m preferredRange, so fighting distance is INSIDE it when it ignites.
+                storm.radius = 3.6f;
+                storm.height = 4.5f;
+                storm.floorSlack = 0.6f;
             }
 
             // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
@@ -573,6 +665,50 @@ namespace VibeGame1.EditorTools
                         spinPrefix = ""
                     };
 
+                case Silhouette.CinderJudge:
+                    return new ModelSpec
+                    {
+                        fbx = "CinderJudge.fbx",
+                        // MEASURED in Blender on the exact source named in CinderJudge.provenance.txt
+                        // (Tools/measure_forge_fbx.py, Unity axes): bounds x -0.45..0.44, y 0.00..1.95,
+                        // z -0.22..0.40. Feet on the origin, so no lift. Faces +Z: feet zmean +0.02,
+                        // head +0.17, crown +0.23, nothing behind the bone plane but the heels.
+                        yLift = 0f,
+                        yaw = 0f,
+                        // Bounds centre z +0.09 and the chest band zmean +0.15 against bones on z ~0:
+                        // the armour sits ahead of the skeleton by a little less than V18's (-0.12).
+                        zShift = -0.09f,
+                        // Head bone (0, 1.76, -0.02); the head slice reaches z 0.40, so the face is well
+                        // ahead of the skull. The eye is the VISOR: a wide yellow SLOT across the helm,
+                        // not V18's round port -- the one-glance difference between the two brawlers, and
+                        // EnemyVisuals drives it from Posture.Ratio like every other eye. LOOK AT THIS
+                        // ONE at 4b: a slot floating off the brow is the likeliest placement bug.
+                        eyePos = new Vector3(0f, 1.79f, 0.30f),
+                        eyeSize = new Vector3(0.26f, 0.08f, 0.08f),
+                        eyeRound = false,
+                        // RightUpperArm (0.15, 1.63, -0.03), RightHand (0.39, 0.84, -0.07): handPos is
+                        // hand minus shoulder. The gauntlet hangs a little wider than V18's fist.
+                        armPos = new Vector3(0.15f, 1.63f, -0.03f),
+                        handPos = new Vector3(0.24f, -0.79f, -0.04f),
+                        // The fist, a hand's breadth ahead of the knuckles along the punch, as on V18.
+                        weaponFxPos = new Vector3(0.06f, 0.02f, 0.16f),
+                        // The CHEST bone (0, 1.40, -0.06), clear of the head at 1.76 and the visor at 1.79.
+                        markHeight = 1.40f,
+                        albedo = "CinderJudge_albedo.png",
+                        // No blade trail: an unarmed body, and half its contacts are on the left wrist.
+                        bladeTrail = false,
+                        note = "blackened-bronze arena enforcer; 0.89 m wide, 1.95 m tall, feet on origin, +Z facing, yellow visor slot",
+
+                        animated = true,
+                        attackClip = "AttackSwing",
+                        // The user's list has no overhead; the generated HeavyAttack is the heavy clip.
+                        heavyClip = "HeavyAttack",
+                        // No IdleCombat in the filtered manifest (the user's list says idle).
+                        idleClip = "Idle",
+                        spinClip = "",
+                        spinPrefix = ""
+                    };
+
                 case Silhouette.Halberdier:
                     return new ModelSpec
                     {
@@ -768,6 +904,12 @@ namespace VibeGame1.EditorTools
                 if (FlurryBrawlerV18Authoring.TryExplicitContact(name, allowedClip, out unusedExplicit) &&
                     !withHit.Contains(allowedClip))
                     withHit.Add(allowedClip);
+            // The Cinder Judge's Roar is the storm's wind-up performance and carries no OnAttackHit; its
+            // explicit 0.40 (the source OnRoar moment) is baked so the attack that names it validates.
+            foreach (var allowedClip in CinderJudgeAuthoring.ClipAllowlist)
+                if (CinderJudgeAuthoring.TryExplicitContact(name, allowedClip, out unusedExplicit) &&
+                    !withHit.Contains(allowedClip))
+                    withHit.Add(allowedClip);
             pv.namedClips = withHit.ToArray();
             pv.namedClipLengths = new float[withHit.Count];
             pv.namedClipHits = new float[withHit.Count];
@@ -787,6 +929,11 @@ namespace VibeGame1.EditorTools
                 {
                     anchor = explicitAnchor;
                     why = "explicit generated beats profile (source has no OnAttackHit)";
+                }
+                else if (CinderJudgeAuthoring.TryExplicitContact(name, withHit[i], out explicitAnchor))
+                {
+                    anchor = explicitAnchor;
+                    why = "explicit storm wind-up profile (Roar's OnRoar moment; source has no OnAttackHit)";
                 }
                 else
                 {
@@ -813,6 +960,14 @@ namespace VibeGame1.EditorTools
                 if (!names.SetEquals(allowed))
                     Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
                         FlurryBrawlerV18Authoring.ClipAllowlist.Length + " clips. Expected: " +
+                        string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
+            }
+            else if (name == CinderJudgeAuthoring.EnemyName)
+            {
+                var allowed = new System.Collections.Generic.HashSet<string>(CinderJudgeAuthoring.ClipAllowlist);
+                if (!names.SetEquals(allowed))
+                    Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
+                        CinderJudgeAuthoring.ClipAllowlist.Length + " clips. Expected: " +
                         string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
             }
 

@@ -42,7 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
-        static GameObject pLegBrawler, pLegBrawlerV18;
+        static GameObject pLegBrawler, pLegBrawlerV18, pLegCinderJudge;
         static GameObject pSentryGrunt, pSentryHeavy, pSurgeTurret;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
@@ -841,6 +841,16 @@ namespace VibeGame1.EditorTools
             var sBrawlerV18 = Spawner("Spawn_Legendary_FlurryBrawlerV18", v18Spawn, pLegBrawlerV18, false, root);
             sBrawlerV18.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
 
+            // THE CINDER JUDGE (2026-09-13): the second standalone fixture in the movement park, built
+            // the V18 way. Same pocket north of the drop tower's z 5 line, 24 m east of V18 -- beyond
+            // both bodies' 18 m aggro, so waking one can never pull the other into your fight -- and
+            // facing south across flat floor like V18. See CinderJudgePadPosition for the geometry.
+            Vector3 cjPad = new Vector3(CinderJudgePadPosition.x, padY, CinderJudgePadPosition.z);
+            Vector3 cjSpawn = new Vector3(CinderJudgePadPosition.x, spawnY, CinderJudgePadPosition.z);
+            Box("Pad_Legendary_CinderJudge", cjPad, new Vector3(5.5f, 1f, 5.5f), mBoss, root);
+            var sCinderJudge = Spawner("Spawn_Legendary_CinderJudge", cjSpawn, pLegCinderJudge, false, root);
+            sCinderJudge.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
             // starts three fights at once and nothing can be studied — you cannot read a wind-up, time
@@ -867,6 +877,11 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_FlurryBrawlerV18",
                    new Vector3(FlurryBrawlerV18PadPosition.x, FloorTop, FlurryBrawlerV18PadPosition.z - 6.5f),
                    sBrawlerV18, "FLURRY BRAWLER V18 TEST", root);
+            // CinderJudgeWakeOffset south: outside the 6.3 m charge reach AND the 3.6 m storm ring, so the
+            // lamp is never inside either the moment he wakes.
+            Switch("Wake_Legendary_CinderJudge",
+                   new Vector3(CinderJudgePadPosition.x, FloorTop, CinderJudgePadPosition.z - CinderJudgeWakeOffset),
+                   sCinderJudge, "CINDER JUDGE", root);
         }
 
         /// <summary>
@@ -889,6 +904,20 @@ namespace VibeGame1.EditorTools
         /// more than ten metres of flat run before either structure.
         /// </summary>
         public static readonly Vector3 FlurryBrawlerV18PadPosition = new Vector3(112f, FloorTop, 20f);
+
+        /// <summary>
+        /// The Cinder Judge's standalone pad, in the same open pocket as V18's. The drop tower occupies
+        /// x 126..134 only up to z 5, so north of that line the floor is flat from V18's pad edge
+        /// (x 114.75) to the east kerb (x 151.75). At (136, 20) the 5.5 m pad spans x 133.25..138.75,
+        /// z 17.25..22.75: 13 m short of the east kerb, 7.25 m short of the north kerb, 12 m north of
+        /// the tower's top tier, and 24 m from V18's centre -- more than either body's 18 m aggro. The
+        /// storm's 3.6 m ring and the 6.5 m south-facing charge lane both sit on flat floor, and a player
+        /// leaving the ring has at least 7 m of clear run in every direction.
+        /// </summary>
+        public static readonly Vector3 CinderJudgePadPosition = new Vector3(136f, FloorTop, 20f);
+        /// <summary>Metres south of the pad centre the Judge's wake switch stands. Beyond the 6.5 m charge
+        /// reach (3.32 m lunge + 2.7 m range + 0.5 m slack) and the 3.6 m storm ring.</summary>
+        public const float CinderJudgeWakeOffset = 7.5f;
 
         /// <summary>
         /// A wake switch: stone post on Default (walkable, bakes) with a small emissive lamp on
@@ -1046,7 +1075,7 @@ namespace VibeGame1.EditorTools
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
                                                pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
                                                pSentryGrunt, pSentryHeavy, pSurgeTurret, pLegBrawler,
-                                               pLegBrawlerV18 };
+                                               pLegBrawlerV18, pLegCinderJudge };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -1064,6 +1093,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("pshooter_enemy03"),
                 LoadEnemyData("Legendary_FlurryBrawler"),
                 LoadEnemyData("Legendary_FlurryBrawlerV18"),
+                LoadEnemyData("Legendary_CinderJudge"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1112,6 +1142,7 @@ namespace VibeGame1.EditorTools
             pLegDrillmaster = LoadPrefab("Legendary_Drillmaster");
             pLegBrawler = LoadPrefab("Legendary_FlurryBrawler");
             pLegBrawlerV18 = LoadPrefab("Legendary_FlurryBrawlerV18");
+            pLegCinderJudge = LoadPrefab("Legendary_CinderJudge");
             pSentryGrunt = LoadPrefab("pshooter_enemy01");
             pSentryHeavy = LoadPrefab("pshooter_enemy02");
             pSurgeTurret = LoadPrefab("pshooter_enemy03");
