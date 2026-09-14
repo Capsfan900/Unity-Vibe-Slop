@@ -1888,6 +1888,27 @@ namespace VibeGame1.EditorTools
                 a.comboGap = 0.35f; a.parryPostureMultiplier = 2.0f;
                 Pose(a, Vector3.zero, Vector3.zero, new Vector3(0f, 1.60f, 0f), Vector3.zero, 0.45f);
             });
+            // SKYFALL SUPLEX (2026-09-13, boss roster; V18Grapple). A BLUE, cued two-handed grab reusing the
+            // Clap clip's reach. Perfect = deflected, no grab. Dodged = no contact. Blocked or Hit = caught:
+            // strike 2.0 holds the brain committed through the lift (0.9) + hold (0.35) + throw; the landing
+            // slam is BrawlerV18_GrabSlam, unblockable, sent by V18Grapple on first ground contact.
+            var br18Grab = Attack("BrawlerV18_Grab", a =>
+            {
+                a.clip = "Clap";
+                a.windup = 0.85f; a.impactDelay = 0.05f; a.strikeDuration = 2.00f; a.recovery = 1.40f;
+                a.range = 2.40f; a.coneDeg = 60f; a.damage = 6f; a.lungeDistance = 0f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.5f;
+            });
+            var br18GrabSlam = Attack("BrawlerV18_GrabSlam", a =>
+            {
+                // Never scheduled by the brain, so its timings are neutral (V18's shortest real windup and
+                // gap): a tiny placeholder windup would drag the project-wide "tightest parryable chain"
+                // bound that ParryImpactTests reads off every shipped EnemyAttackData.
+                a.clip = "AttackOverhead";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.70f;
+                a.range = 0f; a.coneDeg = 0f; a.damage = 26f; a.lungeDistance = 0f;
+                a.comboGap = 0.20f; a.unblockable = true;
+            });
             var br18Combo2 = Attack("BrawlerV18_Combo2", a =>
             {
                 // The source performance contains several gestures, but this TEST declares exactly one
@@ -1926,7 +1947,11 @@ namespace VibeGame1.EditorTools
                 Entry("DASH close",                                          2.6f, 2.6f, 4.7f, br18Dash),
                 EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 7.1f, 7f, br18Shoulder),
                 EntryCd("COMBO2 held performance (one contact)",              0.45f, 0f, 2.7f, 8f, br18Combo2),
+                // Close band, 10 s: the grab that lifts you into the sky and slams you back down.
+                EntryCd("SKYFALL SUPLEX (grab, fly, throw)",                 1.2f, 0f,   2.8f, 10f, br18Grab),
             });
+            // br18GrabSlam is never scheduled by the brain: MiniBossFactory wires it onto V18Grapple.slamAttack.
+            EditorUtility.SetDirty(br18GrabSlam);
             brawler18.combos = brawler18.moveset.ToComboArray();
             EditorUtility.SetDirty(brawler18);
 

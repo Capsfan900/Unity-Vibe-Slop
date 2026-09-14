@@ -240,6 +240,34 @@ namespace VibeGame1.EditorTools
                 v18.clapSparkCount = 14;
                 v18.clapSparkSpeed = 7f;
                 v18.clapSparkSpread = 120f;
+
+                // ---- SKYFALL SUPLEX: GrabRoot above SpinRoot + V18Grapple on the root (2026-09-13) ------
+                // The Judge's StormRoot pattern: the grab's lift has its own transform and one writer.
+                Transform grabRoot = null;
+                if (v18.spinRoot != null)
+                {
+                    var gr = new GameObject("GrabRoot");
+                    gr.transform.SetParent(v18.spinRoot.parent, false);
+                    gr.transform.localPosition = Vector3.zero;
+                    gr.transform.localRotation = Quaternion.identity;
+                    v18.spinRoot.SetParent(gr.transform, false);
+                    grabRoot = gr.transform;
+                }
+                else Debug.LogError("[MiniBossFactory] " + name + " has no SpinRoot to insert GrabRoot above.");
+                var grapple = root.AddComponent<V18Grapple>();
+                grapple.grabAttack = "BrawlerV18_Grab";
+                grapple.slamAttack = AssetDatabase.LoadAssetAtPath<EnemyAttackData>("Assets/Data/Attacks/BrawlerV18_GrabSlam.asset");
+                grapple.grabRoot = grabRoot;
+                grapple.maxGrabDistance = 3.2f;
+                // 11 m lift: under a 24 m realm ceiling with the player hanging below the hands.
+                grapple.liftHeight = 11f;
+                grapple.liftSeconds = 0.9f;
+                grapple.holdSeconds = 0.35f;
+                grapple.descendSeconds = 0.5f;
+                grapple.throwDownSpeed = 14f;
+                grapple.throwOutDistance = 6f;
+                grapple.holdLocal = new Vector3(0f, -0.1f, 1.15f);
+                grapple.slamTimeout = 3f;
             }
 
             if (visuals is CinderJudgeVisuals cj)

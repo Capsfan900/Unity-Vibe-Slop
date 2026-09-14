@@ -79,3 +79,11 @@ MonoBehaviour:
     minRange: 0
     maxRange: 2.7
     cooldown: 8
+  - label: SKYFALL SUPLEX (grab, fly, throw)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: b8ceb3f10f5863a4a995ffd3e5a2cd2f, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 2.8
+    cooldown: 10
