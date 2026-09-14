@@ -620,21 +620,12 @@ namespace VibeGame1.EditorTools
                                     bool buildRuntimeBehaviours)
         {
             var def = arena.solarRealm;
-            EnemySpawner spawner;
-            if (!spawnerLookup.TryGetValue(def.enemySpawnerName, out spawner))
+            MoveIntoRealm(arena, spawnerLookup, def.enemySpawnerName, def.enemySpawnPosition, def.enemySpawnYaw);
+            if (!string.IsNullOrEmpty(def.partnerSpawnerName))
             {
-                Debug.LogWarning("[LevelDefinitionBuilder] Solar arena '" + arena.gateName +
-                                 "' names missing spawner '" + def.enemySpawnerName + "'.");
-            }
-            else
-            {
-                // SpawnDef coordinates remain the historical exterior anchors. Moving only the built
-                // marker keeps ApplyDescent and repeated authoring migrations independent of realm space.
-                var placement = spawner.gameObject.AddComponent<SolarRealmPlacement>();
-                placement.authoredPosition = spawner.transform.position;
-                placement.authoredYaw = spawner.transform.eulerAngles.y;
-                spawner.transform.position = def.enemySpawnPosition;
-                spawner.transform.rotation = Quaternion.Euler(0f, def.enemySpawnYaw, 0f);
+                var partner = MoveIntoRealm(arena, spawnerLookup, def.partnerSpawnerName,
+                                            def.partnerSpawnPosition, def.partnerSpawnYaw);
+                if (fight != null) fight.partnerSpawner = partner;
             }
 
             if (!string.IsNullOrEmpty(def.arenaPickupName))
@@ -757,6 +748,26 @@ namespace VibeGame1.EditorTools
                 VisualSphere("ExitGlow", def.realmExitPosition, 2.5f, ctx.Material("SolarCorona"), exit.transform);
                 if (portal != null) portal.realmExitRoot = exit;
             }
+        }
+
+        static EnemySpawner MoveIntoRealm(ArenaDef arena, System.Collections.Generic.IDictionary<string, EnemySpawner> spawnerLookup,
+                                          string spawnerName, Vector3 position, float yaw)
+        {
+            EnemySpawner spawner;
+            if (!spawnerLookup.TryGetValue(spawnerName, out spawner))
+            {
+                Debug.LogWarning("[LevelDefinitionBuilder] Solar arena '" + arena.gateName +
+                                 "' names missing spawner '" + spawnerName + "'.");
+                return null;
+            }
+            // SpawnDef coordinates remain the historical exterior anchors. Moving only the built
+            // marker keeps ApplyDescent and repeated authoring migrations independent of realm space.
+            var placement = spawner.gameObject.AddComponent<SolarRealmPlacement>();
+            placement.authoredPosition = spawner.transform.position;
+            placement.authoredYaw = spawner.transform.eulerAngles.y;
+            spawner.transform.position = position;
+            spawner.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            return spawner;
         }
 
         static Transform Marker(string name, Vector3 position, float yaw, Transform parent)

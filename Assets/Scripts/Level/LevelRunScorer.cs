@@ -94,6 +94,19 @@ namespace VibeGame1
                     error = "duplicate split endpoint '" + split.endSpawnerName + "'";
                     return false;
                 }
+                foreach (string also in split.alsoRequiredSpawnerNames ?? new string[0])
+                {
+                    if (string.IsNullOrEmpty(also) || !spawnerNames.Contains(also))
+                    {
+                        error = "run split '" + split.name + "' also requires an unknown spawner";
+                        return false;
+                    }
+                    if (!endpoints.Add(also))
+                    {
+                        error = "duplicate split endpoint '" + also + "'";
+                        return false;
+                    }
+                }
                 if (!FiniteAscending(split.sSeconds, split.aSeconds, split.bSeconds, split.cSeconds))
                 {
                     error = "run split '" + split.name + "' thresholds must be finite, nonnegative, and S/A/B/C ascending";
@@ -291,7 +304,7 @@ namespace VibeGame1
             if (!IsSplitSpawner(spawnerName)) RegularKills++;
 
             RunSplitDef split = CurrentSplit();
-            if (split != null && split.endSpawnerName == spawnerName)
+            if (split != null && SplitComplete(split, spawnerName))
             {
                 float segmentSeconds = Mathf.Max(0f, elapsedSeconds - previousSplitElapsed);
                 SplitGrade grade = RunScoreMath.Grade(split, segmentSeconds);
@@ -323,9 +336,25 @@ namespace VibeGame1
             for (int i = 0; i < definition.runSplits.Length; i++)
             {
                 RunSplitDef split = definition.runSplits[i];
-                if (split != null && split.endSpawnerName == spawnerName) return true;
+                if (split == null) continue;
+                if (split.endSpawnerName == spawnerName) return true;
+                if (split.alsoRequiredSpawnerNames != null &&
+                    System.Array.IndexOf(split.alsoRequiredSpawnerNames, spawnerName) >= 0) return true;
             }
             return false;
+        }
+
+        /// <summary>True when this kill is one of the split's spawners and every one of them is now credited.</summary>
+        bool SplitComplete(RunSplitDef split, string spawnerName)
+        {
+            bool member = split.endSpawnerName == spawnerName;
+            if (split.alsoRequiredSpawnerNames != null)
+                foreach (string also in split.alsoRequiredSpawnerNames)
+                {
+                    if (also == spawnerName) member = true;
+                    else if (!creditedSpawnerNames.Contains(also)) return false;
+                }
+            return member && creditedSpawnerNames.Contains(split.endSpawnerName);
         }
 
         RunSplitDef CurrentSplit()

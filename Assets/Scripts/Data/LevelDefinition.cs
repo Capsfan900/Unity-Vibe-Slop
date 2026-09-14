@@ -419,6 +419,10 @@ namespace VibeGame1
         [Tooltip("The EnemySpawner whose unique kill closes this split.")]
         public string endSpawnerName = "";
 
+        [Tooltip("Other spawners whose kills this split also waits for (a duo realm's partner). The split " +
+                 "closes on whichever of them dies last; none of them counts as a regular kill.")]
+        public string[] alsoRequiredSpawnerNames = new string[0];
+
         [Tooltip("Inclusive grade thresholds in ascending order. At or under S is S; over C is D.")]
         [Min(0f)] public float sSeconds = 30f;
         [Min(0f)] public float aSeconds = 35f;
@@ -486,6 +490,12 @@ namespace VibeGame1
         public string enemySpawnerName = "";
         public Vector3 enemySpawnPosition;
         public float enemySpawnYaw = 180f;
+
+        [Tooltip("Optional second occupant fought at the same time (duo realm, 2026-09-14). The exit opens " +
+                 "only when both are dead. Moved here by the builder, like enemySpawnerName.")]
+        public string partnerSpawnerName = "";
+        public Vector3 partnerSpawnPosition;
+        public float partnerSpawnYaw = 180f;
 
         [Tooltip("Optional pickup already authored in the old court; builder moves its live instance into the realm.")]
         public string arenaPickupName = "";

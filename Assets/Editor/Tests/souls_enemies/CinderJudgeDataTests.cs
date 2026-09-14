@@ -521,15 +521,15 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void IsTheT2RealmBoss()
+        public void IsTheT4DuoPartner()
         {
-            // Boss roster seated 2026-09-13 (LevelDefinitionAuthoring.SeatBossRoster): the T2 realm's
-            // spawner name stays the contract, the occupant is this body.
+            // Duo realms 2026-09-14 (LevelDefinitionAuthoring.RealmPartners): the Judge fights beside V18
+            // in the T4 realm before the Warden.
             var level = AssetDatabase.LoadAssetAtPath<LevelDefinition>("Assets/Data/Levels/Level_01_Level.asset");
             Assert.IsNotNull(level);
             SpawnDef seat = null;
-            foreach (var s in level.spawns) if (s != null && s.name == "Spawn_Legendary_Knight") seat = s;
-            Assert.IsNotNull(seat, "Spawn_Legendary_Knight missing from Level_01");
+            foreach (var s in level.spawns) if (s != null && s.name == "Spawn_Legendary_T4_Duo") seat = s;
+            Assert.IsNotNull(seat, "Spawn_Legendary_T4_Duo missing from Level_01");
             Assert.AreEqual("Legendary_CinderJudge", seat.prefabKey);
         }
 

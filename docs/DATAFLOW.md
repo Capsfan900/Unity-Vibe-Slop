@@ -2740,6 +2740,11 @@ BossArenaTrigger  = ONE mechanism for every gated fight
   mini-boss arena (clearSpawner set)   -> exit gate rests UP; Update() watches that spawner and
                                           drops BOTH gates once its enemy is dead
                                           (latched on "seen alive" so it cannot open at level start)
+  duo arena (partnerSpawner set, 2026-09-14) -> both spawners must be dead (each with its own seen-alive
+                                          latch). Wired by the builder from SolarRealmDef.partnerSpawnerName;
+                                          EnemyController.MaxSimultaneousAttackers keeps one wind-up at a time.
+  run split: RunSplitDef.alsoRequiredSpawnerNames -> LevelRunScorer closes the split on whichever listed
+    spawner dies last; none of them counts as a regular kill.
 
 SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
   FIVE portals since 2026-09-13, in course order: T1_Gate, T2_Gate, T3_Gate, T4_Gate (the fourth mini
@@ -2750,12 +2755,12 @@ SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
     zero falls back to exteriorRadius for older definitions. Shipped visual radii are 22/23/22/22/31 m;
     physical radii are 16/17/16/16/25 m, retaining a 6 m membrane band.
   THE CELL (SolarRealmDef.realmFloorRadius / realmShellRadius / realmWallHeight / realmCeilingHeight):
-    30 m floor disc, 45 m opaque shell, 24 m walls, 24 m clear ceiling on every Level_01 realm (1.5x the
-    2026-09-07 cell, for the roster's lift-and-throw). The builder derives the rest from the ceiling height:
+    25 m floor disc, 37.5 m opaque shell, 20 m walls, 20 m clear ceiling on every Level_01 realm (trimmed
+    from 30 / 45 / 24 on 2026-09-14; V18's grab lifts 11 m). The builder derives the rest from the ceiling height:
     collider slab centre = ceiling + 0.5, solar disc = ceiling - 0.1, point light at 0.75 x ceiling with
     range max(2.2 x floor, 2.75 x ceiling), shell centre at 0.5 x ceiling. The two height fields default to
     12 / 12, which rebuilds the original 12 / 12.5 / 11.9 / 9 / +6 cell for any older definition.
-    Realm-local points scale with the floor: entry z -19.5, enemy z +6, exit z -26, pickups x +/-10.5.
+    Realm-local points scale with the floor: entry z -16.25, enemy z +5, duo partner (+7, z +3), exit z -21.5, pickups x +/-8.75.
     Cells at x 700, z 0 / 100 / 200 / 300 / 400 in course order: 45 m shells never touch, and every cell
     stays beyond the 300 m player far plane from the widest route deck (SolarArenaTests).
   SolarArenaVisual rotates exterior plasma/corona; realm ceiling rotates around Y only

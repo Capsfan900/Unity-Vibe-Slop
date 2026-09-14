@@ -42,11 +42,12 @@ place, not renumbered.
 | **Heavy Sentry** | `pshooter_enemy02` | heavy turret, reliquary turret, three-shot heavy | Stationary dark reliquary that fires a rapid three-shot phrase. The T0 pair are `Spawn_T0_Reliquary_1` and `_2`. |
 | **Surge Turret** | `pshooter_enemy03` | ramp turret, rapid turret | Small fixed projectile turret used on the long downhill routes. T0 and T4 suffixes identify shot order. |
 
-| **The Grappler** | `Legendary_FlurryBrawlerV18` on `Spawn_Legendary_V18Grappler` | T4 mini-boss, fourth realm, V18 | Skyfall Suplex: grabs, flies up, throws. |
-| **The Seraph Lancer** | `Legendary_SeraphLancer` on `Spawn_Legendary_Ninja` | T1 mini-boss | Sky Verdict: rises on light-wings, three parryable javelins. |
-| **The Cinder Judge** | `Legendary_CinderJudge` on `Spawn_Legendary_Knight` | T2 mini-boss | Storm Judgement lightning tornado + Aegis of Judgement magic shield. |
-| **The Orbit Dancer** | `Legendary_OrbitDancer` on `Spawn_Legendary_Spellsword` | T3 mini-boss | Orbit Storm: ricochet discs. |
+| **The Seraph Lancer** + **The Thirteenth Shade** | `Legendary_SeraphLancer` on `Spawn_Legendary_Ninja` + `Legendary_Ninja` on `Spawn_Legendary_T1_Duo` | T1 duo realm | Sky Verdict javelins beside the Shade. |
+| **The Orbit Dancer** + **The Argent Halberdier** | `Legendary_OrbitDancer` on `Spawn_Legendary_Knight` + `Legendary_Halberdier` on `Spawn_Legendary_T2_Duo` | T2 duo realm | Ricochet discs beside the Halberdier. |
+| **The Ember Revenant** + **The Pale Marionette** | `Legendary_Revenant` on `Spawn_Legendary_Spellsword` + `Legendary_Marionette` on `Spawn_Legendary_T3_Duo` | T3 duo realm | |
+| **The Grappler** + **The Cinder Judge** | `Legendary_FlurryBrawlerV18` on `Spawn_Legendary_V18Grappler` + `Legendary_CinderJudge` on `Spawn_Legendary_T4_Duo` | T4 duo realm, the hardest pair, before the Warden | Skyfall Suplex + storm and Aegis shield. |
 
+Duo realms 2026-09-14 (`LevelDefinitionAuthoring.RealmPartners`): every mini realm fights two legendaries at once.
 Boss roster seated 2026-09-13 (`LevelDefinitionAuthoring.SeatBossRoster`): the spawner NAMES are historical
 (Ninja/Knight/Spellsword) and stay the stable contract for splits, gates and clear logic; only the prefab keys
 changed, and the three spawns received fresh family object IDs. The Thirteenth Shade, Iron Penitent and Ashen

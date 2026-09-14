@@ -844,9 +844,9 @@ namespace VibeGame1.EditorTools
                     "first ramp", "opening ramp", "starting descent", "reliquary landing"),
                 StudioZone("T1", "Stone Causeway", "Lancer", 1, 7.9f, 136.7f, new Color(0.3f, 0.8f, 1f),
                     "first parkour section", "causeway", "Ninja section"),
-                StudioZone("T2", "Helix Tower", "Judge", 2, 136.8f, 260.7f, new Color(1f, 0.8f, 0.2f),
+                StudioZone("T2", "Helix Tower", "Dancer", 2, 136.8f, 260.7f, new Color(1f, 0.8f, 0.2f),
                     "tower", "wall-run tower", "Knight section"),
-                StudioZone("T3", "Balloon Aqueduct", "Dancer", 3, 260.8f, 392.9f, new Color(0.3f, 0.5f, 1f),
+                StudioZone("T3", "Balloon Aqueduct", "Revenant", 3, 260.8f, 392.9f, new Color(0.3f, 0.5f, 1f),
                     "balloon section", "water span", "Spellsword section"),
                 // 2026-09-13: the fourth mini realm sits at the foot of the descent, so T4 now ends in the
                 // Grappler split and the Warden's court becomes its own short zone. A zone carries exactly
@@ -930,8 +930,9 @@ namespace VibeGame1.EditorTools
         public static readonly string[][] BossRoster =
         {
             new[] { "Spawn_Legendary_Ninja", "Legendary_SeraphLancer" },       // T1: projectile parry, the lesson
-            new[] { "Spawn_Legendary_Knight", "Legendary_CinderJudge" },       // T2: storm + magic shield
-            new[] { "Spawn_Legendary_Spellsword", "Legendary_OrbitDancer" },   // T3: ricochet discs
+            new[] { "Spawn_Legendary_Knight", "Legendary_OrbitDancer" },       // T2: ricochet discs (+ Halberdier)
+            new[] { "Spawn_Legendary_Spellsword", "Legendary_Revenant" },      // T3: ember duelist (+ Marionette)
+            // T4: V18 + Cinder Judge, the two hardest, is the realm before the Warden (RealmPartners).
         };
 
         static void SeatBossRoster(LevelDefinition def)
@@ -996,21 +997,21 @@ namespace VibeGame1.EditorTools
         /// <summary>Writes the campaign run contract as level data, never as a scorer-side level special case.</summary>
         static void ApplyRunScoring(LevelDefinition def)
         {
-            // User contract: every scored run answers all four sub-bosses, the Warden, and any four
-            // authored regular enemies. Boss roster seated 2026-09-13 (SeatBossRoster): Seraph Lancer 520 +
-            // Cinder Judge 620 + Orbit Dancer 560 + V18 Grappler 480 + Warden 1500 + (4 * 40) = 3840
-            // baseline souls. Split bonuses are additional rewards and never substitute for the gates.
-            def.requiredRunSouls = 3840;
+            // User contract: every scored run answers all eight duo legendaries, the Warden, and any four
+            // authored regular enemies. Duo realms 2026-09-14: Lancer 520 + Shade 400 | Dancer 560 +
+            // Halberdier 450 | Revenant 400 + Marionette 550 | V18 480 + Judge 620 | Warden 1500 + (4 * 40)
+            // = 5640 baseline souls. Split bonuses are additional rewards and never substitute for the gates.
+            def.requiredRunSouls = 5640;
             def.requiredRegularKills = 4;
             def.gradeBonuses = new RunGradeBonusDef { dSouls = 0, cSouls = 25, bSouls = 50, aSouls = 75, sSouls = 100 };
             def.runSplits = new[]
             {
                 // Spawner names are the stable contract; the occupants are the 2026-09-13 roster.
-                Split("Lancer", "Spawn_Legendary_Ninja", 55f),
-                Split("Judge", "Spawn_Legendary_Knight", 60f),
-                Split("Dancer", "Spawn_Legendary_Spellsword", 70f),
-                // The descent plus the fourth realm: ~60 s S par is a placeholder until the occupant is seated.
-                Split("Grappler", GrapplerSpawner, 60f),
+                // Duo realms close their split on whichever of the pair dies last. Pars are placeholders.
+                Split("Lancer", "Spawn_Legendary_Ninja", 65f, "Spawn_Legendary_T1_Duo"),
+                Split("Dancer", "Spawn_Legendary_Knight", 70f, "Spawn_Legendary_T2_Duo"),
+                Split("Revenant", "Spawn_Legendary_Spellsword", 80f, "Spawn_Legendary_T3_Duo"),
+                Split("Grappler", GrapplerSpawner, 75f, "Spawn_Legendary_T4_Duo"),
                 Split("Warden", "Spawn_Boss", 40f),
             };
         }
@@ -1055,12 +1056,13 @@ namespace VibeGame1.EditorTools
             };
         }
 
-        static RunSplitDef Split(string name, string endSpawnerName, float sSeconds)
+        static RunSplitDef Split(string name, string endSpawnerName, float sSeconds, params string[] alsoRequired)
         {
             return new RunSplitDef
             {
                 name = name,
                 endSpawnerName = endSpawnerName,
+                alsoRequiredSpawnerNames = alsoRequired,
                 sSeconds = sSeconds,
                 aSeconds = sSeconds * 1.15f,
                 bSeconds = sSeconds * 1.30f,
@@ -1588,12 +1590,27 @@ namespace VibeGame1.EditorTools
         // a throw that lands INSIDE the floor needs floor to land on. Centres sit 100 m apart along z at
         // x 700, so 45 m shells never touch (90 < 100) and every cell stays beyond the player camera's
         // 300 m far plane from the widest route deck (SolarArenaTests holds both).
-        public const float RealmFloorRadius = 30f, RealmShellRadius = 45f;
-        public const float RealmWallHeight = 24f, RealmCeilingHeight = 24f;
+        // 2026-09-14: the user found 30 / 24 a little too large; trimmed to 25 m floor, 20 m walls and
+        // ceiling. V18's grab lifts 11 m, so it still clears the roof.
+        public const float RealmFloorRadius = 25f, RealmShellRadius = 37.5f;
+        public const float RealmWallHeight = 20f, RealmCeilingHeight = 20f;
         public const float RealmSpacing = 100f;
         // Realm-local offsets, scaled with the floor (20 -> 30): entry -13 -> -19.5, enemy +4 -> +6,
         // exit -17.5 -> -26, pickups +/-7 -> +/-10.5. Every one stays a metre inside the floor rim.
-        public const float RealmEntryZ = -19.5f, RealmEnemyZ = 6f, RealmExitZ = -26f, RealmPickupX = 10.5f;
+        // Rescaled 30 -> 25 on 2026-09-14. A duo partner stands RealmPartnerX to the side of the first occupant.
+        public const float RealmEntryZ = -16.25f, RealmEnemyZ = 5f, RealmExitZ = -21.5f, RealmPickupX = 8.75f;
+        public const float RealmPartnerX = 7f;
+
+        // THE DUO REALMS (user, 2026-09-14): every mini realm holds two legendaries fought at once, and
+        // the T4 realm before the Warden pairs the two hardest. EnemyController's attack arbitration
+        // (MaxSimultaneousAttackers) keeps one of them winding up at a time. {gate, partner spawner, prefab}.
+        public static readonly string[][] RealmPartners =
+        {
+            new[] { "T1_Gate", "Spawn_Legendary_T1_Duo", "Legendary_Ninja" },
+            new[] { "T2_Gate", "Spawn_Legendary_T2_Duo", "Legendary_Halberdier" },
+            new[] { "T3_Gate", "Spawn_Legendary_T3_Duo", "Legendary_Marionette" },
+            new[] { "T4_Gate", "Spawn_Legendary_T4_Duo", "Legendary_CinderJudge" },
+        };
 
         // THE FOURTH MINI-BOSS REALM (T4 — Warden Descent). Its portal sun stands at the BOTTOM of the
         // 48 m surge descent, so the three-turret parry ladder flies the player straight into it, and
@@ -1633,6 +1650,7 @@ namespace VibeGame1.EditorTools
         {
             NormalizeSolarCourseSpacing(def);
             EnsureGrapplerArena(def);
+            EnsureRealmPartners(def);
 
             SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87.3f), 16f, 22f,
                 new Vector3(700f, 0f, 0f * RealmSpacing), "Spawn_Legendary_Ninja",
@@ -1654,6 +1672,31 @@ namespace VibeGame1.EditorTools
 
             ApplySolarSpacing(def);
             TranslateCourseSections(def, 38f, 70f, 96f, false);
+        }
+
+        /// <summary>
+        /// Adds each duo partner's SpawnDef after the legendaries, anchored at its gate's historical court
+        /// like the first occupant (the builder moves the live spawner into the realm). Idempotent.
+        /// </summary>
+        static void EnsureRealmPartners(LevelDefinition def)
+        {
+            var spawns = new List<SpawnDef>(def.spawns ?? new SpawnDef[0]);
+            foreach (var seat in RealmPartners)
+            {
+                var spawn = spawns.Find(s => s != null && s.name == seat[1]);
+                if (spawn == null)
+                {
+                    spawn = new SpawnDef { name = seat[1] };
+                    int boss = spawns.FindIndex(s => s != null && s.name == "Spawn_Boss");
+                    spawns.Insert(boss < 0 ? spawns.Count : boss, spawn);
+                }
+                spawn.prefabKey = seat[2];
+                var arena = def.arenas != null ? System.Array.Find(def.arenas, a => a != null && a.gateName == seat[0]) : null;
+                spawn.position = arena != null ? arena.triggerPosition + Vector3.forward * 9f : Vector3.zero;
+                spawn.yaw = 180f;
+                spawn.isBoss = false;
+            }
+            def.spawns = spawns.ToArray();
         }
 
         /// <summary>
@@ -1973,6 +2016,10 @@ namespace VibeGame1.EditorTools
             r.enemySpawnerName = enemySpawner;
             r.enemySpawnPosition = realmCenter + new Vector3(0f, 0.1f, RealmEnemyZ);
             r.enemySpawnYaw = 180f;
+            string[] partner = System.Array.Find(RealmPartners, p => p[0] == gateName);
+            r.partnerSpawnerName = partner != null ? partner[1] : "";
+            r.partnerSpawnPosition = realmCenter + new Vector3(RealmPartnerX, 0.1f, RealmEnemyZ - 2f);
+            r.partnerSpawnYaw = 180f;
             if (gateName == "T1_Gate") { r.arenaPickupName = "Pickup_T1_Surge"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -3f); }
             else if (gateName == "T2_Gate") { r.arenaPickupName = "Pickup_T2_Hook_2"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -3f); }
             else if (gateName == "T3_Gate") { r.arenaPickupName = "Pickup_T3_Surge_2"; r.arenaPickupPosition = realmCenter + new Vector3(RealmPickupX, 1.2f, -3f); }

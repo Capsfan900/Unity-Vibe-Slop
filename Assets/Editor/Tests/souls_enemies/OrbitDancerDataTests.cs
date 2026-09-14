@@ -702,15 +702,15 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void IsTheT3RealmBoss()
+        public void IsTheT2RealmBoss()
         {
-            // Boss roster seated 2026-09-13 (LevelDefinitionAuthoring.SeatBossRoster): the T3 realm's
+            // Boss roster seated 2026-09-13 (LevelDefinitionAuthoring.SeatBossRoster): the T2 realm's (duo realms 2026-09-14)
             // spawner name stays the contract, the occupant is this body.
             var level = AssetDatabase.LoadAssetAtPath<LevelDefinition>("Assets/Data/Levels/Level_01_Level.asset");
             Assert.IsNotNull(level);
             SpawnDef seat = null;
-            foreach (var s in level.spawns) if (s != null && s.name == "Spawn_Legendary_Spellsword") seat = s;
-            Assert.IsNotNull(seat, "Spawn_Legendary_Spellsword missing from Level_01");
+            foreach (var s in level.spawns) if (s != null && s.name == "Spawn_Legendary_Knight") seat = s;
+            Assert.IsNotNull(seat, "Spawn_Legendary_Knight missing from Level_01");
             Assert.AreEqual("Legendary_OrbitDancer", seat.prefabKey);
         }
 

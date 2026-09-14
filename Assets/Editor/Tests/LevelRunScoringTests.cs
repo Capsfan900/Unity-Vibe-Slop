@@ -213,6 +213,48 @@ namespace VibeGame1.Tests
         }
 
         [Test]
+        public void DuoSplitClosesOnWhicheverPartnerDiesLastAndNeitherIsARegularKill()
+        {
+            var def = ScriptableObject.CreateInstance<LevelDefinition>();
+            var duo = Split("A", 10f);
+            duo.alsoRequiredSpawnerNames = new[] { "A2" };
+            def.runSplits = new[] { duo };
+            GameObject host = null;
+            object previousScorer = StaticSingleton(typeof(LevelRunScorer));
+            object previousWallet = StaticSingleton(typeof(SoulsWallet));
+            object previousRunScoreChanged = StaticEvent("RunScoreChanged");
+            object previousSplitGraded = StaticEvent("SplitGraded");
+            try
+            {
+                SetStaticSingleton(typeof(LevelRunScorer), null);
+                SetStaticSingleton(typeof(SoulsWallet), null);
+                SetStaticEvent("RunScoreChanged", null);
+                SetStaticEvent("SplitGraded", null);
+                host = new GameObject("Duo split test");
+                var scorer = host.AddComponent<LevelRunScorer>();
+                Invoke(scorer, "OnDisable");
+                scorer.definition = def;
+                SetStaticSingleton(typeof(LevelRunScorer), scorer);
+                scorer.BeginRun();
+                Assert.IsTrue(scorer.TryCreditSpawnerForRun("A", 50, 4f));
+                Assert.AreEqual(0, scorer.CurrentSplitIndex, "half a duo does not close the split");
+                Assert.IsTrue(scorer.TryCreditSpawnerForRun("A2", 50, 9f));
+                Assert.AreEqual(1, scorer.CurrentSplitIndex);
+                Assert.AreEqual(9f, scorer.LastSplit.Value.seconds, 0.001f);
+                Assert.AreEqual(0, scorer.RegularKills);
+            }
+            finally
+            {
+                if (host != null) Object.DestroyImmediate(host);
+                Object.DestroyImmediate(def);
+                SetStaticSingleton(typeof(LevelRunScorer), previousScorer);
+                SetStaticSingleton(typeof(SoulsWallet), previousWallet);
+                SetStaticEvent("RunScoreChanged", previousRunScoreChanged);
+                SetStaticEvent("SplitGraded", previousSplitGraded);
+            }
+        }
+
+        [Test]
         public void ScorerCreditsEachSpawnerOnceClosesOnlyTheCurrentSplitAndAddsBonus()
         {
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
@@ -272,13 +314,14 @@ namespace VibeGame1.Tests
             try
             {
                 LevelDefinitionAuthoring.Apply(def);
-                Assert.AreEqual(3840, def.requiredRunSouls,
-                    "four sub-bosses (400 + 600 + 900 + 480) + Warden 1500 + four 40-soul regulars define the Level_01 baseline");
+                Assert.AreEqual(5640, def.requiredRunSouls,
+                    "eight duo legendaries (920 + 1010 + 950 + 1100) + Warden 1500 + four 40-soul regulars define the Level_01 baseline");
+                CollectionAssert.AreEqual(new[] { "Spawn_Legendary_T1_Duo" }, def.runSplits[0].alsoRequiredSpawnerNames);
                 Assert.AreEqual(4, def.requiredRegularKills);
                 CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
                     "Spawn_Legendary_Spellsword", "Spawn_Legendary_V18Grappler", "Spawn_Boss" },
                     System.Array.ConvertAll(def.runSplits, s => s.endSpawnerName));
-                CollectionAssert.AreEqual(new[] { 55f, 60f, 70f, 60f, 40f }, System.Array.ConvertAll(def.runSplits, s => s.sSeconds));
+                CollectionAssert.AreEqual(new[] { 65f, 70f, 80f, 75f, 40f }, System.Array.ConvertAll(def.runSplits, s => s.sSeconds));
                 Assert.AreEqual(100, def.gradeBonuses.sSouls);
             }
             finally { Object.DestroyImmediate(def); }
@@ -323,15 +366,15 @@ namespace VibeGame1.Tests
         public void ShippedAssetCarriesTheRunContractAfterAuthoring()
         {
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelDefinitionAuthoring.Level01);
-            Assert.AreEqual(3840, def.requiredRunSouls);
+            Assert.AreEqual(5640, def.requiredRunSouls);
             Assert.AreEqual(4, def.requiredRegularKills);
             Assert.AreEqual(5, def.runSplits.Length);
-            CollectionAssert.AreEqual(new[] { "Lancer", "Judge", "Dancer", "Grappler", "Warden" },
+            CollectionAssert.AreEqual(new[] { "Lancer", "Dancer", "Revenant", "Grappler", "Warden" },
                 System.Array.ConvertAll(def.runSplits, s => s.name));
             CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
                 "Spawn_Legendary_Spellsword", "Spawn_Legendary_V18Grappler", "Spawn_Boss" },
                 System.Array.ConvertAll(def.runSplits, s => s.endSpawnerName));
-            CollectionAssert.AreEqual(new[] { 55f, 60f, 70f, 60f, 40f },
+            CollectionAssert.AreEqual(new[] { 65f, 70f, 80f, 75f, 40f },
                 System.Array.ConvertAll(def.runSplits, s => s.sSeconds));
             CollectionAssert.AreEqual(new[] { 0, 25, 50, 75, 100 }, new[] {
                 def.gradeBonuses.dSouls, def.gradeBonuses.cSouls, def.gradeBonuses.bSouls,
@@ -355,7 +398,7 @@ namespace VibeGame1.Tests
                 }
                 Assert.IsNotNull(scorer, "rebuild Level_01 after adding LevelRunScorer");
                 Assert.IsNotNull(scorer.definition);
-                Assert.AreEqual(3840, scorer.definition.requiredRunSouls);   // seated boss roster (2026-09-13)
+                Assert.AreEqual(5640, scorer.definition.requiredRunSouls);   // duo realms (2026-09-14)
                 Assert.IsNotNull(scorer.registry);
             }
             finally

@@ -5209,6 +5209,23 @@ namespace VibeGame1
             // An enemy whose death is a stagger needs the deathblow, exactly as a player would land it.
             if (!kh.IsDead) kh.TakeDamage(new DamageInfo { damage = 999999f, isExecute = true });
 
+            // A duo realm (2026-09-14) stays sealed until its partner dies too.
+            if (a.partnerSpawner != null)
+            {
+                yield return WaitRealtime(0.3f);
+                Check(tag + "DuoSealedWhilePartnerAlive", !a.Cleared, "cleared=" + a.Cleared);
+                if (a.partnerSpawner.Instance == null) { a.partnerSpawner.Spawn(); yield return null; yield return null; }
+                var partner = a.partnerSpawner.Instance;
+                var ph = partner != null ? partner.GetComponentInChildren<Health>() : null;
+                Check(tag + "DuoPartnerHasHealth", ph != null);
+                if (ph != null)
+                {
+                    ph.TakeDamage(new DamageInfo { damage = 999999f });
+                    yield return null;
+                    if (!ph.IsDead) ph.TakeDamage(new DamageInfo { damage = 999999f, isExecute = true });
+                }
+            }
+
             yield return WaitUntilOrTimeout(() => a.Cleared, 3f);
             Check(tag + "ClearsWhenKeeperDies", !waitTimedOut, "cleared=" + a.Cleared);
             yield return WaitUntilOrTimeout(

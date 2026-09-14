@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  requiredRunSouls: 3840
+  requiredRunSouls: 5640
   requiredRegularKills: 4
   gradeBonuses:
     dSouls: 0
@@ -32,46 +32,55 @@ MonoBehaviour:
       zoneIdOverride: 
     name: Lancer
     endSpawnerName: Spawn_Legendary_Ninja
-    sSeconds: 55
-    aSeconds: 63.25
-    bSeconds: 71.5
-    cSeconds: 82.5
+    alsoRequiredSpawnerNames:
+    - Spawn_Legendary_T1_Duo
+    sSeconds: 65
+    aSeconds: 74.75
+    bSeconds: 84.5
+    cSeconds: 97.5
   - meta:
       objectId: T2.RunSplit.01
       friendlyName: 
       zoneIdOverride: 
-    name: Judge
-    endSpawnerName: Spawn_Legendary_Knight
-    sSeconds: 60
-    aSeconds: 69
-    bSeconds: 78
-    cSeconds: 90
-  - meta:
-      objectId: T3.RunSplit.01
-      friendlyName: 
-      zoneIdOverride: 
     name: Dancer
-    endSpawnerName: Spawn_Legendary_Spellsword
+    endSpawnerName: Spawn_Legendary_Knight
+    alsoRequiredSpawnerNames:
+    - Spawn_Legendary_T2_Duo
     sSeconds: 70
     aSeconds: 80.5
     bSeconds: 91
     cSeconds: 105
+  - meta:
+      objectId: T3.RunSplit.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Revenant
+    endSpawnerName: Spawn_Legendary_Spellsword
+    alsoRequiredSpawnerNames:
+    - Spawn_Legendary_T3_Duo
+    sSeconds: 80
+    aSeconds: 92
+    bSeconds: 104
+    cSeconds: 120
   - meta:
       objectId: T4.RunSplit.02
       friendlyName: 
       zoneIdOverride: 
     name: Grappler
     endSpawnerName: Spawn_Legendary_V18Grappler
-    sSeconds: 60
-    aSeconds: 69
-    bSeconds: 78
-    cSeconds: 90
+    alsoRequiredSpawnerNames:
+    - Spawn_Legendary_T4_Duo
+    sSeconds: 75
+    aSeconds: 86.25
+    bSeconds: 97.5
+    cSeconds: 112.5
   - meta:
       objectId: T4.RunSplit.01
       friendlyName: 
       zoneIdOverride: 
     name: Warden
     endSpawnerName: Spawn_Boss
+    alsoRequiredSpawnerNames: []
     sSeconds: 40
     aSeconds: 46
     bSeconds: 52
@@ -102,7 +111,7 @@ MonoBehaviour:
     displayColor: {r: 0.3, g: 0.8, b: 1, a: 1}
   - zoneId: T2
     canonicalName: Helix Tower
-    splitName: Judge
+    splitName: Dancer
     aliases:
     - tower
     - wall-run tower
@@ -113,7 +122,7 @@ MonoBehaviour:
     displayColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   - zoneId: T3
     canonicalName: Balloon Aqueduct
-    splitName: Dancer
+    splitName: Revenant
     aliases:
     - balloon section
     - water span
@@ -1139,11 +1148,11 @@ MonoBehaviour:
     yaw: 205
     isBoss: 0
   - meta:
-      objectId: T2.CinderJudge.01
+      objectId: T2.OrbitDancer.01
       friendlyName: 
       zoneIdOverride: 
     name: Spawn_Legendary_Knight
-    prefabKey: Legendary_CinderJudge
+    prefabKey: Legendary_OrbitDancer
     position: {x: 0, y: 20.1, z: 173}
     yaw: 180
     isBoss: 0
@@ -1166,11 +1175,11 @@ MonoBehaviour:
     yaw: 60
     isBoss: 0
   - meta:
-      objectId: T3.OrbitDancer.01
+      objectId: T3.Revenant.01
       friendlyName: 
       zoneIdOverride: 
     name: Spawn_Legendary_Spellsword
-    prefabKey: Legendary_OrbitDancer
+    prefabKey: Legendary_Revenant
     position: {x: 0, y: 28.1, z: 273}
     yaw: 180
     isBoss: 0
@@ -1181,6 +1190,42 @@ MonoBehaviour:
     name: Spawn_Legendary_V18Grappler
     prefabKey: Legendary_FlurryBrawlerV18
     position: {x: 0, y: 16.1, z: 479.7}
+    yaw: 180
+    isBoss: 0
+  - meta:
+      objectId: T1.ThirteenthShade.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_T1_Duo
+    prefabKey: Legendary_Ninja
+    position: {x: 0, y: 6, z: 87.3}
+    yaw: 180
+    isBoss: 0
+  - meta:
+      objectId: T2.Halberdier.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_T2_Duo
+    prefabKey: Legendary_Halberdier
+    position: {x: 0, y: 22, z: 215.8}
+    yaw: 180
+    isBoss: 0
+  - meta:
+      objectId: T3.Marionette.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_T3_Duo
+    prefabKey: Legendary_Marionette
+    position: {x: 0, y: 30, z: 354.3}
+    yaw: 180
+    isBoss: 0
+  - meta:
+      objectId: T4.CinderJudge.01
+      friendlyName: 
+      zoneIdOverride: 
+    name: Spawn_Legendary_T4_Duo
+    prefabKey: Legendary_CinderJudge
+    position: {x: 0, y: 18, z: 479.7}
     yaw: 180
     isBoss: 0
   - meta:
@@ -1667,21 +1712,24 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 0}
-      realmFloorRadius: 30
-      realmShellRadius: 45
-      realmWallHeight: 24
-      realmCeilingHeight: 24
-      playerEntryPosition: {x: 700, y: 1.2, z: -19.5}
+      realmFloorRadius: 25
+      realmShellRadius: 37.5
+      realmWallHeight: 20
+      realmCeilingHeight: 20
+      playerEntryPosition: {x: 700, y: 1.2, z: -16.25}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 2.2, z: 62}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Ninja
-      enemySpawnPosition: {x: 700, y: 0.1, z: 6}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 5}
       enemySpawnYaw: 180
+      partnerSpawnerName: Spawn_Legendary_T1_Duo
+      partnerSpawnPosition: {x: 707, y: 0.1, z: 3}
+      partnerSpawnYaw: 180
       arenaPickupName: Pickup_T1_Surge
-      arenaPickupPosition: {x: 689.5, y: 1.2, z: -3}
+      arenaPickupPosition: {x: 691.25, y: 1.2, z: -3}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: -26}
+      realmExitPosition: {x: 700, y: 1.5, z: -21.5}
       returnPosition: {x: 10, y: 5.2, z: 151.375}
       returnYaw: 0
   - meta:
@@ -1723,21 +1771,24 @@ MonoBehaviour:
       exteriorRadius: 17
       visualRadius: 23
       realmCenter: {x: 700, y: 0, z: 100}
-      realmFloorRadius: 30
-      realmShellRadius: 45
-      realmWallHeight: 24
-      realmCeilingHeight: 24
-      playerEntryPosition: {x: 700, y: 1.2, z: 80.5}
+      realmFloorRadius: 25
+      realmShellRadius: 37.5
+      realmWallHeight: 20
+      realmCeilingHeight: 20
+      playerEntryPosition: {x: 700, y: 1.2, z: 83.75}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 20.2, z: 188}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Knight
-      enemySpawnPosition: {x: 700, y: 0.1, z: 106}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 105}
       enemySpawnYaw: 180
+      partnerSpawnerName: Spawn_Legendary_T2_Duo
+      partnerSpawnPosition: {x: 707, y: 0.1, z: 103}
+      partnerSpawnYaw: 180
       arenaPickupName: Pickup_T2_Hook_2
-      arenaPickupPosition: {x: 689.5, y: 1.2, z: 97}
+      arenaPickupPosition: {x: 691.25, y: 1.2, z: 97}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 74}
+      realmExitPosition: {x: 700, y: 1.5, z: 78.5}
       returnPosition: {x: 2.75, y: 21.7, z: 268}
       returnYaw: 0
   - meta:
@@ -1779,21 +1830,24 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 200}
-      realmFloorRadius: 30
-      realmShellRadius: 45
-      realmWallHeight: 24
-      realmCeilingHeight: 24
-      playerEntryPosition: {x: 700, y: 1.2, z: 180.5}
+      realmFloorRadius: 25
+      realmShellRadius: 37.5
+      realmWallHeight: 20
+      realmCeilingHeight: 20
+      playerEntryPosition: {x: 700, y: 1.2, z: 183.75}
       playerEntryYaw: 0
       retryPosition: {x: -3, y: 27.2, z: 329}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Spellsword
-      enemySpawnPosition: {x: 700, y: 0.1, z: 206}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 205}
       enemySpawnYaw: 180
+      partnerSpawnerName: Spawn_Legendary_T3_Duo
+      partnerSpawnPosition: {x: 707, y: 0.1, z: 203}
+      partnerSpawnYaw: 180
       arenaPickupName: Pickup_T3_Surge_2
-      arenaPickupPosition: {x: 710.5, y: 1.2, z: 197}
+      arenaPickupPosition: {x: 708.75, y: 1.2, z: 197}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 174}
+      realmExitPosition: {x: 700, y: 1.5, z: 178.5}
       returnPosition: {x: 0, y: 28.2, z: 393.15}
       returnYaw: 0
   - meta:
@@ -1835,21 +1889,24 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 300}
-      realmFloorRadius: 30
-      realmShellRadius: 45
-      realmWallHeight: 24
-      realmCeilingHeight: 24
-      playerEntryPosition: {x: 700, y: 1.2, z: 280.5}
+      realmFloorRadius: 25
+      realmShellRadius: 37.5
+      realmWallHeight: 20
+      realmCeilingHeight: 20
+      playerEntryPosition: {x: 700, y: 1.2, z: 283.75}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 16.2, z: 450}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_V18Grappler
-      enemySpawnPosition: {x: 700, y: 0.1, z: 306}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 305}
       enemySpawnYaw: 180
+      partnerSpawnerName: Spawn_Legendary_T4_Duo
+      partnerSpawnPosition: {x: 707, y: 0.1, z: 303}
+      partnerSpawnYaw: 180
       arenaPickupName: Pickup_T4_Grappler
-      arenaPickupPosition: {x: 710.5, y: 1.2, z: 297}
+      arenaPickupPosition: {x: 708.75, y: 1.2, z: 297}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 274}
+      realmExitPosition: {x: 700, y: 1.5, z: 278.5}
       returnPosition: {x: 0, y: 16.2, z: 517.6}
       returnYaw: 0
   - meta:
@@ -1891,21 +1948,24 @@ MonoBehaviour:
       exteriorRadius: 25
       visualRadius: 31
       realmCenter: {x: 700, y: 0, z: 400}
-      realmFloorRadius: 30
-      realmShellRadius: 45
-      realmWallHeight: 24
-      realmCeilingHeight: 24
-      playerEntryPosition: {x: 700, y: 1.2, z: 380.5}
+      realmFloorRadius: 25
+      realmShellRadius: 37.5
+      realmWallHeight: 20
+      realmCeilingHeight: 20
+      playerEntryPosition: {x: 700, y: 1.2, z: 383.75}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 16.2, z: 522}
       retryYaw: 0
       enemySpawnerName: Spawn_Boss
-      enemySpawnPosition: {x: 700, y: 0.1, z: 406}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 405}
       enemySpawnYaw: 180
+      partnerSpawnerName: 
+      partnerSpawnPosition: {x: 707, y: 0.1, z: 403}
+      partnerSpawnYaw: 180
       arenaPickupName: Pickup_Boss_Hook
-      arenaPickupPosition: {x: 689.5, y: 1.2, z: 392.5}
+      arenaPickupPosition: {x: 691.25, y: 1.2, z: 392.5}
       hasReturn: 0
-      realmExitPosition: {x: 700, y: 1.5, z: 374}
+      realmExitPosition: {x: 700, y: 1.5, z: 378.5}
       returnPosition: {x: 0, y: 0, z: 0}
       returnYaw: 0
   projectileSequences:

@@ -28,6 +28,9 @@ namespace VibeGame1
         [Tooltip("The legendary's spawner. Its enemy must die before the exit opens.")]
         public EnemySpawner clearSpawner;
 
+        [Tooltip("Optional duo partner fought at the same time. When set, both enemies must die.")]
+        public EnemySpawner partnerSpawner;
+
         [Tooltip("Rests CLOSED (up) — the inverse of the entry gate — and drops when the arena is cleared.")]
         public Transform exitGate;
         public Vector3 exitGateClosedPosition;
@@ -38,7 +41,7 @@ namespace VibeGame1
 
         bool triggered;
         bool cleared;
-        bool sawAlive;
+        bool sawAlive, sawPartnerAlive;
         Coroutine move, exitMove;
 
         /// <summary>True once the arena's enemy is dead and the way onward is open.</summary>
@@ -85,7 +88,8 @@ namespace VibeGame1
         void Update()
         {
             if (!triggered || cleared || clearSpawner == null) return;
-            if (!IsSpawnDead()) return;
+            if (!IsSpawnDead(clearSpawner, ref sawAlive)) return;
+            if (partnerSpawner != null && !IsSpawnDead(partnerSpawner, ref sawPartnerAlive)) return;
 
             cleared = true;
             // Both gates drop: the seal is broken, not merely a door unlocked.
@@ -100,12 +104,12 @@ namespace VibeGame1
         /// once we have SEEN it alive. Without that latch the arena reports itself cleared on the frame
         /// before LevelManager.SpawnAll() has run, and the exit gate would already be down at level start.
         /// </summary>
-        bool IsSpawnDead()
+        static bool IsSpawnDead(EnemySpawner spawner, ref bool seen)
         {
-            var inst = clearSpawner.Instance;
-            if (!sawAlive)
+            var inst = spawner.Instance;
+            if (!seen)
             {
-                if (inst != null) sawAlive = true;
+                if (inst != null) seen = true;
                 return false;
             }
             if (inst == null) return true;
@@ -118,6 +122,7 @@ namespace VibeGame1
             triggered = false;
             cleared = false;
             sawAlive = false;
+            sawPartnerAlive = false;
             if (gate != null) { if (move != null) StopCoroutine(move); move = null; gate.position = gateOpenPosition; }
             if (exitGate != null) { if (exitMove != null) StopCoroutine(exitMove); exitMove = null; exitGate.position = exitGateClosedPosition; }
             if (solarPortal != null) solarPortal.ResetPortal();
