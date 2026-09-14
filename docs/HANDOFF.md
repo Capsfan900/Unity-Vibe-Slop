@@ -1,74 +1,83 @@
-# Handoff — config refresh and project read-in (2026-09-13)
+# Handoff — boss roster pass (2026-09-13)
 
 ## Current state
 
-**2026-09-13 session (Claude Code, Opus 5 lead):** docs and config only. No runtime or editor code, data, generators
-or scenes changed.
+The approved plan `C:\Users\tyler\.claude\plans\misty-cuddling-bachman.md` is complete on `master`. Rollback for the
+whole pass starts at tag `pre-boss-roster-2026-09-13` (after `ce4833f`, the user's WIP commit). Each stage is one
+revertible commit:
 
-- A Fable 5.1 read-only review of the whole project and an audit of its agent config were run.
-- `7884456` `[Astra] Refresh agent config for the Level Studio era; authorship by role`:
-  - **AGENTS.md:** authorship is now by role. Any frontier model may lead as Astra and change core systems;
-    non-lead tiers refine only. Every commit carries `[<role>]` plus a `Model:` trailer.
-  - **AGENTS.md:** the pipeline table gains 3b/4c/8/8a/10, Level Studio and the Projectile Encounter Report.
-  - **AGENTS.md:** stale test counts are removed, EditMode verification goes through `QuickTestRunner`, the new
-    docs are routed, and the spellbook and parry-capture controls are listed.
-  - **Briefs:** all 8 updated. `level-designer` now owns Level Studio use, zone vocabulary and parry
-    choreography.
-  - **Skills and TOOLING.md:** `unity-editor`, `session-handoff`, `dashboard` and the Astra adapter are updated,
-    and the TOOLING.md roster lists the briefs by tier.
-  - Rollback tag: `pre-config-refresh-2026-09-13`.
-- `9815e3e` CLAUDE.md gains "How to read the project as it is now", which records the user's direction:
-  - one level (Level_01) polished with Level Studio and parry capture;
-  - the Windows exe is the only target and WebGL is legacy;
-  - the four duels and the Warden are off-limits;
-  - the user records parry runs;
-  - work on `master` and ignore the stray worktrees.
+- `c607d29` **Locomotion fix** (shared `PuppetVisuals`): the frozen run glide was a crossfade restarted every frame. Adds
+  walk/run dead bands, stride-matched rate, soft holds and footfall dust.
+- `bfab618` **Spell orbs**: per-spell `SpellOrbProfile` shapes and motion, `SpellOrbShell` URP shader, luminance
+  normalisation, wheel feedback. *Not yet eyeballed in captures.*
+- `3afe05f` Shoulder-charge push-off VFX.
+- `71e8d2a` **Solar Realms**:
+  - floor 30 / walls and ceiling 24, cells 100 m apart
+  - new T4 Grappler realm (violet sun) before the Warden
+  - slide-gate bars removed
+- `6ed02f0` **Orbit Dancer**: forge-generated (`ai_skelly_tool/output/orbit_dancer_v1`); ricochet discs. Adds the
+  `Projectile.OnWorldContact` / `Redirect` hook.
+- `601d70e` **Core seams**:
+  - `PlayerHitDeflection` / `IPlayerHitDeflector` + `PlayerCombat.ReceiveRecoil`
+  - `FirstPersonMotor.BeginCarry` / `EndCarry` + `IsCarried`
+- `2567130` **Seraph Lancer**: forge-generated (`seraph_lancer_v1`, fifth attempt); Sky Verdict hover javelins.
+- `a9b4dee` **Cinder Judge Aegis shield**:
+  - `cinder_judge_v2` forge retrofit; same rig, ShieldBash and ShieldRaise added
+  - `CinderJudgeShield` deflects swings; Blade Throw or a Perfect bash shatters it
+- `30519de` **V18 Skyfall Suplex**: `V18Grapple` grab → carry 11 m → throw → unblockable slam.
+- `1e2b155` **Roster seated in Level_01** (`LevelDefinitionAuthoring.SeatBossRoster`):
+  - T1 Seraph Lancer, T2 Cinder Judge, T3 Orbit Dancer, T4 V18 Grappler, then the Warden
+  - splits Lancer / Judge / Dancer / Grappler / Warden
+  - requiredRunSouls 3840
 
-**Carried from 2026-09-12:** the Level Studio / parry choreography / dashboard plan
-(`docs/superpowers/plans/2026-09-12-level-studio-dashboard-implementation.md`) is fully integrated. Rollback for
-that batch starts at `pre-level-studio-2026-09-12`.
+Generators run since the last code change: 4a, 3, 3b, 4, 4b, 4c, 7, 8a, 8, NavMesh (all through the open editor over
+MCP).
 
-## Verification — inherited from 2026-09-12 (not re-run 2026-09-13; nothing testable changed)
+## Verification — 2026-09-13 (run this session)
 
-- Full EditMode: 1212/1212. Level_01 FeatureTests: 813 passed, 0 failed, 1 intentional skip.
-- Health Check: 0 errors. Projectile Encounter Report: PASS.
-- Runtime and editor builds clean.
-- Unity MCP was not connected on 2026-09-13, so no editor work was done.
-- Human-only and still open: Level Studio edit/undo/recovery/apply acceptance, recording runs on the four stages and
-  judging module rhythm, clicking through the dashboard.
+- Full EditMode: **1356/1356**. Play-mode FeatureTests on Level_01: **789 passed, 0 failed, 2 skipped**:
+  - `Legendaries_LegacyBodies` now belongs to the Sandbox
+  - `V18_SandboxSpawner` is Sandbox-only
+- Level Arc Report: clean. Projectile Encounter Report: PASS. Health Check: 0 errors. Dashboard tests 5/5.
+- Live Sandbox smokes (MCP):
+  - locomotion loops while chasing
+  - discs launch, bank and bounce
+  - javelins rise, 3 throws, descend
+  - shield deflects a real swing (+18 player posture) and a thrown blade shatters it
+  - grab carries the player 10.6 m, throws 5.8 m and slams for 26
+- **Unproven, human-only:**
+  - feel and fairness of all four signatures
+  - split pars 55/60/70/60/40
+  - spell-orb readability
+  - the grab's Perfect-avoid path in real play
+  - fights inside the bigger realms
 
 ## Next action
 
-1. **The user records runs and uses Level Studio on Level_01.** This is the acceptance still pending from 09-12;
-   support it and fix what they report.
-2. **Offer the retry-coherence fix.** The user has not yet approved it. It covers these open findings from
-   `docs/ASTRA-SYSTEMS-AUDIT-2026-09-07.md`, which bite on a level that is replayed constantly:
-   - A01: pause restart deals 99999 damage.
-   - A02: stamina and motor cooldowns survive death.
-   - A03: execute waits run through pause.
+1. The user plays Level_01 T1 → Warden and the Sandbox pads, then reports what feels bad. Retune from data
+   (DataFactory blocks, MiniBossFactory component numbers), not code.
+2. Screenshot or eyeball the spell orbs (item 1b was never captured).
+3. Optional:
+   - light-wing and disc SFX from the audio lane
+   - a positional-audio overload for disc bounces
+   - camera aim assist toward V18 during the carry (plan item, not built)
 
-   Also still open: A18 (no controller menu focus), A22 (the radio ducks boss music to 0) and A13 (Level_01
-   `levelId: samplescene`).
-3. **Surge duration discrepancy.** `Assets/Data/PlayerStats.asset` ships `generalParrySurgeSeconds: 3.2`, while
-   ARCHITECTURE/DATAFLOW say 2.0. Ask the user which feels right after a run, then make the docs match.
+## Working rules learned this session
 
-## Open questions for the user
-
-1. **Hook rule** (`ParryController.cs:248-259`): Grapple, Rebound and Deflect Sigil turn a matching turret's bolt
-   that lands within 0.13 s of E, during the pull, into a Perfect. Keep it as a designed second timing source (then
-   document it in ARCHITECTURE), or require the parry input?
-2. Is gamepad support required? Menus have no focus and prompts show keyboard glyphs.
-3. Restart from checkpoint currently kills the player (souls lost, bloodstain). Intended?
+- **Inline first:** the user found the worker-agent lanes cost more tokens than they saved. Delegate only large,
+  independent work, on cheap models.
+- **Forge prompts:** use separated legs, fitted shorts or trousers, bare arms. "knight/lancer" concepts hide knees
+  and fail the rig preflight. Launch builds with bash file redirection, not PowerShell `*>>`.
+- **Clip travel:** trust the Unity-import clip travel over the Blender reading (ShoulderCharge 3.12 → 3.32).
+- **Never `git stash` with the editor open:** it swaps files under Unity, and a regenerated `.pyc` blocks the pop.
 
 ## Preserved user-owned files
 
 Do not stage, remove, overwrite, or relocate:
 
 - `.claude/settings.local.json`
-- `Assets/Materials/M_Water.mat`
-- `Assets/Scenes/Level_01.unity`
 - `Assets/Resources/Audio/Radio/Level_01/FineArt & jazza's dance party - Eyes Wide Shut.mp3` and `.meta`
 - `Portraits/`
 - all `RouteShots/` files and directories
-- `output/` (untracked, unexplained on 2026-09-13; leave it)
-- `Tools/dashboard/__pycache__/build_dashboard.cpython-312.pyc` (build artefact, modified; do not commit)
+- `output/` (untracked)
+- `Tools/dashboard/__pycache__/build_dashboard.cpython-312.pyc` (build artefact; do not commit)
