@@ -125,6 +125,15 @@ namespace VibeGame1
                  "clamp the contact frame no longer lines up with the blow, which is an ART bug — so it " +
                  "is logged rather than hidden.")]
         public float minClipSpeed = 0.4f;
+
+        [Header("Locomotion (2026-09-13 fluidity pass)")]
+        [Tooltip("Metres per second the Walk clip's stride covers at rate 1, measured on the imported clip by " +
+                 "MiniBossFactory. 0 = not measured: the clip plays at its authored rate.")]
+        public float walkStrideSpeed = 0f;
+        [Tooltip("Metres per second the Run clip's stride covers at rate 1. 0 = authored rate.")]
+        public float runStrideSpeed = 0f;
+        [Tooltip("Footfall dust ring colour. Alpha 0 = no dust (the default for every older body).")]
+        public Color footstepDust = new Color(0f, 0f, 0f, 0f);
         public float maxClipSpeed = 3.5f;
 
         [Tooltip("Crossfade into a clip, in seconds. Short: a deflect must read as an instant jar.")]
@@ -539,6 +548,7 @@ namespace VibeGame1
 
             animator.speed = speed;
             animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
+            softHold = false;
             // Own the Animator through the follow-through, so locomotion cannot stomp the swing; the
             // scale above lasts only until the contact frame (see Update), then the clip runs at its
             // authored rate.
@@ -553,6 +563,7 @@ namespace VibeGame1
             animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
             clipHold = Time.time + (hold > 0f ? hold : 0.35f);
             attackImpactAt = float.MaxValue;   // a one-shot owns the speed; no impact switch pending
+            softHold = false;
         }
 
         /// <summary>
@@ -565,7 +576,24 @@ namespace VibeGame1
         {
             clipHold = until;
             attackImpactAt = float.MaxValue;
+            softHold = false;
         }
+
+        /// <summary>
+        /// Like <see cref="ReserveAnimatorUntil"/>, but for a non-combat presentation pose (a hit flinch, a
+        /// recovery guard) that must give way the moment the body actually travels. A held pose on a body the
+        /// brain is moving is exactly the "glides around not animating" the user reported.
+        /// </summary>
+        protected void ReserveAnimatorSoftly(float until)
+        {
+            clipHold = until;
+            attackImpactAt = float.MaxValue;
+            softHold = true;
+        }
+
+        bool softHold;
+        int locoState = -1;
+        float lastLocoNormalized;
 
         /// <summary>Move an in-flight attack clip's speed handoff onto the brain's actual impact clock.</summary>
         protected void ReanchorAnimatorImpact(float until)
@@ -580,6 +608,7 @@ namespace VibeGame1
             if (animator == null || animator.runtimeAnimatorController == null || string.IsNullOrEmpty(clip)) return;
             animator.speed = 1f;
             animator.CrossFadeInFixedTime(clip, clipBlend * 2f, 0, 0f);
+            locoState = clip == clipRun ? PuppetLocomotion.Run : clip == clipWalk ? PuppetLocomotion.Walk : PuppetLocomotion.Idle;
         }
 
         // ---------------------------------------------------------------- travelling clips
@@ -681,13 +710,57 @@ namespace VibeGame1
                 animator.speed = Mathf.Max(0.05f, recoverySpeed);
             }
 
+            // A soft (presentation-only) hold gives way the moment the brain moves the body.
+            if (softHold && Time.time < clipHold && locoSpeed > 0.8f)
+            {
+                clipHold = 0f;
+                softHold = false;
+            }
+
             if (Time.time >= clipHold && !spinHalted && animator != null &&
                 animator.runtimeAnimatorController != null)
             {
-                string want = locoSpeed > 2.6f ? clipRun : locoSpeed > 0.35f ? clipWalk : clipIdle;
+                softHold = false;
+                int current = locoState < 0 ? PuppetLocomotion.Idle : locoState;
+                int next = PuppetLocomotion.Choose(locoSpeed, current);
+                string want = next == PuppetLocomotion.Run ? clipRun : next == PuppetLocomotion.Walk ? clipWalk : clipIdle;
                 var st = animator.GetCurrentAnimatorStateInfo(0);
-                if (!st.IsName(want)) PlayLoop(want);
-                else animator.speed = 1f;
+                // "Already playing" includes a crossfade already heading there. Checking only the CURRENT
+                // state re-issued the crossfade every frame of the blend with a start time of 0, which pinned
+                // Walk/Run on its first frame while the body slid along: the frozen glide (2026-09-13).
+                bool playing = st.IsName(want) ||
+                               (animator.IsInTransition(0) && animator.GetNextAnimatorStateInfo(0).IsName(want));
+                bool moving = next != PuppetLocomotion.Idle;
+                float stride = next == PuppetLocomotion.Run ? runStrideSpeed : walkStrideSpeed;
+                float rate = moving ? PuppetLocomotion.Rate(locoSpeed, stride) : 1f;
+
+                if (!playing)
+                {
+                    bool wasMoving = st.IsName(clipWalk) || st.IsName(clipRun);
+                    if (moving && wasMoving)
+                    {
+                        // Walk <-> Run keeps the stride phase so the feet do not restart mid-step.
+                        float phase = Mathf.Repeat(st.normalizedTime, 1f);
+                        animator.CrossFade(want, 0.2f, 0, phase);
+                    }
+                    else
+                    {
+                        // Starts and stops blend longer than a gait change: the body settles, it does not snap.
+                        animator.CrossFadeInFixedTime(want, clipBlend * 2.5f, 0, 0f);
+                    }
+                    locoState = next;
+                    lastLocoNormalized = 0f;
+                }
+                animator.speed = rate;
+
+                if (moving && footstepDust.a > 0.001f && playing && st.IsName(want))
+                {
+                    float n = st.normalizedTime;
+                    if (PuppetLocomotion.CrossedFootfall(lastLocoNormalized, n))
+                        SlashFx.Ring(transform.root.position + Vector3.up * 0.05f, Vector3.up, footstepDust,
+                                     next == PuppetLocomotion.Run ? 0.75f : 0.5f, 0.28f);
+                    lastLocoNormalized = n;
+                }
             }
         }
     }

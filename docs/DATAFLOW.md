@@ -1234,6 +1234,20 @@ Assets/Enemies/PaleMarionette.fbx  +  PaleMarionette.clips.json   (committed sou
              base lean/lunge      the whirl    the clips
 ```
 
+Locomotion loop (2026-09-13 fluidity pass), every frame once `clipHold` has expired:
+
+```
+PuppetVisuals.Update
+   locoSpeed = smoothed root travel / dt
+   soft hold (ReserveAnimatorSoftly: Hit flinch, V18 recovery guard) → released when locoSpeed > 0.8
+   next = PuppetLocomotion.Choose(locoSpeed, locoState)   Run in > 2.9 / out < 2.3, Walk in > 0.45 / out < 0.25
+   playing = current state == next OR a transition already heading to next   ← no per-frame restart (the "frozen glide")
+   !playing → Walk<->Run: CrossFade keeping stride phase; to/from Idle: longer fixed blend
+   Animator.speed = PuppetLocomotion.Rate(locoSpeed, walk/runStrideSpeed)  clamp 0.6-1.6
+        stride speeds baked by MiniBossFactory.StrideSpeed from the IMPORTED clip's Hips travel
+   footstepDust.a > 0 → SlashFx.Ring at each 0 / 0.5 footfall (V18, Cinder Judge only)
+```
+
 Per-attack flow, on top of the ordinary Windup/Strike map above:
 
 ```

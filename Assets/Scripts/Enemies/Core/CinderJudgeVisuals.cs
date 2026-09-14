@@ -323,7 +323,7 @@ namespace VibeGame1
             CancelSpecialPresentation(false);
             base.HitFlash();
             PlayPresentationClip(clipHit, 1f);
-            ReserveAnimatorUntil(Time.time + Mathf.Max(0.05f, hitHoldSeconds));
+            ReserveAnimatorSoftly(Time.time + Mathf.Max(0.05f, hitHoldSeconds));   // gives way to travel
         }
 
         public override void Settle(float seconds)

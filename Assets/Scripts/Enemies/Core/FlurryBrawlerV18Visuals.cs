@@ -277,7 +277,8 @@ namespace VibeGame1
             CancelSpecialPresentation(false);
             base.HitFlash();
             PlayPresentationClip(clipHit, 1f);
-            ReserveAnimatorUntil(Time.time + Mathf.Max(0.05f, hitHoldSeconds));
+            // Soft: a flinch gives way the moment the brain moves the body (no gliding in the Hit pose).
+            ReserveAnimatorSoftly(Time.time + Mathf.Max(0.05f, hitHoldSeconds));
         }
 
         public override void Settle(float seconds)
@@ -294,7 +295,9 @@ namespace VibeGame1
             }
 
             PlayPresentationClip(blockClip, 1f);
-            ReserveAnimatorUntil(Time.time + Mathf.Max(0.12f, seconds));
+            // Soft and capped: recovery repositions the body, and a guard pose held while it steps was the
+            // other half of the glide the user reported (2026-09-13).
+            ReserveAnimatorSoftly(Time.time + Mathf.Clamp(seconds, 0.12f, 0.6f));
         }
 
         public override void Slump(bool on)

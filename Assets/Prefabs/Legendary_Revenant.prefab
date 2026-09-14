@@ -1430,6 +1430,9 @@ MonoBehaviour:
   - 0.55
   - 0.55
   minClipSpeed: 0.4
+  walkStrideSpeed: 0
+  runStrideSpeed: 0
+  footstepDust: {r: 0, g: 0, b: 0, a: 0}
   maxClipSpeed: 3.5
   clipBlend: 0.07
   recoverySpeed: 1

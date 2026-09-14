@@ -889,6 +889,17 @@ namespace VibeGame1.EditorTools
             pv.kickClipLength = PuppetAnimatorFactory.ClipLength(fbx, pv.clipKick, 1f);
             pv.kickHitNormalized = ForgeClipSplitter.ReadHitNormalizedTime(fbx, pv.clipKick, 0.55f);
 
+            // ---- locomotion stride speeds (2026-09-13 fluidity pass, rule 9) ---------------------
+            // Measured on the IMPORTED clip (the sidecar under-reports travel on these rigs), so the
+            // Walk/Run playback rate can match the body's real speed instead of sliding the feet.
+            pv.walkStrideSpeed = StrideSpeed(fbx, pv.clipWalk);
+            pv.runStrideSpeed = StrideSpeed(fbx, pv.clipRun);
+            // Footfall dust only on the two forge bodies the user asked to feel more alive; every older
+            // mini-boss keeps alpha 0 (no dust) so its look is unchanged.
+            pv.footstepDust = name == FlurryBrawlerV18Authoring.EnemyName ? new Color(0.55f, 0.5f, 0.45f, 0.35f)
+                            : name == CinderJudgeAuthoring.EnemyName ? new Color(0.9f, 0.45f, 0.18f, 0.35f)
+                            : new Color(0f, 0f, 0f, 0f);
+
             // ---- the NAMED clip table: every attack clip the model ships -------------------------
             // An EnemyAttackData may name its clip outright (EnemyAttackData.clip) -- the only way a
             // GENERATED, per-character clip is ever reached, since the pipeline mapping only knows
@@ -1022,6 +1033,38 @@ namespace VibeGame1.EditorTools
         /// attack table is the one PuppetVisuals bakes, so the strip's window is keyed to the SAME contact
         /// frame the blow is timed to. Rule 9: every number written here.
         /// </summary>
+        /// <summary>
+        /// Metres per second a looping gait clip's Hips cover at rate 1, sampled on the imported FBX (first
+        /// frame to last, horizontal). 0 when the clip is missing, has no Hips, or does not travel — the
+        /// puppet then keeps the authored rate.
+        /// </summary>
+        static float StrideSpeed(string fbxPath, string clipName)
+        {
+            if (string.IsNullOrEmpty(clipName)) return 0f;
+            AnimationClip clip = null;
+            foreach (var o in AssetDatabase.LoadAllAssetsAtPath(fbxPath))
+            {
+                var c = o as AnimationClip;
+                if (c != null && c.name == clipName) { clip = c; break; }
+            }
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+            if (clip == null || src == null || clip.length <= 0.01f) return 0f;
+            var go = (GameObject)Object.Instantiate(src);
+            try
+            {
+                Transform hips = null;
+                foreach (var t in go.GetComponentsInChildren<Transform>(true)) if (t.name == "Hips") { hips = t; break; }
+                if (hips == null) return 0f;
+                clip.SampleAnimation(go, 0f);
+                Vector3 a = go.transform.InverseTransformPoint(hips.position);
+                clip.SampleAnimation(go, clip.length);
+                Vector3 b = go.transform.InverseTransformPoint(hips.position);
+                float travel = new Vector2(b.x - a.x, b.z - a.z).magnitude;
+                return travel < 0.05f ? 0f : travel / clip.length;
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
         static void WireBladeTrail(PuppetVisuals pv, ModelSpec spec, Transform modelRoot, string name, EnemyData data)
         {
             Transform hand = null;
