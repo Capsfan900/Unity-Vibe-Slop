@@ -1,0 +1,41 @@
+Orbit Dancer sandbox elite body
+
+Source directory (read-only during integration):
+C:/Users/tyler/Main Storage/ai_skelly_tool/output/orbit_dancer_v1
+
+Copied source files:
+- orbit_dancer_v1.mv.fbx -> OrbitDancer.fbx
+  SHA-256 0BCBFF4DA184221F2B588772BAFA0AD314D19DF0A1E6C89A612A2C9792E28D70
+- orbit_dancer_v1.mv.albedo.png -> OrbitDancer_albedo.png
+  SHA-256 684F747EB141F820037D5CAE47D37F282AE40AF01E8CB3B6B0682F8E5D4FEDCD
+- view_front.png -> OrbitDancer_source.png
+  SHA-256 582E39A88484274813BF74A6D1D62902E1899AACB2FE3ECFF3CADD5A686EAC1A
+
+The source orbit_dancer_v1.mv.clips.json (21 states) has SHA-256
+5439F60430873743C847BDAB22A68DBD3CC7C51A2B78A567BAC19B07AB622430.
+OrbitDancer.clips.json is deliberately filtered to the approved 17-state project allowlist
+(the user's move list, the Hit and Death reactions PuppetVisuals requires, and the two
+signature throws DiscThrow and SpinThrow); it is not a byte-for-byte copy of that source
+manifest. IdleCombat, AttackOverhead, Block and Spawn are provenance, not permission to
+import another take.
+
+Forge build (prompts.json): seed 41, motion_seed 0, describe "a compact lithe acrobatic
+vicious masked duelist, obsidian cropped jacket, teal seams, bare arms, ring bracers, fitted
+trousers, bare feet". Jab2 / ShoulderCharge / HeavyAttack / ComboFinisher are the shared
+kit's own specs (motion_sources.json); DiscThrow "a person throws a frisbee with their right
+hand" (contact 0.478, right wrist); SpinThrow "a person spins around once and swings their
+right arm outward in a wide circle" (contact 0.474, right wrist).
+
+Measured in Blender on this exact FBX (Tools/measure_forge_fbx.py, Unity axes), 2026-09-13:
+bounds x -0.52..0.52, y 0.00..1.95, z -0.46..0.61; feet zmean +0.18, head +0.34, crown +0.36
+(faces +Z); Hips (0,1.06,0.15), Chest (0,1.40,0.16), Head (0,1.76,0.17),
+RightUpperArm (0.15,1.63,0.15), RightHand (0.35,0.84,0.18). The skeleton sits 0.15 m AHEAD
+of the drawing plane on this body (every other forge rig put it on z = 0); the chest band's
+mass is at zmean +0.34, so the mesh is shifted -0.18 under the collider.
+Clip Hips travel: Walk 2.16 m, Run 2.20 m, ShoulderCharge dx -0.42 dz +3.09 (3.12 m, sidecar 2.675),
+HeavyAttack dx +1.14 dz +0.75 (1.36 m, sidecar 1.104), Jab2 dx -0.28 dz -0.10, ComboFinisher 0.09 m,
+DiscThrow dx +0.44 dz -0.46 (0.64 m, a step BACK and right; forward component negative),
+SpinThrow 0.03 m (root.motion false).
+The four shared clips measure identically to the Cinder Judge's (same motion arrays, same rig
+height), so the Unity-import travel is expected to repeat the Judge's 3.32 m on ShoulderCharge
+and 0.75 m forward on HeavyAttack; EveryLungeIsTheClipsOwnForwardTravel is the confirmation.

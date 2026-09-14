@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_OrbitDancer_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Orbit Dancer
+  entries:
+  - label: jab-two, swing, FINISHER (the combo)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 9c0b40b2ead159d439daf63ba32b46c3, type: 2}
+      - {fileID: 11400000, guid: f636b6a095caf394ea1501694099174b, type: 2}
+      - {fileID: 11400000, guid: 3bad5c0e61de02a4896e520e1370f371, type: 2}
+    weight: 2.4
+    minRange: 0
+    maxRange: 3.3
+    cooldown: 0
+  - label: stab
+    combo:
+      hits:
+      - {fileID: 11400000, guid: a18f37728e2a984419c1680d7e719b6d, type: 2}
+    weight: 1.4
+    minRange: 0
+    maxRange: 3.3
+    cooldown: 0
+  - label: jab-two into SPIN THROW (whirl, then BLOCK the discs)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 9c0b40b2ead159d439daf63ba32b46c3, type: 2}
+      - {fileID: 11400000, guid: 53bb0ed84075a3649887606cef89e865, type: 2}
+    weight: 1.6
+    minRange: 0
+    maxRange: 3.2
+    cooldown: 7
+  - label: KICK anti-turtle
+    combo:
+      hits:
+      - {fileID: 11400000, guid: db05d3a983c9c7e41914d94f13298865, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 2.9
+    cooldown: 5
+  - label: HEAVY tempo break
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 45347dfd51604464d801ca55233264e0, type: 2}
+    weight: 1
+    minRange: 0
+    maxRange: 3.5
+    cooldown: 8
+  - label: SHOULDER CHARGE far close
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 5b0b5035236f7df4f8fa735809b00b93, type: 2}
+    weight: 2.2
+    minRange: 4.4
+    maxRange: 6.5
+    cooldown: 7
+  - label: ORBIT STORM (three ricochet discs)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 24334078c32e15a45b8922554ddeb606, type: 2}
+    weight: 2
+    minRange: 4.5
+    maxRange: 12
+    cooldown: 6
+  - label: SPIN THROW (close whirl, two banked discs)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 53bb0ed84075a3649887606cef89e865, type: 2}
+    weight: 1
+    minRange: 0
+    maxRange: 3.2
+    cooldown: 8

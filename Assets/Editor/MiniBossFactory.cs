@@ -81,6 +81,12 @@ namespace VibeGame1.EditorTools
             BuildMiniBoss(CinderJudgeAuthoring.EnemyName,
                 EnemyDataDir + "/" + CinderJudgeAuthoring.EnemyName + ".asset",
                 Silhouette.CinderJudge);
+            // ADDITIVE SANDBOX ELITE (2026-09-13). The Orbit Dancer: V18's method on the orbit_dancer_v1
+            // forge body, plus ORBIT STORM, ricochet discs. Movement park for now; the boss-roster plan's
+            // Stage 5 places her as the T3 realm boss. See DataFactory, THE ORBIT DANCER.
+            BuildMiniBoss(OrbitDancerAuthoring.EnemyName,
+                EnemyDataDir + "/" + OrbitDancerAuthoring.EnemyName + ".asset",
+                Silhouette.OrbitDancer);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -92,10 +98,10 @@ namespace VibeGame1.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
-            Debug.Log("[MiniBossFactory] Built 10 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 11 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18, CinderJudge }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18, CinderJudge, OrbitDancer }
 
         // ------------------------------------------------------------------ the rig
 
@@ -150,6 +156,8 @@ namespace VibeGame1.EditorTools
                 visuals = visual.AddComponent<FlurryBrawlerV18Visuals>();
             else if (shape == Silhouette.CinderJudge)
                 visuals = visual.AddComponent<CinderJudgeVisuals>();
+            else if (shape == Silhouette.OrbitDancer)
+                visuals = visual.AddComponent<OrbitDancerVisuals>();
             else if (animated)
                 visuals = visual.AddComponent<PuppetVisuals>();
             else
@@ -309,6 +317,104 @@ namespace VibeGame1.EditorTools
                 storm.radius = 3.6f;
                 storm.height = 4.5f;
                 storm.floorSlack = 0.6f;
+            }
+
+            if (visuals is OrbitDancerVisuals od)
+            {
+                // Rule 9: every presentation-profile value is rebuilt onto the prefab.
+                od.discThrowAttack = OrbitDancerAuthoring.DiscThrowAttackName;
+                od.spinThrowAttack = OrbitDancerAuthoring.SpinThrowAttackName;
+                od.shoulderChargeAttack = "OrbitDancer_ShoulderCharge";
+                od.shoulderChargeClip = "ShoulderCharge";
+                od.entranceClip = "SpinThrow";
+                od.entranceProbeDelay = 0.12f;
+                od.entranceHoldSeconds = 0.65f;   // SpinThrow is 0.68 s at 1x
+                od.hitHoldSeconds = 0.35f;        // the fluidity pass's cap on a held pose
+                od.chargeSparkInterval = 0.10f;
+                // RightHand measured at (0.35, 0.84, 0.18) at rest; the wind-back carries it up and out.
+                od.chargeHandOffset = new Vector3(0.38f, 1.25f, 0.25f);
+
+                // ---- OrbitRoot: the satellites, the ONE transform this class writes ----------------
+                // A child of LungeRoot (so the ring rides the lean and the lunge with the body) and a
+                // sibling of SpinRoot, so it never shares a channel with the whirl or TravelRoot. Three
+                // small discs on a 0.85 m ring at chest height: at 24 m she is the one with moving
+                // satellites, and a throw visibly spends one (VisibleSatellites).
+                od.satelliteCount = 3;
+                od.orbitRadius = 0.85f;
+                od.orbitHeight = 1.25f;
+                // 140 deg/s = one lap every 2.6 s: unmistakably moving, far under any tell's tempo
+                // (ANIMATION-VFX: idle motion stays below tell amplitude).
+                od.orbitDegPerSec = 140f;
+                od.orbitBobMetres = 0.07f;
+                od.orbitBobHz = 0.7f;
+                od.satellitesFollowThrownDiscs = true;
+                var orbitRoot = new GameObject("OrbitRoot");
+                orbitRoot.transform.SetParent(lungeRoot.transform, false);
+                orbitRoot.transform.localPosition = new Vector3(0f, od.orbitHeight, 0f);
+                orbitRoot.transform.localRotation = Quaternion.identity;
+                od.orbitRoot = orbitRoot.transform;
+                // M_NeonCyan: an existing ice-cyan emissive at 1.0 peak -- under the 1.05 bloom threshold,
+                // so the satellites locate her without ever out-shouting a cue. No new material.
+                var satMat = Mat("M_NeonCyan");
+                for (int i = 0; i < od.satelliteCount; i++)
+                {
+                    Vector3 local = OrbitDancerVisuals.SatelliteLocal(i, od.satelliteCount, 0f, od.orbitRadius, 0f, 1f, 0f);
+                    var sat = Prim(PrimitiveType.Cylinder, "Satellite" + (i + 1), orbitRoot.transform, local,
+                                   new Vector3(0.26f, 0.006f, 0.26f), satMat);
+                    var sr = sat.GetComponent<Renderer>();
+                    sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    sr.receiveShadows = false;
+                }
+
+                // Teal seams: the Judge's aura numbers in teal, written on THIS component because it is
+                // the aura's only writer here. Rest 0.16 (a hair under the Judge's 0.18: the albedo's
+                // seams are already teal), 0.45 at the break, 0.55 through a throw's wind-up -- under the
+                // 0.60 EmberAura documents as the ceiling before the parry read suffers.
+                od.tealHot = new Color(0.30f, 1.0f, 0.92f, 1f) * 1.4f;
+                od.glowAtRest = 0.16f;
+                od.glowAtBreak = 0.45f;
+                od.throwGlow = 0.55f;
+                od.pulseSpeed = 2.2f;
+                od.pulseAmount = 0.12f;
+
+                // ---- the launcher, on the ROOT beside the brain ---------------------------------
+                var discs = root.AddComponent<OrbitDancerDiscs>();
+                discs.discThrowAttack = OrbitDancerAuthoring.DiscThrowAttackName;
+                discs.spinThrowAttack = OrbitDancerAuthoring.SpinThrowAttackName;
+                // 3 a volley: one straight, one banked each side. 2 on the whirl: both banked, because
+                // you are already inside her reach. Not 4-5: the global cap below would swallow the
+                // second volley, and three lines from three sides is the most a first-person frame reads.
+                discs.volleyCount = 3;
+                discs.whirlCount = 2;
+                // 4 alive, any thrower (the plan's number): a volley plus one straggler; a second throw
+                // inside the first's 4 s life launches only what fits, so the screen never fills.
+                discs.liveCap = 4;
+                // 3 walls, then it shatters: enough for a corridor to skip a disc back twice, few enough
+                // that a disc never becomes furniture.
+                discs.maxBounces = 3;
+                // 4 s at 16 m/s is 64 m of travel: three bounces across a 30 m realm fit, a disc that
+                // found no wall is gone before the next volley (6 s cooldown).
+                discs.discLifetime = 4f;
+                // 900 deg/s = 2.5 rev/s = 15 deg a frame at 60 fps: visibly a spinning disc, never a strobe.
+                discs.spinDegPerSec = 900f;
+                // 0.60 m across: reads as a disc (not a dot) at 12 m; the logical hit radius is still
+                // Projectile's 1.0 m, so the visual never advertises a bigger collision than the truth.
+                discs.discDiameter = 0.60f;
+                // The sentries' rule: no flight shorter than CueLead + 0.12 s.
+                discs.launchMargin = 0.12f;
+                discs.fanDeg = 30f;
+                // 20 m: a realm is 30 m across and its walls stand at ~30 m radius from the centre; a
+                // wall the disc could not reach in 1.25 s is not a bank, it is a miss.
+                discs.bankRange = 20f;
+                discs.bankProbeDeg = new[] { 40f, 65f, 90f };
+                discs.maxBankIncidenceY = 0.35f;
+                discs.muzzleBone = "RightHand";
+                discs.muzzleFallbackHeight = 1.1f;
+                discs.pingVolume = 0.55f;
+                discs.pingRange = 24f;
+                // The rim: teal at a 1.25 peak. Over the 1.05 bloom threshold so the disc has an edge of
+                // light in a dark realm; under the sentry bolt's 1.6, which stays the brightest thing.
+                discs.rimColor = new Color(0.36f, 1.25f, 1.15f, 1f);
             }
 
             // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
@@ -709,6 +815,57 @@ namespace VibeGame1.EditorTools
                         spinPrefix = ""
                     };
 
+                case Silhouette.OrbitDancer:
+                    return new ModelSpec
+                    {
+                        fbx = "OrbitDancer.fbx",
+                        // MEASURED in Blender on the exact source named in OrbitDancer.provenance.txt
+                        // (Tools/measure_forge_fbx.py, Unity axes): bounds x -0.52..0.52, y 0.00..1.95,
+                        // z -0.46..0.61. Feet on the origin, so no lift. Faces +Z: feet zmean +0.18,
+                        // head +0.34, crown +0.36; the only thing behind the plane is a 7-vertex shard.
+                        yLift = 0f,
+                        yaw = 0f,
+                        // UNLIKE every other forge rig, this skeleton sits 0.15 m AHEAD of the drawing
+                        // plane (Hips (0,1.06,0.15), Chest (0,1.40,0.16)) and the chest band's mass at
+                        // zmean +0.34. -0.18 puts the hips just behind the capsule's centre line and the
+                        // chest 0.16 ahead of it -- the same relation V18 (-0.12) and the Judge (-0.09)
+                        // stand in. Eyeball it at 4b against the capsule gizmo before trusting it further.
+                        zShift = -0.18f,
+                        // Head bone (0, 1.76, 0.17); the head slice spans z 0.15..0.57, so the face is
+                        // 0.3 m ahead of the skull bone. The eye is the MASK's eye-line: a thin wide SLIT,
+                        // narrower and lower than the Judge's visor slot (0.26 x 0.08) -- the one-glance
+                        // difference between the two -- and EnemyVisuals drives it from Posture.Ratio
+                        // like every other eye. LOOK AT THIS ONE at 4b: a slit floating off the mask is
+                        // the likeliest placement bug on a face this far ahead of its bone.
+                        eyePos = new Vector3(0f, 1.79f, 0.46f),
+                        eyeSize = new Vector3(0.22f, 0.05f, 0.07f),
+                        eyeRound = false,
+                        // RightUpperArm (0.15, 1.63, 0.15), RightHand (0.35, 0.84, 0.18): handPos is
+                        // hand minus shoulder. The ring bracer hangs a little closer in than the Judge's
+                        // gauntlet (0.20 out against 0.24).
+                        armPos = new Vector3(0.15f, 1.63f, 0.15f),
+                        handPos = new Vector3(0.20f, -0.79f, 0.03f),
+                        // The palm, a hand's breadth ahead of the fingers along the throw: where the cue
+                        // sparks throw from and where the disc appears (OrbitDancerDiscs uses the bone).
+                        weaponFxPos = new Vector3(0.06f, 0.02f, 0.16f),
+                        // The CHEST bone (0, 1.40, 0.16), clear of the head at 1.76 and the slit at 1.79.
+                        markHeight = 1.40f,
+                        albedo = "OrbitDancer_albedo.png",
+                        // No blade trail: an unarmed body whose blade is the DISC, and half its contacts
+                        // are on the left wrist (Jab2, HeavyAttack, ComboFinisher).
+                        bladeTrail = false,
+                        note = "masked obsidian chakram duelist; 1.04 m across the bracers, 1.95 m tall, feet on origin, +Z facing, skeleton 0.15 m ahead of the plane",
+
+                        animated = true,
+                        attackClip = "AttackSwing",
+                        // The base kit has no overhead; the generated HeavyAttack is the heavy clip.
+                        heavyClip = "HeavyAttack",
+                        // No IdleCombat in the filtered manifest (the user's list says idle).
+                        idleClip = "Idle",
+                        spinClip = "",
+                        spinPrefix = ""
+                    };
+
                 case Silhouette.Halberdier:
                     return new ModelSpec
                     {
@@ -898,6 +1055,7 @@ namespace VibeGame1.EditorTools
             // mini-boss keeps alpha 0 (no dust) so its look is unchanged.
             pv.footstepDust = name == FlurryBrawlerV18Authoring.EnemyName ? new Color(0.55f, 0.5f, 0.45f, 0.35f)
                             : name == CinderJudgeAuthoring.EnemyName ? new Color(0.9f, 0.45f, 0.18f, 0.35f)
+                            : name == OrbitDancerAuthoring.EnemyName ? new Color(0.35f, 0.75f, 0.7f, 0.30f)   // bare feet: a lighter teal puff
                             : new Color(0f, 0f, 0f, 0f);
 
             // ---- the NAMED clip table: every attack clip the model ships -------------------------
@@ -979,6 +1137,14 @@ namespace VibeGame1.EditorTools
                 if (!names.SetEquals(allowed))
                     Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
                         CinderJudgeAuthoring.ClipAllowlist.Length + " clips. Expected: " +
+                        string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
+            }
+            else if (name == OrbitDancerAuthoring.EnemyName)
+            {
+                var allowed = new System.Collections.Generic.HashSet<string>(OrbitDancerAuthoring.ClipAllowlist);
+                if (!names.SetEquals(allowed))
+                    Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
+                        OrbitDancerAuthoring.ClipAllowlist.Length + " clips. Expected: " +
                         string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
             }
 

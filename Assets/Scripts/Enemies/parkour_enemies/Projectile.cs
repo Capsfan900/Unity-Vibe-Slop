@@ -118,6 +118,10 @@ namespace VibeGame1
         /// has no bounded contact; burst owners use this without inspecting the player's parry state.
         /// </summary>
         public float PredictedContactAt { get; private set; }
+        /// <summary>Unit direction of the current flight. Read-only observability; a ricochet reads it to reflect.</summary>
+        public Vector3 Direction { get { return dir; } }
+        /// <summary>Current speed, metres per second. Read-only observability.</summary>
+        public float Speed { get { return speed; } }
 
         /// <summary>Set once by the shooter. Direction begins toward the led target and the logical root then
         /// turns only through the existing capped homing. The visible child may weave before the cue.</summary>
@@ -317,7 +321,9 @@ namespace VibeGame1
                     // movement. If that changed curve reaches solid level geometry, the wall owns the
                     // contact; a bolt may not continue through it and damage the player out of sight.
                     transform.position = worldHit.point;
-                    Spend();
+                    // 2026-09-13 (Orbit Dancer): a subclass may TAKE the contact and keep flying
+                    // (BouncingDisc ricochets off it). The default is unchanged for every sentry bolt.
+                    if (!OnWorldContact(worldHit)) Spend();
                     return;
                 }
                 float remaining;
@@ -467,6 +473,43 @@ namespace VibeGame1
             PredictedContactAt = float.MaxValue;
             BoltRegistry.Clear(boltId);
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// The INCOMING bolt has reached solid level geometry (the segment it flew this frame crossed a
+        /// collider on the world mask) and now sits on the contact point. Return true to keep it alive --
+        /// the override must have put it on a new line with <see cref="Redirect"/> -- or false to let it
+        /// spend on the wall as every sentry bolt does. Never called for a reflected bolt: the return
+        /// flight flies through anything, as it always has. Added 2026-09-13 for the Orbit Dancer's
+        /// <c>BouncingDisc</c>; the base behaviour is the default and nothing else overrides it.
+        /// </summary>
+        protected virtual bool OnWorldContact(RaycastHit hit) { return false; }
+
+        /// <summary>
+        /// Put an incoming bolt on a new line from a new point and RE-ARM its cue: the next approach to
+        /// the player fires <c>Sfx.ParryCue</c> and the flare again at <see cref="CueLead"/>; the flare
+        /// scale and the white-hot core are undone; the streak restarts at the new point so it never
+        /// draws through the wall. Age, identity, shooter and target are untouched: one bolt, one life,
+        /// one <see cref="maxLife"/>.
+        /// </summary>
+        protected void Redirect(Vector3 position, Vector3 direction)
+        {
+            transform.position = position;
+            if (direction.sqrMagnitude > 1e-6f) dir = direction.normalized;
+            cued = false;
+            cueAt = -1f;
+            PredictedContactAt = float.MaxValue;
+            // Still incoming, forecast unknown until the next frame: the fairness machinery sees no
+            // stale pre-bounce impact time in the meantime.
+            BoltRegistry.Report(boltId, float.MaxValue, float.MaxValue);
+            if (visual != null)
+            {
+                if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
+                visual.localScale = baseScale;
+            }
+            if (core != null && mpb != null) { mpb.Clear(); core.SetPropertyBlock(mpb); }   // the material's own colour again
+            ResetTrail();
+            RefreshTargetHistory();
         }
 
         void OnDestroy() { if (!reflected) ResolveIncoming(ParryResult.None); BoltRegistry.Clear(boltId); }

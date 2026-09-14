@@ -1415,6 +1415,33 @@ Anything that leaves Strike early (HandleBroken → Staggered, Die, execute)
   follows the body into the air. The aura (`SetAura`) has one writer: this class — there is no
   `EmberAura` on the prefab.
 
+#### Orbit Dancer — Orbit Storm: one schedule, three ricochet discs, each a Projectile
+
+```
+DataFactory.CreateAll
+   → Legendary_OrbitDancer EnemyData (shootsProjectiles FALSE, projectileAttack = OrbitDancer_Disc 12,
+     projectileSpeed 16, homing 0, lead 0.6, parriedProjectileDamage 20 / Posture 26, parrySpeedGain 2.5)
+   → OrbitDancer_DiscThrow: windup 0.70, range 0 / cone 0 / damage 0 (the brain's DoImpact never lands it)
+   → OrbitDancer_SpinThrow: 0.60, range 2.6, cone 360, 18 (+2 banked discs)
+4a. ForgeClipSplitter → OrbitDancer.fbx: 17 Generic clips
+4b. MiniBossFactory  → prefab: EnemyController + OrbitDancerDiscs (root), Visual/OrbitDancerVisuals,
+                       LungeRoot ─ { OrbitRoot(3 satellites), SpinRoot ─ TravelRoot ─ Model }
+7.  SandboxBuilder   → pad/spawner/wake switch at OrbitDancerPadPosition (46, 22.5)
+
+EnemyController.BeginWindup(DiscThrow) → tell 0.70 s (hand crackle, aura up, FireCue at impact − 0.28)
+OrbitDancerDiscs.Update → armed on the first Strike frame; at NextImpactTime:
+   count = LaunchCount(3, BouncingDisc.LiveCount, cap 4)
+   slot 0 lead-targeted; slots 1/2 TryBank (probe 40/65/90°, ≤ 20 m, wall |n.y| ≤ 0.35 → mirror chest) else fan ±30°
+   speed = ProjectileMath.LaunchSpeed(path, 16, CueLead, 0.12) → BouncingDisc.Fire(ctrl, data, …)
+BouncingDisc (= Projectile.Update): swept contact / forecast / cue 0.28 s as any bolt
+   world contact → Projectile.OnWorldContact (virtual; default spend = every sentry unchanged)
+        → BouncingDisc: CanBounce(n, 3) ? Redirect(point + n·0.03, Ricochet(dir, n)) — re-cues : shatter
+   arrival → Projectile.Arrive → PlayerCombat.ReceiveAttack (Block / Hit 12 / Perfect → reflect,
+        return lands Health −20 / Posture +26 on the Dancer)
+Dancer dead/Staggered → incoming discs destroyed (reflected keep flying); PlayerRespawned → all destroyed;
+maxLife 4 s caps everything.
+```
+
 #### The blade trail — `EnemyWeaponTrail`
 
 ```

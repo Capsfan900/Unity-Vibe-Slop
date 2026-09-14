@@ -61,7 +61,7 @@ namespace VibeGame1
             { "Legendary_Drillmaster", "Drillmaster" }, { "Legendary_Halberdier", "Halberdier" },
             { "Legendary_Marionette", "Marionette" }, { "Legendary_Revenant", "Revenant" },
             { "Legendary_FlurryBrawler", "FlurryBrawler" }, { "Legendary_FlurryBrawlerV18", "FlurryBrawlerV18" },
-            { "Legendary_CinderJudge", "CinderJudge" }
+            { "Legendary_CinderJudge", "CinderJudge" }, { "Legendary_OrbitDancer", "OrbitDancer" }
         };
 
         public static IEnumerable<LevelObjectRecord> Enumerate(LevelDefinition level)

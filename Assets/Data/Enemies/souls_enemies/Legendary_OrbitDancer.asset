@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
+  m_Name: Legendary_OrbitDancer
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
+  displayName: THE ORBIT DANCER
+  maxHP: 170
+  maxPosture: 150
+  postureRegen: 6
+  postureRegenDelay: 3
+  staggerSeconds: 3
+  usesPosture: 1
+  isTurret: 0
+  moveSpeed: 5.4
+  turnSpeed: 380
+  aggroRange: 18
+  attackRange: 2.1
+  attackCooldown: 0.22
+  parryRecoilSeconds: 0.26
+  aggression: 0.78
+  flaskPunishChance: 0.7
+  windupTurnMultiplier: 0.3
+  stepSpeedMultiplier: 0.62
+  stepAcceleration: 9
+  stepDeadzone: 0.9
+  comboBreathSeconds: 0.32
+  readyDistanceMultiplier: 1.5
+  preferredRange: 2.2
+  commitTolerance: 0.3
+  repositionDeadzone: 0.4
+  backStepSpeedMultiplier: 0.4
+  strafeSpeedMultiplier: 0.55
+  lungeMinDistance: 0.9
+  shootsProjectiles: 0
+  rangedOnly: 0
+  projectileAttack: {fileID: 11400000, guid: 0121546f6c0d6554c9a0840e0487111e, type: 2}
+  projectileInterval: 6
+  projectileBurstCount: 1
+  projectileBurstInterval: 0.42
+  projectileAcquireDelay: 0.7
+  projectileSpeed: 16
+  projectileMinRange: 4.5
+  projectileMaxRange: 12
+  projectileLead: 0.6
+  projectileHomingDegPerSec: 0
+  projectileAllowTightRouteShots: 0
+  projectileIgnoreDepartureSupport: 0
+  parriedProjectileDamage: 20
+  parriedProjectilePosture: 26
+  parrySpeedGain: 2.5
+  projectileVisualScale: 1
+  projectileTrailScale: 0.6
+  projectileCueScale: 0.7
+  perfectBurstParriesToDestroy: 0
+  parrySurgeStep: 0
+  parrySurgeMaxStacks: 0
+  parrySurgeSeconds: 1.5
+  soulValue: 560
+  bodyColor: {r: 0.5568628, g: 0.5411765, b: 0.5803922, a: 1}
+  emission: {r: 0.2764706, g: 1.2529411, b: 1.1764706, a: 1.5}
+  scale: 1
+  moveset: {fileID: 11400000, guid: f9c07f0f8ad645443b172cdd6ca7aaf4, type: 2}
+  combos:
+  - hits:
+    - {fileID: 11400000, guid: 9c0b40b2ead159d439daf63ba32b46c3, type: 2}
+    - {fileID: 11400000, guid: f636b6a095caf394ea1501694099174b, type: 2}
+    - {fileID: 11400000, guid: 3bad5c0e61de02a4896e520e1370f371, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: a18f37728e2a984419c1680d7e719b6d, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 9c0b40b2ead159d439daf63ba32b46c3, type: 2}
+    - {fileID: 11400000, guid: 53bb0ed84075a3649887606cef89e865, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: db05d3a983c9c7e41914d94f13298865, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 45347dfd51604464d801ca55233264e0, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 5b0b5035236f7df4f8fa735809b00b93, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 24334078c32e15a45b8922554ddeb606, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: 53bb0ed84075a3649887606cef89e865, type: 2}

@@ -265,6 +265,7 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Legendary_FlurryBrawler` — *The Flurry Brawler* | `Legendary_FlurryBrawler` | `Legendary_FlurryBrawler_Moveset` | `EnemyController` | **PROTOTYPE, sandbox pad only (x −22, z −26, the second row).** The roster's first FLURRY enemy: UNARMED, and where the Halberdier is REACH and the Revenant is a READ, this one is a **LADDER** — strings of two punches, then four, then eight (`Burst2` → `Burst4` → `Burst8`), all on the same 0.73 s beat, each rung telling longer and paying a bigger punish window, and the top rung deflected clean **breaks the bar outright**. A 1.05 s rising `LOAD` announces the top rung; the hammerfist is the tempo break, the 150° clap is the answer to circling, the kick is the anti-turtle and a 1.55 m leap-in is the anti-kiter. Twelve attacks, twelve clips, every one named on the attack. **Imported ANIMATED body with GENERATED clips** (`Assets/Enemies/FlurryBrawler.fbx`, **v15, 32 clips**). See §2b. |
 | `Legendary_FlurryBrawlerV18` — *The Flurry Brawler V18 (TEST)* | `Legendary_FlurryBrawlerV18` | `Legendary_FlurryBrawlerV18_Moveset` | `EnemyController` + `FlurryBrawlerV18Visuals` | **ADDITIVE TEST, sandbox only; it does not replace v15.** A separate Souls melee enemy (`shootsProjectiles = false`, `rangedOnly = false`) with no boss or parkour-projectile components. Its filtered `FlurryBrawlerV18.fbx` library contains exactly 18 approved clips; Shoulder, Clap, Combo2, Jump and Block use V18-only presentation staging while every attack remains one data-scheduled `PlayerCombat.ReceiveAttack`. Separate pad/spawner/wake switch at `(112, 20)`. See §2b and DATAFLOW → *Flurry Brawler V18*. |
 | `Legendary_CinderJudge` — *The Cinder Judge* | `Legendary_CinderJudge` | `Legendary_CinderJudge_Moveset` | `EnemyController` + `CinderJudgeVisuals` + `CinderJudgeStorm` | **ADDITIVE SANDBOX ELITE, movement park only (pad `(136, 20)`); never in a level.** V18's method on a new forge body (blackened bronze, ember seams, yellow visor slot): the user's move list only — jab2, swing, combo finisher, stab, kick, heavy, shoulder charge, roar, jump — a beat slower and heavier than V18, with a red jab-into-shoulder chain. One signature, **STORM JUDGEMENT**: Roar charge, rise to 2.4 m, spin inside a lightning tornado for 3.2 s while a 3.6 m cylinder ticks 6 damage every 0.30 s through `PlayerCombat.ReceiveAttack` (unblockable — the answer is *leave*), then land into a 3.0 s recovery. See §2b → *Cinder Judge profile* and DATAFLOW → *Cinder Judge*. |
+| `Legendary_OrbitDancer` — *The Orbit Dancer* | `Legendary_OrbitDancer` | `Legendary_OrbitDancer_Moveset` | `EnemyController` + `OrbitDancerVisuals` + `OrbitDancerDiscs` | **ADDITIVE SANDBOX ELITE, movement park for now (pad `(46, 22.5)`, the north-west pocket above the water lane); the boss-roster plan's Stage 5 makes her the T3 realm boss.** V18's method on the `orbit_dancer_v1` forge body (obsidian, teal seams, a mask slit for an eye, three satellite discs orbiting her at rest): V18's base kit a shade faster and lighter than the Judge (170/150, 5.4 m/s, strafe 0.55), jab-two into a blue 360° SPIN THROW instead of the Judge's red chain, the Heavy on a long cooldown. One signature, **ORBIT STORM**: a 0.70 s wind-up with the disc spinning in the hand, then three `BouncingDisc`s (16 m/s, one straight, two BANKED off the nearest walls) that ricochet up to 3 times, re-cue 0.28 s before every approach, and resolve through `PlayerCombat.ReceiveAttack` as Block or Perfect — a Perfect reflects the disc into her for 20 health / 26 posture. The whirl's release banks two more. See §2b → *Orbit Dancer profile* and DATAFLOW → *Orbit Dancer*. |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
 
 ### 2a. Importing a forge model — and the one source-art exception
@@ -475,6 +476,46 @@ Regenerate in this order, out of play mode: **let the editor import the three ne
 `Assets/Enemies/` → 4a Split Forge Animation Clips → 3 Create Data → 4b Build Mini-Bosses → 7 Build
 Sandbox → Health Check**. The storm is the only thing on this body no other enemy has, and it still
 schedules through `EnemyController` — see DATAFLOW → *Cinder Judge — Storm Judgement*.
+
+#### Orbit Dancer profile — the V18 method, third body, first with a projectile of its own
+
+`Legendary_OrbitDancer` (2026-09-13) is the third body built exactly the V18 way. Its source of truth is:
+
+- `Assets/Editor/OrbitDancerAuthoring.cs`: the enemy name, the source hashes, the 17-clip allowlist and
+  the three attack names the components key on (`OrbitDancer_DiscThrow`, `OrbitDancer_SpinThrow`, and
+  `OrbitDancer_Disc`, the attack a DISC carries). No explicit contact profile: both throws ship their own
+  `OnAttackHit` (DiscThrow 0.478, SpinThrow 0.474, right wrist).
+- `OrbitDancer.clips.json`: exactly the Judge's 15 plus `DiscThrow` and `SpinThrow`. The 21-clip source
+  export is recorded in `OrbitDancer.provenance.txt` with the Blender measurements; on this rig the
+  skeleton sits 0.15 m AHEAD of the drawing plane (every earlier forge rig put it on z = 0), hence the
+  `zShift -0.18`.
+- `DataFactory`, *THE ORBIT DANCER*: the `EnemyData`, its moveset, `OrbitDancer_*` attacks, and — new for
+  a souls enemy — the projectile fields a `BouncingDisc` reads: `projectileAttack = OrbitDancer_Disc`
+  (12 a disc), `projectileSpeed 16`, `projectileHomingDegPerSec 0`, `projectileLead 0.6`,
+  `parriedProjectileDamage 20` / `parriedProjectilePosture 26`, `parrySpeedGain 2.5`. `shootsProjectiles`
+  stays **false**: she is a duel, not a sentry — no `ProjectileShooter`, no metronome, no perch wake.
+  The volley attack's brain contact is a deliberate no-op (`range 0, cone 0, damage 0`); the discs are
+  the attack.
+- `MiniBossFactory`: the measured `ModelSpec` (mask SLIT, thinner and lower than the Judge's visor slot),
+  the `OrbitDancerVisuals` profile, `OrbitRoot` (three `M_NeonCyan` satellites under `LungeRoot`, the one
+  transform that class writes), and the `OrbitDancerDiscs` launcher on the root with every disc number:
+  volley 3 / whirl 2, live cap 4, 3 bounces, 4 s life, 900°/s spin, 0.60 m disc, bank probes 40/65/90°
+  to 20 m, rim 1.25 peak.
+- `BouncingDisc : Projectile` (`Scripts/Enemies/Core/`) overrides the one hook added to the shared bolt
+  for it — `Projectile.OnWorldContact(RaycastHit)`, default false = spend on the wall as every sentry
+  bolt does — and calls `Projectile.Redirect(position, direction)` to reflect and RE-ARM the cue.
+  Every sentry is untouched by the hook.
+- `SandboxBuilder`: `OrbitDancerPadPosition` `(46, 22.5)` and `OrbitDancerWakeOffset` 7.0 m in the
+  yard's north-west pocket (north of the water lane, 11 m west of the long walls her discs bank off;
+  the east end past the Judge is off the floor or inside the tower's drop zone). Not yet in a
+  `LevelDefinition` or `LevelRegistry`; `OrbitDancerDataTests.NotYetInTheCampaign` holds that until
+  Stage 5 flips it to "is the T3 realm boss".
+
+Regenerate in this order, out of play mode: **let the editor import the four new files under
+`Assets/Enemies/` → 4a Split Forge Animation Clips → 3 Create Data → 4 Build Prefabs → 4b Build
+Mini-Bosses → 7 Build Sandbox → Health Check → quick EditMode → Projectile Encounter Report**. The
+discs are the only thing on this body no other enemy has, and each is still one `Projectile` through
+`PlayerCombat.ReceiveAttack` — see DATAFLOW → *Orbit Dancer — Orbit Storm*.
 
 ---
 

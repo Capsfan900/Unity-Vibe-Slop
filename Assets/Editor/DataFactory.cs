@@ -2078,6 +2078,220 @@ namespace VibeGame1.EditorTools
             judge.combos = judge.moveset.ToComboArray();
             EditorUtility.SetDirty(judge);
 
+            // --- OrbitDancer: THE ORBIT DANCER. ADDITIVE SANDBOX ELITE (2026-09-13). -----------------
+            // Built the V18 way, as the Cinder Judge was, on the orbit_dancer_v1 forge body (seed 41,
+            // motion_seed 0), with V18's base kit plus ONE signature: ORBIT STORM, horizontally spinning
+            // discs that RICOCHET off the walls and come again. Sandbox movement park for now; Stage 5 of
+            // the boss-roster plan places her as the T3 realm boss, so nothing here says "never campaign".
+            // Source FBX SHA-256: 0BCBFF4DA184221F2B588772BAFA0AD314D19DF0A1E6C89A612A2C9792E28D70.
+            // Source manifest SHA-256: 5439F60430873743C847BDAB22A68DBD3CC7C51A2B78A567BAC19B07AB622430.
+            //
+            // THE JOB IN ONE SENTENCE: she fights V18's brawl at V18's tempo, a shade faster and thinner,
+            // and turns the arena's walls into her weapon -- discs you must BLOCK or Perfect-reflect, each
+            // bounce a fresh cue from a new side, each reflect a wound in her.
+            //
+            // What is DIFFERENT from V18 and the Judge, on purpose (the "spice"):
+            //   1. Glass cannon: 170 HP / 150 posture (V18 190/160, Judge 240/200), 5.4 m/s (fastest of
+            //      the three), aggression 0.78, strafe 0.55 (the others 0.40-0.45): she circles, because
+            //      the walls are hers. Every wind-up is 0.05 s SHORTER than the Judge's same blow and pays
+            //      a little less; the tempo break is the throw, not the heavy.
+            //   2. Jab-two into SPIN THROW instead of the Judge's red jab-into-shoulder: parry the jab,
+            //      parry the whirl (blue, 360), then the two discs it released are already on the walls
+            //      coming back -- the second beat is "turn and BLOCK", not "do not parry".
+            //   3. The Heavy is not her language: 8 s cooldown against the Judge's 6, weight 1.0.
+            //   4. Teal seams, a mask slit for an eye, three satellite discs orbiting her at rest (see
+            //      OrbitDancerVisuals); she spins on wake where the Judge roars and V18 hops.
+            var odJab2 = Attack("OrbitDancer_Jab2", a =>
+            {
+                // The shared opener. Jab2 is the same motion array as V18's and the Judge's (byte-identical
+                // in the forge), so the player's first parry transfers; it walks 0.29 m SIDEWAYS in the
+                // art (dx -0.28, dz -0.10, measured), TravelRoot cancels it: lunge 0. 0.45 is the roster's
+                // wind-up floor (SoulsCombatTests): the fastest jab any body throws, on the fastest body.
+                a.clip = "Jab2";
+                a.windup = 0.45f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.55f;
+                a.range = 2.30f; a.coneDeg = 65f; a.damage = 12f; a.lungeDistance = 0f;
+                a.comboGap = 0.16f; a.parryPostureMultiplier = 1.15f;
+            });
+            var odSwing = Attack("OrbitDancer_Swing", a =>
+            {
+                // 0.50 against the Judge's 0.60 and 16 against 20: the same cut, a beat lighter.
+                a.clip = "AttackSwing";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.65f;
+                a.range = 2.50f; a.coneDeg = 70f; a.damage = 16f; a.lungeDistance = 0f;
+                a.comboGap = 0.18f; a.parryPostureMultiplier = 1.15f;
+            });
+            var odFinisher = Attack("OrbitDancer_ComboFinisher", a =>
+            {
+                // The close of the three-hit string. The clip carries 1.08 s of recovery after a 0.20
+                // contact; 1.10 s of data recovery is the string's punish (the Judge gives 1.30: she is
+                // quicker to reset, and her big opening is the volley's, below). Stays put (root.motion false).
+                a.clip = "ComboFinisher";
+                a.windup = 0.60f; a.impactDelay = 0.06f; a.strikeDuration = 0.18f; a.recovery = 1.10f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 22f; a.lungeDistance = 0f;
+                a.comboGap = 0.24f; a.parryPostureMultiplier = 1.6f;
+            });
+            var odStab = Attack("OrbitDancer_Stab", a =>
+            {
+                a.clip = "AttackStab";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.60f;
+                a.range = 2.40f; a.coneDeg = 40f; a.damage = 16f; a.lungeDistance = 0f;
+                a.comboGap = 0.18f; a.parryPostureMultiplier = 1.4f;
+            });
+            var odKick = Attack("OrbitDancer_Kick", a =>
+            {
+                // The anti-turtle, red as on the Judge: a player who holds guard against the discs
+                // and never answers the body eats this.
+                a.clip = "AttackKick";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.80f;
+                a.range = 2.40f; a.coneDeg = 55f; a.damage = 15f; a.lungeDistance = 0f;
+                a.comboGap = 0.24f; a.unblockable = true;
+            });
+            var odHeavy = Attack("OrbitDancer_Heavy", a =>
+            {
+                // "smashes downward with both fists": the shared HeavyAttack array. Airborne in the
+                // manifest (0.343-0.40), so 4b keeps its 0.343 contact. Walks the Hips 1.36 m in the art
+                // but 1.14 of that is SIDEWAYS (measured dx +1.14, dz +0.75, identical to the Judge's);
+                // the forward component ships, TravelRoot cancels the rest.
+                a.clip = "HeavyAttack";
+                a.windup = 0.95f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.30f;
+                a.range = 2.65f; a.coneDeg = 80f; a.damage = 30f; a.lungeDistance = 0.75f;
+                a.comboGap = 0.30f; a.parryPostureMultiplier = 1.9f;
+            });
+            var odShoulder = Attack("OrbitDancer_ShoulderCharge", a =>
+            {
+                // 3.32 m is the CLIP's Hips travel as Unity imports it on the Judge (Blender read 3.12 on
+                // both bodies: the same array on the same rig height), so the Judge's Unity number ships
+                // here too. EveryLungeIsTheClipsOwnForwardTravel is the confirmation on THIS import; if
+                // Unity reads it differently on this rig, that test prints the value to ship.
+                a.clip = "ShoulderCharge";
+                a.windup = 0.90f; a.impactDelay = 0.08f; a.strikeDuration = 0.26f; a.recovery = 1.00f;
+                a.range = 2.70f; a.coneDeg = 50f; a.damage = 26f; a.lungeDistance = 3.32f;
+                a.comboGap = 0.30f; a.unblockable = true;
+            });
+            var odDiscThrow = Attack(OrbitDancerAuthoring.DiscThrowAttackName, a =>
+            {
+                // ORBIT STORM, the volley. One EnemyController schedule whose CONTACT IS NOTHING:
+                //   windup 0.70      the tell: DiscThrow's wind-back with the disc spinning in the hand
+                //                    (teal sparks off the hand, OrbitDancerVisuals). Longer than any of
+                //                    her melee wind-ups but the Heavy, so the volley is its own beat.
+                //   impactDelay 0.06 the release (the clip's own 0.478 contact bent onto this frame)
+                //   impact           range 0 / cone 0 / damage 0: DoImpact can never land. The discs are
+                //                    the attack: OrbitDancerDiscs reads this same NextImpactTime and
+                //                    throws 3 BouncingDiscs, each a Projectile through
+                //                    PlayerCombat.ReceiveAttack carrying OrbitDancer_Disc (below).
+                //   strike 0.20      the follow-through
+                //   recovery 0.90    0.90 x (1 - 0.65 x 0.78) = 0.44 s of real opening -- small on purpose:
+                //                    the punish for a volley is the REFLECT, not the floor.
+                // The clip steps 0.64 m BACK and right (dx +0.44, dz -0.46): no forward travel, lunge 0.
+                a.clip = "DiscThrow";
+                a.windup = 0.70f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 0.90f;
+                a.range = 0f; a.coneDeg = 0f; a.damage = 0f; a.lungeDistance = 0f;
+                a.comboGap = 0.26f; a.parryPostureMultiplier = 1f;
+            });
+            var odSpinThrow = Attack(OrbitDancerAuthoring.SpinThrowAttackName, a =>
+            {
+                // SPIN THROW, the close whirl: "spins around once and swings the right arm outward".
+                // A REAL contact -- cone 360 because the body turns a full circle with the arm out, so
+                // standing behind her is not an answer -- and on the same release frame OrbitDancerDiscs
+                // banks two discs off the walls to either side. Blue: parry the whirl, then turn to the
+                // discs. Damage 18: a swing's worth; the discs carry the rest. Stays put (root.motion false).
+                a.clip = "SpinThrow";
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.22f; a.recovery = 0.95f;
+                a.range = 2.60f; a.coneDeg = 360f; a.damage = 18f; a.lungeDistance = 0f;
+                a.comboGap = 0.24f; a.parryPostureMultiplier = 1.3f;
+            });
+            var odDisc = Attack(OrbitDancerAuthoring.DiscAttackName, a =>
+            {
+                // What a DISC carries to ReceiveAttack (EnemyData.projectileAttack): never in the moveset,
+                // never scheduled by the brain. 12 a disc, a jab's worth: three unguarded is 36, a held
+                // guard eats it for posture only, a Perfect costs her posture here (1.2x) AND on the
+                // reflect's arrival (parriedProjectilePosture). Timing fields are the sentry bolt's and
+                // are unused: the flight is the wind-up and Projectile.CueLead is the cue.
+                a.clip = "";
+                a.windup = 0.5f; a.impactDelay = 0f; a.strikeDuration = 0.05f; a.recovery = 0.2f;
+                a.range = 30f; a.coneDeg = 20f; a.damage = 12f; a.lungeDistance = 0f;
+                a.comboGap = 0.2f; a.parryPostureMultiplier = 1.2f;
+            });
+
+            var dancer = GetOrCreate<EnemyData>(EnemyPaths.Data(OrbitDancerAuthoring.EnemyName));
+            dancer.displayName = "THE ORBIT DANCER";
+            // Lighter than V18 on both bars: the discs are extra damage she gives you, and every reflect
+            // is 20 of these 170, so a good player ends her in the air. Posture regen 6 like V18: she
+            // is never off the floor, so the bar is always reachable. Stagger 3.0: quick to get up.
+            dancer.maxHP = 170f; dancer.maxPosture = 150f; dancer.postureRegen = 6f;
+            dancer.postureRegenDelay = 3f; dancer.staggerSeconds = 3.0f;
+            dancer.moveSpeed = 5.4f; dancer.turnSpeed = 380f; dancer.aggroRange = 18f;
+            dancer.attackRange = 2.1f; dancer.attackCooldown = 0.22f;
+            dancer.parryRecoilSeconds = 0.26f; dancer.aggression = 0.78f;
+            dancer.windupTurnMultiplier = 0.30f; dancer.stepSpeedMultiplier = 0.62f;
+            dancer.stepAcceleration = 9f; dancer.stepDeadzone = 0.90f;
+            dancer.comboBreathSeconds = 0.32f; dancer.readyDistanceMultiplier = 1.5f;
+            // 2.2: a hair further than V18's 2.0 so the whirl's 2.6 m reach still lands from her
+            // preferred stand, and a half-step nearer than the Judge (2.4): she is in your face.
+            dancer.preferredRange = 2.2f; dancer.commitTolerance = 0.3f;
+            dancer.repositionDeadzone = 0.40f;
+            // She circles: 0.55 against everyone else's 0.35-0.45. The walls are hers; she keeps them
+            // beside her.
+            dancer.backStepSpeedMultiplier = 0.40f; dancer.strafeSpeedMultiplier = 0.55f;
+            dancer.lungeMinDistance = 0.9f; dancer.soulValue = 560;
+            // Obsidian tint over a pale albedo (EnemyVisuals tints _BaseColor every frame): darker than
+            // the Judge's near-white because the scaffold returns a pale body and this one is meant to
+            // be the dark one. The accent is TEAL -- the parry glow's tint, the ring's hue, the disc rim.
+            // 1.5x, under the Judge's 1.9x: the disc cue flare and the reflect must stay the bright things.
+            dancer.bodyColor = Hex("#8E8A94"); dancer.emission = Hex("#2FD5C8") * 1.5f;
+            dancer.scale = 1f; dancer.flaskPunishChance = 0.7f;
+            // A SOULS duel, not a sentry: shootsProjectiles stays false (no ProjectileShooter, no
+            // metronome, no perch wake), rangedOnly false. The projectile fields below are what a
+            // BouncingDisc reads when OrbitDancerDiscs fires it with this data.
+            dancer.shootsProjectiles = false; dancer.rangedOnly = false;
+            dancer.projectileAttack = odDisc;
+            // 16 m/s: half a sentry bolt (32-36 across 10-30 m spans) for a duel fought inside 3-12 m;
+            // 8 m of flight is 0.5 s, a bank shot to a wall and back 1-1.5 s, readable as a LINE you can
+            // turn to. Under the Encounter Report's 17.6 m/s mid gate. LaunchSpeed slows a near throw
+            // so no disc ever arrives inside CueLead + 0.12 s.
+            dancer.projectileSpeed = 16f;
+            // Straight lines only: the ricochet is geometry the player reads; a curve after a bounce
+            // would be a lie about the wall.
+            dancer.projectileHomingDegPerSec = 0f;
+            // 0.6 of the player's velocity: a duel target sidesteps; leading them fully makes the
+            // direct disc unavoidable, leading them not at all makes strafing free.
+            dancer.projectileLead = 0.6f;
+            // The band and the metronome are the sentries' and unused here (no ProjectileShooter);
+            // written anyway so the asset says what it means.
+            dancer.projectileMinRange = 4.5f; dancer.projectileMaxRange = 12f;
+            dancer.projectileInterval = 6f; dancer.projectileBurstCount = 1; dancer.projectileBurstInterval = 0.42f;
+            dancer.projectileAcquireDelay = 0.7f;
+            // The reflect: 20 health / 26 posture per Perfect-returned disc (12% of her HP, 17% of her
+            // bar). A whole volley reflected is 60 HP and 78 posture -- half of both -- so the discs are
+            // her best weapon and her worst idea against a player who deflects. Not the Heavy Sentry's
+            // 45/50: she is a duel, and the reflect must not out-damage her own posture game.
+            dancer.parriedProjectileDamage = 20f; dancer.parriedProjectilePosture = 26f;
+            // 2.5 m/s along the look on a Perfect: the reflect is the same event as a bolt's, so it
+            // pays the same way, but the arena is not a span -- a nudge, not the sentries' 6-9.
+            dancer.parrySpeedGain = 2.5f;
+            // The disc mesh is its own (OrbitDancerDiscs.discDiameter); these scale the shared trail
+            // and cue flare onto a 0.6 m disc: 0.6 x 0.41 m streak, x1.6 flare (2.3 x 0.7) = 0.96 m.
+            dancer.projectileVisualScale = 1f; dancer.projectileTrailScale = 0.6f; dancer.projectileCueScale = 0.7f;
+            dancer.perfectBurstParriesToDestroy = 0;
+            dancer.moveset = Moveset("Legendary_OrbitDancer_Moveset", "The Orbit Dancer", new[]
+            {
+                Entry("jab-two, swing, FINISHER (the combo)",                2.4f, 0f,   3.3f, odJab2, odSwing, odFinisher),
+                Entry("stab",                                                1.4f, 0f,   3.3f, odStab),
+                // The chain that replaces the Judge's red one: parry, parry, then turn to the walls.
+                EntryCd("jab-two into SPIN THROW (whirl, then BLOCK the discs)", 1.6f, 0f, 3.2f, 7f, odJab2, odSpinThrow),
+                EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.9f, 5f, odKick),
+                EntryCd("HEAVY tempo break",                                 1.0f, 0f,   3.5f, 8f, odHeavy),
+                // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
+                EntryCd("SHOULDER CHARGE far close",                         2.2f, 4.4f, 6.5f, 7f, odShoulder),
+                // 4.5..12: thrown when you kite. 4.5 m at 16 m/s is 0.28 s = exactly CueLead, and
+                // LaunchSpeed slows it further; inside 4.5 she closes and whirls instead. 6 s: the volley
+                // is the signature, seen twice a bar, never a loop -- and never inside the 4 s a disc lives.
+                EntryCd("ORBIT STORM (three ricochet discs)",                2.0f, 4.5f, 12f, 6f, odDiscThrow),
+                EntryCd("SPIN THROW (close whirl, two banked discs)",        1.0f, 0f,   3.2f, 8f, odSpinThrow),
+            });
+            dancer.combos = dancer.moveset.ToComboArray();
+            EditorUtility.SetDirty(dancer);
+
             // ---------------- Weapons ----------------
             //
             // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette

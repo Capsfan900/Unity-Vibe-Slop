@@ -42,7 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
-        static GameObject pLegBrawler, pLegBrawlerV18, pLegCinderJudge;
+        static GameObject pLegBrawler, pLegBrawlerV18, pLegCinderJudge, pLegOrbitDancer;
         static GameObject pSentryGrunt, pSentryHeavy, pSurgeTurret;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
@@ -851,6 +851,18 @@ namespace VibeGame1.EditorTools
             var sCinderJudge = Spawner("Spawn_Legendary_CinderJudge", cjSpawn, pLegCinderJudge, false, root);
             sCinderJudge.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
 
+            // THE ORBIT DANCER (2026-09-13): the third standalone fixture, built the V18 way. NOT east of
+            // the Judge: the yard floor ends at x 152 and everything east of the drop tower south of z 5
+            // is the tower's drop zone, so the east end has no honest third slot 18 m from both bodies.
+            // She takes the NORTH-WEST pocket above the water lane instead, with the long walls' west
+            // ends 12 m to her east -- the surfaces her discs bank off. Facing south across flat floor
+            // like the other two. See OrbitDancerPadPosition for the geometry.
+            Vector3 odPad = new Vector3(OrbitDancerPadPosition.x, padY, OrbitDancerPadPosition.z);
+            Vector3 odSpawn = new Vector3(OrbitDancerPadPosition.x, spawnY, OrbitDancerPadPosition.z);
+            Box("Pad_Legendary_OrbitDancer", odPad, new Vector3(5.5f, 1f, 5.5f), mBoss, root);
+            var sOrbitDancer = Spawner("Spawn_Legendary_OrbitDancer", odSpawn, pLegOrbitDancer, false, root);
+            sOrbitDancer.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
             // starts three fights at once and nothing can be studied — you cannot read a wind-up, time
@@ -882,6 +894,12 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_CinderJudge",
                    new Vector3(CinderJudgePadPosition.x, FloorTop, CinderJudgePadPosition.z - CinderJudgeWakeOffset),
                    sCinderJudge, "CINDER JUDGE", root);
+            // OrbitDancerWakeOffset south: outside the 6.5 m charge reach and the 3.1 m whirl (2.6 m
+            // range + the brain's 0.5 m slack), and still 1.5 m short of the water lane's north edge.
+            // The discs are ranged and no switch can be outside them; a sleeping Dancer throws nothing.
+            Switch("Wake_Legendary_OrbitDancer",
+                   new Vector3(OrbitDancerPadPosition.x, FloorTop, OrbitDancerPadPosition.z - OrbitDancerWakeOffset),
+                   sOrbitDancer, "ORBIT DANCER", root);
         }
 
         /// <summary>
@@ -918,6 +936,22 @@ namespace VibeGame1.EditorTools
         /// <summary>Metres south of the pad centre the Judge's wake switch stands. Beyond the 6.5 m charge
         /// reach (3.32 m lunge + 2.7 m range + 0.5 m slack) and the 3.6 m storm ring.</summary>
         public const float CinderJudgeWakeOffset = 7.5f;
+
+        /// <summary>
+        /// The Orbit Dancer's standalone pad, in the yard's NORTH-WEST pocket: north of the water lane
+        /// (z 8..14, x 40..100), west of the long walls (x 60..100 at z 17.5..18.5 and z 24..25), south of
+        /// the north kerb (z 29.75). At (46, 22.5) the 5.5 m pad spans x 43.25..48.75, z 19.75..25.25:
+        /// 4.5 m short of the north kerb, 5.75 m north of the water, 11.25 m west of the long walls'
+        /// west ends, 66 m from V18's pad and 90 m from the Judge's -- far beyond every 18 m aggro. The
+        /// 6.5 m south-facing charge lane and the wake switch sit on flat floor between the pad and the
+        /// water; the long walls to the east are the surfaces her bank shots use, so the fight teaches
+        /// the ricochet on geometry that is already there. The brief's (160, 20) is off the yard floor
+        /// (YardMaxX 152) and every east-end slot 18 m from both bodies lies in the tower's drop zone.
+        /// </summary>
+        public static readonly Vector3 OrbitDancerPadPosition = new Vector3(46f, FloorTop, 22.5f);
+        /// <summary>Metres south of the pad centre the Dancer's wake switch stands. Beyond the 6.5 m charge
+        /// reach (3.32 m lunge + 2.7 m range + 0.5 m slack) and the whirl's 3.1 m, 1.5 m short of the water.</summary>
+        public const float OrbitDancerWakeOffset = 7.0f;
 
         /// <summary>
         /// A wake switch: stone post on Default (walkable, bakes) with a small emissive lamp on
@@ -1075,7 +1109,7 @@ namespace VibeGame1.EditorTools
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
                                                pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
                                                pSentryGrunt, pSentryHeavy, pSurgeTurret, pLegBrawler,
-                                               pLegBrawlerV18, pLegCinderJudge };
+                                               pLegBrawlerV18, pLegCinderJudge, pLegOrbitDancer };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -1094,6 +1128,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_FlurryBrawler"),
                 LoadEnemyData("Legendary_FlurryBrawlerV18"),
                 LoadEnemyData("Legendary_CinderJudge"),
+                LoadEnemyData("Legendary_OrbitDancer"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1143,6 +1178,7 @@ namespace VibeGame1.EditorTools
             pLegBrawler = LoadPrefab("Legendary_FlurryBrawler");
             pLegBrawlerV18 = LoadPrefab("Legendary_FlurryBrawlerV18");
             pLegCinderJudge = LoadPrefab("Legendary_CinderJudge");
+            pLegOrbitDancer = LoadPrefab("Legendary_OrbitDancer");
             pSentryGrunt = LoadPrefab("pshooter_enemy01");
             pSentryHeavy = LoadPrefab("pshooter_enemy02");
             pSurgeTurret = LoadPrefab("pshooter_enemy03");
