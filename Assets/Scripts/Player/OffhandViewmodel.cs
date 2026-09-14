@@ -233,6 +233,9 @@ namespace VibeGame1
         {
             charge = Mathf.Clamp01(value);   // the tip light reads this too, so it brightens with the wind-up
             if (instance == null) return;
+            // The book has no EnergyGlow on its root: the wind-up reaches the orb and the page sigil
+            // through the book's own charge seam, which spins the rigs up and brightens the shell.
+            if (spellbook != null) spellbook.SetCharge(value);
             var glow = instance.GetComponent<EnergyGlow>();
             if (glow != null) glow.SetCharge(value);
         }

@@ -30,3 +30,14 @@ MonoBehaviour:
   knockback: 5
   hitStop: 0.14
   shake: 0.4
+  orb:
+    shape: 6
+    detail: {r: 0.78431374, g: 1, b: 0.6901961, a: 1}
+    spinDegreesPerSecond: 0
+    motionRate: 0.3
+    motionAmplitude: 0.6
+    shellRim: 2.4
+    shellSwirl: 0.6
+    shellFlow: -0.6
+    shellWobble: 0.15
+    shellDark: 0

@@ -27,6 +27,9 @@ unarmed while away, 26.4 m reach cap, no bolt deflection, no cost. **Not yet don
 
 ### Spellbook design notes (Fable review 2026-09-13) — kept in mind, NOT authorised
 The user said to keep these in mind; do not build without a new ask.
+> **Items 1-3 BUILT 2026-09-13** (user asked for distinct, detailed spell orbs): per-spell SpellOrbProfile
+> shapes/motion, luminance normalisation, orb/rune-bar/page-sigil split, wheel feedback. Not yet eyeballed.
+
 1. Wheel with < 2 spells is silent — give it a click and "NO SPELLS" flash (`PlayerItems.CycleSelection`).
 2. Orb hue is the only selection read and hues collide (Rebound/Gravecall green, Sigil/Voidspine/fallback
    violet); split core = inscription, rune bars = carried spells.

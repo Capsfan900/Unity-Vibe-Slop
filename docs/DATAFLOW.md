@@ -606,8 +606,10 @@ InputReader.AttackPressed → WeaponController.TryAttack()
     → WandController.FireRiposte(target, weapon.executeDamage)
           readyAt = unscaledTime + wand.cooldown   ⇢ WandCooldownChanged → HUD WandCooldownBar
           OffhandViewmodel.PlayThrust(windup, hold, recover)
-              persistent SpellbookVisual raises and casts; selected inscription colours the runic orb
-              above the open pages; the book instance is never replaced or rescaled
+              persistent SpellbookVisual raises and casts; SetGlowCharge → SpellbookVisual.SetCharge spins
+              the rigs up and brightens the shells over the windup; CaptureAcceptedCast(null) puts the
+              INSCRIPTION's colour and rig on the orb for the pose (the book is casting it); the book
+              instance is never replaced or rescaled
           ⇢ RiposteLanded(target)        ← raised BEFORE damage, so listeners can read the victim
           THE BLAST IS DRAWN FROM THE TIP, NOT ON THE VICTIM — and CONTACT is the surface of
           the chest, e.DeathblowPoint(eye), not its centre. `origin + up*0.95` was the middle of
@@ -662,9 +664,11 @@ InputReader.AttackPressed → WeaponController.TryAttack()
   value as much as a gameplay one: under ~2m the camera ends up inside a 0.45m-radius capsule at 95° FOV
   and the entire riposte plays behind a wall of black.
 - **The book remains open and readable in motion.** Ten fixed leaves flutter on `PlayerDelta`, three loose
-  pages orbit without physics, and a pickup-material core plus eight separated runes show the current
-  inscription/item. `EnergyGlow` owns their fluorescent emission, motes and rune orbit; parchment stays below
-  bloom and only the selected spell owns the hot channel.
+  pages orbit without physics. Three orb reads (2026-09-13): the ORB is the front carried spell (core over
+  bloom, glass shell + signature rig by `ItemData.orb`), the EIGHT RUNE BARS are the carried queue (one per
+  slot, front brightest), the PAGE SIGIL is the selected inscription (`WandData.orb`, capped at 1.0).
+  `SpellbookVisual` is the ONLY writer of every orb renderer — there is no `EnergyGlow` under the book.
+  Parchment stays below bloom and only the carried orb's core owns the hot channel.
 - Screen flash and chromatic aberration are capped low on purpose. Both were previously loud enough
   (0.55 alpha, 1.0 chroma) to destroy the wand they were meant to punctuate.
 - Poses, scales and the standoff all live on the Player prefab or on `WandData`, so **`PrefabFactory` and
@@ -750,7 +754,9 @@ ItemPickup (trigger, layer Interactable)
   ⇢ ItemsChanged → StatusStripView (top-left strip: held list, front item marked)
 
 wheel → PlayerItems.CycleSelection(±1) rotates the held list and republishes ItemsChanged
-      → SpellbookVisual.SetFrontItem(Current) changes the page/orb read
+      → SpellbookVisual.SetFrontItem(Current) swaps the orb's colour, shell and signature rig
+      → SpellbookVisual (subscribed to ItemsChanged) relights the eight rune bars: one per slot, front brightest
+      < 2 spells → refused, but never silent: Sfx.Click (0.3, 0.7) + PromptFlash "NO SPELLS" / "ONE SPELL"
 E → PlayerItems.UseCurrent (InputReader.UseItemPressed; casts the selected index-0 spell)
   → Apply(item) FIRST — returns false to REFUSE, and a refused item is kept and nothing is announced
   → held.Remove → ⇢ ItemsChanged, ⇢ ItemUsed, Sfx.ItemUse
@@ -1006,12 +1012,20 @@ FLARE GRAPPLE (FlareGrapple on the Player prefab, DefaultExecutionOrder -50, BEF
 WandController = serialized compatibility owner of the selected riposte inscription
    equip/start → OffhandViewmodel.ShowWand(Current) → create one SpellbookVisual if absent
    selection   → SpellbookVisual.SetSelectedSpell(Current); never swap the book instance
+                 → the PAGE SIGIL shows WandData.orb (shape/motion/shell), luminance 0.7, capped 1.0
+                 → the ORB falls back to this hue ONLY when nothing is carried, dimmed under bloom, no rig
    riposte     → book raises/casts; blast originates at SpellbookVisual.CastOrigin
+                 → SetCharge(k) over the windup; the orb wears the inscription's colour + rig for the pose
 
 PlayerItems = selectable carried-spell/effect state
    pickup/use/respawn/wheel cycle → ItemsChanged → StatusStrip + SpellbookVisual.SetFrontItem(Current)
+                                   → SpellbookVisual.SetHeldItems(all) lights the rune bars (queue)
+   front item         → the ORB: core luminance 1.3 / peak ≤ 2.1, glass shell in its hue (≤ 1.0),
+                        ItemData.orb signature rig shown; a lit orb with a silhouette ALWAYS means castable
    accepted use       → CaptureAcceptedCast(item) BEFORE removal, then PlayUse(item)
    NEVER ShowItem/ShowWand: an item changes the orb, not the book model or its scale
+   profiles           → DataFactory items block / WandFactory write ItemData.orb / WandData.orb (rule 9);
+                        SpellbookVisualTests asserts shape uniqueness, idle ceilings and every peak
 ```
 
 **Invariants**

@@ -31,6 +31,15 @@ namespace VibeGame1.EditorTools
                 w.damage = 220f; w.blastRadius = 0f; w.splashDamage = 0f;
                 w.windup = 0.20f; w.recover = 0.22f; w.cooldown = 3.5f;   // the quick one: back before the next stagger
                 w.knockback = 3.0f; w.hitStop = 0.10f; w.shake = 0.30f;
+                // SPELLBOOK SIGIL (2026-09-13). Inscriptions show on the page sigil (and on the orb for the
+                // length of a riposte). Emberlance: a MOLTEN shell - heat wobble, the inner field RISING,
+                // six embers climbing through it. The one rig whose motion is upward.
+                w.orb.shape = SpellOrbShape.Molten;
+                w.orb.detail = Hdr("#FF6A1A", 1f);          // ember, under bloom: fire on the page, not a tell
+                w.orb.spinDegreesPerSecond = 0f;
+                w.orb.motionRate = 0.55f; w.orb.motionAmplitude = 0.8f;
+                w.orb.shellRim = 1.8f; w.orb.shellSwirl = 0.70f; w.orb.shellFlow = 1.0f;
+                w.orb.shellWobble = 0.6f; w.orb.shellDark = 0f;
             });
 
             // Gravecall — slow and committal, but it clears a crowd. The trade is real: the long
@@ -45,6 +54,14 @@ namespace VibeGame1.EditorTools
                 w.damage = 120f; w.blastRadius = 7.0f; w.splashDamage = 90f;
                 w.windup = 0.38f; w.recover = 0.34f; w.cooldown = 7.0f;   // crowd clear is worth a long wait
                 w.knockback = 5.0f; w.hitStop = 0.14f; w.shake = 0.40f;
+                // Gravecall: SKULL MIST - two dark sockets and a jaw on the core, three wisps SINKING out
+                // of it, the inner field drifting down. Green like Rebound, but rot sinks and a fan spins.
+                w.orb.shape = SpellOrbShape.SkullMist;
+                w.orb.detail = Hdr("#C8FFB0", 1f);
+                w.orb.spinDegreesPerSecond = 0f;
+                w.orb.motionRate = 0.30f; w.orb.motionAmplitude = 0.6f;
+                w.orb.shellRim = 2.4f; w.orb.shellSwirl = 0.60f; w.orb.shellFlow = -0.6f;
+                w.orb.shellWobble = 0.15f; w.orb.shellDark = 0f;
             });
 
             // Stormneedle — middling everything, but the arc reaches further than any other wand.
@@ -58,6 +75,15 @@ namespace VibeGame1.EditorTools
                 w.damage = 150f; w.blastRadius = 9.0f; w.splashDamage = 70f; w.chainTargets = 3;
                 w.windup = 0.28f; w.recover = 0.26f; w.cooldown = 5.5f;   // middling, like everything else about it
                 w.knockback = 1.5f; w.hitStop = 0.12f; w.shake = 0.34f;
+                // Stormneedle: NEEDLE ARCS - four needles that re-strike tangent to the core seven times a
+                // second, white-hot for a third of each interval. The only stochastic motion in the set;
+                // a crackle is not a spin. 7 Hz is the idle ceiling on purpose.
+                w.orb.shape = SpellOrbShape.NeedleArcs;
+                w.orb.detail = Hdr("#FFFFFF", 1f);
+                w.orb.spinDegreesPerSecond = 0f;
+                w.orb.motionRate = 7f; w.orb.motionAmplitude = 0.6f;
+                w.orb.shellRim = 3.2f; w.orb.shellSwirl = 0.25f; w.orb.shellFlow = 0f;
+                w.orb.shellWobble = 0f; w.orb.shellDark = 0f;
             });
 
             // Voidspine — the heaviest cadence in the set. Highest damage and it pierces, but the
@@ -72,6 +98,15 @@ namespace VibeGame1.EditorTools
                 w.damage = 260f; w.blastRadius = 14.0f; w.splashDamage = 110f;
                 w.windup = 0.46f; w.recover = 0.40f; w.cooldown = 9.0f;   // the heaviest hit in the set pays the longest tax
                 w.knockback = 6.0f; w.hitStop = 0.16f; w.shake = 0.45f;
+                // Voidspine: VOID RIM - the shell darkens its centre so the core reads as pulled inward,
+                // and eight spines fall from a slowly turning rim into it. Violet like the Deflect Sigil,
+                // but a rim of spines falling in is not a gem beating, and they never share an anchor.
+                w.orb.shape = SpellOrbShape.VoidRim;
+                w.orb.detail = Hdr("#7A3CFF", 1f);
+                w.orb.spinDegreesPerSecond = 20f;
+                w.orb.motionRate = 0.45f; w.orb.motionAmplitude = 0.7f;
+                w.orb.shellRim = 1.6f; w.orb.shellSwirl = 0.40f; w.orb.shellFlow = 0f;
+                w.orb.shellWobble = 0f; w.orb.shellDark = 0.85f;
             });
 
             AssetDatabase.SaveAssets();

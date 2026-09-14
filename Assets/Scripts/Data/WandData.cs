@@ -62,5 +62,10 @@ namespace VibeGame1
         public float knockback = 3f;
         public float hitStop = 0.1f;
         public float shake = 0.3f;
+
+        [Header("Spellbook orb (presentation only)")]
+        [Tooltip("How the persistent spellbook shows this inscription on its page sigil: rig shape, secondary " +
+                 "hue, motion signature and glass-shell character. Read only by SpellbookVisual.")]
+        public SpellOrbProfile orb = new SpellOrbProfile();
     }
 }

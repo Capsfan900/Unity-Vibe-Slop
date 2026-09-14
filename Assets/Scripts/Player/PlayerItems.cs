@@ -84,7 +84,15 @@ namespace VibeGame1
         /// contract consumed by E, the book, and the status strip.</summary>
         public bool CycleSelection(int direction)
         {
-            if (held.Count < 2 || direction == 0) return false;
+            if (direction == 0) return false;
+            if (held.Count < 2)
+            {
+                // The wheel always answers. A silent wheel reads as a dead binding; a soft click plus a
+                // flash says "heard, nothing to rotate", and says the true count rather than lying.
+                AudioManager.Play(Sfx.Click, 0.3f, 0.7f);
+                GameEvents.RaisePromptFlash(held.Count == 0 ? "NO SPELLS" : "ONE SPELL", 0.5f);
+                return false;
+            }
             if (direction > 0)
             {
                 ItemData first = held[0];

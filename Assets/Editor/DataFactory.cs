@@ -2346,6 +2346,15 @@ namespace VibeGame1.EditorTools
                 i.grapplePerfectWindow = 0.13f;
                 i.description = "Hook a foe. Against a turret, cross its incoming bolt on the Hook timing: " +
                                 "the bolt deflects, the turret breaks, and your next airborne dash-jump is empowered.";
+                // SPELLBOOK ORB (2026-09-13, the user: "make the spell balls have more details and uniqueness
+                // so you can actually tell what spell is equipped"). Identity by SHAPE and MOTION, hue
+                // second. Hook: a barbed crescent ORBITING the core, the line that goes out and bites.
+                i.orb.shape = SpellOrbShape.Crescent;
+                i.orb.detail = Hdr("#E8FBFF", 1f);          // ice-white barb against the cyan glass
+                i.orb.spinDegreesPerSecond = 70f;
+                i.orb.motionRate = 0.9f; i.orb.motionAmplitude = 0.6f;
+                i.orb.shellRim = 2.6f; i.orb.shellSwirl = 0.35f; i.orb.shellFlow = 0f;
+                i.orb.shellWobble = 0f; i.orb.shellDark = 0f;
             });
             Item("Rebound", i =>
             {
@@ -2356,6 +2365,14 @@ namespace VibeGame1.EditorTools
                 i.reboundBonusSpeed = 3f;
                 i.description = "Arm your next successful airborne dash or wall jump. That exit refreshes " +
                                 "your air dash and carries a stronger, capped burst.";
+                // Rebound: two counter-spinning FAN RINGS, the fastest idle spin in the set - it is the
+                // "spin up" spell. Green like Gravecall, but a fan is not a sinking wisp.
+                i.orb.shape = SpellOrbShape.FanRings;
+                i.orb.detail = Hdr("#D8FFE6", 1f);
+                i.orb.spinDegreesPerSecond = 120f;
+                i.orb.motionRate = 1.2f; i.orb.motionAmplitude = 0.5f;
+                i.orb.shellRim = 2.0f; i.orb.shellSwirl = 0.45f; i.orb.shellFlow = 0f;
+                i.orb.shellWobble = 0f; i.orb.shellDark = 0f;
             });
             Item("DeflectSigil", i =>
             {
@@ -2366,6 +2383,17 @@ namespace VibeGame1.EditorTools
                 i.deflectSigilImpulse = 5f;
                 i.description = "Arm until your next Perfect. Blocks and misses do not spend it; the Perfect " +
                                 "adds two speed stacks and a stronger forward impulse.";
+                // Deflect Sigil: a faceted DIAMOND over a seal plate that BEATS on a slow pulse (the only
+                // rig that pulses rather than spins). Violet like Voidspine, but a gem is not a void rim,
+                // and the two never share an anchor (carried orb vs page sigil). The beat is a steady idle
+                // heartbeat, deliberately NOT tied to ParryResolved: a carried sigil does nothing on a
+                // Perfect, so pulsing on one would be a lie.
+                i.orb.shape = SpellOrbShape.DiamondSeal;
+                i.orb.detail = Hdr("#F2E6FF", 1f);
+                i.orb.spinDegreesPerSecond = 30f;
+                i.orb.motionRate = 0.75f; i.orb.motionAmplitude = 0.7f;
+                i.orb.shellRim = 3.0f; i.orb.shellSwirl = 0.30f; i.orb.shellFlow = 0f;
+                i.orb.shellWobble = 0f; i.orb.shellDark = 0f;
             });
             Item("BladeThrow", i =>
             {
@@ -2387,6 +2415,15 @@ namespace VibeGame1.EditorTools
                 i.bladeModelScale = 4.5f;
                 i.description = "Throw your sword. Aim at it and DASH at any point in its flight - or where it " +
                                 "bites - to be pulled to it. You are unarmed until it is back in your hand.";
+                // Blade Throw: a small SWORD GLYPH TUMBLING end over end on a slow orbit - the throw
+                // itself, in miniature. 240 deg/s is 0.67 rev/s on a 6.5 cm glyph: readable, under the
+                // 300 idle ceiling.
+                i.orb.shape = SpellOrbShape.SwordGlyph;
+                i.orb.detail = Hdr("#FFF1D6", 1f);          // warm steel against the amber glass
+                i.orb.spinDegreesPerSecond = 240f;
+                i.orb.motionRate = 0.35f; i.orb.motionAmplitude = 0.5f;
+                i.orb.shellRim = 2.2f; i.orb.shellSwirl = 0.30f; i.orb.shellFlow = 0f;
+                i.orb.shellWobble = 0f; i.orb.shellDark = 0f;
             });
             AssetDatabase.DeleteAsset(ItemsDir + "/WallSurge.asset");
 

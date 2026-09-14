@@ -40,3 +40,14 @@ MonoBehaviour:
   bladePostureMultiplier: 1.5
   bladeModelScale: 1.6
   surgeSeconds: 8
+  orb:
+    shape: 3
+    detail: {r: 0.9490196, g: 0.9019608, b: 1, a: 1}
+    spinDegreesPerSecond: 30
+    motionRate: 0.75
+    motionAmplitude: 0.7
+    shellRim: 3
+    shellSwirl: 0.3
+    shellFlow: 0
+    shellWobble: 0
+    shellDark: 0

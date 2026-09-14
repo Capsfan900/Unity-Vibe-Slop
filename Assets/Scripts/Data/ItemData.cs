@@ -95,5 +95,10 @@ namespace VibeGame1
         [Header("Retired serialized data")]
         [Tooltip("Legacy Wall Surge duration. Kept only so old serialized assets remain readable; no shipped item uses it.")]
         public float surgeSeconds = 8f;
+
+        [Header("Spellbook orb (presentation only)")]
+        [Tooltip("How the persistent spellbook shows this spell when it is the front carried spell: rig shape, " +
+                 "secondary hue, motion signature and glass-shell character. Read only by SpellbookVisual.")]
+        public SpellOrbProfile orb = new SpellOrbProfile();
     }
 }

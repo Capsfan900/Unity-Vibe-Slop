@@ -477,10 +477,83 @@ accepted cast captures that spell's colour before inventory removal. Nothing rep
 
 Live player-eye captures caught faults the structural tests could not: unlit parchment collapsed into the
 cover, nested opaque spheres read as a flat ball, and the hand anchor occupied the page volume. Parchment now
-has restrained 0.28× self-light below bloom and dark ink strokes. A smaller pickup-material core and eight
-separated runes reuse `EnergyGlow` for the established fluorescent weapon pulse, drifting motes and rune
-orbit. The grip sits beneath the centre spine, the page normal faces upward, and the covers read as open. The
-generated model stays camera-left and `CastOrigin` remains outside the crosshair lane.
+has restrained 0.28× self-light below bloom and dark ink strokes. The grip sits beneath the centre spine, the
+page normal faces upward, and the covers read as open. The generated model stays camera-left and `CastOrigin`
+remains outside the crosshair lane. (The 2026-09-12 orb — a pickup-material core and eight `EnergyGlow`
+runes in one hue — was replaced on 2026-09-13; see 3.9b.)
+
+### 3.9b Spell orbs that show which spell is equipped ✅ 2026-09-13
+
+**The ask, verbatim.** *"make the spell balls have more details and uniqueness so you can actually tell what
+spell is equipped, and more details and realism."* Fable's spellbook review had already found the cause: hue
+was the orb's only read, and the hues collide (Rebound/Gravecall green, Sigil/Voidspine/fallback violet), so
+the one thing the orb existed to say, it could not.
+
+**Identity by silhouette and motion, hue second.** Each of the eight spells now owns a `SpellOrbShape` rig
+built as fixed geometry by `SpellbookFactory.BuildShape` and toggled — never spawned — by `SpellbookVisual`.
+The rig's motion is the second read, chosen so no two rigs move alike:
+
+| Spell | Shape | Motion | Detail hue |
+|---|---|---|---|
+| Hook | barbed crescent | orbits the core, 70°/s, tilted 28° | ice-white barb on cyan glass |
+| Rebound | two six-blade fan rings | counter-spin, 120°/s (the fastest idle) | pale mint |
+| Deflect Sigil | faceted gem over a diamond seal plate | a heartbeat at 0.75 Hz (sharp attack, slow decay) — the only rig that pulses rather than turns | lilac-white |
+| Blade Throw | a 6.5 cm sword glyph | tumbles end over end at 240°/s on a slow orbit | warm steel on amber glass |
+| Emberlance | heat-wobbled shell, six embers | embers RISE through the shell; the inner field flows up | ember `#FF6A1A`, under bloom |
+| Gravecall | two dark sockets and a jaw on the core, three wisps | wisps SINK out of the core and thin; the field flows down — fire's opposite | pale rot |
+| Stormneedle | four needles on the core surface | re-strike at 7 Hz to hashed tangent points, white-hot for a third of each interval — the only stochastic motion | white |
+| Voidspine | eight spines on a turning rim; the shell darkens its centre | spines FALL INWARD, brightening and shrinking as they go | deep violet |
+
+The two shared-hue pairs are now also separated by anchor: carried spells live on the orb, inscriptions on
+the page sigil, so a green fan and a green skull are never in the same place.
+
+**Realism: a glass shell around a hot core.** `Assets/Shaders/SpellOrbShell.shader` is one sphere with a
+fresnel rim (the silhouette, in the spell's hue), an object-space swirling field seen through the glass, an
+optional vertex heat-wobble (fire only) and an optional centre darkening with premultiplied alpha (void
+only: no colour, centre-weighted occlusion, so the core behind it reads as pulled in). Its output is
+`min(colour, _PeakCap)` with the cap shipped at **1.0**, so the shell is *structurally* unable to bloom — which
+is the whole reason it can carry the hue truthfully while the core blooms. Layering a fresnel silhouette
+over an interior field on a single mesh is the standard construction for energy shells
+([Poimandres shield breakdown](https://pmnd.rs/blog/creating-flow-shield/)); Riot's clarity notes are the
+reason the secondary element exists at all — a bright primary "wasn't supported well by its secondary
+component" ([Clarity in League](https://www.leagueoflegends.com/en-us/news/dev/clarity-in-league/)).
+
+**Three reads, three truths.**
+- **The orb** is the FRONT carried spell — what E casts. Core luminance-normalised (below), shell in its hue,
+  its rig shown. With nothing carried the core drops to `OrbEmptyMultiplier` 0.42 (peak ≤ 0.96, under bloom)
+  and no rig is shown: a blooming orb with a silhouette *always* means castable. During a riposte the orb
+  wears the inscription's colour and rig for the pose — the book is casting the inscription, so that is true.
+- **Eight rune bars** light one per carried slot in that spell's colour, the front at luminance 0.95, the
+  rest of the queue at 0.5, empty bars at 0.10 bone; all peak-capped at 1.0. They are the queue, not a halo.
+- **The page sigil** (0.42× the orb, over the left page, clear of the aim lane) is the selected riposte
+  inscription: same rig language, luminance 0.7, capped at 1.0, brightening with the riposte charge —
+  `OffhandViewmodel.SetGlowCharge` now reaches the book through `SpellbookVisual.SetCharge` (the old path
+  looked for an `EnergyGlow` on the book's root and never found one, so the wind-up never reached the orb).
+
+**Gold stays gold.** `SpellbookVisual.OrbEmission` normalised the max channel to 2.1, so Emberlance's gold
+became (2.1, 1.79, 1.14) — every channel over 1, and ACES rendered it white. It now normalises **Rec.709
+luminance** to `OrbEmissionLuminance` 1.3 and only then clamps the peak channel at 2.1. Gold lands at
+(1.51, 1.29, 0.82): blooms, blue stays under 1, reads gold. Every spell lands at the same perceived
+brightness; the clamp binds only on Voidspine (2.29 → 2.1, luminance 1.19), proportionally, so it stays violet.
+Pinned by `SpellbookVisualTests.OrbEmission_NormalisesByLuminanceSoGoldStaysGold`.
+
+**One writer.** Nothing under the orb is named `Tip*`/`Seg*`/`Float*` and there is no `EnergyGlow` under the
+book any more: `SpellbookVisual` writes every orb renderer through one property block. (The old rune bars
+were `Float*` pivots on an XY ring, which `EnergyGlow.AnimateFloats` re-laid onto an XZ ring of radius
+|x| — the "halo" was never the ring the factory described.)
+
+**Budget.** No new lights. Core ≤ 2.1 (a near-field exception, as before, under the mark's 2.6 and the tell's
+3.0); everything else ≤ 1.0 by cap. Idle spins ≤ 300°/s and rates ≤ 8 Hz (`SpellOrbProfile.MaxIdle*`, pinned);
+the parry-quadrant flutter/bob numbers are unchanged (review item 6 is still open, not authorised).
+
+**The wheel always answers.** `PlayerItems.CycleSelection` with fewer than two spells now clicks softly and
+flashes `NO SPELLS` / `ONE SPELL` (the true count) instead of returning in silence.
+
+**What this pass could not check, stated plainly.** No screenshot was taken: every number above is
+arithmetic on the shipped assets and the generated prefab. The rigs' on-screen size at the rest pose, the
+shell's alpha against the parchment, whether the skull sockets read as a face at 0.5 m, and whether 7 Hz
+needles are a crackle or a flicker are **reasoned, not seen**. Run the `output/spellbook-review-*` capture
+loop with one shot per spell and judge them side by side.
 
 Player Pyre now throws `FireSlashFx`: a broad hot inner edge, torn fringe and ember breakup following the
 weapon's authored radius, arc and multi-hit progress. Damage waits for the visible contact beat. The old
