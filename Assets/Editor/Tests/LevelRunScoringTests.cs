@@ -272,12 +272,13 @@ namespace VibeGame1.Tests
             try
             {
                 LevelDefinitionAuthoring.Apply(def);
-                Assert.AreEqual(3560, def.requiredRunSouls,
-                    "three sub-bosses + Warden + four 40-soul regulars define the Level_01 baseline");
+                Assert.AreEqual(4040, def.requiredRunSouls,
+                    "four sub-bosses (400 + 600 + 900 + 480) + Warden 1500 + four 40-soul regulars define the Level_01 baseline");
                 Assert.AreEqual(4, def.requiredRegularKills);
                 CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
-                    "Spawn_Legendary_Spellsword", "Spawn_Boss" }, System.Array.ConvertAll(def.runSplits, s => s.endSpawnerName));
-                CollectionAssert.AreEqual(new[] { 55f, 60f, 70f, 40f }, System.Array.ConvertAll(def.runSplits, s => s.sSeconds));
+                    "Spawn_Legendary_Spellsword", "Spawn_Legendary_V18Grappler", "Spawn_Boss" },
+                    System.Array.ConvertAll(def.runSplits, s => s.endSpawnerName));
+                CollectionAssert.AreEqual(new[] { 55f, 60f, 70f, 60f, 40f }, System.Array.ConvertAll(def.runSplits, s => s.sSeconds));
                 Assert.AreEqual(100, def.gradeBonuses.sSouls);
             }
             finally { Object.DestroyImmediate(def); }
@@ -322,15 +323,15 @@ namespace VibeGame1.Tests
         public void ShippedAssetCarriesTheRunContractAfterAuthoring()
         {
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelDefinitionAuthoring.Level01);
-            Assert.AreEqual(3560, def.requiredRunSouls);
+            Assert.AreEqual(4040, def.requiredRunSouls);
             Assert.AreEqual(4, def.requiredRegularKills);
-            Assert.AreEqual(4, def.runSplits.Length);
-            CollectionAssert.AreEqual(new[] { "Ninja", "Knight", "Spellsword", "Warden" },
+            Assert.AreEqual(5, def.runSplits.Length);
+            CollectionAssert.AreEqual(new[] { "Ninja", "Knight", "Spellsword", "Grappler", "Warden" },
                 System.Array.ConvertAll(def.runSplits, s => s.name));
             CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
-                "Spawn_Legendary_Spellsword", "Spawn_Boss" },
+                "Spawn_Legendary_Spellsword", "Spawn_Legendary_V18Grappler", "Spawn_Boss" },
                 System.Array.ConvertAll(def.runSplits, s => s.endSpawnerName));
-            CollectionAssert.AreEqual(new[] { 55f, 60f, 70f, 40f },
+            CollectionAssert.AreEqual(new[] { 55f, 60f, 70f, 60f, 40f },
                 System.Array.ConvertAll(def.runSplits, s => s.sSeconds));
             CollectionAssert.AreEqual(new[] { 0, 25, 50, 75, 100 }, new[] {
                 def.gradeBonuses.dSouls, def.gradeBonuses.cSouls, def.gradeBonuses.bSouls,
@@ -354,7 +355,7 @@ namespace VibeGame1.Tests
                 }
                 Assert.IsNotNull(scorer, "rebuild Level_01 after adding LevelRunScorer");
                 Assert.IsNotNull(scorer.definition);
-                Assert.AreEqual(3560, scorer.definition.requiredRunSouls);
+                Assert.AreEqual(4040, scorer.definition.requiredRunSouls);   // +480: the T4 grappler realm (2026-09-13)
                 Assert.IsNotNull(scorer.registry);
             }
             finally

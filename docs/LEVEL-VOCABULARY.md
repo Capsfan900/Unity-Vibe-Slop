@@ -12,11 +12,27 @@ valid shorthand, but the canonical name and shipped ID remove ambiguity.
 | **T1 — Stone Causeway** | z 8 to 145.625 | first parkour section, causeway, Ninja section | Stepping stones and water shortcut into the Thirteenth Shade split. |
 | **T2 — Helix Tower** | z 145.625 to 267 | tower, wall-run tower, Knight section | The vertical wall-run/wall-jump circuit into the Iron Penitent split. |
 | **T3 — Balloon Aqueduct** | z 267 to 393.15 | balloon section, water span, Spellsword section | Balloons, elevated water and the Ashen Chorister split. |
-| **T4 — Warden Descent** | z 393.15 to 520 | last ramp, final ramp, Warden approach, boss approach | The final downhill Surge Turret sequence into the Hollow Warden split. |
+| **T4 — Warden Descent** | z 393.15 to 514.4 | last ramp, final ramp, Grappler section, grappler approach | The downhill Surge Turret sequence that flies you into the fourth mini-boss realm at its foot: the Grappler split. |
+| **T5 — Warden Court** | z 514.5 to 600 | Warden approach, boss approach, Warden court, final deck | The return deck from the fourth realm, `Checkpoint_4`, and the Hollow Warden's sun: the Warden split. |
 
-The split name is the boss-clear timing segment: **Ninja**, **Knight**, **Spellsword**, then **Warden**.
-“Zone” describes a physical stretch of the main course; “split” describes the scored interval that ends when
-that zone's boss dies. Solar Realms are the isolated boss arenas reached from their matching zone.
+The split name is the boss-clear timing segment: **Ninja**, **Knight**, **Spellsword**, **Grappler**, then
+**Warden**. “Zone” describes a physical stretch of the main course; “split” describes the scored interval that
+ends when that zone's boss dies. A zone carries exactly one split (the catalog and the Level Studio validator
+both hold `zone.splitName == split.name` for the split's end spawner), which is why the fourth realm made T5 a
+zone of its own rather than stretching T4. Solar Realms are the isolated boss arenas reached from their
+matching zone; since 2026-09-13 every realm is the same cell — a 30 m floor under 24 m walls inside a 45 m
+shell — and the five cells sit 100 m apart at x 700, z 0 / 100 / 200 / 300 / 400 in course order.
+
+**Ids that keep an older zone prefix.** The Warden's records were minted in T4 (`T4.Arena.01`, `T4.Gate.01`,
+`T4.BossPortal.01`, `T4.HollowWarden.01`, `T4.RunSplit.01`, `T4.Checkpoint.01`, `T4.Pickup.01`) and now sit in
+T5. Ids are never renamed, so they keep the T4 prefix; `Spawn_Boss` and `Pickup_Boss_Hook` resolve to T5 by
+`zoneIdOverride`, because the spawner's historical anchor (z 396) never moves.
+
+**The fourth realm's objects (T4).** Gate `T4_Gate` (trigger `T4_ArenaTrigger`, exit `T4_Gate_Exit`), portal
+sun at `(0, 22.3, 479.7)`, spawner `Spawn_Legendary_V18Grappler`, pickup `Pickup_T4_Grappler`, run-out deck
+`T4_Grappler_Approach`, checkpoint `Checkpoint_T4_Grappler`. The numbered `Checkpoint_1..4` names stay
+load-bearing (F5 warps to `Checkpoint_4`, still the Warden's approach), so the new checkpoint is named for its
+place, not renumbered.
 
 ## Enemy vocabulary
 
@@ -26,8 +42,10 @@ that zone's boss dies. Solar Realms are the isolated boss arenas reached from th
 | **Heavy Sentry** | `pshooter_enemy02` | heavy turret, reliquary turret, three-shot heavy | Stationary dark reliquary that fires a rapid three-shot phrase. The T0 pair are `Spawn_T0_Reliquary_1` and `_2`. |
 | **Surge Turret** | `pshooter_enemy03` | ramp turret, rapid turret | Small fixed projectile turret used on the long downhill routes. T0 and T4 suffixes identify shot order. |
 
-The parkour projectile lineage above is separate from the Souls melee lineage (`Legendary_*`, `Boss`, and
-the Sandbox-only V18 test boss). Never use “blue squid” to mean a Heavy Sentry or Surge Turret.
+| **The Grappler** (placeholder) | `Legendary_FlurryBrawlerV18` on `Spawn_Legendary_V18Grappler` | T4 mini-boss, fourth realm, V18 | The fourth mini realm's occupant. The spawner NAME is the stable contract; the prefab key is the boss-roster plan's final occupant standing in until Stage 5 seats it with its grab-fly-throw. |
+
+The parkour projectile lineage above is separate from the Souls melee lineage (`Legendary_*`, `Boss`).
+Never use “blue squid” to mean a Heavy Sentry or Surge Turret.
 
 ## Object words
 
@@ -37,8 +55,13 @@ the Sandbox-only V18 test boss). Never use “blue squid” to mean a Heavy Sent
 - **parry route**: an ordered `projectileSequences[]` firing schedule. This is not an alternate path.
 - **Challenge Route**: an optional faster/harder flare shortcut defined in `challengeRoutes[]`. Its
   invisible anchor exists only to preserve authoring and timing data.
-- **arena gate / Solar Realm**: the main-course gate and isolated boss arena belonging to a split.
-- **checkpoint**: the respawn anchor at the entrance of the next traversal zone.
+- **arena gate / Solar Realm**: the main-course gate and isolated boss arena belonging to a split. Five of
+  them: `T1_Gate`, `T2_Gate`, `T3_Gate`, `T4_Gate`, `Boss_Gate`.
+- **checkpoint**: the respawn anchor at the entrance of the next traversal zone (`Checkpoint_1..4`), plus
+  `Checkpoint_T4_Grappler` on the descent's run-out before the fourth realm.
+- **slide gate / lintel**: RETIRED 2026-09-13. `T1_Fallen_Obelisk` (`T1.Platform.10`) and `T3_Fallen_Lintel`
+  (`T3.Platform.08`) were the bars across the causeway and the span; `LevelDefinitionAuthoring.RemovedSlideGates`
+  removes them on every `8a` and nothing re-adds them. Do not use "slide gate" for anything in Level 1 now.
 
 ## Dashboard data
 
@@ -56,7 +79,8 @@ The development dashboard derives bounds, splits, placed IDs, types and data key
         {"id": "T1", "aliases": ["first parkour section", "causeway", "Ninja section"]},
         {"id": "T2", "aliases": ["tower", "wall-run tower", "Knight section"]},
         {"id": "T3", "aliases": ["balloon section", "water span", "Spellsword section"]},
-        {"id": "T4", "aliases": ["last ramp", "final ramp", "Warden approach", "boss approach"]}
+        {"id": "T4", "aliases": ["last ramp", "final ramp", "Grappler section", "grappler approach"]},
+        {"id": "T5", "aliases": ["Warden approach", "boss approach", "Warden court", "final deck"]}
       ]
     }
   ],
@@ -67,6 +91,7 @@ The development dashboard derives bounds, splits, placed IDs, types and data key
     "Legendary_Ninja": {"canonical": "The Thirteenth Shade", "aliases": ["Ninja", "T1 sub-boss"]},
     "Legendary_Knight": {"canonical": "The Iron Penitent", "aliases": ["Knight", "T2 sub-boss"]},
     "Legendary_Spellsword": {"canonical": "The Ashen Chorister", "aliases": ["Spellsword", "T3 sub-boss"]},
+    "Legendary_FlurryBrawlerV18": {"canonical": "The Grappler", "aliases": ["Grappler", "T4 mini-boss", "fourth realm", "V18"]},
     "Boss": {"canonical": "The Hollow Warden", "aliases": ["Warden", "main boss"]}
   }
 }

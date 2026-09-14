@@ -160,7 +160,12 @@ namespace VibeGame1.Tests
         [Test] public void RunOutCheckpointGateAndBossMoveTogether()
         {
             var ramp = def.ramps.Single(r => r.name == "T4_Ramp_Descent");
+            // 2026-09-13: the descent runs out onto the grappler approach (the fourth mini realm's deck);
+            // Boss_Approach follows that realm's return and is the Warden's deck, 72 m further on.
+            var runOut = def.platforms.Single(p => p.name == LevelDefinitionAuthoring.GrapplerApproach);
             var deck = def.platforms.Single(p => p.name == "Boss_Approach");
+            var grapplerCheckpoint = def.checkpoints.Single(c => c.name == LevelDefinitionAuthoring.GrapplerCheckpoint);
+            var grapplerGate = def.arenas.Single(a => a.gateName == LevelDefinitionAuthoring.GrapplerGate);
             var checkpoint = def.checkpoints.Single(c => c.name == "Checkpoint_4");
             var arena = def.arenas.Single(a => a.gateName == "Boss_Gate");
             var boss = def.spawns.Single(s => s.name == "Spawn_Boss");
@@ -169,15 +174,24 @@ namespace VibeGame1.Tests
             Assert.That(ramp.rise, Is.EqualTo(-12f).Within(0.001f));
             Assert.That(ramp.width, Is.EqualTo(10f).Within(0.001f));
             Assert.That(ramp.yaw, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(runOut.size.z, Is.EqualTo(14f).Within(0.001f));
             Assert.That(deck.size.z, Is.EqualTo(11.4f).Within(0.001f));
             Assert.That(entry.size.x, Is.GreaterThanOrEqualTo(ramp.width));
+            Assert.That(runOut.size.x, Is.GreaterThanOrEqualTo(ramp.width));
             Assert.That(deck.size.x, Is.GreaterThanOrEqualTo(ramp.width));
             Assert.That(ramp.basePosition.y, Is.EqualTo(entry.center.y + entry.size.y / 2f).Within(0.001f));
             Assert.That(entry.center.z + entry.size.z / 2f - ramp.basePosition.z, Is.EqualTo(0.2f).Within(0.001f));
-            Assert.That(ramp.TopPosition.z - (deck.center.z - deck.size.z / 2f), Is.EqualTo(0.2f).Within(0.001f));
-            Assert.That(ramp.TopPosition.y, Is.EqualTo(deck.center.y + deck.size.y / 2f).Within(0.001f));
+            Assert.That(ramp.TopPosition.z - (runOut.center.z - runOut.size.z / 2f), Is.EqualTo(0.2f).Within(0.001f));
+            Assert.That(ramp.TopPosition.y, Is.EqualTo(runOut.center.y + runOut.size.y / 2f).Within(0.001f));
+            Assert.That(deck.center.y + deck.size.y / 2f, Is.EqualTo(ramp.TopPosition.y).Within(0.001f),
+                "the Warden's deck keeps the descent's floor height so the return and the last jump read as one level");
+            // The grappler checkpoint sits on the run-out between the ramp and the fourth gate; Checkpoint_4
+            // (F5's target) sits on the Warden's deck between the fourth realm's exit gate and the Warden's gate.
+            Assert.That(grapplerCheckpoint.position.y, Is.EqualTo(ramp.TopPosition.y).Within(0.001f));
+            Assert.That(grapplerCheckpoint.position.z, Is.GreaterThan(ramp.TopPosition.z));
+            Assert.That(grapplerCheckpoint.position.z, Is.LessThan(grapplerGate.gateClosedPosition.z));
             Assert.That(checkpoint.position.y, Is.EqualTo(ramp.TopPosition.y).Within(0.001f));
-            Assert.That(checkpoint.position.z, Is.GreaterThan(ramp.TopPosition.z));
+            Assert.That(checkpoint.position.z, Is.GreaterThan(grapplerGate.exitGateClosedPosition.z));
             Assert.That(checkpoint.position.z, Is.LessThan(arena.gateClosedPosition.z));
             Assert.That(arena.solarRealm.enemySpawnerName, Is.EqualTo(boss.name));
             Vector2 realmDelta = new Vector2(arena.solarRealm.enemySpawnPosition.x - arena.solarRealm.realmCenter.x,

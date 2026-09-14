@@ -54,13 +54,13 @@ namespace VibeGame1.Tests
                 "the west perch must remain a raised forward flank outside the cyan sun silhouette");
             var east = LevelDefinitionAuthoring.Perches.Single(p => p.name == "T1_Perch_E");
             Assert.That(Vector3.Distance(east.center, new Vector3(6.8f, 5f, 62f)), Is.LessThan(0.001f),
-                "the east perch must stay high enough to clear the slide gate while remaining ahead of the runway");
+                "the east perch stays raised on the east shoulder, ahead of the runway");
         }
 
         [Test]
         public void HybridSilhouetteIsRestoredBesideTheOpenLine()
         {
-            string[] restored = { "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W", "T1_Fallen_Obelisk",
+            string[] restored = { "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W",
                                   "T1_Wall_Start", "T1_Wall_Causeway", "T1_Wall_Landing" };
             foreach (string name in restored)
             {
@@ -71,10 +71,10 @@ namespace VibeGame1.Tests
             }
 
             // The low rails and alternate wall line frame the broad route instead of reclaiming its
-            // middle. The fallen obelisk is deliberately excluded: it is the authored slide-under gate.
-            foreach (string name in new[] { "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W",
-                                             "T1_Wall_Start", "T1_Wall_Causeway", "T1_Wall_Landing" })
-                AssertOutsideCenterStrip(name, 3f);
+            // middle. Nothing may cross the causeway's middle any more: the slide-under gate
+            // (T1_Fallen_Obelisk) was retired on 2026-09-13.
+            foreach (string name in restored) AssertOutsideCenterStrip(name, 3f);
+            Assert.IsFalse(def.platforms.Any(p => p.name == "T1_Fallen_Obelisk"), "the causeway's slide gate is retired");
         }
 
         [Test]

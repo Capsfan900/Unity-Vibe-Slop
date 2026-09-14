@@ -39,11 +39,14 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void LintelPostsAndOuterWallLinesAreRestored()
+        public void PostsAndOuterWallLinesAreRestored_AndTheLintelIsGone()
         {
-            string[] restored = { "T3_Fallen_Lintel", "T3_Obelisk_W1", "T3_Obelisk_W2", "T3_Obelisk_E1",
+            string[] restored = { "T3_Obelisk_W1", "T3_Obelisk_W2", "T3_Obelisk_E1",
                 "T3_Obelisk_E2", "T3_Recovery_W1", "T3_Recovery_W2", "T3_Recovery_E1", "T3_Recovery_E2",
                 "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Wall_Span" };
+            // The span's slide-under lintel (T3_Fallen_Lintel) was retired on 2026-09-13: the 16 m water
+            // runway is read and skated end to end with nothing across its middle.
+            Assert.IsFalse(def.platforms.Any(p => p.name == "T3_Fallen_Lintel"), "the span's slide gate is retired");
             var canonicalEntry = LevelDefinitionAuthoring.OpenCourseDecks.Single(p => p.name == "T3_Pillar_1");
             var appliedEntry = def.platforms.Single(p => p.name == "T3_Pillar_1");
             Vector3 sectionOffset = appliedEntry.center - canonicalEntry.center;
@@ -55,9 +58,9 @@ namespace VibeGame1.Tests
                 Assert.That(Vector3.Distance(got.size, want.size), Is.LessThan(0.001f), name + " size");
             }
 
-            // The lintel is the one intentional cross-lane gate. Posts and wall-run pieces stay outside
-            // the wide middle so they add vertical choices without narrowing the base chain.
-            foreach (string name in restored.Where(n => n != "T3_Fallen_Lintel"))
+            // Posts and wall-run pieces stay outside the wide middle so they add vertical choices without
+            // narrowing the base chain; nothing crosses the lane.
+            foreach (string name in restored)
             {
                 var p = def.platforms.Single(x => x.name == name);
                 float nearestX = Mathf.Abs(p.center.x) - p.size.x * 0.5f;

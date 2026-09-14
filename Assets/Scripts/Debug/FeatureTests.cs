@@ -4732,7 +4732,9 @@ namespace VibeGame1
 
         static readonly string[] LegendarySpawnNames =
         {
-            "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight", "Spawn_Legendary_Spellsword"
+            "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight", "Spawn_Legendary_Spellsword",
+            // The fourth mini realm at the foot of the T4 descent (2026-09-13). Placeholder occupant.
+            "Spawn_Legendary_V18Grappler"
         };
 
         static EnemySpawner FindSpawner(string spawnerName)
@@ -4775,7 +4777,8 @@ namespace VibeGame1
             var bossArena = FindBossArena();
             Check("Structure_BossArenaExists", bossArena != null);
             var solarPortals = FindObjectsByType<SolarArenaPortal>();
-            Check("Structure_FourSolarArenaPortals", solarPortals.Length == 4,
+            // Four mini realms (T1, T2, T3 and the T4 grappler realm) plus the Warden's.
+            Check("Structure_FiveSolarArenaPortals", solarPortals.Length == 5,
                 "count=" + solarPortals.Length);
             foreach (var portal in solarPortals)
             {
@@ -4786,9 +4789,11 @@ namespace VibeGame1
                 EnemySpawner realmSpawner = portal.IsFinalBossPortal
                     ? FindFinalBossSpawner()
                     : (portal.arena != null ? portal.arena.clearSpawner : null);
+                // The enemy stands 6 m up-range of the cell's centre on a 30 m floor: anything within half
+                // the floor radius is "in the realm"; anything further is the builder failing to move it.
                 Check("Structure_" + portal.name + "_EnemyInRealm",
                     realmSpawner != null && portal.realmBoundsCenter != null &&
-                    Vector3.Distance(realmSpawner.transform.position, portal.realmBoundsCenter.position) < 10f,
+                    Vector3.Distance(realmSpawner.transform.position, portal.realmBoundsCenter.position) < 15f,
                     "spawner=" + (realmSpawner != null ? realmSpawner.name : "null"));
                 Check("Structure_" + portal.name + "_ReturnContract",
                     portal.IsFinalBossPortal ? portal.realmExitRoot == null : portal.realmExitRoot != null);
@@ -4941,13 +4946,15 @@ namespace VibeGame1
 
             // The hybrid pass keeps the wide steering decks and restores the silhouettes and secondary
             // movement lines around them. Missing one here means a rebuild silently flattened the route.
+            // The slide-under bars (T1_Fallen_Obelisk, T3_Fallen_Lintel) were retired on 2026-09-13 and
+            // must NOT be in the built scene any more.
             string[] restoredTraversal =
             {
-                "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W", "T1_Fallen_Obelisk",
+                "T1_Rail_L", "T1_Rail_R", "T1_Obelisk_W",
                 "T1_Wall_Start", "T1_Wall_Causeway", "T1_Wall_Landing",
                 "T2_Tower", "T2_Buttress", "T2_Wall_East", "T2_Wall_Landing_East",
                 "T2_Wall_West", "T2_Wall_Landing_West",
-                "T3_Fallen_Lintel", "T3_Obelisk_W1", "T3_Obelisk_W2", "T3_Obelisk_E1", "T3_Obelisk_E2",
+                "T3_Obelisk_W1", "T3_Obelisk_W2", "T3_Obelisk_E1", "T3_Obelisk_E2",
                 "T3_Recovery_W1", "T3_Recovery_W2", "T3_Recovery_E1", "T3_Recovery_E2",
                 "T3_Wall_Pillars", "T3_Wall_Landing_S", "T3_Wall_Span",
             };
@@ -4956,6 +4963,9 @@ namespace VibeGame1
                 if (GameObject.Find("Level/" + n2) == null) missingTraversal.Add(n2);
             Check("Reach_HybridTraversalIsRestored", missingTraversal.Count == 0,
                 "missing=" + string.Join(",", missingTraversal.ToArray()));
+            Check("Reach_SlideGatesAreRetired",
+                GameObject.Find("Level/T1_Fallen_Obelisk") == null && GameObject.Find("Level/T3_Fallen_Lintel") == null,
+                "a retired bar is still built: rerun 8a then 8");
 
             var challengeAnchors = FindObjectsByType<ChallengeRouteMarker>(FindObjectsInactive.Include);
             Check("Reach_ThreeChallengeAnchorsExist", challengeAnchors.Length == 3,
@@ -5123,7 +5133,7 @@ namespace VibeGame1
                 if (a.clearSpawner != null) mini.Add(a);
                 else bossArena = a;
             }
-            Check("Gate_ThreeMiniBossArenas", mini.Count == 3, "count=" + mini.Count);
+            Check("Gate_FourMiniBossArenas", mini.Count == 4, "count=" + mini.Count);
             Check("Gate_OneBossArena", bossArena != null, "arenas=" + arenas.Length);
 
             // Nothing is open before the player has been anywhere. If this fails the run is a straight

@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  requiredRunSouls: 3560
+  requiredRunSouls: 4040
   requiredRegularKills: 4
   gradeBonuses:
     dSouls: 0
@@ -56,6 +56,16 @@ MonoBehaviour:
     aSeconds: 80.5
     bSeconds: 91
     cSeconds: 105
+  - meta:
+      objectId: T4.RunSplit.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Grappler
+    endSpawnerName: Spawn_Legendary_V18Grappler
+    sSeconds: 60
+    aSeconds: 69
+    bSeconds: 78
+    cSeconds: 90
   - meta:
       objectId: T4.RunSplit.01
       friendlyName: 
@@ -114,16 +124,28 @@ MonoBehaviour:
     displayColor: {r: 0.3, g: 0.5, b: 1, a: 1}
   - zoneId: T4
     canonicalName: Warden Descent
-    splitName: Warden
+    splitName: Grappler
     aliases:
     - last ramp
     - final ramp
+    - Grappler section
+    - grappler approach
+    order: 4
+    center: {x: 0, y: 32, z: 453.7}
+    size: {x: 256, y: 192, z: 121.400024}
+    displayColor: {r: 0.8, g: 0.6, b: 1, a: 1}
+  - zoneId: T5
+    canonicalName: Warden Court
+    splitName: Warden
+    aliases:
     - Warden approach
     - boss approach
-    order: 4
-    center: {x: 0, y: 32, z: 456.5}
-    size: {x: 256, y: 192, z: 127}
-    displayColor: {r: 0.8, g: 0.6, b: 1, a: 1}
+    - Warden court
+    - final deck
+    order: 5
+    center: {x: 0, y: 32, z: 557.25}
+    size: {x: 256, y: 192, z: 85.5}
+    displayColor: {r: 0.35, g: 0.9, b: 0.55, a: 1}
   playerStart: {x: 0, y: 36.3, z: -162.3}
   playerStartMeta:
     objectId: T0.PlayerStart
@@ -411,7 +433,7 @@ MonoBehaviour:
       friendlyName: 
       zoneIdOverride: 
     name: Boss_Approach
-    center: {x: 0, y: 15.5, z: 448.3}
+    center: {x: 0, y: 15.5, z: 520.3}
     size: {x: 10, y: 1, z: 11.4}
     materialKey: Platform
     trim: 1
@@ -446,17 +468,6 @@ MonoBehaviour:
     name: T1_Obelisk_W
     center: {x: -9.5, y: 4.5, z: 50}
     size: {x: 1.4, y: 9, z: 1.4}
-    materialKey: Stone
-    trim: 1
-    trimMaterialKey: NeonCyan
-    isStatic: 1
-  - meta:
-      objectId: T1.Platform.10
-      friendlyName: 
-      zoneIdOverride: 
-    name: T1_Fallen_Obelisk
-    center: {x: 0, y: 3.7, z: 48}
-    size: {x: 15, y: 0.8, z: 1.2}
     materialKey: Stone
     trim: 1
     trimMaterialKey: NeonCyan
@@ -559,17 +570,6 @@ MonoBehaviour:
     materialKey: Platform
     trim: 1
     trimMaterialKey: NeonYellow
-    isStatic: 1
-  - meta:
-      objectId: T3.Platform.08
-      friendlyName: 
-      zoneIdOverride: 
-    name: T3_Fallen_Lintel
-    center: {x: 0, y: 26.15, z: 301}
-    size: {x: 17, y: 0.8, z: 1.2}
-    materialKey: Stone
-    trim: 1
-    trimMaterialKey: NeonRed
     isStatic: 1
   - meta:
       objectId: T3.Platform.09
@@ -989,6 +989,17 @@ MonoBehaviour:
     trim: 1
     trimMaterialKey: NeonCyan
     isStatic: 1
+  - meta:
+      objectId: T4.Platform.06
+      friendlyName: 
+      zoneIdOverride: 
+    name: T4_Grappler_Approach
+    center: {x: 0, y: 15.5, z: 449.6}
+    size: {x: 10, y: 1, z: 14}
+    materialKey: Platform
+    trim: 1
+    trimMaterialKey: NeonPink
+    isStatic: 1
   ramps:
   - meta:
       objectId: T1.Ramp.01
@@ -1164,9 +1175,18 @@ MonoBehaviour:
     yaw: 180
     isBoss: 0
   - meta:
-      objectId: T4.HollowWarden.01
+      objectId: T4.FlurryBrawlerV18.01
       friendlyName: 
       zoneIdOverride: 
+    name: Spawn_Legendary_V18Grappler
+    prefabKey: Legendary_FlurryBrawlerV18
+    position: {x: 0, y: 16.1, z: 479.7}
+    yaw: 180
+    isBoss: 0
+  - meta:
+      objectId: T4.HollowWarden.01
+      friendlyName: 
+      zoneIdOverride: T5
     name: Spawn_Boss
     prefabKey: Boss
     position: {x: 0, y: 16.1, z: 396}
@@ -1334,9 +1354,16 @@ MonoBehaviour:
     itemKey: Rebound
     position: {x: 8, y: 29.2, z: 261}
   - meta:
+      objectId: T4.Pickup.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Pickup_T4_Grappler
+    itemKey: DeflectSigil
+    position: {x: -8, y: 17.2, z: 470}
+  - meta:
       objectId: T4.Pickup.01
       friendlyName: 
-      zoneIdOverride: T4
+      zoneIdOverride: T5
     name: Pickup_Boss_Hook
     itemKey: Grapple
     position: {x: -8, y: 17.2, z: 376}
@@ -1363,11 +1390,18 @@ MonoBehaviour:
     position: {x: 2.75, y: 21.5, z: 268}
     spawnOffset: {x: 0, y: 0.2, z: 0}
   - meta:
+      objectId: T4.Checkpoint.02
+      friendlyName: 
+      zoneIdOverride: 
+    name: Checkpoint_T4_Grappler
+    position: {x: 0, y: 16, z: 447}
+    spawnOffset: {x: 0, y: 0.2, z: -3}
+  - meta:
       objectId: T4.Checkpoint.01
       friendlyName: 
       zoneIdOverride: 
     name: Checkpoint_4
-    position: {x: 0, y: 16, z: 450}
+    position: {x: 0, y: 16, z: 522}
     spawnOffset: {x: 0, y: 0.2, z: -3}
   torches:
   - meta:
@@ -1633,19 +1667,21 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 0}
-      realmFloorRadius: 20
-      realmShellRadius: 30
-      playerEntryPosition: {x: 700, y: 1.2, z: -13}
+      realmFloorRadius: 30
+      realmShellRadius: 45
+      realmWallHeight: 24
+      realmCeilingHeight: 24
+      playerEntryPosition: {x: 700, y: 1.2, z: -19.5}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 2.2, z: 62}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Ninja
-      enemySpawnPosition: {x: 700, y: 0.1, z: 4}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 6}
       enemySpawnYaw: 180
       arenaPickupName: Pickup_T1_Surge
-      arenaPickupPosition: {x: 693, y: 1.2, z: -2}
+      arenaPickupPosition: {x: 689.5, y: 1.2, z: -3}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: -17.5}
+      realmExitPosition: {x: 700, y: 1.5, z: -26}
       returnPosition: {x: 10, y: 5.2, z: 151.375}
       returnYaw: 0
   - meta:
@@ -1686,20 +1722,22 @@ MonoBehaviour:
       exteriorCenter: {x: 0, y: 24.55, z: 216.8}
       exteriorRadius: 17
       visualRadius: 23
-      realmCenter: {x: 700, y: 0, z: 80}
-      realmFloorRadius: 20
-      realmShellRadius: 30
-      playerEntryPosition: {x: 700, y: 1.2, z: 67}
+      realmCenter: {x: 700, y: 0, z: 100}
+      realmFloorRadius: 30
+      realmShellRadius: 45
+      realmWallHeight: 24
+      realmCeilingHeight: 24
+      playerEntryPosition: {x: 700, y: 1.2, z: 80.5}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 20.2, z: 188}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Knight
-      enemySpawnPosition: {x: 700, y: 0.1, z: 84}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 106}
       enemySpawnYaw: 180
       arenaPickupName: Pickup_T2_Hook_2
-      arenaPickupPosition: {x: 693, y: 1.2, z: 78}
+      arenaPickupPosition: {x: 689.5, y: 1.2, z: 97}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 62.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 74}
       returnPosition: {x: 2.75, y: 21.7, z: 268}
       returnYaw: 0
   - meta:
@@ -1740,21 +1778,79 @@ MonoBehaviour:
       exteriorCenter: {x: 0, y: 32.2, z: 356.3}
       exteriorRadius: 16
       visualRadius: 22
-      realmCenter: {x: 700, y: 0, z: 160}
-      realmFloorRadius: 20
-      realmShellRadius: 30
-      playerEntryPosition: {x: 700, y: 1.2, z: 147}
+      realmCenter: {x: 700, y: 0, z: 200}
+      realmFloorRadius: 30
+      realmShellRadius: 45
+      realmWallHeight: 24
+      realmCeilingHeight: 24
+      playerEntryPosition: {x: 700, y: 1.2, z: 180.5}
       playerEntryYaw: 0
       retryPosition: {x: -3, y: 27.2, z: 329}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Spellsword
-      enemySpawnPosition: {x: 700, y: 0.1, z: 164}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 206}
       enemySpawnYaw: 180
       arenaPickupName: Pickup_T3_Surge_2
-      arenaPickupPosition: {x: 707, y: 1.2, z: 158}
+      arenaPickupPosition: {x: 710.5, y: 1.2, z: 197}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 142.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 174}
       returnPosition: {x: 0, y: 28.2, z: 393.15}
+      returnYaw: 0
+  - meta:
+      objectId: T4.Arena.02
+      friendlyName: 
+      zoneIdOverride: 
+    gateMeta:
+      objectId: T4.Gate.02
+      friendlyName: 
+      zoneIdOverride: 
+    exitGateMeta:
+      objectId: T4.ExitGate.01
+      friendlyName: 
+      zoneIdOverride: 
+    enabled: 1
+    gateName: T4_Gate
+    gateSize: {x: 9, y: 4, z: 0.5}
+    gateMaterialKey: Gate
+    gateOpenPosition: {x: 0, y: 11.5, z: 455.9}
+    gateClosedPosition: {x: 0, y: 18, z: 455.9}
+    triggerName: T4_ArenaTrigger
+    triggerPosition: {x: 0, y: 18, z: 470.7}
+    triggerSize: {x: 9, y: 4, z: 2}
+    clearSpawnerName: Spawn_Legendary_V18Grappler
+    hasExitGate: 1
+    exitGateName: T4_Gate_Exit
+    exitGateSize: {x: 9, y: 4, z: 0.5}
+    exitGateMaterialKey: Gate
+    exitGateClosedPosition: {x: 0, y: 18, z: 514.2}
+    exitGateOpenPosition: {x: 0, y: 11.5, z: 514.2}
+    solarRealm:
+      meta:
+        objectId: T4.BossPortal.02
+        friendlyName: 
+        zoneIdOverride: 
+      enabled: 1
+      themeMaterialKey: SolarViolet
+      exteriorCenter: {x: 0, y: 22.3, z: 479.7}
+      exteriorRadius: 16
+      visualRadius: 22
+      realmCenter: {x: 700, y: 0, z: 300}
+      realmFloorRadius: 30
+      realmShellRadius: 45
+      realmWallHeight: 24
+      realmCeilingHeight: 24
+      playerEntryPosition: {x: 700, y: 1.2, z: 280.5}
+      playerEntryYaw: 0
+      retryPosition: {x: 0, y: 16.2, z: 450}
+      retryYaw: 0
+      enemySpawnerName: Spawn_Legendary_V18Grappler
+      enemySpawnPosition: {x: 700, y: 0.1, z: 306}
+      enemySpawnYaw: 180
+      arenaPickupName: Pickup_T4_Grappler
+      arenaPickupPosition: {x: 710.5, y: 1.2, z: 297}
+      hasReturn: 1
+      realmExitPosition: {x: 700, y: 1.5, z: 274}
+      returnPosition: {x: 0, y: 16.2, z: 517.6}
       returnYaw: 0
   - meta:
       objectId: T4.Arena.01
@@ -1772,10 +1868,10 @@ MonoBehaviour:
     gateName: Boss_Gate
     gateSize: {x: 9, y: 4, z: 0.5}
     gateMaterialKey: Gate
-    gateOpenPosition: {x: 0, y: 11.5, z: 453.3}
-    gateClosedPosition: {x: 0, y: 18, z: 453.3}
+    gateOpenPosition: {x: 0, y: 11.5, z: 525.3}
+    gateClosedPosition: {x: 0, y: 18, z: 525.3}
     triggerName: Boss_ArenaTrigger
-    triggerPosition: {x: 0, y: 18, z: 471.3}
+    triggerPosition: {x: 0, y: 18, z: 543.3}
     triggerSize: {x: 9, y: 4, z: 2}
     clearSpawnerName: 
     hasExitGate: 0
@@ -1791,23 +1887,25 @@ MonoBehaviour:
         zoneIdOverride: 
       enabled: 1
       themeMaterialKey: SolarGhost
-      exteriorCenter: {x: 0, y: 22.3, z: 486.3}
+      exteriorCenter: {x: 0, y: 22.3, z: 558.3}
       exteriorRadius: 25
       visualRadius: 31
-      realmCenter: {x: 700, y: 0, z: 240}
-      realmFloorRadius: 20
-      realmShellRadius: 30
-      playerEntryPosition: {x: 700, y: 1.2, z: 227}
+      realmCenter: {x: 700, y: 0, z: 400}
+      realmFloorRadius: 30
+      realmShellRadius: 45
+      realmWallHeight: 24
+      realmCeilingHeight: 24
+      playerEntryPosition: {x: 700, y: 1.2, z: 380.5}
       playerEntryYaw: 0
-      retryPosition: {x: 0, y: 16.2, z: 450}
+      retryPosition: {x: 0, y: 16.2, z: 522}
       retryYaw: 0
       enemySpawnerName: Spawn_Boss
-      enemySpawnPosition: {x: 700, y: 0.1, z: 244}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 406}
       enemySpawnYaw: 180
       arenaPickupName: Pickup_Boss_Hook
-      arenaPickupPosition: {x: 693, y: 1.2, z: 235}
+      arenaPickupPosition: {x: 689.5, y: 1.2, z: 392.5}
       hasReturn: 0
-      realmExitPosition: {x: 700, y: 1.5, z: 222.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 374}
       returnPosition: {x: 0, y: 0, z: 0}
       returnYaw: 0
   projectileSequences:
@@ -2061,7 +2159,7 @@ MonoBehaviour:
         zoneIdOverride: 
       spawnerName: Spawn_T4_Surge_1
       routeStart: {x: 0, y: 29.2, z: 394.8}
-      routeEnd: {x: 0, y: 17.2, z: 453.3}
+      routeEnd: {x: 0, y: 17.2, z: 454.6}
       halfWidth: 10
       heightTolerance: 4
       arrivalStart: 8
@@ -2072,7 +2170,7 @@ MonoBehaviour:
         zoneIdOverride: 
       spawnerName: Spawn_T4_Surge_2
       routeStart: {x: 0, y: 29.2, z: 394.8}
-      routeEnd: {x: 0, y: 17.2, z: 453.3}
+      routeEnd: {x: 0, y: 17.2, z: 454.6}
       halfWidth: 10
       heightTolerance: 4
       arrivalStart: 20
@@ -2083,7 +2181,7 @@ MonoBehaviour:
         zoneIdOverride: 
       spawnerName: Spawn_T4_Surge_3
       routeStart: {x: 0, y: 29.2, z: 394.8}
-      routeEnd: {x: 0, y: 17.2, z: 453.3}
+      routeEnd: {x: 0, y: 17.2, z: 454.6}
       halfWidth: 10
       heightTolerance: 4
       arrivalStart: 32
@@ -2156,5 +2254,5 @@ MonoBehaviour:
       friendlyName: 
       zoneIdOverride: 
     name: KillZone
-    center: {x: 0, y: -30, z: 180}
-    size: {x: 240, y: 2, z: 760}
+    center: {x: 0, y: -30, z: 220}
+    size: {x: 240, y: 2, z: 840}

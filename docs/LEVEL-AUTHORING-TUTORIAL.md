@@ -176,7 +176,9 @@ number, and it caught three things the arc report structurally cannot see:
   six consecutive vantage points, and left the 22 m causeway itself seeing **nothing at all**. Moved to
   the deck's entry third it is read from three decks back instead of arriving in your face — and the exit
   hop off that deck went 5 clean points of 20 to **20 of 25**, because the slab had been standing 1.4 m
-  behind the take-off edge;
+  behind the take-off edge. (2026-09-13: both slide gates — this one and `T3_Fallen_Lintel` — were then
+  retired outright on the user's call; `LevelDefinitionAuthoring.RemovedSlideGates` removes them on every
+  `8a`. The lesson about where a bar stands on a deck survives the bars.);
 - a **5 m core in a 19 m helix** (`T2_Tower`) was the first blocker from eight of the spiral's eleven
   decks. At 4 m it is 2.45 → 3.00 for the whole level;
 - **6 m doorways in 26 m arena walls**. The arena floors are the only wide rooms in the level and the
@@ -211,8 +213,23 @@ parry", do this arithmetic before you lengthen anything: **the budget is usually
 The other edge of the same band bites in the opposite direction: a perch standing broadside inside
 `projectileMinRange` goes **silent** exactly where it is meant to be firing. Check both edges.
 
-A blocker the probe names is not automatically a bug. Two slide gates and four pillars are *supposed* to
-be in the way; that is what a gate and a pillar are. Read the name, then decide.
+A blocker the probe names is not automatically a bug. The four pillars are *supposed* to be in the way;
+that is what a pillar is. Read the name, then decide.
+
+### The fourth number: the SUN'S APPROACH
+
+A portal sun is not a box, so the arc report cannot fly into it; `SolarArenaTests` and the offline tool's
+SOLAR APPROACHES section measure it instead. Three numbers per sun: the **gap** from the approach deck's end
+to the trigger sphere at the player's centre height (13.5–15.5 m on the three carry gates, an ordinary
+1–8.5 m open jump on the two T4 suns), the approach deck's **clearance** from the *visible* sphere (≥ 1.5 m,
+so the deck does not vanish into the plasma), and the **nearest unrelated silhouette** (≥ 12 m, so no slab
+or post is seen through the sun). The exit gate is the one that bites: a 22 m visible radius plus 12 m puts
+it 34 m past the centre, which is where the fourth realm's 72 m insert came from.
+
+Realm cells are one size (30 m floor, 45 m shell, 24 m walls and ceiling — `SolarRealmDef.realmWallHeight`
+/ `realmCeilingHeight`) and sit 100 m apart at x 700. A new realm is: `ArenaDef` + `SolarRealmDef`,
+a spawner whose NAME the split and the gate's clear latch key off, a realm pickup, a checkpoint on the
+approach, and a `RunSplitDef` in course order — see `EnsureGrapplerArena` for the pattern.
 
 ---
 

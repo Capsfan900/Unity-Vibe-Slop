@@ -464,6 +464,8 @@ namespace VibeGame1.EditorTools
             CreateSolar("M_SolarGold", shader, Hex("#5A430C") * 1.00f, Hex("#D8C22A") * 1.35f, 0.44f, 0.56f, 12f);
             CreateSolar("M_SolarAzure", shader, Hex("#102B6F") * 1.10f, Hex("#2F6BFF") * 1.55f, 0.43f, 0.70f, 13f);
             CreateSolar("M_SolarGhost", shader, Hex("#0C592C") * 1.05f, Hex("#3FE07A") * 1.40f, 0.45f, 0.48f, 9f);
+            // 2026-09-13: the fifth sun (T4 grappler realm) needs its own hue — every portal cuts in its own colour.
+            CreateSolar("M_SolarViolet", shader, Hex("#3A1466") * 1.10f, Hex("#A45CFF") * 1.45f, 0.43f, 0.58f, 11f);
             // Corona is a thin silhouette accent. Its old 0.18 alpha laid a white veil over the entire
             // sphere; the shader's independent rim term still gives this low-body-alpha layer a hot edge.
             CreateSolar("M_SolarCorona", shader, Hex("#B9ECFF") * 1.25f, Hex("#79CFFF") * 1.15f, 0.03f, -0.34f, 17f);
@@ -471,6 +473,7 @@ namespace VibeGame1.EditorTools
             CreateRealmMaterial(new Spec("M_SolarRealmGold",  Hex("#1B1708"), Hex("#514516") * 0.50f), lit);
             CreateRealmMaterial(new Spec("M_SolarRealmAzure", Hex("#080E24"), Hex("#152A66") * 0.55f), lit);
             CreateRealmMaterial(new Spec("M_SolarRealmGhost", Hex("#071A10"), Hex("#174A29") * 0.55f), lit);
+            CreateRealmMaterial(new Spec("M_SolarRealmViolet", Hex("#120724"), Hex("#3A1A66") * 0.55f), lit);
             AssetDatabase.SaveAssets();
         }
 

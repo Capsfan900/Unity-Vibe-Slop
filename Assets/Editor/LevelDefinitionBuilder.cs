@@ -697,14 +697,20 @@ namespace VibeGame1.EditorTools
             if (floorMat != null) floor.GetComponent<Renderer>().sharedMaterial = floorMat;
             ctx.MarkStatic(floor);
 
+            // Heights come from the definition (2026-09-13). Older definitions carry the 12 / 12 defaults,
+            // which rebuild the original 12 m walls, 12.5 m collider centre, 11.9 m disc, 9 m light and
+            // +6 m shell centre exactly; Level_01 authors 24 / 24 so a lift-and-throw fits under the roof.
+            float wallHeight = Mathf.Max(2f, def.realmWallHeight);
+            float ceilingHeight = Mathf.Max(2f, def.realmCeilingHeight);
             var realmMaterial = ctx.Material(RealmMaterialKey(def.themeMaterialKey));
-            BuildRealmBoundary(realm.transform, def.realmCenter, def.realmFloorRadius, realmMaterial, ctx);
+            BuildRealmBoundary(realm.transform, def.realmCenter, def.realmFloorRadius, wallHeight, ceilingHeight,
+                               realmMaterial, ctx);
 
             // The opaque two-sided shell closes the room against the campaign sky. Its emission is
             // deliberately dim; a separate procedural disc above the arena carries the solar motion.
-            VisualSphere("OpaqueRealmShell", def.realmCenter + Vector3.up * 6f,
+            VisualSphere("OpaqueRealmShell", def.realmCenter + Vector3.up * (ceilingHeight * 0.5f),
                          def.realmShellRadius * 2f, realmMaterial, realm.transform);
-            var innerShell = VisualDisc("SolarCeiling", def.realmCenter + Vector3.up * 11.9f,
+            var innerShell = VisualDisc("SolarCeiling", def.realmCenter + Vector3.up * (ceilingHeight - 0.1f),
                                         def.realmFloorRadius * 1.15f, ctx.Material(def.themeMaterialKey), realm.transform);
             var innerSpin = realm.AddComponent<SolarArenaVisual>();
             innerSpin.plasma = innerShell.transform;
@@ -715,12 +721,14 @@ namespace VibeGame1.EditorTools
             innerSpin.plasmaSurfaceOpacityOverride = 0f;
             innerSpin.ApplyMaterialOverrides();
 
-            var lightGo = LevelPieceFactory.Empty("SolarLight", def.realmCenter + Vector3.up * 9f,
+            var lightGo = LevelPieceFactory.Empty("SolarLight", def.realmCenter + Vector3.up * (ceilingHeight * 0.75f),
                                                   Quaternion.identity, realm.transform);
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = ThemeColor(def.themeMaterialKey);
-            light.range = def.realmFloorRadius * 2.2f;
+            // Wide enough to reach the floor's rim from three quarters of the way up: 44 m on the original
+            // 20 m / 12 m cell, 66 m on the 30 m / 24 m one. Intensity is the vfx lane's number, untouched.
+            light.range = Mathf.Max(def.realmFloorRadius * 2.2f, ceilingHeight * 2.75f);
             light.intensity = 2.6f;
             light.shadows = LightShadows.None;
 
@@ -788,8 +796,8 @@ namespace VibeGame1.EditorTools
             return go;
         }
 
-        static void BuildRealmBoundary(Transform parent, Vector3 center, float floorRadius, Material material,
-                                       LevelPieceContext ctx)
+        static void BuildRealmBoundary(Transform parent, Vector3 center, float floorRadius, float wallHeight,
+                                       float ceilingHeight, Material material, LevelPieceContext ctx)
         {
             const int Segments = 20;
             float wallRadius = floorRadius + 0.35f;
@@ -799,12 +807,13 @@ namespace VibeGame1.EditorTools
                 float angle = i * 360f / Segments;
                 float rad = angle * Mathf.Deg2Rad;
                 LevelPieceFactory.Box("Boundary_" + i,
-                    center + new Vector3(Mathf.Sin(rad) * wallRadius, 6f, Mathf.Cos(rad) * wallRadius),
-                    new Vector3(wallLength, 12f, 1f), material, parent, ctx, true, null)
+                    center + new Vector3(Mathf.Sin(rad) * wallRadius, wallHeight * 0.5f, Mathf.Cos(rad) * wallRadius),
+                    new Vector3(wallLength, wallHeight, 1f), material, parent, ctx, true, null)
                     .transform.rotation = Quaternion.Euler(0f, angle, 0f);
             }
 
-            LevelPieceFactory.Box("Boundary_Ceiling", center + Vector3.up * 12.5f,
+            // A 1 m slab whose UNDERSIDE is the authored ceiling height, so the room is exactly that tall.
+            LevelPieceFactory.Box("Boundary_Ceiling", center + Vector3.up * (ceilingHeight + 0.5f),
                                   new Vector3(floorRadius * 2f, 1f, floorRadius * 2f),
                                   material, parent, ctx, true, null);
         }
@@ -814,6 +823,7 @@ namespace VibeGame1.EditorTools
             if (solarKey == "SolarGold") return "SolarRealmGold";
             if (solarKey == "SolarAzure") return "SolarRealmAzure";
             if (solarKey == "SolarGhost") return "SolarRealmGhost";
+            if (solarKey == "SolarViolet") return "SolarRealmViolet";
             return "SolarRealmCyan";
         }
 
@@ -827,6 +837,7 @@ namespace VibeGame1.EditorTools
             if (key == "SolarGold") return new Color(0.85f, 0.68f, 0.16f);
             if (key == "SolarAzure") return new Color(0.20f, 0.42f, 1f);
             if (key == "SolarGhost") return new Color(0.25f, 0.88f, 0.48f);
+            if (key == "SolarViolet") return new Color(0.64f, 0.36f, 1f);
             return new Color(0.21f, 0.86f, 0.93f);
         }
 

@@ -27,6 +27,7 @@ namespace VibeGame1.Tests
             var before = def.spawns.Where(s => s.name == "Spawn_Legendary_Ninja" ||
                                                s.name == "Spawn_Legendary_Knight" ||
                                                s.name == "Spawn_Legendary_Spellsword" ||
+                                               s.name == LevelDefinitionAuthoring.GrapplerSpawner ||
                                                s.name == "Spawn_Boss")
                                    .ToDictionary(s => s.name, s => s.position);
             LevelDefinitionAuthoring.ApplySolarRealms(def);
@@ -39,54 +40,81 @@ namespace VibeGame1.Tests
                     pair.Key + " must move only in the built scene, never in authored data");
         }
 
+        // The five gated fights in course order. T4_Gate is the fourth mini realm at the foot of the
+        // descent (2026-09-13); Boss_Gate is the Warden, 72 m further on than before it existed.
+        static readonly string[] Gates = { "T1_Gate", "T2_Gate", "T3_Gate", LevelDefinitionAuthoring.GrapplerGate, "Boss_Gate" };
+
         [Test]
-        public void ShippedLevelHasFourExactSolarAnchorsAndThemes()
+        public void ShippedLevelHasFiveExactSolarAnchorsAndThemes()
         {
-            string[] gates = { "T1_Gate", "T2_Gate", "T3_Gate", "Boss_Gate" };
-            string[] themes = { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost" };
+            string[] themes = { "SolarCyan", "SolarGold", "SolarAzure", "SolarViolet", "SolarGhost" };
             Vector3[] centers =
             {
                 new Vector3(0f, 8.2f, 87.3f), new Vector3(0f, 24.55f, 216.8f),
-                new Vector3(0f, 32.2f, 356.3f), new Vector3(0f, 22.3f, 486.3f)
+                new Vector3(0f, 32.2f, 356.3f), new Vector3(0f, 22.3f, 479.7f), new Vector3(0f, 22.3f, 558.3f)
             };
-            float[] radii = { 16f, 17f, 16f, 25f };
-            float[] visualRadii = { 22f, 23f, 22f, 31f };
+            float[] radii = { 16f, 17f, 16f, 16f, 25f };
+            float[] visualRadii = { 22f, 23f, 22f, 22f, 31f };
 
-            for (int i = 0; i < gates.Length; i++)
+            for (int i = 0; i < Gates.Length; i++)
             {
-                var realm = def.arenas.Single(a => a.gateName == gates[i]).solarRealm;
-                Assert.IsNotNull(realm, gates[i]);
-                Assert.IsTrue(realm.enabled, gates[i]);
-                Assert.AreEqual(themes[i], realm.themeMaterialKey, gates[i]);
-                Assert.That(Vector3.Distance(centers[i], realm.exteriorCenter), Is.LessThan(Eps), gates[i]);
-                Assert.That(realm.exteriorRadius, Is.EqualTo(radii[i]).Within(Eps), gates[i]);
-                Assert.That(realm.visualRadius, Is.EqualTo(visualRadii[i]).Within(Eps), gates[i]);
+                var realm = def.arenas.Single(a => a.gateName == Gates[i]).solarRealm;
+                Assert.IsNotNull(realm, Gates[i]);
+                Assert.IsTrue(realm.enabled, Gates[i]);
+                Assert.AreEqual(themes[i], realm.themeMaterialKey, Gates[i]);
+                Assert.That(Vector3.Distance(centers[i], realm.exteriorCenter), Is.LessThan(Eps), Gates[i]);
+                Assert.That(realm.exteriorRadius, Is.EqualTo(radii[i]).Within(Eps), Gates[i]);
+                Assert.That(realm.visualRadius, Is.EqualTo(visualRadii[i]).Within(Eps), Gates[i]);
                 Assert.Greater(realm.visualRadius, realm.exteriorRadius,
-                    gates[i] + " visual shell must not advance the physical portal boundary");
-                Assert.That(realm.realmFloorRadius, Is.EqualTo(20f).Within(Eps), gates[i]);
-                Assert.That(realm.realmShellRadius, Is.EqualTo(30f).Within(Eps), gates[i]);
-                Assert.IsFalse(string.IsNullOrEmpty(realm.arenaPickupName), gates[i] + " pickup");
+                    Gates[i] + " visual shell must not advance the physical portal boundary");
+                Assert.That(realm.realmFloorRadius, Is.EqualTo(30f).Within(Eps), Gates[i]);
+                Assert.That(realm.realmShellRadius, Is.EqualTo(45f).Within(Eps), Gates[i]);
+                Assert.That(realm.realmWallHeight, Is.EqualTo(24f).Within(Eps), Gates[i]);
+                Assert.That(realm.realmCeilingHeight, Is.EqualTo(24f).Within(Eps), Gates[i]);
+                Assert.IsFalse(string.IsNullOrEmpty(realm.arenaPickupName), Gates[i] + " pickup");
                 Assert.Less(Vector3.Distance(realm.arenaPickupPosition, realm.realmCenter), realm.realmFloorRadius,
-                    gates[i] + " pickup must sit inside its realm floor");
+                    Gates[i] + " pickup must sit inside its realm floor");
+            }
+        }
+
+        [Test]
+        public void RealmCellsAreOneSizeSpacedAHundredMetresApartInCourseOrder()
+        {
+            // The plan's numbers: 1.5x the 2026-09-07 cell (20 -> 30 floor, 30 -> 45 shell), 24 m of wall
+            // and ceiling for a lift-and-throw, centres 100 m apart at x 700 in course order.
+            for (int i = 0; i < Gates.Length; i++)
+            {
+                var r = def.arenas.Single(a => a.gateName == Gates[i]).solarRealm;
+                Assert.That(Vector3.Distance(r.realmCenter, new Vector3(700f, 0f, 100f * i)), Is.LessThan(Eps), Gates[i] + " cell");
+                Assert.That(Vector3.Distance(r.playerEntryPosition - r.realmCenter, new Vector3(0f, 1.2f, -19.5f)), Is.LessThan(Eps), Gates[i] + " entry");
+                Assert.That(Vector3.Distance(r.enemySpawnPosition - r.realmCenter, new Vector3(0f, 0.1f, 6f)), Is.LessThan(Eps), Gates[i] + " enemy");
+                if (r.hasReturn)
+                    Assert.That(Vector3.Distance(r.realmExitPosition - r.realmCenter, new Vector3(0f, 1.5f, -26f)), Is.LessThan(Eps), Gates[i] + " exit");
+                Assert.That(Mathf.Abs(r.arenaPickupPosition.x - r.realmCenter.x), Is.EqualTo(10.5f).Within(Eps), Gates[i] + " pickup x");
+                // Every realm-local point keeps at least a metre of floor beyond it, and the wall top corner
+                // stays inside the opaque shell so the room never shows the campaign sky.
+                float cornerToShellCentre = Mathf.Sqrt(Mathf.Pow(r.realmFloorRadius + 0.35f + 0.5f, 2f) +
+                                                       Mathf.Pow(r.realmWallHeight - r.realmCeilingHeight * 0.5f, 2f));
+                Assert.Less(cornerToShellCentre, r.realmShellRadius, Gates[i] + " wall corner pokes through the shell");
             }
         }
 
         [Test]
         public void SolarTransitionsShipAtTheirAuditedGatesRetriesAndReturns()
         {
-            string[] gates = { "T1_Gate", "T2_Gate", "T3_Gate", "Boss_Gate" };
-            float[] entries = { 63.25f, 191.75f, 332.25f, 453.3f };
-            float[] triggers = { 78.3f, 206.8f, 345.3f, 471.3f };
-            float[] exits = { 145.625f, 264.75f, 390.75f, 0f };
+            string[] gates = Gates;
+            float[] entries = { 63.25f, 191.75f, 332.25f, 455.9f, 525.3f };
+            float[] triggers = { 78.3f, 206.8f, 345.3f, 470.7f, 543.3f };
+            float[] exits = { 145.625f, 264.75f, 390.75f, 514.2f, 0f };
             Vector3[] retries =
             {
                 new Vector3(0f, 2.2f, 62f), new Vector3(0f, 20.2f, 188f),
-                new Vector3(-3f, 27.2f, 329f), new Vector3(0f, 16.2f, 450f)
+                new Vector3(-3f, 27.2f, 329f), new Vector3(0f, 16.2f, 450f), new Vector3(0f, 16.2f, 522f)
             };
             Vector3[] returns =
             {
                 new Vector3(10f, 5.2f, 151.375f), new Vector3(2.75f, 21.7f, 268f),
-                new Vector3(0f, 28.2f, 393.15f), Vector3.zero
+                new Vector3(0f, 28.2f, 393.15f), new Vector3(0f, 16.2f, 517.6f), Vector3.zero
             };
 
             for (int i = 0; i < gates.Length; i++)
@@ -121,12 +149,51 @@ namespace VibeGame1.Tests
             Assert.That(def.waters.Single(w => w.name == "T3_Water_Span").center.z, Is.EqualTo(305f).Within(Eps));
             Assert.That(def.ramps.Single(r => r.name == "T4_Ramp_Descent").basePosition.z, Is.EqualTo(394.8f).Within(Eps));
             Assert.That(def.spawns.Single(s => s.name == "Spawn_T4_Surge_1").position.z, Is.EqualTo(418.8f).Within(Eps));
-            Assert.That(def.platforms.Single(p => p.name == "Boss_Approach").center.z, Is.EqualTo(448.3f).Within(Eps));
+            // The descent runs out onto the grappler approach; the Warden approach is 72 m further on.
+            Assert.That(def.platforms.Single(p => p.name == LevelDefinitionAuthoring.GrapplerApproach).center.z, Is.EqualTo(449.6f).Within(Eps));
+            Assert.That(def.platforms.Single(p => p.name == "Boss_Approach").center.z, Is.EqualTo(520.3f).Within(Eps));
+            Assert.That(def.checkpoints.Single(c => c.name == LevelDefinitionAuthoring.GrapplerCheckpoint).position.z, Is.EqualTo(447f).Within(Eps));
+            Assert.That(def.checkpoints.Single(c => c.name == "Checkpoint_4").position.z, Is.EqualTo(522f).Within(Eps));
 
             // Realm migration identity is separate from course geometry: these anchors never move.
             Assert.That(def.spawns.Single(s => s.name == "Spawn_Legendary_Knight").position.z, Is.EqualTo(173f).Within(Eps));
             Assert.That(def.spawns.Single(s => s.name == "Spawn_Boss").position.z, Is.EqualTo(396f).Within(Eps));
+            Assert.That(def.spawns.Single(s => s.name == LevelDefinitionAuthoring.GrapplerSpawner).position.z, Is.EqualTo(479.7f).Within(Eps));
         }
+
+        [Test]
+        public void FourthMiniRealmIsAGatedFightOnTheT4RouteBeforeTheWarden()
+        {
+            var arena = def.arenas.Single(a => a.gateName == LevelDefinitionAuthoring.GrapplerGate);
+            Assert.IsTrue(arena.enabled);
+            Assert.IsTrue(arena.hasExitGate, "a mini realm reopens onto the route");
+            Assert.AreEqual(LevelDefinitionAuthoring.GrapplerSpawner, arena.clearSpawnerName);
+            Assert.AreEqual(arena.clearSpawnerName, arena.solarRealm.enemySpawnerName);
+            var spawn = def.spawns.Single(s => s.name == LevelDefinitionAuthoring.GrapplerSpawner);
+            Assert.AreEqual(LevelDefinitionAuthoring.GrapplerPrefabKey, spawn.prefabKey);
+            Assert.IsFalse(spawn.isBoss, "a mini-boss is an ordinary enemy: only the Warden wakes a BossController");
+            Assert.AreEqual(1, def.pickups.Count(p => p.name == LevelDefinitionAuthoring.GrapplerPickup));
+
+            // Course order: T3's return -> the descent -> this gate -> its return -> the Warden's gate.
+            var t3 = def.arenas.Single(a => a.gateName == "T3_Gate");
+            var warden = def.arenas.Single(a => a.gateName == "Boss_Gate");
+            var ramp = def.ramps.Single(r => r.name == "T4_Ramp_Descent");
+            Assert.Greater(arena.gateClosedPosition.z, t3.solarRealm.returnPosition.z);
+            Assert.Greater(arena.gateClosedPosition.z, ramp.TopPosition.z, "the sun stands at the FOOT of the descent");
+            Assert.Greater(arena.exitGateClosedPosition.z, arena.solarRealm.exteriorCenter.z + arena.solarRealm.visualRadius);
+            Assert.Greater(arena.solarRealm.returnPosition.z, arena.exitGateClosedPosition.z);
+            Assert.Less(arena.solarRealm.returnPosition.z, warden.gateClosedPosition.z, "the return rejoins BEFORE the Warden's gate");
+            Assert.AreEqual(Array_IndexOf(def.arenas, arena) + 1, Array_IndexOf(def.arenas, warden), "authored in course order");
+
+            // The checkpoint before it sits on the run-out deck, after the ramp and before the gate.
+            var checkpoint = def.checkpoints.Single(c => c.name == LevelDefinitionAuthoring.GrapplerCheckpoint);
+            Assert.Greater(checkpoint.position.z, ramp.TopPosition.z);
+            Assert.Less(checkpoint.position.z, arena.gateClosedPosition.z);
+            var splits = def.runSplits.Select(s => s.name).ToArray();
+            CollectionAssert.AreEqual(new[] { "Ninja", "Knight", "Spellsword", "Grappler", "Warden" }, splits);
+        }
+
+        static int Array_IndexOf<T>(T[] array, T item) { return System.Array.IndexOf(array, item); }
 
         [Test]
         public void ExteriorSunsHaveBreathingRoomAndNoLegacyCourtGeometry()
@@ -194,8 +261,8 @@ namespace VibeGame1.Tests
                        name == "T1_Wall_Causeway" || name == "T1_Wall_Landing" || name == "T1_Perch_E";
             if (gate == "T2_Gate") return name == "T2_L11";
             if (gate == "T3_Gate") return name == "T3_Step_1" || name == "T3_Step_2";
-            if (gate == "Boss_Gate")
-                return name == "Boss_Approach" || name == "T4_TurretPad_3";
+            if (gate == LevelDefinitionAuthoring.GrapplerGate) return name == LevelDefinitionAuthoring.GrapplerApproach;
+            if (gate == "Boss_Gate") return name == "Boss_Approach";
             return false;
         }
 
@@ -232,8 +299,8 @@ namespace VibeGame1.Tests
         [Test]
         public void EveryExteriorApproachReachesThePortalAcrossAnOpenGap()
         {
-            string[] gates = { "T1_Gate", "T2_Gate", "T3_Gate", "Boss_Gate" };
-            string[] approaches = { "T1_Causeway", "T2_L11", "T3_Step_2", "Boss_Approach" };
+            string[] gates = Gates;
+            string[] approaches = { "T1_Causeway", "T2_L11", "T3_Step_2", LevelDefinitionAuthoring.GrapplerApproach, "Boss_Approach" };
             for (int i = 0; i < gates.Length; i++)
             {
                 var realm = def.arenas.Single(a => a.gateName == gates[i]).solarRealm;
@@ -248,8 +315,10 @@ namespace VibeGame1.Tests
                     Assert.That(gap, Is.InRange(13.5f, 15.5f),
                         gates[i] + " must require projectile-earned carry; gap=" + gap);
                 else
+                    // The two T4 suns are ordinary open jumps: the descent's surge is a bonus you fly in
+                    // with, never a carry the gap could demand (a missed ladder must not soft-lock the run).
                     Assert.That(gap, Is.GreaterThan(1f).And.LessThanOrEqualTo(8.5f),
-                        gates[i] + " boss transition remains an ordinary open jump; gap=" + gap);
+                        gates[i] + " transition remains an ordinary open jump; gap=" + gap);
             }
         }
 
@@ -257,7 +326,7 @@ namespace VibeGame1.Tests
         public void EveryDoorwayCrossesItsSphere_AndRealmCellsDoNotOverlap()
         {
             var realms = def.arenas.Select(a => a.solarRealm).Where(r => r != null && r.enabled).ToArray();
-            Assert.AreEqual(4, realms.Length);
+            Assert.AreEqual(5, realms.Length);
             foreach (var arena in def.arenas)
             {
                 var r = arena.solarRealm;
@@ -364,14 +433,30 @@ namespace VibeGame1.Tests
         public void KillZoneCoversTheExpandedCourseBounds()
         {
             Assert.LessOrEqual(def.killZone.center.z - def.killZone.size.z * 0.5f, -190f);
-            Assert.GreaterOrEqual(def.killZone.center.z + def.killZone.size.z * 0.5f, 540f);
+            Assert.GreaterOrEqual(def.killZone.center.z + def.killZone.size.z * 0.5f, 620f);
             Assert.GreaterOrEqual(def.killZone.size.x, 240f);
+        }
+
+        [Test]
+        public void RetiredSlideGatesAreGoneAndStayGone()
+        {
+            // The user's 2026-09-13 call: no more bars across the middle of a section. Apply removes them
+            // from an already-shipped asset and nothing re-adds them; the realm arenas are untouched.
+            CollectionAssert.AreEquivalent(new[] { "T1_Fallen_Obelisk", "T3_Fallen_Lintel" },
+                LevelDefinitionAuthoring.RemovedSlideGates);
+            LevelDefinitionAuthoring.Apply(def);
+            foreach (string name in LevelDefinitionAuthoring.RemovedSlideGates)
+            {
+                Assert.IsFalse(def.platforms.Any(p => p.name == name), name + " must be removed by Apply");
+                Assert.IsFalse(LevelDefinitionAuthoring.HybridCourseStructures.Any(s => s.name == name), name + " must not be authored");
+                Assert.IsFalse(LevelDefinitionAuthoring.Reshapes.Any(r => r.name == name), name + " must not be reshaped");
+            }
         }
 
         [Test]
         public void SolarMaterialsShipOnTheProceduralUrpShader()
         {
-            foreach (var name in new[] { "M_SolarCyan", "M_SolarGold", "M_SolarAzure", "M_SolarGhost" })
+            foreach (var name in new[] { "M_SolarCyan", "M_SolarGold", "M_SolarAzure", "M_SolarGhost", "M_SolarViolet" })
             {
                 var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/" + name + ".mat");
                 Assert.IsNotNull(mat, name + ": run 2. Create Materials");

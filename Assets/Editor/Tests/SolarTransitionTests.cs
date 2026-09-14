@@ -278,7 +278,7 @@ namespace VibeGame1.Tests
         [Test]
         public void TheCutNeverBloomsBecauseItIsOnTheHudCanvas()
         {
-            foreach (string key in new[] { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost", "unknown" })
+            foreach (string key in new[] { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost", "SolarViolet", "unknown" })
             {
                 foreach (var c in new[] { SolarTransition.HotTint(key), SolarTransition.SettleTint(key),
                                           SolarTransition.WashTint(key, 0.42f), SolarTransition.WashTint(key, 1f) })
@@ -299,7 +299,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(new Color(0.20f, 0.42f, 1f), SolarTransition.SettleTint("SolarAzure"));
             Assert.AreEqual(new Color(0.25f, 0.88f, 0.48f), SolarTransition.SettleTint("SolarGhost"));
 
-            foreach (string key in new[] { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost" })
+            foreach (string key in new[] { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost", "SolarViolet" })
             {
                 Color hot = SolarTransition.HotTint(key), settle = SolarTransition.SettleTint(key);
                 float hotMin = Mathf.Min(hot.r, Mathf.Min(hot.g, hot.b));
@@ -315,7 +315,7 @@ namespace VibeGame1.Tests
             // Cyan is the fallback, so "does it differ from the fallback" cannot be the test. Assert the
             // shipped key is one this table actually knows: an unrecognised theme would silently make
             // every cut cyan and the cut would stop saying which realm you are entering.
-            string[] known = { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost" };
+            string[] known = { "SolarCyan", "SolarGold", "SolarAzure", "SolarGhost", "SolarViolet" };
             foreach (var portal in ShippedPortals())
                 Assert.Contains(portal.themeMaterialKey, known,
                     "SolarTransition.SettleTint has no entry for this theme; it would fall through to cyan");
@@ -329,7 +329,7 @@ namespace VibeGame1.Tests
         [Test]
         public void TheSolarMaterialsShipTheCrossingFadeAtOne()
         {
-            foreach (string name in new[] { "M_SolarCyan", "M_SolarGold", "M_SolarAzure", "M_SolarGhost",
+            foreach (string name in new[] { "M_SolarCyan", "M_SolarGold", "M_SolarAzure", "M_SolarGhost", "M_SolarViolet",
                                             "M_SolarCorona" })
             {
                 var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/" + name + ".mat");

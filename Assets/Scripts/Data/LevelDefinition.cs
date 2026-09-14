@@ -465,6 +465,16 @@ namespace VibeGame1
         public float realmFloorRadius = 20f;
         public float realmShellRadius = 30f;
 
+        [Tooltip("Height of the twenty boundary walls above the realm floor. The defaults reproduce the " +
+                 "original 12 m cell for any definition authored before 2026-09-13; Level_01 ships 24 m " +
+                 "so a boss can lift the player and still throw them down inside the room.")]
+        [Min(2f)] public float realmWallHeight = 12f;
+
+        [Tooltip("Clear height of the ceiling's UNDERSIDE above the realm floor. The collider slab sits on " +
+                 "top of this height, the solar disc hangs 0.1 m below it, the point light at 3/4 of it and " +
+                 "the opaque shell's centre at half of it — so 12 reproduces the original 12.5 / 11.9 / 9 / 6 look.")]
+        [Min(2f)] public float realmCeilingHeight = 12f;
+
         public Vector3 playerEntryPosition;
         public float playerEntryYaw = 0f;
 

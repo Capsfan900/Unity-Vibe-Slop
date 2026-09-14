@@ -91,18 +91,10 @@ namespace VibeGame1.EditorTools
             // west face at x 3.4, run line x 2.95, standoff 1.0 m — does not move by a millimetre.
             new Reshape("T1_Causeway", new Vector3(-1.5f, 1.5f, 54f), new Vector3(6f, 1f, 22f),
                         "3 m -> 5 m (pass 1) -> 6 m: 22 m of deck at 4.4:1 still read as a trench; at 3.7:1 with a 0.65 m rail it reads as a bridge"),
-            // The slide gate has to keep spanning the deck it gates (CheckLintel.spansTheDeck: the lintel's
-            // x range must contain the deck's), so it grows with it: 5 m -> 7 m, recentred on the new deck.
-            // Heights are untouched, so clearance stays 1.30 m — a slide fits, standing does not, and the
-            // 1.60 m top is still jumpable. It costs time, never access.
-            new Reshape("T1_Fallen_Obelisk", new Vector3(-1.5f, 3.7f, 49f), new Vector3(7f, 0.8f, 1.2f),
-                        "MEASURED: at z 63 the gate stood 1.4 m behind the causeway's take-off edge and was the level's " +
-                        "single worst piece of geometry - 5 clean launch points out of 20 onto T1_Stone_5, and a causeway " +
-                        "you could see NOTHING from (0 route decks visible ahead, blocked by this slab from six vantage " +
-                        "points running back to the spawn). At z 49 it is the first thing on the deck instead of the last: " +
-                        "the exit hop goes to 20/25, the causeway sees 3 decks ahead, and the gate is read from T1_Stone_3 " +
-                        "onward instead of arriving in your face. z 52 measures identically and was rejected - it blocks " +
-                        "T1_Perch_W's bolt line onto the causeway (the bolt passes z 49 at y 4.35, 0.25 m over this slab's top)."),
+            // The slide-under gate that used to stand on this deck (T1_Fallen_Obelisk) is RETIRED on the
+            // user's 2026-09-13 call ("take away those bars in the middle of the other sections"); see
+            // RemovedSlideGates. Its history — parked at z 63 it was the level's single worst piece of
+            // geometry, moved to z 49 it was the first thing on the deck — stays in the ENGINEERING-LOG.
             // MEASURED, and the reason this entry exists at all: with the causeway recentred on x -1, the
             // bolt line from T1_Perch_W's muzzle (-7.5, 5.5, 44) to the causeway's chest point (-1, 3.2, 54)
             // enters the old obelisk's slab (x -5.1..-3.9) at z 49.5, y 4.2 and is BLOCKED. Moved to
@@ -237,11 +229,10 @@ namespace VibeGame1.EditorTools
             new Reshape("T3_Pillar_3", new Vector3(-5f, 17.5f, 211f), new Vector3(10.5f, 12f, 4f), "a wide cross-course landing keeps the long-span scale"),
             new Reshape("T3_Pillar_4", new Vector3(0f, 18.5f, 217.5f), new Vector3(6f, 12f, 5f), "the last pillar remains a distinct launch into the span"),
 
-            // The long span is now a 9.6 x 26 m run with its posts, lintel, water and alternate wall line
-            // moved as one assembly. The lintel remains 0.1 m wider than the deck on each side.
+            // The long span is now a 9.6 x 26 m run with its posts, water and alternate wall line moved
+            // as one assembly. Its slide-under lintel (T3_Fallen_Lintel) is retired — see RemovedSlideGates.
             new Reshape("T3_Span", new Vector3(0f, 24f, 234f), new Vector3(9.6f, 1f, 26f),
                         "a wide, long water line with room to steer and a supported route pickup"),
-            new Reshape("T3_Fallen_Lintel", new Vector3(0f, 26.15f, 226f), new Vector3(9.8f, 0.8f, 1.2f), "the slide gate widens with the full span"),
             new Reshape("T3_Obelisk_W1", new Vector3(-8f, 22f, 226f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
             new Reshape("T3_Obelisk_E1", new Vector3(8f, 22f, 226f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
             new Reshape("T3_Obelisk_W2", new Vector3(-8f, 22f, 237.5f), new Vector3(1.2f, 10f, 1.2f), "outer rhythm post on the expanded span"),
@@ -303,6 +294,7 @@ namespace VibeGame1.EditorTools
             new GateWidth("T1_Gate", 9f, true),
             new GateWidth("T2_Gate", 9f, true),
             new GateWidth("T3_Gate", 9f, true),
+            new GateWidth(GrapplerGate, 9f, true),
             new GateWidth("Boss_Gate", 9f, false),
         };
 
@@ -446,10 +438,10 @@ namespace VibeGame1.EditorTools
             // causeway chest point must stay OUTSIDE projectileMinRange 6 m or the sentry goes quiet
             // exactly where it is meant to be firing. From here it is 7.3 m - in band the whole way.
             // Both claimed decks stay in band with a clear line: T1_Stone_4 at 25.0 m and T1_Causeway at
-            // 10.7 m, and both lines pass west of T1_Obelisk_W (x -7.0..-5.8) and of T1_Fallen_Obelisk.
+            // 10.7 m, and both lines pass west of T1_Obelisk_W (x -7.0..-5.8).
             // Wide forward flanks: the first shelf rises above the west causeway shoulder, so Stone 4 sees
-            // the squid and its incoming bolt before the slide gate. The second is high enough that its line
-            // clears that gate, but still sits inside the course's east shoulder rather than the wall-run.
+            // the squid and its incoming bolt early. The second is raised (it used to have to clear the
+            // retired slide gate) and sits inside the course's east shoulder rather than the wall-run.
             // Both shots remain in the forward parry cone and their flare branch rejoins before the arena.
             new Perch("T1_Perch_W", "Spawn_T1_GruntA", new Vector3(-24f, 4.5f, 60f), 90f, "T1_Stone_4,T1_Causeway"),
             new Perch("T1_Perch_E", "Spawn_T1_GruntB", new Vector3(6.8f, 5f, 62f), 180f, "T1_Causeway"),
@@ -481,7 +473,7 @@ namespace VibeGame1.EditorTools
         // 0.45 s float at 0.55 gravity, so it apexes ~3.5 m above the orb about 5 m out. The next orb
         // therefore sits ~5 m across and ~3 m UP (the yard's 1.2 m rise was laid before the float and a
         // pop sails 2 m over it). Flown in LevelTraversalTests: entry-jump into orb 1 (4 m out, 3 m up),
-        // three pops, and the fall from orb 4 lands on the span, short of the fallen lintel.
+        // three pops, and the fall from orb 4 lands on the span.
         public const float BalloonLaunch = 11f, BalloonRadius = 1.1f, BalloonRespawn = 2.5f;
         // Optional west-side aerial line. The broad pillar landings remain the readable normal route;
         // this arc restores the old vertical skill line at the larger scale and rejoins on T3_Span.
@@ -568,7 +560,7 @@ namespace VibeGame1.EditorTools
             // (10, 0, 25); the sheet stays inset from every shoulder edge. Its centre is 0.1 m east of
             // T1_Stone_2's edge so the two coplanar, overlapping decks have one unambiguous water owner.
             new Water("T1_Water_Fast", new Vector3(10.1f, 0.52f, 25f), new Vector3(7.4f, 0.04f, 11.4f), Vector3.forward, 6f),
-            // The T3 span after the fallen lintel (top 24.5): skate the run, then the last sheet turns the
+            // The T3 span (top 24.5): skate the run, then the last sheet turns the
             // flow toward T3_Step_1 at (3, 25.5, 241) — a line that TURNS the run (rule 7).
             new Water("T3_Water_Span", new Vector3(0f, 24.52f, 235f), new Vector3(15.4f, 0.04f, 13.4f), Vector3.forward, 6f),
             new Water("T3_Water_Turn", new Vector3(1f, 24.52f, 240.8f), new Vector3(8f, 0.04f, 1.6f), new Vector3(0.25f, 0f, 0.97f), 6f),
@@ -627,7 +619,6 @@ namespace VibeGame1.EditorTools
             new HybridStructure("T1_Rail_L", new Vector3(-7.1f, 2.325f, 51.6f), new Vector3(.2f, .65f, 12.8f), "Stone", false, "", "low outer rail keeps the wider bridge silhouette without hiding a sliding view"),
             new HybridStructure("T1_Rail_R", new Vector3(7.1f, 2.325f, 51.6f), new Vector3(.2f, .65f, 12.8f), "Stone", false, "", "matching low outer rail"),
             new HybridStructure("T1_Obelisk_W", new Vector3(-9.5f, 4.5f, 50f), new Vector3(1.4f, 9f, 1.4f), "Stone", true, "NeonCyan", "a tall waypoint outside the fourteen-metre runway"),
-            new HybridStructure("T1_Fallen_Obelisk", new Vector3(0f, 3.7f, 48f), new Vector3(15f, .8f, 1.2f), "Stone", true, "NeonCyan", "a readable slide-under gate across the expanded causeway"),
             new HybridStructure("T1_Wall_Start", new Vector3(15.5f, 4f, 25f), new Vector3(1.2f, 10f, 24f), "Stone", true, "NeonCyan", "an optional wall line beside the water shoulder"),
             new HybridStructure("T1_Wall_Causeway", new Vector3(10f, 4f, 51.5f), new Vector3(1.2f, 10f, 20f), "Stone", true, "NeonCyan", "a second wall line outside the open causeway"),
             new HybridStructure("T1_Wall_Landing", new Vector3(10f, 2.5f, 60.5f), new Vector3(8f, 1f, 8f), "Platform", true, "NeonCyan", "a generous wall-run rejoin shelf outside the cyan sun"),
@@ -639,7 +630,6 @@ namespace VibeGame1.EditorTools
             new HybridStructure("T2_Wall_West", new Vector3(-22.5f, 13f, 116f), new Vector3(1.2f, 14f, 30f), "Stone", true, "NeonYellow", "an outer west wall-run line frames the second lap"),
             new HybridStructure("T2_Wall_Landing_West", new Vector3(-14.5f, 12f, 99f), new Vector3(13f, 1f, 8f), "Platform", true, "NeonYellow", "west wall-run rejoin overlaps the wide south crossover"),
 
-            new HybridStructure("T3_Fallen_Lintel", new Vector3(0f, 26.15f, 231f), new Vector3(17f, .8f, 1.2f), "Stone", true, "NeonRed", "a full-span slide gate restores the red runway's vertical rhythm"),
             new HybridStructure("T3_Obelisk_W1", new Vector3(-11f, 23f, 231f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
             new HybridStructure("T3_Obelisk_W2", new Vector3(-11f, 23f, 239f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
             new HybridStructure("T3_Obelisk_E1", new Vector3(11f, 23f, 231f), new Vector3(1.2f, 13f, 1.2f), "Stone", true, "NeonRed", "outer posts make the span read at speed"),
@@ -650,12 +640,25 @@ namespace VibeGame1.EditorTools
             new HybridStructure("T3_Recovery_E2", new Vector3(9f, 21f, 238f), new Vector3(1.2f, 9f, 1.2f), "Stone", false, "", "low recovery post outside the eight-metre deck edge"),
             new HybridStructure("T3_Wall_Pillars", new Vector3(13.5f, 24f, 205f), new Vector3(1.2f, 10f, 30f), "Stone", true, "NeonRed", "an east wall-run bypass beside the four broad pillars"),
             new HybridStructure("T3_Wall_Landing_S", new Vector3(10.5f, 24.5f, 222f), new Vector3(9f, 1f, 8f), "Platform", true, "NeonRed", "wall line rejoins at the red span approach"),
-            new HybridStructure("T3_Wall_Span", new Vector3(11f, 29f, 235f), new Vector3(1.2f, 10f, 26f), "Stone", true, "NeonRed", "a high line runs beside the water span and its lintel"),
+            new HybridStructure("T3_Wall_Span", new Vector3(11f, 29f, 235f), new Vector3(1.2f, 10f, 26f), "Stone", true, "NeonRed", "a high line runs beside the water span"),
         };
+
+        /// <summary>
+        /// The slide-under bars retired on the user's call of 2026-09-13 ("take away those bars in the
+        /// middle of the other sections"). Both were 0.8 m slabs 1.25-1.30 m over a main-line deck: you
+        /// slid under or you jumped them, and either way the widest decks in the level were being read
+        /// through a letterbox. Each Apply REMOVES them by name so an already-shipped asset loses them on
+        /// the next 8a; nothing re-adds them. The realm arenas and the parry recording stages are not
+        /// touched by this. Retired: T1_Fallen_Obelisk (T1.Platform.10, (0, 3.7, 48), 15 x 0.8 x 1.2,
+        /// over T1_Causeway) and T3_Fallen_Lintel (T3.Platform.08, (0, 26.15, 301) shipped / 231
+        /// canonical, 17 x 0.8 x 1.2, over T3_Span).
+        /// </summary>
+        public static readonly string[] RemovedSlideGates = { "T1_Fallen_Obelisk", "T3_Fallen_Lintel" };
 
         static int ApplyOpenProjectileCourse(LevelDefinition def)
         {
             var platforms = new List<PlatformDef>(def.platforms ?? new PlatformDef[0]);
+            platforms.RemoveAll(p => p != null && System.Array.IndexOf(RemovedSlideGates, p.name) >= 0);
             int written = 0;
             foreach (var shape in OpenCourseDecks)
             {
@@ -844,9 +847,25 @@ namespace VibeGame1.EditorTools
                     "tower", "wall-run tower", "Knight section"),
                 StudioZone("T3", "Balloon Aqueduct", "Spellsword", 3, 260.8f, 392.9f, new Color(0.3f, 0.5f, 1f),
                     "balloon section", "water span", "Spellsword section"),
-                StudioZone("T4", "Warden Descent", "Warden", 4, 393f, 520f, new Color(0.8f, 0.6f, 1f),
-                    "last ramp", "final ramp", "Warden approach", "boss approach")
+                // 2026-09-13: the fourth mini realm sits at the foot of the descent, so T4 now ends in the
+                // Grappler split and the Warden's court becomes its own short zone. A zone carries exactly
+                // one split (LevelObjectCatalog and LevelStudioValidator both hold splitName == split.name
+                // for the end spawner's zone), which is why T5 exists rather than T4 growing to 600.
+                StudioZone("T4", "Warden Descent", "Grappler", 4, 393f, 514.4f, new Color(0.8f, 0.6f, 1f),
+                    "last ramp", "final ramp", "Grappler section", "grappler approach"),
+                StudioZone("T5", "Warden Court", "Warden", 5, 514.5f, 600f, new Color(0.35f, 0.9f, 0.55f),
+                    "Warden approach", "boss approach", "Warden court", "final deck")
             };
+            // The Warden's spawner keeps its historical T3-side anchor (z 396) for migration idempotence, so
+            // its zone is an explicit override: the Warden split resolves through it to T5, whose splitName
+            // is "Warden". Its ids (T4.HollowWarden.01, T4.RunSplit.01) are never renamed.
+            foreach (var spawn in def.spawns ?? new SpawnDef[0])
+            {
+                if (spawn == null || spawn.name != "Spawn_Boss") continue;
+                if (spawn.meta == null) spawn.meta = new LevelObjectMeta();
+                if (string.IsNullOrEmpty(spawn.meta.zoneIdOverride) || spawn.meta.zoneIdOverride == "T4")
+                    spawn.meta.zoneIdOverride = "T5";
+            }
             // These audit-only sequences have no progress gates and retain their historical origin zero.
             // Their explicit metadata ownership must not move any gameplay/forecast coordinate.
             foreach (var sequence in def.projectileSequences ?? new ProjectileSequenceDef[0])
@@ -864,12 +883,14 @@ namespace VibeGame1.EditorTools
                 if (string.IsNullOrEmpty(def.worldLeaderboard.meta.zoneIdOverride)) def.worldLeaderboard.meta.zoneIdOverride = "T0";
             }
             // This historical pickup anchor is moved into the Boss Solar Realm by the builder.
-            // It belongs to Warden/T4 even though its stored z=376 sits before the T4 entry.
+            // It belongs to the Warden (T5 since 2026-09-13; "T4" is migrated) even though its stored
+            // z=376 sits before the T4 entry.
             foreach (var pickup in def.pickups ?? new PickupDef[0])
             {
                 if (pickup == null || pickup.name != "Pickup_Boss_Hook") continue;
                 if (pickup.meta == null) pickup.meta = new LevelObjectMeta();
-                if (string.IsNullOrEmpty(pickup.meta.zoneIdOverride)) pickup.meta.zoneIdOverride = "T4";
+                if (string.IsNullOrEmpty(pickup.meta.zoneIdOverride) || pickup.meta.zoneIdOverride == "T4")
+                    pickup.meta.zoneIdOverride = "T5";
             }
             return LevelObjectCatalog.AssignZones(def);
         }
@@ -946,10 +967,12 @@ namespace VibeGame1.EditorTools
         /// <summary>Writes the campaign run contract as level data, never as a scorer-side level special case.</summary>
         static void ApplyRunScoring(LevelDefinition def)
         {
-            // User contract: every scored run answers all three sub-bosses, the Warden, and any four
-            // authored regular enemies. 400 + 600 + 900 + 1500 + (4 * 40) = 3560 baseline souls;
-            // split bonuses are additional rewards and never substitute for the boss/regular gates.
-            def.requiredRunSouls = 3560;
+            // User contract: every scored run answers all four sub-bosses, the Warden, and any four
+            // authored regular enemies. 400 + 600 + 900 + 480 + 1500 + (4 * 40) = 4040 baseline souls
+            // (the fourth realm's placeholder occupant, Legendary_FlurryBrawlerV18, ships soulValue 480;
+            // retune this with the split par when Stage 5 seats the roster). Split bonuses are additional
+            // rewards and never substitute for the boss/regular gates.
+            def.requiredRunSouls = 4040;
             def.requiredRegularKills = 4;
             def.gradeBonuses = new RunGradeBonusDef { dSouls = 0, cSouls = 25, bSouls = 50, aSouls = 75, sSouls = 100 };
             def.runSplits = new[]
@@ -957,6 +980,8 @@ namespace VibeGame1.EditorTools
                 Split("Ninja", "Spawn_Legendary_Ninja", 55f),
                 Split("Knight", "Spawn_Legendary_Knight", 60f),
                 Split("Spellsword", "Spawn_Legendary_Spellsword", 70f),
+                // The descent plus the fourth realm: ~60 s S par is a placeholder until the occupant is seated.
+                Split("Grappler", GrapplerSpawner, 60f),
                 Split("Warden", "Spawn_Boss", 40f),
             };
         }
@@ -1084,7 +1109,9 @@ namespace VibeGame1.EditorTools
 
             var t4Ramp = FindRamp(def, "T4_Ramp_Descent");
             Vector3 t4Start = t4Ramp.basePosition + Vector3.up * 1.2f;
-            Vector3 t4End = DeckChest(def, "Boss_Approach", 0f, 5f);
+            // The ladder ends on the grappler approach at the ramp's foot, which is the deck the descent
+            // now runs out onto; Boss_Approach sits beyond the fourth realm and its exit gate.
+            Vector3 t4End = DeckChest(def, GrapplerApproach, 0f, 5f);
             var finalRamp = Sequence("T4_SurgeRoute",
                 new[] { "Spawn_T4_Surge_1", "Spawn_T4_Surge_2", "Spawn_T4_Surge_3" }, 1.35f,
                 new[]
@@ -1524,30 +1551,157 @@ namespace VibeGame1.EditorTools
             };
         }
 
+        // ================================================================ the solar realms (2026-09-13)
+        //
+        // THE CELL. Every realm is the same room at 1.5x its 2026-09-07 size: a 30 m floor disc (was 20)
+        // under 24 m walls and a 24 m ceiling (was 12 / 12.5), inside a 45 m opaque shell (was 30).
+        // Approved for the boss roster's signature moves — a lift-and-throw needs ~18 m of headroom and
+        // a throw that lands INSIDE the floor needs floor to land on. Centres sit 100 m apart along z at
+        // x 700, so 45 m shells never touch (90 < 100) and every cell stays beyond the player camera's
+        // 300 m far plane from the widest route deck (SolarArenaTests holds both).
+        public const float RealmFloorRadius = 30f, RealmShellRadius = 45f;
+        public const float RealmWallHeight = 24f, RealmCeilingHeight = 24f;
+        public const float RealmSpacing = 100f;
+        // Realm-local offsets, scaled with the floor (20 -> 30): entry -13 -> -19.5, enemy +4 -> +6,
+        // exit -17.5 -> -26, pickups +/-7 -> +/-10.5. Every one stays a metre inside the floor rim.
+        public const float RealmEntryZ = -19.5f, RealmEnemyZ = 6f, RealmExitZ = -26f, RealmPickupX = 10.5f;
+
+        // THE FOURTH MINI-BOSS REALM (T4 — Warden Descent). Its portal sun stands at the BOTTOM of the
+        // 48 m surge descent, so the three-turret parry ladder flies the player straight into it, and
+        // its return lands on Boss_Approach, which moves +72 m together with Boss_Gate, the Warden's
+        // sun and Checkpoint_4. Order of the run: T1 realm -> T2 realm -> T3 realm -> T4 mini realm ->
+        // Warden realm. The occupant is a PLACEHOLDER until the roster's Stage 5 (the plan's final
+        // occupant, Legendary_FlurryBrawlerV18); the spawner NAME is the stable contract the split,
+        // the gate's clear latch and the realm all key off, so it is never renamed.
+        //
+        // Final-coordinate geometry, measured against the same rules the other three mini realms hold:
+        //   T4_Grappler_Approach  (0, 15.5, 449.6) 10 x 1 x 14  — the run-out the ramp top (z 442.8)
+        //                         joins by 0.2 m, as Boss_Approach did before it
+        //   sun                   (0, 22.3, 479.7) r 16 / visual 22 — an ORDINARY open jump off the deck:
+        //                         near trigger surface at deck level z 464.6, gap 8.0 m (> 1, <= 8.5, the
+        //                         Warden's rule, because nothing on the descent earns projectile carry
+        //                         you could be asked to spend here); visual clearance to the deck 1.94 m
+        //   T4_Gate               z 455.9 (0.7 m before the deck end), trigger z 470.7 (7 m inside the sphere)
+        //   T4_Gate_Exit          z 514.2 — 12.3 m outside the visible sun, so it never silhouettes in it
+        //   Boss_Approach         (0, 15.5, 520.3) 10 x 1 x 11.4 — near edge 514.6, 12.9 m clear of the sun
+        //   Checkpoint_4          (0, 16, 522) — the Warden approach, F5's target, 24 m from Boss_ArenaTrigger
+        //   Boss_Gate / sun       z 525.3 / 543.3 / (0, 22.3, 558.3) r 25 / 31 — every number is old + 72
+        public const string GrapplerGate = "T4_Gate";
+        public const string GrapplerSpawner = "Spawn_Legendary_V18Grappler";
+        public const string GrapplerPrefabKey = "Legendary_FlurryBrawlerV18";
+        public const string GrapplerPickup = "Pickup_T4_Grappler";
+        public const string GrapplerCheckpoint = "Checkpoint_T4_Grappler";
+        public const string GrapplerApproach = "T4_Grappler_Approach";
+        public const float WardenShift = 72f;
+
         /// <summary>
-        /// Turns the four existing gated courts into portal suns, spreads later course sections as rigid
-        /// groups, and preserves the historical legendary/boss SpawnDefs. The builder moves each live
-        /// arena spawner into its disconnected realm.
+        /// Turns the gated courts into portal suns, spreads later course sections as rigid groups, and
+        /// preserves the historical legendary/boss SpawnDefs. The builder moves each live arena spawner
+        /// into its disconnected realm. The fourth mini realm's arena, spawner, pickup and checkpoint are
+        /// created here when missing and rewritten absolutely every time, so the pass stays idempotent.
         /// </summary>
         public static void ApplySolarRealms(LevelDefinition def)
         {
             NormalizeSolarCourseSpacing(def);
+            EnsureGrapplerArena(def);
 
             SetSolar(def, "T1_Gate", "SolarCyan", new Vector3(0f, 8.2f, 87.3f), 16f, 22f,
-                new Vector3(700f, 0f, 0f), "Spawn_Legendary_Ninja",
+                new Vector3(700f, 0f, 0f * RealmSpacing), "Spawn_Legendary_Ninja",
                 new Vector3(0f, 2.2f, 62f), new Vector3(10f, 5.2f, 151.375f), true);
             SetSolar(def, "T2_Gate", "SolarGold", new Vector3(0f, 24.55f, 216.8f), 17f, 23f,
-                new Vector3(700f, 0f, 80f), "Spawn_Legendary_Knight",
+                new Vector3(700f, 0f, 1f * RealmSpacing), "Spawn_Legendary_Knight",
                 new Vector3(0f, 20.2f, 188f), new Vector3(2.75f, 21.7f, 268f), true);
             SetSolar(def, "T3_Gate", "SolarAzure", new Vector3(0f, 32.2f, 356.3f), 16f, 22f,
-                new Vector3(700f, 0f, 160f), "Spawn_Legendary_Spellsword",
+                new Vector3(700f, 0f, 2f * RealmSpacing), "Spawn_Legendary_Spellsword",
                 new Vector3(-3f, 27.2f, 329f), new Vector3(0f, 28.2f, 393.15f), true);
-            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 486.3f), 25f, 31f,
-                new Vector3(700f, 0f, 240f), "Spawn_Boss",
-                new Vector3(0f, 16.2f, 450f), Vector3.zero, false);
+            // Theme: SolarViolet (2026-09-13) — the fifth sun gets its own hue, since every portal must cut
+            // in its own colour (SolarTransitionTests.EveryShippedPortalThemeHasItsOwnCut).
+            SetSolar(def, GrapplerGate, "SolarViolet", new Vector3(0f, 22.3f, 479.7f), 16f, 22f,
+                new Vector3(700f, 0f, 3f * RealmSpacing), GrapplerSpawner,
+                new Vector3(0f, 16.2f, 450f), new Vector3(0f, 16.2f, 517.6f), true);
+            SetSolar(def, "Boss_Gate", "SolarGhost", new Vector3(0f, 22.3f, 486.3f + WardenShift), 25f, 31f,
+                new Vector3(700f, 0f, 4f * RealmSpacing), "Spawn_Boss",
+                new Vector3(0f, 16.2f, 450f + WardenShift), Vector3.zero, false);
 
             ApplySolarSpacing(def);
             TranslateCourseSections(def, 38f, 70f, 96f, false);
+        }
+
+        /// <summary>
+        /// The fourth mini-boss arena and everything that names it. Absolute final coordinates for the
+        /// arena, the spawner anchor and the pickup anchor (none of those are section-translated); the
+        /// checkpoint is written CANONICAL because <see cref="TranslateCourseSections"/> carries it with
+        /// the T4 section like Checkpoint_4. New records are inserted in course order, before the Warden's.
+        /// </summary>
+        static void EnsureGrapplerArena(LevelDefinition def)
+        {
+            var arenas = new List<ArenaDef>(def.arenas ?? new ArenaDef[0]);
+            var arena = arenas.Find(a => a != null && a.gateName == GrapplerGate);
+            if (arena == null)
+            {
+                arena = new ArenaDef();
+                int boss = arenas.FindIndex(a => a != null && a.gateName == "Boss_Gate");
+                arenas.Insert(boss < 0 ? arenas.Count : boss, arena);
+                def.arenas = arenas.ToArray();
+            }
+            arena.enabled = true;
+            arena.gateName = GrapplerGate;
+            arena.gateSize = new Vector3(9f, 4f, 0.5f);
+            arena.gateMaterialKey = "Gate";
+            arena.gateOpenPosition = new Vector3(0f, 11.5f, 455.9f);
+            arena.gateClosedPosition = new Vector3(0f, 18f, 455.9f);
+            arena.triggerName = "T4_ArenaTrigger";
+            arena.triggerPosition = new Vector3(0f, 18f, 470.7f);
+            arena.triggerSize = new Vector3(9f, 4f, 2f);
+            arena.clearSpawnerName = GrapplerSpawner;
+            arena.hasExitGate = true;
+            arena.exitGateName = "T4_Gate_Exit";
+            arena.exitGateSize = new Vector3(9f, 4f, 0.5f);
+            arena.exitGateMaterialKey = "Gate";
+            arena.exitGateClosedPosition = new Vector3(0f, 18f, 514.2f);
+            arena.exitGateOpenPosition = new Vector3(0f, 11.5f, 514.2f);
+
+            var spawns = new List<SpawnDef>(def.spawns ?? new SpawnDef[0]);
+            var spawn = spawns.Find(s => s != null && s.name == GrapplerSpawner);
+            if (spawn == null)
+            {
+                spawn = new SpawnDef { name = GrapplerSpawner };
+                int boss = spawns.FindIndex(s => s != null && s.name == "Spawn_Boss");
+                spawns.Insert(boss < 0 ? spawns.Count : boss, spawn);
+                def.spawns = spawns.ToArray();
+            }
+            // The exterior anchor under the sun at deck height, like the Warden's historical court
+            // anchor; the builder moves the live spawner into the realm and never this record.
+            spawn.prefabKey = GrapplerPrefabKey;
+            spawn.position = new Vector3(0f, 16.1f, 479.7f);
+            spawn.yaw = 180f;
+            spawn.isBoss = false;
+
+            var pickups = new List<PickupDef>(def.pickups ?? new PickupDef[0]);
+            var pickup = pickups.Find(p => p != null && p.name == GrapplerPickup);
+            if (pickup == null)
+            {
+                pickup = new PickupDef { name = GrapplerPickup };
+                int boss = pickups.FindIndex(p => p != null && p.name == "Pickup_Boss_Hook");
+                pickups.Insert(boss < 0 ? pickups.Count : boss, pickup);
+                def.pickups = pickups.ToArray();
+            }
+            // The grab is answered by a Perfect parry, so the realm's pickup is the parry aid.
+            pickup.itemKey = "DeflectSigil";
+            pickup.position = new Vector3(-8f, 17.2f, 470f);
+
+            var checkpoints = new List<CheckpointDef>(def.checkpoints ?? new CheckpointDef[0]);
+            var checkpoint = checkpoints.Find(c => c != null && c.name == GrapplerCheckpoint);
+            if (checkpoint == null)
+            {
+                checkpoint = new CheckpointDef { name = GrapplerCheckpoint };
+                int last = checkpoints.FindIndex(c => c != null && c.name == "Checkpoint_4");
+                checkpoints.Insert(last < 0 ? checkpoints.Count : last, checkpoint);
+                def.checkpoints = checkpoints.ToArray();
+            }
+            // Canonical (pre +96): on the run-out deck at the ramp's foot, respawning 3 m back on it.
+            checkpoint.position = new Vector3(0f, 16f, 351f);
+            checkpoint.spawnOffset = new Vector3(0f, 0.2f, -3f);
         }
 
         /// <summary>
@@ -1563,7 +1717,10 @@ namespace VibeGame1.EditorTools
 
             SetPlatform(platforms, "T1_Causeway", new Vector3(0f, 1.5f, 51.6f), new Vector3(14f, 1f, 12.8f));
             SetPlatform(platforms, "T4_Entry", new Vector3(0f, 27.5f, 297.15f), new Vector3(10f, 1f, 3.7f));
-            SetPlatform(platforms, "Boss_Approach", new Vector3(0f, 15.5f, 352.3f), new Vector3(10f, 1f, 11.4f));
+            // Canonical (pre +96) T4 run-out: the grappler approach takes the ramp's foot (final z 442.6-456.6)
+            // and the Warden approach moves 72 m on to sit beyond the grappler realm's exit gate.
+            AddPlatform(platforms, GrapplerApproach, new Vector3(0f, 15.5f, 353.6f), new Vector3(10f, 1f, 14f));
+            SetPlatform(platforms, "Boss_Approach", new Vector3(0f, 15.5f, 352.3f + WardenShift), new Vector3(10f, 1f, 11.4f));
             def.platforms = platforms.ToArray();
 
             var torches = new List<TorchDef>(def.torches ?? new TorchDef[0]);
@@ -1604,13 +1761,14 @@ namespace VibeGame1.EditorTools
                 else if (pickup.name == "Pickup_Boss_Hook") pickup.position = new Vector3(-8f, 17.2f, 376f);
             }
 
+            // T4_Gate is written whole by EnsureGrapplerArena; only the four historical gates move here.
             foreach (var arena in def.arenas ?? new ArenaDef[0])
             {
                 if (arena == null) continue;
                 if (arena.gateName == "T1_Gate") SetGateZ(arena, 63.25f, 145.625f, 78.3f);
                 else if (arena.gateName == "T2_Gate") SetGateZ(arena, 191.75f, 264.75f, 206.8f);
                 else if (arena.gateName == "T3_Gate") SetGateZ(arena, 332.25f, 390.75f, 345.3f);
-                else if (arena.gateName == "Boss_Gate") SetGateZ(arena, 453.3f, 0f, 471.3f);
+                else if (arena.gateName == "Boss_Gate") SetGateZ(arena, 453.3f + WardenShift, 0f, 471.3f + WardenShift);
             }
 
             foreach (var checkpoint in def.checkpoints ?? new CheckpointDef[0])
@@ -1628,13 +1786,21 @@ namespace VibeGame1.EditorTools
                 }
                 else if (checkpoint.name == "Checkpoint_4")
                 {
-                    checkpoint.position = new Vector3(0f, 16f, 354f);
+                    checkpoint.position = new Vector3(0f, 16f, 354f + WardenShift);
                     checkpoint.spawnOffset = new Vector3(0f, 0.2f, -3f);
                 }
             }
 
-            def.killZone.center = new Vector3(0f, -30f, 180f);
-            def.killZone.size = new Vector3(240f, 2f, 760f);
+            // Reaches 640 m: 50 m past the Warden's visible sun (558.3 + 31), as LevelDescentTests requires.
+            def.killZone.center = new Vector3(0f, -30f, 220f);
+            def.killZone.size = new Vector3(240f, 2f, 840f);
+        }
+
+        static void AddPlatform(List<PlatformDef> platforms, string name, Vector3 center, Vector3 size)
+        {
+            platforms.RemoveAll(p => p != null && p.name == name);
+            platforms.Add(new PlatformDef { name = name, center = center, size = size, materialKey = "Platform",
+                                            trim = true, trimMaterialKey = "NeonPink", isStatic = true });
         }
 
         static bool IsLegacySolarGeometry(string name)
@@ -1717,7 +1883,7 @@ namespace VibeGame1.EditorTools
                 if (c == null) continue;
                 if (c.name == "Checkpoint_2") c.position += t2;
                 else if (c.name == "Checkpoint_3") c.position += t3;
-                else if (c.name == "Checkpoint_4") c.position += t4;
+                else if (c.name == "Checkpoint_4" || c.name == GrapplerCheckpoint) c.position += t4;
             }
             foreach (var torch in def.torches ?? new TorchDef[0])
             {
@@ -1767,21 +1933,24 @@ namespace VibeGame1.EditorTools
             r.exteriorRadius = radius;
             r.visualRadius = visualRadius;
             r.realmCenter = realmCenter;
-            r.realmFloorRadius = 20f;
-            r.realmShellRadius = 30f;
-            r.playerEntryPosition = realmCenter + new Vector3(0f, 1.2f, -13f);
+            r.realmFloorRadius = RealmFloorRadius;
+            r.realmShellRadius = RealmShellRadius;
+            r.realmWallHeight = RealmWallHeight;
+            r.realmCeilingHeight = RealmCeilingHeight;
+            r.playerEntryPosition = realmCenter + new Vector3(0f, 1.2f, RealmEntryZ);
             r.playerEntryYaw = 0f;
             r.retryPosition = retry;
             r.retryYaw = 0f;
             r.enemySpawnerName = enemySpawner;
-            r.enemySpawnPosition = realmCenter + new Vector3(0f, 0.1f, 4f);
+            r.enemySpawnPosition = realmCenter + new Vector3(0f, 0.1f, RealmEnemyZ);
             r.enemySpawnYaw = 180f;
-            if (gateName == "T1_Gate") { r.arenaPickupName = "Pickup_T1_Surge"; r.arenaPickupPosition = realmCenter + new Vector3(-7f, 1.2f, -2f); }
-            else if (gateName == "T2_Gate") { r.arenaPickupName = "Pickup_T2_Hook_2"; r.arenaPickupPosition = realmCenter + new Vector3(-7f, 1.2f, -2f); }
-            else if (gateName == "T3_Gate") { r.arenaPickupName = "Pickup_T3_Surge_2"; r.arenaPickupPosition = realmCenter + new Vector3(7f, 1.2f, -2f); }
-            else { r.arenaPickupName = "Pickup_Boss_Hook"; r.arenaPickupPosition = realmCenter + new Vector3(-7f, 1.2f, -5f); }
+            if (gateName == "T1_Gate") { r.arenaPickupName = "Pickup_T1_Surge"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -3f); }
+            else if (gateName == "T2_Gate") { r.arenaPickupName = "Pickup_T2_Hook_2"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -3f); }
+            else if (gateName == "T3_Gate") { r.arenaPickupName = "Pickup_T3_Surge_2"; r.arenaPickupPosition = realmCenter + new Vector3(RealmPickupX, 1.2f, -3f); }
+            else if (gateName == GrapplerGate) { r.arenaPickupName = GrapplerPickup; r.arenaPickupPosition = realmCenter + new Vector3(RealmPickupX, 1.2f, -3f); }
+            else { r.arenaPickupName = "Pickup_Boss_Hook"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -7.5f); }
             r.hasReturn = hasReturn;
-            r.realmExitPosition = realmCenter + new Vector3(0f, 1.5f, -17.5f);
+            r.realmExitPosition = realmCenter + new Vector3(0f, 1.5f, RealmExitZ);
             r.returnPosition = worldReturn;
             r.returnYaw = 0f;
             arena.solarRealm = r;

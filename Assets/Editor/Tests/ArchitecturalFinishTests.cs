@@ -85,6 +85,7 @@ namespace VibeGame1.Tests
         [TestCase("SolarGold")]
         [TestCase("SolarAzure")]
         [TestCase("SolarGhost")]
+        [TestCase("SolarViolet")]
         [TestCase("SolarCorona")]
         public void PlasmaDetailPreservesCrossingAndOpacityContracts(string key)
         {

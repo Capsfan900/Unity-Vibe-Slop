@@ -124,6 +124,7 @@ namespace VibeGame1
             if (themeKey == "SolarGold") return new Color(0.85f, 0.68f, 0.16f);
             if (themeKey == "SolarAzure") return new Color(0.20f, 0.42f, 1f);
             if (themeKey == "SolarGhost") return new Color(0.25f, 0.88f, 0.48f);
+            if (themeKey == "SolarViolet") return new Color(0.64f, 0.36f, 1f);
             return new Color(0.21f, 0.86f, 0.93f);
         }
 

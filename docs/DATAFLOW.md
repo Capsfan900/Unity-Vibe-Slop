@@ -2541,8 +2541,8 @@ successful generated spawns to the working copy under one Undo step; it never wr
   first blocker from six consecutive decks, and the causeway itself saw *nothing*; it was also standing
   1.4 m behind that deck's take-off edge, worth 5 clean launch points of 20); a 5 m tower core inside a
   19 m helix (first blocker from eight of the spiral's eleven decks); and 6 m doorways in the 26–28 m
-  arena walls. A named blocker is not automatically a bug — two slide gates and four pillars are supposed
-  to be in the way.
+  arena walls. A named blocker is not automatically a bug — the four pillars are supposed to be in the
+  way. (The two slide gates it named were retired outright on 2026-09-13: `RemovedSlideGates`.)
 - **The runtime editor and `8. Build Level From Definition` share ONE piece factory.** A piece that renders
   differently in the two is a bug in the factory, not in either caller. `LevelEditorTests.RuntimeAndEditorFactoriesAgree`
   builds a small document both ways and compares names and positions.
@@ -2637,8 +2637,10 @@ enemies form the base requirement; bonuses are real earned souls and may help me
 
 ## Level flow
 
-`Level_01` is **one continuous run** of four connected sections: three main tiles, each ending in a
-gated legendary mini-boss, then the boss tile. One timer, no scene loads.
+`Level_01` is **one continuous run** of five connected sections: three main tiles, each ending in a
+gated legendary mini-boss, then the Warden Descent whose foot is a fourth mini-boss realm, then the
+Warden's court. One timer, no scene loads. (The map below predates the solar realms and the 2026-09-13
+fourth realm; the zone table in LEVEL-VOCABULARY.md and the realm section above carry the current numbers.)
 
 ```
 Sanctum (top y 0, pink)          wand altar - the loadout is chosen before the clock matters
@@ -2666,9 +2668,12 @@ Tile 3  THE LONG SPAN            high and exposed - broad pillar terraces, then 
                                    T3_Wall_Span    (13.1, 26, 302.5) 1.2 x 8 x 23
                                  All authored in Level_01_Level.asset (Stone, NeonCyan trim), NOT in LevelGreyboxBuilder;
                                  proven by LevelSpan1-3Report / LevelSpan1-3Tests against `longest`, never `best`.
-  Checkpoint_4
-Boss    THE ECLIPSE COURT        38 m walled court facing the eclipse down +Z
-  (pink)                         arena top y 28   Boss
+T4      WARDEN DESCENT           48 m surge descent (3 turrets) into the fourth realm's sun at its foot
+  (violet)                       T4_Grappler_Approach top y 16   Spawn_Legendary_V18Grappler (placeholder occupant)
+  Checkpoint_T4_Grappler (z 447) before the gate; the realm returns onto Boss_Approach beyond T4_Gate_Exit
+  Checkpoint_4 (z 522)
+T5      WARDEN COURT             Boss_Approach 10 x 11.4 at y 16, then the Warden's sun (r 25 / vis 31) at z 558.3
+  (ghost green)                  Boss
 ```
 
 ```
@@ -2686,9 +2691,22 @@ BossArenaTrigger  = ONE mechanism for every gated fight
                                           (latched on "seen alive" so it cannot open at level start)
 
 SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
+  FIVE portals since 2026-09-13, in course order: T1_Gate, T2_Gate, T3_Gate, T4_Gate (the fourth mini
+    realm at the foot of the T4 descent, spawner Spawn_Legendary_V18Grappler, placeholder occupant until
+    the roster's Stage 5), Boss_Gate (the Warden, everything +72 m: Boss_Approach 520.3, gate 525.3,
+    trigger 543.3, sun 558.3, Checkpoint_4 522). Exterior sun centres: Z 87.3 / 216.8 / 356.3 / 479.7 / 558.3.
   SolarRealmDef.visualRadius sizes the exterior plasma/corona independently of the portal collider;
-    zero falls back to exteriorRadius for older definitions. Shipped visual radii remain 22/23/22/31 m;
-    physical radii are 16/17/16/25 m, retaining a 6 m membrane band.
+    zero falls back to exteriorRadius for older definitions. Shipped visual radii are 22/23/22/22/31 m;
+    physical radii are 16/17/16/16/25 m, retaining a 6 m membrane band.
+  THE CELL (SolarRealmDef.realmFloorRadius / realmShellRadius / realmWallHeight / realmCeilingHeight):
+    30 m floor disc, 45 m opaque shell, 24 m walls, 24 m clear ceiling on every Level_01 realm (1.5x the
+    2026-09-07 cell, for the roster's lift-and-throw). The builder derives the rest from the ceiling height:
+    collider slab centre = ceiling + 0.5, solar disc = ceiling - 0.1, point light at 0.75 x ceiling with
+    range max(2.2 x floor, 2.75 x ceiling), shell centre at 0.5 x ceiling. The two height fields default to
+    12 / 12, which rebuilds the original 12 / 12.5 / 11.9 / 9 / +6 cell for any older definition.
+    Realm-local points scale with the floor: entry z -19.5, enemy z +6, exit z -26, pickups x +/-10.5.
+    Cells at x 700, z 0 / 100 / 200 / 300 / 400 in course order: 45 m shells never touch, and every cell
+    stays beyond the 300 m player far plane from the widest route deck (SolarArenaTests).
   SolarArenaVisual rotates exterior plasma/corona; realm ceiling rotates around Y only
     -> SolarArena shader uses premultiplied blending: _SurfaceOpacity 0.92 on exterior theme materials
        attenuates the background; zero on corona and the serialized ceiling override preserves additive glow
@@ -2698,7 +2716,16 @@ SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
     -> the shared final premultiplied fade stays unchanged through 65% fog transmittance, then releases
        solar colour and surface occlusion together to zero at full fog; no distant black sun discs
   ApplySolarSpacing removes the obsolete exterior rectangular courts/walls/torches and stops each route
-    deck 1.5–2.4 m before its visible shell; the four open trigger gaps are 7.6–8.4 m.
+    deck 1.5–2.4 m before its visible shell. The three carry gates (T1-T3) demand a 13.5-15.5 m
+    projectile-earned jump; the two T4 suns (T4_Gate off T4_Grappler_Approach, Boss_Gate off Boss_Approach)
+    are ordinary 7.9-8.0 m open jumps — the descent's surge is flown in with, never demanded.
+  EnsureGrapplerArena (in ApplySolarRealms) creates the fourth arena, its spawner, pickup and checkpoint
+    when missing and rewrites them absolutely every run: T4_Gate z 455.9 / T4_ArenaTrigger 470.7 /
+    T4_Gate_Exit 514.2 (12.3 m outside the visible sun), Checkpoint_T4_Grappler on the run-out at z 447,
+    Pickup_T4_Grappler (DeflectSigil — the grab is answered by a Perfect parry). The descent's run-out is
+    T4_Grappler_Approach (0, 15.5, 449.6) 10 x 1 x 14, joined by the ramp top at 442.8 by 0.2 m.
+  The slide-under bars T1_Fallen_Obelisk and T3_Fallen_Lintel are RETIRED (LevelDefinitionAuthoring
+    .RemovedSlideGates, 2026-09-13): removed on every 8a, never re-added.
   post-first-miniboss scale is LOCAL first, then translated as one authored section: T2 is a ~28 m helix
     with larger terraces and moves +38 m in Z; T3 has broad 9–12 m pillar terraces, a 9.6 × 26 m span,
     a 13.5 m first wall-run gap and moves +70 m; T4/boss moves +96 m. Every gate, trigger, checkpoint,
@@ -2708,7 +2735,7 @@ SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
   crossing the isolated exterior sphere rejects cleared arenas and debounce/missing-motor failures;
     success calls BeginFight, then Teleport, then same-frame SolarTransition.Cut + Sfx.SolarWarp exactly once
   builder moves the LIVE named spawner and court pickup into a disconnected enclosed realm with its own
-    generated 20 m collision/NavMesh floor, boundary, ceiling and light
+    generated 30 m collision/NavMesh floor, 24 m boundary walls, ceiling and light
     → SolarRealmPlacement preserves their authored exterior coordinates for scene export round trips
   mini-boss clear → inner return portal appears → player chooses when to return beyond the exit gate
   final boss has no return portal → existing BossDefeated / LEVEL CLEAR flow remains the only exit

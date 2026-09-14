@@ -366,7 +366,7 @@ namespace VibeGame1.Tests
             var copy = Object.Instantiate(shipped);
             try
             {
-                Assert.AreEqual(5, copy.zones.Length, "Lead must regenerate and save Level 1 metadata.");
+                Assert.AreEqual(6, copy.zones.Length, "Lead must regenerate and save Level 1 metadata.");
                 var records = LevelObjectCatalog.Enumerate(copy).ToArray();
                 Assert.That(records.All(r => !string.IsNullOrEmpty(r.meta.objectId)));
                 Assert.AreEqual(records.Length, records.Select(r => r.meta.objectId).Distinct().Count());
@@ -374,12 +374,17 @@ namespace VibeGame1.Tests
                 Assert.AreEqual("T0.PlayerStart", copy.playerStartMeta.objectId);
                 Assert.AreEqual("T0.WorldLeaderboard", copy.worldLeaderboard.meta.objectId);
                 Assert.AreEqual("T0", copy.worldLeaderboard.meta.zoneIdOverride);
-                Assert.AreEqual("T4", copy.pickups.Single(p => p.name == "Pickup_Boss_Hook").meta.zoneIdOverride);
+                // The Warden's pickup and spawner belong to the Warden Court (T5) by override; their ids
+                // keep the T4 prefix they were minted with, because ids are never renamed.
+                Assert.AreEqual("T5", copy.pickups.Single(p => p.name == "Pickup_Boss_Hook").meta.zoneIdOverride);
+                Assert.AreEqual("T5", copy.spawns.Single(s => s.name == "Spawn_Boss").meta.zoneIdOverride);
+                Assert.AreEqual("T4.HollowWarden.01", copy.spawns.Single(s => s.name == "Spawn_Boss").meta.objectId);
+                Assert.AreEqual("T4.BossPortal.01", copy.arenas.Single(a => a.gateName == "Boss_Gate").solarRealm.meta.objectId);
                 Assert.AreEqual("Level.Sky", copy.sky.meta.objectId);
                 Assert.AreEqual("Level.KillZone", copy.killZone.meta.objectId);
-                Assert.AreEqual(4, records.Count(r => r.kind == LevelObjectKind.Gate));
-                Assert.AreEqual(3, records.Count(r => r.kind == LevelObjectKind.ExitGate));
-                Assert.AreEqual(4, records.Count(r => r.kind == LevelObjectKind.BossPortal));
+                Assert.AreEqual(5, records.Count(r => r.kind == LevelObjectKind.Gate));
+                Assert.AreEqual(4, records.Count(r => r.kind == LevelObjectKind.ExitGate));
+                Assert.AreEqual(5, records.Count(r => r.kind == LevelObjectKind.BossPortal));
                 Assert.AreEqual(copy.projectileSequences.Sum(s => s.engagementWindows.Length), records.Count(r => r.kind == LevelObjectKind.ProjectileEngagementWindow));
             }
             finally { Object.DestroyImmediate(copy); }
@@ -415,10 +420,11 @@ namespace VibeGame1.Tests
                 var anchors = LevelObjectCatalog.Enumerate(copy).Select(r => r.anchor).ToArray();
                 Assert.IsEmpty(LevelDefinitionAuthoring.ApplyLevelStudioMetadata(copy).errors);
                 CollectionAssert.AreEqual(anchors, LevelObjectCatalog.Enumerate(copy).Select(r => r.anchor).ToArray());
-                CollectionAssert.AreEqual(new[] { "Opening", "Ninja", "Knight", "Spellsword", "Warden" }, copy.zones.Select(z => z.splitName));
-                var lower = new[] { -166f, 7.9f, 136.8f, 260.8f, 393f };
-                var upper = new[] { 7.8f, 136.7f, 260.7f, 392.9f, 520f };
-                for (int i = 0; i < 5; i++)
+                CollectionAssert.AreEqual(new[] { "Opening", "Ninja", "Knight", "Spellsword", "Grappler", "Warden" }, copy.zones.Select(z => z.splitName));
+                CollectionAssert.AreEqual(new[] { "T0", "T1", "T2", "T3", "T4", "T5" }, copy.zones.Select(z => z.zoneId));
+                var lower = new[] { -166f, 7.9f, 136.8f, 260.8f, 393f, 514.5f };
+                var upper = new[] { 7.8f, 136.7f, 260.7f, 392.9f, 514.4f, 600f };
+                for (int i = 0; i < 6; i++)
                 {
                     Assert.AreEqual(lower[i], copy.zones[i].center.z - copy.zones[i].size.z / 2, 0.0001f);
                     Assert.AreEqual(upper[i], copy.zones[i].center.z + copy.zones[i].size.z / 2, 0.0001f);

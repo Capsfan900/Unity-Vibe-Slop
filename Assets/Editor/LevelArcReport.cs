@@ -135,10 +135,18 @@ namespace VibeGame1.EditorTools
             }
             sb.AppendLine();
 
-            sb.AppendLine("SLIDE GATES");
-            sb.AppendLine("  " + A.CheckLintel(boxes, "T1_Fallen_Obelisk", "T1_Causeway", p).Summary("T1_Fallen_Obelisk", "T1_Causeway"));
-            if (A.IndexOf(boxes, "T3_Fallen_Lintel") >= 0)
-                sb.AppendLine("  " + A.CheckLintel(boxes, "T3_Fallen_Lintel", "T3_Span", p).Summary("T3_Fallen_Lintel", "T3_Span"));
+            // Retired 2026-09-13 (LevelDefinitionAuthoring.RemovedSlideGates). A bar that is still in the
+            // asset is reported as a FAIL: the level is authored without them now.
+            sb.AppendLine("SLIDE GATES  (none authored since 2026-09-13; a present one is a stale asset)");
+            bool anyGate = false;
+            foreach (string gate in LevelDefinitionAuthoring.RemovedSlideGates)
+            {
+                if (A.IndexOf(boxes, gate) < 0) continue;
+                anyGate = true; fails++;
+                string deck = gate.StartsWith("T1_") ? "T1_Causeway" : "T3_Span";
+                sb.AppendLine("  FAIL  retired bar still present: " + A.CheckLintel(boxes, gate, deck, p).Summary(gate, deck));
+            }
+            if (!anyGate) sb.AppendLine("  none present - ok");
             sb.AppendLine();
 
             sb.AppendLine("WALL-JUMP LINES");

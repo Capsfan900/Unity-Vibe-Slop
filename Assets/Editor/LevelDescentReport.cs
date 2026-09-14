@@ -50,7 +50,10 @@ namespace VibeGame1.EditorTools
             var failures = new List<string>();
             var ramp = def.ramps.SingleOrDefault(r => r.name == "T4_Ramp_Descent");
             if (ramp == null) { failures.Add("Descent ramp missing"); return failures; }
-            var runOut = def.platforms.SingleOrDefault(p => p.name == "Boss_Approach");
+            // Since 2026-09-13 the descent runs out onto the grappler approach (the fourth mini realm's
+            // deck); Boss_Approach is the fallback for a definition authored before that realm existed.
+            var runOut = def.platforms.SingleOrDefault(p => p.name == "T4_Grappler_Approach")
+                         ?? def.platforms.SingleOrDefault(p => p.name == "Boss_Approach");
             if (runOut == null) { failures.Add("Descent run-out missing"); return failures; }
             Vector3 right = Vector3.Cross(Vector3.up, ramp.Heading);
             var data = AssetDatabase.LoadAssetAtPath<EnemyData>(EnemyPaths.Data("pshooter_enemy03"));
