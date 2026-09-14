@@ -124,6 +124,7 @@ namespace VibeGame1
         {
             if (ThrownBlade.IsAway) return false;          // BladeThrow: no steel in hand, no guard
             if (combat == null) return true;
+            if (combat.IsCarried) return false;            // held in a grab
             if (combat.IsStaggered) return false;          // a broken guard is the punish; it must stay broken
             if (combat.IsExecuting || combat.IsDrinking) return false;
             if (combat.IsAttacking) return false;          // your own swing opens you up
@@ -170,6 +171,7 @@ namespace VibeGame1
         {
             if (Current != State.Idle) return false;
             if (ThrownBlade.IsAway) return false;          // BladeThrow: unarmed until the sword returns
+            if (combat != null && combat.IsCarried) return false;   // held in a grab
             if (combat != null && combat.IsStaggered) return false;
             if (combat != null && (combat.IsExecuting || combat.IsDrinking)) return false;
             return true;

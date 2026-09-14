@@ -86,6 +86,7 @@ namespace VibeGame1
         {
             if (Current == null) return false;
             if (ThrownBlade.IsAway) return false;   // the sword is in the air: nothing to swing or execute with
+            if (combat != null && combat.IsCarried) return false;   // held in a grab
             if (combat != null && combat.IsStaggered) return false;
             if (exec != null && exec.TryExecute()) { CancelAttack(); return true; }
             if (exec != null && exec.IsExecuting) return false;
@@ -138,6 +139,14 @@ namespace VibeGame1
                 hitSet.Add(e);
                 float dmg = w.baseDamage * w.ComboMultiplier(combo) * mult;
                 Vector3 point = hits[i].ClosestPoint(center);
+                // A raised magic shield (IPlayerHitDeflector) refuses the blow: nothing lands, the player recoils.
+                float recoil;
+                if (PlayerHitDeflection.TryDeflect(e, PlayerHitKind.Melee, point, cam.forward, out recoil))
+                {
+                    if (combat != null) combat.ReceiveRecoil(recoil, point);
+                    CancelAttack();
+                    return;
+                }
                 e.Health.TakeDamage(new DamageInfo { damage = dmg, postureDamage = w.postureDamage, point = point, direction = cam.forward, source = gameObject });
                 e.Posture.Add(w.postureDamage);
                 // Presentation only — every number, shape and colour lives in WeaponImpactFx, which

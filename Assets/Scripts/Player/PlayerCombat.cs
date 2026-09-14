@@ -25,7 +25,9 @@ namespace VibeGame1
         /// <summary>Posture broken: the player cannot parry or attack and takes amplified damage.</summary>
         public bool IsStaggered => posture != null && posture.IsBroken;
 
-        public bool IsBusy => IsExecuting || IsDrinking || IsAttacking || IsStaggered;
+        public bool IsBusy => IsExecuting || IsDrinking || IsAttacking || IsStaggered || IsCarried;
+        /// <summary>Held by an enemy grab (FirstPersonMotor.BeginCarry). No swing, parry, guard or item.</summary>
+        public bool IsCarried => motor != null && motor.IsCarried;
 
         public int PerfectParries { get; private set; }
 
@@ -308,6 +310,31 @@ namespace VibeGame1
         void AddPosture(float amount)
         {
             if (posture != null) posture.Add(amount);
+        }
+
+        /// <summary>
+        /// The player's OWN blow was deflected by an enemy's shield (<see cref="PlayerHitDeflection"/>).
+        /// Not an incoming attack, so it does not pass through <see cref="ReceiveAttack"/>: no health is lost
+        /// and no parry window is judged. It costs guard posture, a steel-on-steel spark on the blade, a
+        /// short hitstop and a grounded shove away from the shield — the same grammar as a guard, so the
+        /// read is "you hit a wall", never "you were hit".
+        /// </summary>
+        public void ReceiveRecoil(float postureCost, Vector3 contactPoint)
+        {
+            if (Health != null && Health.Current <= 0f) return;
+            var feel = GameManager.I != null ? GameManager.I.feel : null;
+            if (TimeScaleController.I != null && feel != null) TimeScaleController.I.HitStop(feel.guardHitStop, feel.hitStopScale);
+            var vm = GetComponentInChildren<WeaponViewmodel>(true);
+            Vector3 away = transform.position - contactPoint;
+            away.y = 0f;
+            Vector3 sparkDir = (-away.normalized + Vector3.up * 0.35f).normalized;
+            SlashFx.Sparks(vm != null ? vm.TipWorldPosition : contactPoint, sparkDir, GuardSteel, 12, 7f, 40f);
+            if (vm != null) vm.DeflectImpact();
+            if (CameraShake.I != null) CameraShake.I.Small();
+            AddPosture(Mathf.Max(0f, postureCost));
+            if (motor != null && motor.IsGrounded && away.sqrMagnitude > 0.01f)
+                motor.AddImpulse(away.normalized * (feel != null ? feel.guardShove : 2f));
+            AudioManager.Play(Sfx.Block, 1f, 0.7f, 0.05f);
         }
     }
 }

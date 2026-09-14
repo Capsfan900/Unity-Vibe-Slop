@@ -1000,6 +1000,9 @@ namespace VibeGame1
             // Grapple pull: the item owns velocity outright until it arrives. See BeginPull.
             if (pulling) { AdvancePull(dt); return; }
 
+            // Carried by an enemy grab (V18 Grappler): the anchor owns position outright until EndCarry.
+            if (carried) { AdvanceCarry(dt); return; }
+
             // Posture broken: heavily slowed and unable to jump or dash, but NOT frozen — a full
             // lock-up over a pit would turn a stagger into a fall death.
             bool staggered = combat != null && combat.IsStaggered;
@@ -1650,6 +1653,7 @@ namespace VibeGame1
             EndSlide(true);
             EndWallRun(WallRunEnd.Cancelled);
             CancelPull();
+            carried = false; carryAnchor = null;   // a warp or respawn always drops a grab
             cc.enabled = false;
             transform.position = position;
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
@@ -1954,6 +1958,59 @@ namespace VibeGame1
                 if (IsGrounded) lastGroundedTime = now;
                 EndPull(arrived && !blocked);
             }
+        }
+
+        // ---- CARRY (enemy grab, 2026-09-13) ----
+        // The boss-roster plan's grab-fly-throw. The motor still owns every write: the grabbing enemy only
+        // names an anchor to follow and, at the end, a throw velocity. Rule 10 holds - nothing outside the
+        // motor writes vel.
+
+        bool carried;
+        Transform carryAnchor;
+        Vector3 carryOffset;
+
+        /// <summary>True while an enemy grab is carrying the body. Weapon, parry and items refuse meanwhile.</summary>
+        public bool IsCarried => carried;
+
+        /// <summary>Follow <paramref name="anchor"/> (plus a world-space offset) until <see cref="EndCarry"/>.
+        /// Cancels slide, wall run, dash, hang and any pull. Ignored while already carried.</summary>
+        public void BeginCarry(Transform anchor, Vector3 worldOffset)
+        {
+            if (anchor == null || carried) return;
+            EndSlide(true);
+            EndWallRun(WallRunEnd.Cancelled);
+            CancelPull();
+            EndHang();
+            dashUntil = 0f;
+            dashRequested = false;
+            jumpPressedAt = -99f;
+            carryAnchor = anchor;
+            carryOffset = worldOffset;
+            carried = true;
+            IsGrounded = false;
+        }
+
+        /// <summary>Release the body with <paramref name="throwVelocity"/>. The air kit is refreshed so a thrown
+        /// player can still recover with a dash; the landing is ordinary ground contact.</summary>
+        public void EndCarry(Vector3 throwVelocity)
+        {
+            if (!carried) return;
+            carried = false;
+            carryAnchor = null;
+            vel = throwVelocity;
+            lastGroundedTime = -99f;
+            airDashUsed = false;
+            IsGrounded = false;
+        }
+
+        void AdvanceCarry(float dt)
+        {
+            if (cc == null || !cc.enabled || carryAnchor == null) { EndCarry(Vector3.zero); return; }
+            Vector3 want = carryAnchor.position + carryOffset;
+            Vector3 disp = want - transform.position;
+            vel = dt > 1e-5f ? disp / dt : Vector3.zero;
+            cc.Move(disp);
+            IsGrounded = false;
         }
 
         // ---- WALL SURGE (WallSurge item) ----

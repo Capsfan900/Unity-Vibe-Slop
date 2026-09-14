@@ -142,7 +142,7 @@ namespace VibeGame1
         public void UseCurrent()
         {
             if (held.Count == 0) { AudioManager.Play(Sfx.Click, 0.4f, 0.6f); return; }
-            if (combat != null && combat.IsStaggered) return;
+            if (combat != null && (combat.IsStaggered || combat.IsCarried)) return;
 
             var item = held[0];
             if (!Apply(item)) return;   // refused: still carried, nothing announced

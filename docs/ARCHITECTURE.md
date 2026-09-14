@@ -14,6 +14,13 @@ Related: [TOOLING.md](TOOLING.md) · [ENGINEERING-LOG.md](ENGINEERING-LOG.md) ·
    properties.
 3. **All combat resolves through `PlayerCombat.ReceiveAttack`.** One function decides
    Perfect / Blocked / Hit and applies every consequence.
+   *Two narrow seams (2026-09-13, boss roster):* an enemy **shield** may refuse the player's OWN melee blow
+   or thrown-blade lodge via `PlayerHitDeflection.TryDeflect` → `IPlayerHitDeflector` on the enemy, and the
+   player then pays guard posture through `PlayerCombat.ReceiveRecoil` (no health, no parry judgement —
+   it is not an incoming attack). Executes and wand ripostes never ask. An enemy **grab** carries the body
+   through `FirstPersonMotor.BeginCarry/EndCarry` (the motor still owns every velocity write); weapon, parry,
+   guard and items refuse while `PlayerCombat.IsCarried`; any `Teleport` drops the carry. The grab's own
+   contact and the landing damage still go through `ReceiveAttack`.
 4. **Everything is regenerable.** Materials, data, prefabs, HUD and level are all built by editor code.
    Nothing in the scene is hand-authored, so the scene is disposable.
 

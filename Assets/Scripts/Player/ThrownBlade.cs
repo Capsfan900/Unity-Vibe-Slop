@@ -188,8 +188,12 @@ namespace VibeGame1
             {
                 lodgedEnemy = enemy;
                 transform.SetParent(enemy.transform, true);
+                // A shield decides what a thrown blade does to it (the Cinder Judge's shatters); if it takes
+                // the blow, no posture lands, but the blade still lodges and stays recallable.
+                float unusedRecoil;
+                bool deflected = PlayerHitDeflection.TryDeflect(enemy, PlayerHitKind.ThrownBlade, hit.point, dir, out unusedRecoil);
                 float posture = (weapon != null ? weapon.postureDamage : 20f) * Mathf.Max(0f, item.bladePostureMultiplier);
-                if (enemy.Posture != null) enemy.Posture.Add(posture);
+                if (!deflected && enemy.Posture != null) enemy.Posture.Add(posture);
             }
         }
 
