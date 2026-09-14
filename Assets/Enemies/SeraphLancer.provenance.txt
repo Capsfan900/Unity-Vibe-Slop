@@ -1,0 +1,57 @@
+Seraph Lancer sandbox elite body (the boss-roster plan's T1 realm boss once Stage 5 places him)
+
+Source directory (read-only during integration):
+C:/Users/tyler/Main Storage/ai_skelly_tool/output/seraph_lancer_v1
+
+Copied source files:
+- seraph_lancer_v1.mv.fbx -> SeraphLancer.fbx
+  SHA-256 59C7B1375EF319AFC705656DF92692FFA22690C540DF4E82D96935255B67ECFA
+- seraph_lancer_v1.mv.albedo.png -> SeraphLancer_albedo.png
+  SHA-256 3BD395CE08C2EBB4F32DCF91AE65B6C82D72B973B12A66139C6629A507B11907
+- view_front.png -> SeraphLancer_source.png
+  SHA-256 43464D96EAB9BC92E28EA6717F3B665D377AC1BCF244D112AF48437EA7171BAE
+
+The source seraph_lancer_v1.mv.clips.json (21 states) has SHA-256
+55E0B5D7DA28803ADF2920C53E63A48517650CB366BE4A0F722E4486FBEEC6E5.
+SeraphLancer.clips.json is deliberately filtered to the approved 17-state project allowlist
+(V18's base kit, the Hit and Death reactions PuppetVisuals requires, and the two clips the forge
+generated for this body alone: JavelinThrow and HoverHold); it is not a byte-for-byte copy of
+that source manifest. IdleCombat, AttackOverhead, Block and Spawn are provenance, not permission
+to import another take. Both copied hashes match the forge's own seraph_lancer_v1.mv.build.json
+"artifacts" block.
+
+Forge build (prompts.json): seed 43, motion_seed 0, motion_retries 1, describe "a tall swift
+lithe sky warrior, pale gold crested helm and chest plate, verdigris trim, bare sinewy arms,
+thick separated legs, fitted dark shorts, compact gold greaves". This was the FIFTH attempt at
+the concept: the four earlier describes (the Stage 3 spec's "sentinel lancer ... tall crested
+helm ... fitted greaves" and its variants) hid the knees or the elbows under plate and the rig
+stage could not fit them; "bare sinewy arms, thick separated legs, fitted dark shorts" is what
+finally gave the fitter both knees, both elbows and both ankles (rig-report: status ready,
+fitted knee 2 / elbow 2 / ankle 2, 23,995 tris). No wings, cape or plume were asked for: the
+light-wings are Unity VFX (SeraphLancerVisuals), the javelin is a Unity projectile mesh.
+Jab2 / ShoulderCharge / HeavyAttack / ComboFinisher are the shared kit's own specs
+(motion_sources.json, generated at the kit's seeds 1010 / 4 / 1014 / 1016); JavelinThrow "a
+person throws overhand with their right arm" (@1.2 #auto ~1.4, contact 0.696, right wrist,
+anticipation 0.464 s: the arm-back IS the tell); HoverHold "a person stands still with both
+arms held out to the sides" (@0.8 ~1, no contact, a held aerial pose: the frozen-pose failure
+used on purpose). No per-clip GIF previews were written into this export folder (the build ran
+without --preview), so the clips were judged from the manifest beats and the Blender probe, not
+from a filmstrip; the lead's 4b log and the Sandbox smoke are the first look at them moving.
+
+Measured in Blender on this exact FBX (Tools/measure_forge_fbx.py, Unity axes), 2026-09-13:
+bounds x -0.40..0.40, y 0.00..1.98, z -0.23..0.23 (0.80 m wide: the NARROWEST of the four forge
+brawlers; V18 and the Judge are ~0.89, the Dancer 1.04 across the bracers); feet zmean +0.02,
+head +0.13, crown +0.17 (faces +Z; the crest leans forward, the crown slice spans z 0.13..0.22);
+Hips (0,1.06,-0.04), Chest (0,1.40,-0.07), Head (0,1.76,-0.02), RightUpperArm (0.15,1.63,0.00),
+RightHand (0.35,0.84,-0.08). The skeleton sits on the drawing plane (bounds centre z 0.00, chest
+band zmean +0.04, belly -0.04), so the mesh needs almost no shift under the collider (-0.02).
+Clip Hips travel: Walk 1.67 m, Run 1.83 m (a shorter stride than the Judge's 1.98 / 2.16 at this
+body's 0.75x tempo), ShoulderCharge dx -0.42 dz +3.09 (3.12 m, sidecar 2.675), HeavyAttack
+dx +1.14 dz +0.75 (1.36 m, sidecar 1.104), Jab2 dx -0.28 dz -0.10, ComboFinisher 0.09 m,
+JavelinThrow dx +0.16 dz +0.09 (0.18 m, root.motion true: a weight shift, forward component
+0.09 -> lunge 0, he is airborne when it plays), HoverHold 0.01 m (root.motion false).
+Hand height in the throw pose (handY at the clip's peak) 1.61 m: the airborne muzzle.
+The four shared clips measure identically to the Cinder Judge's and the Orbit Dancer's (same
+motion arrays, same 1.95-1.98 m rig height), so the Unity-import travel is expected to repeat
+the Judge's 3.32 m on ShoulderCharge and 0.75 m forward on HeavyAttack;
+SeraphLancerDataTests.EveryLungeIsTheClipsOwnForwardTravel is the confirmation.

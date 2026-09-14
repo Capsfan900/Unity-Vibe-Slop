@@ -1442,6 +1442,30 @@ Dancer dead/Staggered → incoming discs destroyed (reflected keep flying); Play
 maxLife 4 s caps everything.
 ```
 
+#### Seraph Lancer — Sky Verdict: one schedule, three hover javelins, each a Projectile
+
+```
+DataFactory.CreateAll
+   → Legendary_SeraphLancer EnemyData (shootsProjectiles FALSE, projectileAttack = SeraphLancer_Javelin 14,
+     projectileSpeed 15, homing 40, lead 0.7, parriedProjectileDamage 22 / Posture 30, parrySpeedGain 2.5)
+   → SeraphLancer_SkyVerdict: windup 1.10 (rise), impactDelay 0.90, strike 2.75, recovery 2.40,
+     range 0 / cone 0 / damage 0 (the brain's DoImpact never lands it); clip JavelinThrow
+4a. ForgeClipSplitter → SeraphLancer.fbx: 17 Generic clips (+ JavelinThrow, HoverHold)
+4b. MiniBossFactory  → prefab: EnemyController + SeraphLancerJavelins (root), Visual/SeraphLancerVisuals,
+                       LungeRoot ─ HoverRoot ─ { WingRoot, SpinRoot ─ TravelRoot ─ Model }
+7.  SandboxBuilder   → pad/spawner/wake switch at SeraphLancerPadPosition (104, −26), facing north
+
+BeginWindup(SkyVerdict) → 1.10 s: Jump take-off, HoverRoot lifts 3.0 m, light-wings unfold; FireCue at impact − 0.28
+BeginStrike → SeraphLancerVisuals re-anchors to NextImpactTime; HoverHold then JavelinThrow per release;
+   HoverRoot yaw tracks the player at 120°/s
+SeraphLancerJavelins.Update → releases at ImpactTime + n·1.10 (n < 3), LaunchCount(1, Javelin.LiveCount, cap 4),
+   aim = LeadTarget(RightHand bone, chest, v, 15, 0.7), speed = ProjectileMath.LaunchSpeed(path, 15, CueLead, 0.12)
+Javelin (= Projectile): cue 0.28 s before arrival; homing 40°/s; world hit → JavelinRelic (1.5 s), spend
+   arrival → Projectile.Arrive → PlayerCombat.ReceiveAttack (Block / Hit 14 / Perfect → reflect 22 HP / 30 posture)
+strike − 0.45 s → descent, wings fold, Land(): ring + sparks; 1.46 s real punish
+Lancer dead/Staggered → incoming javelins destroyed; PlayerRespawned → all destroyed; maxLife 5 s.
+```
+
 #### The blade trail — `EnemyWeaponTrail`
 
 ```

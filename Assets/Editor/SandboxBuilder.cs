@@ -42,7 +42,7 @@ namespace VibeGame1.EditorTools
         static Material mWepSword, mWepHammer, mWepDagger, mWepDev;
         static GameObject pPlayer, pManagers, pHud, pGrunt, pHeavy, pBoss, pItemPickup;
         static GameObject pLegNinja, pLegKnight, pLegSpellsword, pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster;
-        static GameObject pLegBrawler, pLegBrawlerV18, pLegCinderJudge, pLegOrbitDancer;
+        static GameObject pLegBrawler, pLegBrawlerV18, pLegCinderJudge, pLegOrbitDancer, pLegSeraphLancer;
         static GameObject pSentryGrunt, pSentryHeavy, pSurgeTurret;
 
         static int boxCount, trimCount, spawnerCount, torchCount, pickupCount;
@@ -863,6 +863,17 @@ namespace VibeGame1.EditorTools
             var sOrbitDancer = Spawner("Spawn_Legendary_OrbitDancer", odSpawn, pLegOrbitDancer, false, root);
             sOrbitDancer.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
 
+            // THE SERAPH LANCER (2026-09-13): the fourth standalone fixture, built the V18 way. The x 70..100
+            // pocket south of the doorway line is the runway's 30 m run-off (MovementYardTests holds it
+            // clear) and the east end is the tower's drop zone, so he takes the SOUTH strip below the gap
+            // ladder, in the 12 m gap between its fifth and sixth pads, facing NORTH like the arena rows
+            // (identity: no rotation) so the wake switch and the charge lane run up through that gap onto
+            // the open floor. He hovers at 3 m with nothing overhead. See SeraphLancerPadPosition.
+            Vector3 slPad = new Vector3(SeraphLancerPadPosition.x, padY, SeraphLancerPadPosition.z);
+            Vector3 slSpawn = new Vector3(SeraphLancerPadPosition.x, spawnY, SeraphLancerPadPosition.z);
+            Box("Pad_Legendary_SeraphLancer", slPad, new Vector3(5.5f, 1f, 5.5f), mBoss, root);
+            var sSeraphLancer = Spawner("Spawn_Legendary_SeraphLancer", slSpawn, pLegSeraphLancer, false, root);
+
             // ---- one WAKE switch per pad, on the player's side of it ------------------------------
             // The sandbox is a workshop, not a fight. With default aggro, stepping off the spawn pad
             // starts three fights at once and nothing can be studied — you cannot read a wind-up, time
@@ -900,6 +911,12 @@ namespace VibeGame1.EditorTools
             Switch("Wake_Legendary_OrbitDancer",
                    new Vector3(OrbitDancerPadPosition.x, FloorTop, OrbitDancerPadPosition.z - OrbitDancerWakeOffset),
                    sOrbitDancer, "ORBIT DANCER", root);
+            // SeraphLancerWakeOffset NORTH (he faces north): outside the 6.5 m charge reach and the 3.4 m
+            // lance thrust, and 2.5 m short of the gap ladder's row so the lamp stands on open floor.
+            // The javelins are ranged and no switch can be outside them; a sleeping Lancer throws nothing.
+            Switch("Wake_Legendary_SeraphLancer",
+                   new Vector3(SeraphLancerPadPosition.x, FloorTop, SeraphLancerPadPosition.z + SeraphLancerWakeOffset),
+                   sSeraphLancer, "SERAPH LANCER", root);
         }
 
         /// <summary>
@@ -952,6 +969,25 @@ namespace VibeGame1.EditorTools
         /// <summary>Metres south of the pad centre the Dancer's wake switch stands. Beyond the 6.5 m charge
         /// reach (3.32 m lunge + 2.7 m range + 0.5 m slack) and the whirl's 3.1 m, 1.5 m short of the water.</summary>
         public const float OrbitDancerWakeOffset = 7.0f;
+
+        /// <summary>
+        /// The Seraph Lancer's standalone pad, in the yard's SOUTH strip below the gap ladder: the ladder's
+        /// six 6 m pads stand at z -21..-15 with their fifth ending at x 98 and their sixth starting at
+        /// x 110, the south kerb's inner face is at z -29.75. At (104, -26) the 5.5 m pad spans
+        /// x 101.25..106.75, z -28.75..-23.25: 1 m off the kerb, 2.25 m south of the ladder row and 3.25 m
+        /// clear of both neighbouring ladder pads, 16 m south of the balloon chain (x 104.., z -10, in the
+        /// air), 20 m west of the drop tower's steps, 47 m from V18's pad, 56 m from the Judge's and 76 m
+        /// from the Dancer's -- far beyond every 18 m aggro -- and 73 m from the yard spawn. He faces
+        /// NORTH: the 6.5 m charge lane and the wake switch run up through the 12 m gap between the
+        /// ladder's fifth and sixth pads onto the open floor, and the verdict's 4.5..14 m band north of
+        /// him is that same open floor with nothing overhead. The x 70..100 pocket south of the doorway
+        /// line was rejected because it is the runway's 30 m run-off (MovementYardTests), and every
+        /// east-end slot is inside the tower's drop zone or within the Judge's aggro.
+        /// </summary>
+        public static readonly Vector3 SeraphLancerPadPosition = new Vector3(104f, FloorTop, -26f);
+        /// <summary>Metres NORTH of the pad centre the Lancer's wake switch stands. Beyond the 6.5 m charge
+        /// reach (3.32 m lunge + 2.7 m range + 0.5 m slack) and the lance's 3.4 m, 2.5 m short of the ladder row.</summary>
+        public const float SeraphLancerWakeOffset = 7.5f;
 
         /// <summary>
         /// A wake switch: stone post on Default (walkable, bakes) with a small emissive lamp on
@@ -1109,7 +1145,7 @@ namespace VibeGame1.EditorTools
             controller.enemyPrefabs = new[] { pGrunt, pHeavy, pBoss, pLegNinja, pLegKnight, pLegSpellsword,
                                                pLegMarionette, pLegRevenant, pLegHalberdier, pLegDrillmaster,
                                                pSentryGrunt, pSentryHeavy, pSurgeTurret, pLegBrawler,
-                                               pLegBrawlerV18, pLegCinderJudge, pLegOrbitDancer };
+                                               pLegBrawlerV18, pLegCinderJudge, pLegOrbitDancer, pLegSeraphLancer };
             controller.spawnableEnemies = new[]
             {
                 LoadEnemyData("Grunt"),
@@ -1129,6 +1165,7 @@ namespace VibeGame1.EditorTools
                 LoadEnemyData("Legendary_FlurryBrawlerV18"),
                 LoadEnemyData("Legendary_CinderJudge"),
                 LoadEnemyData("Legendary_OrbitDancer"),
+                LoadEnemyData("Legendary_SeraphLancer"),
             };
             controller.dummyPrefabIndex = 0;   // Grunt
         }
@@ -1179,6 +1216,7 @@ namespace VibeGame1.EditorTools
             pLegBrawlerV18 = LoadPrefab("Legendary_FlurryBrawlerV18");
             pLegCinderJudge = LoadPrefab("Legendary_CinderJudge");
             pLegOrbitDancer = LoadPrefab("Legendary_OrbitDancer");
+            pLegSeraphLancer = LoadPrefab("Legendary_SeraphLancer");
             pSentryGrunt = LoadPrefab("pshooter_enemy01");
             pSentryHeavy = LoadPrefab("pshooter_enemy02");
             pSurgeTurret = LoadPrefab("pshooter_enemy03");

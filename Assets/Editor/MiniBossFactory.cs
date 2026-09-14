@@ -87,6 +87,12 @@ namespace VibeGame1.EditorTools
             BuildMiniBoss(OrbitDancerAuthoring.EnemyName,
                 EnemyDataDir + "/" + OrbitDancerAuthoring.EnemyName + ".asset",
                 Silhouette.OrbitDancer);
+            // ADDITIVE SANDBOX ELITE (2026-09-13). The Seraph Lancer: V18's method on the seraph_lancer_v1
+            // forge body, plus SKY VERDICT, hover javelins. Movement park for now; the boss-roster plan's
+            // Stage 5 places him as the T1 realm boss. See DataFactory, THE SERAPH LANCER.
+            BuildMiniBoss(SeraphLancerAuthoring.EnemyName,
+                EnemyDataDir + "/" + SeraphLancerAuthoring.EnemyName + ".asset",
+                Silhouette.SeraphLancer);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -98,10 +104,10 @@ namespace VibeGame1.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
             foreach (var guid in AssetDatabase.FindAssets("Legendary_ t:Prefab", new[] { PrefabDir }))
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
-            Debug.Log("[MiniBossFactory] Built 11 legendary mini-boss prefabs under " + PrefabDir);
+            Debug.Log("[MiniBossFactory] Built 12 legendary mini-boss prefabs under " + PrefabDir);
         }
 
-        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18, CinderJudge, OrbitDancer }
+        enum Silhouette { Ninja, Knight, Spellsword, Marionette, Revenant, Halberdier, FlurryBrawler, FlurryBrawlerV18, CinderJudge, OrbitDancer, SeraphLancer }
 
         // ------------------------------------------------------------------ the rig
 
@@ -158,6 +164,8 @@ namespace VibeGame1.EditorTools
                 visuals = visual.AddComponent<CinderJudgeVisuals>();
             else if (shape == Silhouette.OrbitDancer)
                 visuals = visual.AddComponent<OrbitDancerVisuals>();
+            else if (shape == Silhouette.SeraphLancer)
+                visuals = visual.AddComponent<SeraphLancerVisuals>();
             else if (animated)
                 visuals = visual.AddComponent<PuppetVisuals>();
             else
@@ -415,6 +423,153 @@ namespace VibeGame1.EditorTools
                 // The rim: teal at a 1.25 peak. Over the 1.05 bloom threshold so the disc has an edge of
                 // light in a dark realm; under the sentry bolt's 1.6, which stays the brightest thing.
                 discs.rimColor = new Color(0.36f, 1.25f, 1.15f, 1f);
+            }
+
+            if (visuals is SeraphLancerVisuals sl)
+            {
+                // ---- HoverRoot: the ONE transform the lift and the tracking yaw write ---------------
+                // Inserted between LungeRoot (the base lean/lunge) and SpinRoot (PuppetVisuals' idle
+                // wobble), the Judge's StormRoot pattern: the verdict's lift, the dive's hop and the
+                // hovering body's tracking yaw never share a channel with either. Five transforms, five
+                // owners: LungeRoot = EnemyVisuals, HoverRoot + WingRoot = SeraphLancerVisuals,
+                // SpinRoot = PuppetVisuals, TravelRoot = CompensateTravel.
+                Transform hoverRoot = null;
+                if (sl.spinRoot != null)
+                {
+                    var hover = new GameObject("HoverRoot");
+                    hover.transform.SetParent(sl.spinRoot.parent, false);
+                    hover.transform.localPosition = Vector3.zero;
+                    hover.transform.localRotation = Quaternion.identity;
+                    sl.spinRoot.SetParent(hover.transform, false);
+                    sl.hoverRoot = hover.transform;
+                    hoverRoot = hover.transform;
+                }
+                else
+                {
+                    Debug.LogError("[MiniBossFactory] " + name + " has no SpinRoot to insert HoverRoot above; " +
+                                   "the verdict will not lift the body.");
+                }
+
+                // ---- WingRoot: the light-wings' anchor, a child of HoverRoot ------------------------
+                // Rides the lift and the tracking yaw (so the wings turn with the throwing arm) but
+                // not SpinRoot's wobble or TravelRoot's compensation. Chest bone (0, 1.40, -0.07): the
+                // wings root at the shoulder blades, a hand's breadth behind the spine. The feathers
+                // themselves are built at Setup (runtime meshes on a runtime additive material, as the
+                // Dancer's discs are), so the prefab carries the anchor and the numbers, not the glow.
+                var wingRoot = new GameObject("WingRoot");
+                wingRoot.transform.SetParent(hoverRoot != null ? hoverRoot : lungeRoot.transform, false);
+                wingRoot.transform.localPosition = new Vector3(0f, 1.42f, -0.16f);
+                wingRoot.transform.localRotation = Quaternion.identity;
+                sl.wingRoot = wingRoot.transform;
+
+                // Rule 9: every presentation-profile value is rebuilt onto the prefab.
+                sl.skyVerdictAttack = SeraphLancerAuthoring.SkyVerdictAttackName;
+                sl.heavyAttack = "SeraphLancer_Heavy";
+                sl.shoulderChargeAttack = "SeraphLancer_ShoulderCharge";
+                sl.shoulderChargeClip = "ShoulderCharge";
+                sl.heavyClip = "HeavyAttack";
+                sl.jumpClip = "Jump";
+                sl.hoverClip = "HoverHold";
+                sl.throwClip = "JavelinThrow";
+                sl.entranceProbeDelay = 0.12f;
+                sl.entranceHoldSeconds = 0.95f;   // Jump is 0.96 s at 1x
+                sl.hitHoldSeconds = 0.35f;        // the fluidity pass's cap on a held pose
+                // The hover: 3.0 m -- above the Judge's 2.4 m storm float, so the javelin's line is
+                // plainly DOWNWARD (37 degrees at the band's near edge, 16 at its far edge) and the read
+                // is "look up", while the capsule on the ground still reads as his. The descent is the
+                // strike's last 0.45 s.
+                sl.hoverHeight = 3.0f;
+                sl.hoverDescendSeconds = 0.45f;
+                sl.hoverFallSeconds = 0.22f;
+                // 120 deg/s: the brain does not turn during Strike, so the hovering body tracks you
+                // itself -- fast enough to keep the arm on a circling player, slow enough to read as a
+                // body turning, never a snap.
+                sl.hoverTrackDegPerSec = 120f;
+                // From the manifest's Jump events: OnJumpTakeoff 0.28, OnJumpLand 0.85; the apex is the
+                // midpoint of the airborne window.
+                sl.jumpTakeoffNormalized = 0.28f;
+                sl.jumpApexNormalized = 0.56f;
+                sl.jumpLandNormalized = 0.85f;
+                sl.landingHoldSeconds = 0.35f;
+                // JavelinThrow carries 0.21 s of recovery after its 0.696 release; 0.25 lets the arm
+                // finish before HoverHold returns for the 0.28 s breath the 1.10 s cadence leaves.
+                sl.throwFollowThroughSeconds = 0.25f;
+                sl.chargeSparkInterval = 0.12f;
+                sl.landingRingSeconds = 0.34f;
+                sl.landingSparkCount = 12;
+                sl.landingSparkSpeed = 6f;
+                sl.landingSparkSpread = 110f;
+                // The dive's hop: 0.8 m over the Heavy's 1.13 s, peaking at the Jump-to-HeavyAttack
+                // switch and back on the floor exactly at the impact. A third of the verdict's height:
+                // a hop, unmistakably not the rise.
+                sl.diveHopHeight = 0.8f;
+                // Light-wings: three blades of light a side, 1.6 m long, fanned 28 degrees apart from
+                // 18 degrees above the horizontal and raked 25 degrees back. Additive on a runtime
+                // material normalised to a 1.0 peak -- under the 1.05 bloom threshold by construction,
+                // alpha 0.55 at full spread -- so at 24 m he is the one with WINGS and the javelin tip
+                // is still the bright thing. Unfold 0.35 s (from the take-off frame), fold 0.25 s.
+                sl.feathersPerWing = 3;
+                sl.wingLength = 1.6f;
+                sl.wingChord = 0.42f;
+                sl.wingSweepDeg = 28f;
+                sl.wingRootPitchDeg = 18f;
+                sl.wingRakeDeg = 25f;
+                sl.wingUnfoldSeconds = 0.35f;
+                sl.wingFoldSeconds = 0.25f;
+                sl.wingAlpha = 0.55f;
+                sl.wingFlickerHz = 9f;
+                sl.wingFlickerAmount = 0.12f;
+                sl.wingHue = new Color(0.72f, 1.0f, 0.90f, 1f);
+                sl.entranceWingSeconds = 0.5f;
+                // Verdigris seams: the Judge's aura numbers in verdigris, written on THIS component
+                // because it is the aura's only writer here. Rest 0.14 (the palest body of the four; the
+                // albedo's trim is already green), 0.42 at the break, 0.50 through the hover -- under the
+                // 0.60 EmberAura documents as the ceiling before the parry read suffers.
+                sl.verdigrisHot = new Color(0.25f, 0.75f, 0.62f, 1f) * 1.3f;
+                sl.glowAtRest = 0.14f;
+                sl.glowAtBreak = 0.42f;
+                sl.hoverGlow = 0.50f;
+                sl.pulseSpeed = 1.9f;
+                sl.pulseAmount = 0.12f;
+
+                // ---- the launcher, on the ROOT beside the brain ---------------------------------
+                var javelins = root.AddComponent<SeraphLancerJavelins>();
+                javelins.skyVerdictAttack = SeraphLancerAuthoring.SkyVerdictAttackName;
+                // 3 a verdict, one after another: one to see, one to parry, one to confirm. Not the
+                // Dancer's three at once -- the first boss teaches the beat, not the chaos.
+                javelins.javelinsPerVerdict = 3;
+                // 1.10 s between releases = 0.57 s of arm-back (the clip's own anticipation, the readable
+                // tell) + 0.25 s of follow-through + 0.28 s of HoverHold breath. With 0.4-0.9 s of
+                // flight each, arrivals are 1.10 s apart: well over the parry contract's 0.69 s floor.
+                javelins.javelinCadence = 1.10f;
+                // 4 alive, any thrower: the three of one verdict plus one still flying BACK after a
+                // Perfect, so a reflect can never cost him his third throw.
+                javelins.liveCap = 4;
+                // 5 s at 15 m/s is 75 m: a javelin that found nothing is gone long before the next
+                // verdict (10 s cooldown), and a reflected one always reaches him.
+                javelins.javelinLifetime = 5f;
+                // 1.6 m of shaft, 5 cm thick, behind a 0.30 m tip: reads as a SPEAR at 14 m, not a
+                // dot; the logical hit radius is still Projectile's 1.0 m.
+                javelins.javelinLength = 1.6f;
+                javelins.shaftDiameter = 0.05f;
+                javelins.tipSize = 0.30f;
+                // The sentries' rule: no flight shorter than CueLead + 0.12 s.
+                javelins.launchMargin = 0.12f;
+                // RightHand: measured at (0.35, 0.84, -0.08) at rest and 1.61 m up in the throw pose --
+                // the airborne muzzle, 4.6 m over the floor at full lift.
+                javelins.muzzleBone = "RightHand";
+                javelins.muzzleFallbackHeight = 1.6f;
+                // A javelin in a wall stays 1.5 s (1.05 held, then 0.45 of shrink): long enough to see
+                // "that was for me", gone before the next release lands beside it.
+                javelins.relicSeconds = 1.5f;
+                javelins.relicHoldFraction = 0.7f;
+                javelins.stuckVolume = 0.5f;
+                javelins.stuckRange = 24f;
+                // The tip: gold at a 1.45 peak. Over the 1.05 bloom threshold, above the Dancer's 1.25
+                // disc rim (this is the roster's FIRST projectile lesson and must be the louder one),
+                // under the sentry bolt's 1.6, which stays the brightest thing in the game.
+                javelins.tipColor = new Color(1.45f, 1.05f, 0.40f, 1f);
+                javelins.shaftColor = new Color(0.86f, 0.80f, 0.62f, 1f);
             }
 
             // All seven EnemyVisuals bindings must be live. A null one is silent at build time and only
@@ -866,6 +1021,55 @@ namespace VibeGame1.EditorTools
                         spinPrefix = ""
                     };
 
+                case Silhouette.SeraphLancer:
+                    return new ModelSpec
+                    {
+                        fbx = "SeraphLancer.fbx",
+                        // MEASURED in Blender on the exact source named in SeraphLancer.provenance.txt
+                        // (Tools/measure_forge_fbx.py, Unity axes): bounds x -0.40..0.40, y 0.00..1.98,
+                        // z -0.23..0.23. Feet on the origin, so no lift. Faces +Z: feet zmean +0.02,
+                        // head +0.13, crown +0.17 (the crest leans forward over the brow).
+                        yLift = 0f,
+                        yaw = 0f,
+                        // Bounds centre z 0.00, chest band zmean +0.04, belly -0.04, bones on z -0.04..-0.07:
+                        // the skeleton sits ON the drawing plane and the armour barely ahead of it, so the
+                        // mesh needs almost no shift under the collider (V18 -0.12, Judge -0.09, Dancer -0.18).
+                        zShift = -0.02f,
+                        // Head bone (0, 1.76, -0.02); the head slice reaches z 0.22. The eye is the HELM's
+                        // visor: a narrow verdigris SLOT at the brow, thinner than the Judge's yellow slot
+                        // (0.26 x 0.08) and higher than the Dancer's mask slit -- the one-glance difference
+                        // between the three helmed bodies -- and EnemyVisuals drives it from Posture.Ratio
+                        // like every other eye. LOOK AT THIS ONE at 4b: a slot floating off the visor is
+                        // the likeliest placement bug.
+                        eyePos = new Vector3(0f, 1.80f, 0.20f),
+                        eyeSize = new Vector3(0.20f, 0.05f, 0.07f),
+                        eyeRound = false,
+                        // RightUpperArm (0.15, 1.63, 0.00), RightHand (0.35, 0.84, -0.08): handPos is
+                        // hand minus shoulder. The bare arm hangs closer in than the Judge's gauntlet
+                        // (0.20 out against 0.24).
+                        armPos = new Vector3(0.15f, 1.63f, 0.00f),
+                        handPos = new Vector3(0.20f, -0.79f, -0.08f),
+                        // The palm, a hand's breadth ahead of the fingers along the throw: where the cue
+                        // sparks throw from (SeraphLancerJavelins uses the bone for the javelin itself).
+                        weaponFxPos = new Vector3(0.06f, 0.02f, 0.16f),
+                        // The CHEST bone (0, 1.40, -0.07), clear of the head at 1.76 and the visor at 1.80.
+                        markHeight = 1.40f,
+                        albedo = "SeraphLancer_albedo.png",
+                        // No blade trail: the javelin is a projectile, not a held blade, and half his
+                        // contacts are on the left wrist (Jab2, HeavyAttack, ComboFinisher).
+                        bladeTrail = false,
+                        note = "pale-gold crested sky lancer with verdigris trim; 0.80 m wide (the narrowest forge body), 1.98 m to the crest, feet on origin, +Z facing, skeleton on the plane",
+
+                        animated = true,
+                        attackClip = "AttackSwing",
+                        // The base kit has no overhead; the generated HeavyAttack is the heavy clip.
+                        heavyClip = "HeavyAttack",
+                        // No IdleCombat in the filtered manifest (the user's list says idle).
+                        idleClip = "Idle",
+                        spinClip = "",
+                        spinPrefix = ""
+                    };
+
                 case Silhouette.Halberdier:
                     return new ModelSpec
                     {
@@ -1056,6 +1260,7 @@ namespace VibeGame1.EditorTools
             pv.footstepDust = name == FlurryBrawlerV18Authoring.EnemyName ? new Color(0.55f, 0.5f, 0.45f, 0.35f)
                             : name == CinderJudgeAuthoring.EnemyName ? new Color(0.9f, 0.45f, 0.18f, 0.35f)
                             : name == OrbitDancerAuthoring.EnemyName ? new Color(0.35f, 0.75f, 0.7f, 0.30f)   // bare feet: a lighter teal puff
+                            : name == SeraphLancerAuthoring.EnemyName ? new Color(0.85f, 0.78f, 0.55f, 0.30f) // gold greaves: a pale dust
                             : new Color(0f, 0f, 0f, 0f);
 
             // ---- the NAMED clip table: every attack clip the model ships -------------------------
@@ -1145,6 +1350,14 @@ namespace VibeGame1.EditorTools
                 if (!names.SetEquals(allowed))
                     Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
                         OrbitDancerAuthoring.ClipAllowlist.Length + " clips. Expected: " +
+                        string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
+            }
+            else if (name == SeraphLancerAuthoring.EnemyName)
+            {
+                var allowed = new System.Collections.Generic.HashSet<string>(SeraphLancerAuthoring.ClipAllowlist);
+                if (!names.SetEquals(allowed))
+                    Debug.LogError("[MiniBossFactory] " + name + " must import exactly the approved " +
+                        SeraphLancerAuthoring.ClipAllowlist.Length + " clips. Expected: " +
                         string.Join(", ", allowed) + "; imported: " + string.Join(", ", names) + ".");
             }
 

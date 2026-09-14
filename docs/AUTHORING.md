@@ -266,6 +266,7 @@ All of these are written by `DataFactory` and will be **overwritten** by **3. Cr
 | `Legendary_FlurryBrawlerV18` — *The Flurry Brawler V18 (TEST)* | `Legendary_FlurryBrawlerV18` | `Legendary_FlurryBrawlerV18_Moveset` | `EnemyController` + `FlurryBrawlerV18Visuals` | **ADDITIVE TEST, sandbox only; it does not replace v15.** A separate Souls melee enemy (`shootsProjectiles = false`, `rangedOnly = false`) with no boss or parkour-projectile components. Its filtered `FlurryBrawlerV18.fbx` library contains exactly 18 approved clips; Shoulder, Clap, Combo2, Jump and Block use V18-only presentation staging while every attack remains one data-scheduled `PlayerCombat.ReceiveAttack`. Separate pad/spawner/wake switch at `(112, 20)`. See §2b and DATAFLOW → *Flurry Brawler V18*. |
 | `Legendary_CinderJudge` — *The Cinder Judge* | `Legendary_CinderJudge` | `Legendary_CinderJudge_Moveset` | `EnemyController` + `CinderJudgeVisuals` + `CinderJudgeStorm` | **ADDITIVE SANDBOX ELITE, movement park only (pad `(136, 20)`); never in a level.** V18's method on a new forge body (blackened bronze, ember seams, yellow visor slot): the user's move list only — jab2, swing, combo finisher, stab, kick, heavy, shoulder charge, roar, jump — a beat slower and heavier than V18, with a red jab-into-shoulder chain. One signature, **STORM JUDGEMENT**: Roar charge, rise to 2.4 m, spin inside a lightning tornado for 3.2 s while a 3.6 m cylinder ticks 6 damage every 0.30 s through `PlayerCombat.ReceiveAttack` (unblockable — the answer is *leave*), then land into a 3.0 s recovery. See §2b → *Cinder Judge profile* and DATAFLOW → *Cinder Judge*. |
 | `Legendary_OrbitDancer` — *The Orbit Dancer* | `Legendary_OrbitDancer` | `Legendary_OrbitDancer_Moveset` | `EnemyController` + `OrbitDancerVisuals` + `OrbitDancerDiscs` | **ADDITIVE SANDBOX ELITE, movement park for now (pad `(46, 22.5)`, the north-west pocket above the water lane); the boss-roster plan's Stage 5 makes her the T3 realm boss.** V18's method on the `orbit_dancer_v1` forge body (obsidian, teal seams, a mask slit for an eye, three satellite discs orbiting her at rest): V18's base kit a shade faster and lighter than the Judge (170/150, 5.4 m/s, strafe 0.55), jab-two into a blue 360° SPIN THROW instead of the Judge's red chain, the Heavy on a long cooldown. One signature, **ORBIT STORM**: a 0.70 s wind-up with the disc spinning in the hand, then three `BouncingDisc`s (16 m/s, one straight, two BANKED off the nearest walls) that ricochet up to 3 times, re-cue 0.28 s before every approach, and resolve through `PlayerCombat.ReceiveAttack` as Block or Perfect — a Perfect reflects the disc into her for 20 health / 26 posture. The whirl's release banks two more. See §2b → *Orbit Dancer profile* and DATAFLOW → *Orbit Dancer*. |
+| `Legendary_SeraphLancer` — *The Seraph Lancer* | `Legendary_SeraphLancer` | `Legendary_SeraphLancer_Moveset` | `EnemyController` + `SeraphLancerVisuals` + `SeraphLancerJavelins` | **ADDITIVE SANDBOX ELITE, movement park for now (pad `(104, −26)`, the south strip below the gap ladder, facing north); the boss-roster plan's Stage 5 makes him the T1 realm boss.** V18's method on the `seraph_lancer_v1` forge body (pale gold, verdigris trim, a crest above the crown, the narrowest of the four): V18's base kit at the Judge's pace with the lowest aggression of the roster (200/170, 4.8 m/s, aggression 0.60), ONE red (the far-band shoulder — the kick is blue), a 2.9 m LANCE THRUST as the opener and the jab-two-into-lance blue chain, the Heavy staged as a DIVE. One signature, **SKY VERDICT**: a 1.10 s rise to 3 m on light-wings, HoverHold, then three `Javelin`s thrown DOWN one after another at 1.10 s cadence (15 m/s, 14 damage, low homing), each a `Projectile` through `PlayerCombat.ReceiveAttack` as Block or Perfect — a Perfect reflects it into him for 22 health / 30 posture — then a descent into a 2.40 s recovery. A javelin that hits the world plants for 1.5 s. See §2b → *Seraph Lancer profile* and DATAFLOW → *Seraph Lancer*. |
 | `Boss` — *The Hollow Warden* | `Boss` | `Boss_Moveset` + phases | `BossController` | The duel; segments and level clear |
 
 ### 2a. Importing a forge model — and the one source-art exception
@@ -516,6 +517,53 @@ Regenerate in this order, out of play mode: **let the editor import the four new
 Mini-Bosses → 7 Build Sandbox → Health Check → quick EditMode → Projectile Encounter Report**. The
 discs are the only thing on this body no other enemy has, and each is still one `Projectile` through
 `PlayerCombat.ReceiveAttack` — see DATAFLOW → *Orbit Dancer — Orbit Storm*.
+
+#### Seraph Lancer profile — the V18 method, fourth body, the first boss
+
+`Legendary_SeraphLancer` (2026-09-13) is the fourth body built exactly the V18 way, and the one the
+boss-roster plan seats FIRST (T1): readability and fairness are its whole brief. Its source of truth is:
+
+- `Assets/Editor/SeraphLancerAuthoring.cs`: the enemy name, the source hashes, the 17-clip allowlist and
+  the two attack names the components key on (`SeraphLancer_SkyVerdict`, and `SeraphLancer_Javelin`,
+  the attack a JAVELIN carries). No explicit contact profile: `JavelinThrow` ships its own `OnAttackHit`
+  (0.696, right wrist); `Jump` and `HoverHold` are presentation clips staged by the visuals and named by
+  no attack.
+- `SeraphLancer.clips.json`: exactly the Judge's 15 plus `JavelinThrow` and `HoverHold`. The 21-clip
+  source export is recorded in `SeraphLancer.provenance.txt` with the final describe and seed (43 — the
+  fifth concept attempt; the earlier four hid the knees or elbows under plate) and the Blender
+  measurements; this rig sits ON the drawing plane (`zShift -0.02`) and is 0.80 m wide, the narrowest.
+- `DataFactory`, *THE SERAPH LANCER*: the `EnemyData`, its moveset, `SeraphLancer_*` attacks, and the
+  projectile fields a `Javelin` reads: `projectileAttack = SeraphLancer_Javelin` (14 a javelin, never
+  unblockable), `projectileSpeed 15`, `projectileHomingDegPerSec 40`, `projectileLead 0.7`,
+  `parriedProjectileDamage 22` / `parriedProjectilePosture 30`, `parrySpeedGain 2.5`. `shootsProjectiles`
+  stays **false**: a duel, not a sentry. The verdict attack's brain contact is a deliberate no-op
+  (`range 0, cone 0, damage 0`); its schedule is windup 1.10 (the rise) / impactDelay 0.90 (HoverHold,
+  then the first arm-back) / strike 2.75 (three releases at 0, 1.10, 2.20, then a 0.45 s descent) /
+  recovery 2.40 (the punish). The kick is blue and the shoulder is the only red; the lance thrust reaches
+  2.9 m on a 35° cone.
+- `MiniBossFactory`: the measured `ModelSpec` (a verdigris visor SLOT at the brow), the
+  `SeraphLancerVisuals` profile, `HoverRoot` inserted between `LungeRoot` and `SpinRoot` (the StormRoot
+  pattern: the lift, the dive's hop and the hovering body's tracking yaw), `WingRoot` under it (the
+  light-wings' anchor; the feathers are runtime additive meshes normalised under the bloom threshold),
+  and the `SeraphLancerJavelins` launcher on the root with every javelin number: 3 a verdict at 1.10 s,
+  live cap 4, 5 s life, 1.6 m shaft, 0.30 m tip at a 1.45 peak (above the Dancer's 1.25 rim, under the
+  sentry bolt's 1.6), relic 1.5 s.
+- `Javelin : Projectile` (`Scripts/Enemies/Core/`) overrides `Projectile.OnWorldContact` to plant a
+  `JavelinRelic` and returns false (spend on the wall, as every sentry bolt does); it keeps the shaft
+  pointed along `Direction` (a reflected javelin visibly turns around) and counter-scales it so only the
+  tip flares at the cue. No `Projectile.cs` change was needed.
+- `SandboxBuilder`: `SeraphLancerPadPosition` `(104, −26)` and `SeraphLancerWakeOffset` 7.5 m NORTH, in the
+  gap between the ladder's fifth and sixth pads (the x 70..100 pocket is the runway's 30 m run-off and the
+  east end is the tower's drop zone). Not yet in a `LevelDefinition` or `LevelRegistry`;
+  `SeraphLancerDataTests.NotYetInTheCampaign` holds that until Stage 5 flips it to "is the T1 realm boss".
+
+Regenerate in this order, out of play mode: **let the editor import the five new files under
+`Assets/Enemies/` → 4a Split Forge Animation Clips → 3 Create Data → 4 Build Prefabs → 4b Build
+Mini-Bosses → 7 Build Sandbox → Health Check → quick EditMode → Projectile Encounter Report**. The
+javelins are the only thing on this body no other enemy has, and each is still one `Projectile` through
+`PlayerCombat.ReceiveAttack`; `ParryMath.IsFacing` judges the flat bearing of its travel, and
+`SeraphLancerDataTests.HoverGeometry_KeepsEveryJavelinParryable_AndTheLessonIsLookUp` pins that no throw
+from the 3 m hover is ever unparryable — see DATAFLOW → *Seraph Lancer — Sky Verdict*.
 
 ---
 

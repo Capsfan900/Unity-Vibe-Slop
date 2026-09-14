@@ -2292,6 +2292,246 @@ namespace VibeGame1.EditorTools
             dancer.combos = dancer.moveset.ToComboArray();
             EditorUtility.SetDirty(dancer);
 
+            // --- SeraphLancer: THE SERAPH LANCER. ADDITIVE SANDBOX ELITE (2026-09-13). ---------------
+            // Built the V18 way, as the Judge and the Dancer were, on the seraph_lancer_v1 forge body
+            // (seed 43, motion_seed 0; the fifth concept attempt, the first whose knees and elbows the rig
+            // stage could fit), with V18's base kit plus ONE signature: SKY VERDICT, a rise to 3 m on
+            // light-wings and three javelins thrown DOWN at you, one after another, every one a Projectile
+            // you can Block or Perfect-reflect. Sandbox movement park for now; Stage 5 of the boss-roster
+            // plan places him as the T1 realm boss -- the first boss, the projectile-parry lesson the
+            // level's sentries began -- so nothing here says "never campaign".
+            // Source FBX SHA-256: 59C7B1375EF319AFC705656DF92692FFA22690C540DF4E82D96935255B67ECFA.
+            // Source manifest SHA-256: 55E0B5D7DA28803ADF2920C53E63A48517650CB366BE4A0F722E4486FBEEC6E5.
+            //
+            // THE JOB IN ONE SENTENCE: he fights V18's brawl a shade more upright and readable than anyone,
+            // and once you hold the floor he leaves it -- hovers -- and throws javelins you must LOOK UP
+            // at, face, and deflect back into him.
+            //
+            // What is DIFFERENT from V18, the Judge and the Dancer, on purpose (the "spice"):
+            //   1. The readable one: 200 HP / 170 posture (between V18's 190/160 and the Judge's 240/200),
+            //      4.8 m/s, aggression 0.60 (the lowest of the four), preferredRange 2.6 -- half a step
+            //      further out than V18 because his signature wants you at throwing range. Every shared
+            //      wind-up is no shorter than the Dancer's same blow and no longer than the Judge's: the
+            //      first boss is the one you can READ.
+            //   2. ONE red, and it is the far-band shoulder. The kick is BLUE (the Judge's and the Dancer's
+            //      are red): T1 has no unblockable inside arm's reach, so a guard is never punished for
+            //      being a guard. The chain is jab-two into the LANCE THRUST -- parry, parry -- where the
+            //      Judge's is jab-into-red and the Dancer's is jab-into-whirl.
+            //   3. The Stab is a LANCE THRUST: 2.9 m of reach (the roster's longest thrust) on a 35 degree
+            //      cone -- one straight line you see coming from further away and answer with one press.
+            //   4. The Heavy is a DIVE: SeraphLancerVisuals stages Jump into HeavyAttack with a hop, so the
+            //      big blue blow comes DOWN, the same read as the javelins.
+            //   5. Pale gold, verdigris seams, a crest above the crown (the only silhouette in the roster
+            //      with a point above the head), light-wings only in the air; he hops on wake where V18
+            //      hops, the Judge roars and the Dancer spins -- with the wings out, once, harmlessly.
+            var slJab2 = Attack("SeraphLancer_Jab2", a =>
+            {
+                // The shared opener: the same motion array as V18's, the Judge's and the Dancer's, so the
+                // player's first parry transfers. Walks 0.29 m SIDEWAYS in the art (dx -0.28, dz -0.10,
+                // measured), TravelRoot cancels it: lunge 0. 0.50 = the Judge's (the Dancer's 0.45 floor
+                // is the fastest body's number; the first boss reads at the Judge's pace).
+                a.clip = "Jab2";
+                a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.65f;
+                a.range = 2.35f; a.coneDeg = 65f; a.damage = 13f; a.lungeDistance = 0f;
+                a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
+            });
+            var slSwing = Attack("SeraphLancer_Swing", a =>
+            {
+                // 0.55 between the Dancer's 0.50 and the Judge's 0.60; 18 between her 16 and his 20.
+                a.clip = "AttackSwing";
+                a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.72f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.15f;
+            });
+            var slFinisher = Attack("SeraphLancer_ComboFinisher", a =>
+            {
+                // The close of the three-hit string. The clip carries 1.08 s of recovery after a 0.20
+                // contact; 1.20 s of data recovery is the string's punish (Judge 1.30, Dancer 1.10).
+                // Stays put (root.motion false).
+                a.clip = "ComboFinisher";
+                a.windup = 0.65f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 1.20f;
+                a.range = 2.60f; a.coneDeg = 70f; a.damage = 24f; a.lungeDistance = 0f;
+                a.comboGap = 0.28f; a.parryPostureMultiplier = 1.6f;
+            });
+            var slStab = Attack("SeraphLancer_Stab", a =>
+            {
+                // THE LANCE THRUST, his opener. 2.9 m of reach on a 35 degree cone: the roster's longest
+                // thrust (Judge 2.45, Dancer 2.40, Halberdier 2.6-ish) and its narrowest line -- a spear
+                // you can step OUT of, or answer with one press. 0.60 of wind-up, longer than the
+                // Judge's 0.55, because a longer reach needs a longer tell (the one place he is slower
+                // than the Judge). AttackStab does not travel in the art: lunge 0.
+                a.clip = "AttackStab";
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.80f;
+                a.range = 2.90f; a.coneDeg = 35f; a.damage = 18f; a.lungeDistance = 0f;
+                a.comboGap = 0.22f; a.parryPostureMultiplier = 1.5f;
+            });
+            var slKick = Attack("SeraphLancer_Kick", a =>
+            {
+                // BLUE. The Judge's and the Dancer's kicks are the anti-turtle red; T1 teaches the guard
+                // before it teaches the guard's weakness, so this one can be blocked -- it just costs the
+                // most posture of his blues (1.2x on a Perfect is the reward for answering it properly).
+                a.clip = "AttackKick";
+                a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.85f;
+                a.range = 2.45f; a.coneDeg = 55f; a.damage = 16f; a.lungeDistance = 0f;
+                a.comboGap = 0.26f; a.parryPostureMultiplier = 1.2f; a.unblockable = false;
+            });
+            var slHeavy = Attack("SeraphLancer_Heavy", a =>
+            {
+                // THE DIVE: "smashes downward with both fists", staged by SeraphLancerVisuals as Jump's
+                // take-off into HeavyAttack's contact with a 0.8 m hop on HoverRoot, so the blow comes
+                // DOWN. Airborne in the manifest (0.343-0.40), so 4b keeps its 0.343 contact. Walks the
+                // Hips 1.36 m in the art but 1.14 of that is SIDEWAYS (dx +1.14, dz +0.75, measured,
+                // identical to the Judge's and the Dancer's); the forward component ships, TravelRoot
+                // cancels the rest. 1.05 = the Judge's wind-up: the dive needs the rise.
+                a.clip = "HeavyAttack";
+                a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.30f; a.recovery = 1.40f;
+                a.range = 2.70f; a.coneDeg = 80f; a.damage = 32f; a.lungeDistance = 0.75f;
+                a.comboGap = 0.32f; a.parryPostureMultiplier = 1.9f;
+            });
+            var slShoulder = Attack("SeraphLancer_ShoulderCharge", a =>
+            {
+                // THE ONE RED. 3.32 m is the CLIP's Hips travel as Unity imports it on the Judge (Blender
+                // read 3.12 on all three bodies: the same array on the same rig height), so the Judge's
+                // Unity number ships here too; EveryLungeIsTheClipsOwnForwardTravel is the confirmation on
+                // THIS import and prints the value to ship if Unity reads this rig differently.
+                a.clip = "ShoulderCharge";
+                a.windup = 0.95f; a.impactDelay = 0.08f; a.strikeDuration = 0.27f; a.recovery = 1.05f;
+                a.range = 2.70f; a.coneDeg = 50f; a.damage = 28f; a.lungeDistance = 3.32f;
+                a.comboGap = 0.30f; a.unblockable = true;
+            });
+            var slVerdict = Attack(SeraphLancerAuthoring.SkyVerdictAttackName, a =>
+            {
+                // SKY VERDICT. One EnemyController schedule whose CONTACT IS NOTHING, read four ways:
+                //   windup 1.10      the RISE: Jump from its first frame with its apex on the wind-up's
+                //                    end; HoverRoot lifts him to 3.0 m from the take-off frame and the
+                //                    light-wings unfold as he leaves the floor. The tell is the body
+                //                    leaving the ground -- readable from anywhere in the band.
+                //   impactDelay 0.90 HoverHold (arms out, wings wide, ~0.33 s) then the first
+                //                    JavelinThrow's arm-back (0.57 s at 1x, the clip's own 0.696 release
+                //                    bent onto the impact). The brain's cue fires 0.28 s before the
+                //                    release, as on the Dancer's volley; the javelin then carries its
+                //                    OWN cue 0.28 s before it arrives (Projectile.CueLead).
+                //   impact           range 0 / cone 0 / damage 0: DoImpact can never land. The javelins
+                //                    are the attack: SeraphLancerJavelins reads this same NextImpactTime,
+                //                    releases javelin 1 on it and 2 and 3 at 1.10 s cadence after it,
+                //                    each a Projectile through PlayerCombat.ReceiveAttack carrying
+                //                    SeraphLancer_Javelin (below).
+                //   strike 2.75      2 x 1.10 of cadence (three releases at 0 / 1.10 / 2.20), 0.10 s of
+                //                    hover, then the last 0.45 s is the DESCENT (Jump lands, wings fold).
+                //   recovery 2.40    the punish. Aggression 0.60 scales it to 2.4 x (1 - 0.65 x 0.60) =
+                //                    1.46 s of real opening on the floor, with the last javelin still in
+                //                    the air when he touches down -- reflect it, then run in.
+                // The clip weight-shifts 0.18 m in the art (dx +0.16, dz +0.09, forward 0.09): under the
+                // test's tolerance and meaningless in the air, so lunge 0.
+                a.clip = "JavelinThrow";
+                a.windup = 1.10f; a.impactDelay = 0.90f; a.strikeDuration = 2.75f; a.recovery = 2.40f;
+                a.range = 0f; a.coneDeg = 0f; a.damage = 0f; a.lungeDistance = 0f;
+                a.comboGap = 0.35f; a.parryPostureMultiplier = 1f;
+            });
+            var slJavelin = Attack(SeraphLancerAuthoring.JavelinAttackName, a =>
+            {
+                // What a JAVELIN carries to ReceiveAttack (EnemyData.projectileAttack): never in the
+                // moveset, never scheduled by the brain. 14 a javelin, the Judge's jab: three unguarded is
+                // 42, a held guard eats it for posture only, a Perfect costs him posture here (1.2x) AND
+                // on the reflect's arrival (parriedProjectilePosture). NEVER unblockable: he is the
+                // teaching boss and every javelin is an answerable line. Timing fields are the sentry
+                // bolt's and are unused: the flight is the wind-up and Projectile.CueLead is the cue.
+                a.clip = "";
+                a.windup = 0.5f; a.impactDelay = 0f; a.strikeDuration = 0.05f; a.recovery = 0.2f;
+                a.range = 30f; a.coneDeg = 20f; a.damage = 14f; a.lungeDistance = 0f;
+                a.comboGap = 0.2f; a.parryPostureMultiplier = 1.2f; a.unblockable = false;
+            });
+
+            var lancer = GetOrCreate<EnemyData>(EnemyPaths.Data(SeraphLancerAuthoring.EnemyName));
+            lancer.displayName = "THE SERAPH LANCER";
+            // Between V18 and the Judge on both bars: long enough to see the verdict twice, short enough
+            // that three clean reflects (66 HP) are a third of him. Posture regen 6 like V18 and the
+            // Dancer: he leaves the floor for ~4 s a verdict and the bar must still be reachable around
+            // it. Stagger 3.2: the first boss gives a whole breath to find the deathblow.
+            lancer.maxHP = 200f; lancer.maxPosture = 170f; lancer.postureRegen = 6f;
+            lancer.postureRegenDelay = 3f; lancer.staggerSeconds = 3.2f;
+            lancer.moveSpeed = 4.8f; lancer.turnSpeed = 320f; lancer.aggroRange = 18f;
+            lancer.attackRange = 2.2f; lancer.attackCooldown = 0.35f;
+            // 0.60: the lowest aggression of the four. Recoveries stay real (a Heavy's 1.40 is 0.85 s of
+            // real opening, the verdict's 2.40 is 1.46) because the first boss is where the punish is
+            // learned. Parry recoil 0.34: a beat longer than the Dancer's 0.26, so a deflect reads.
+            lancer.parryRecoilSeconds = 0.34f; lancer.aggression = 0.60f;
+            lancer.windupTurnMultiplier = 0.30f; lancer.stepSpeedMultiplier = 0.55f;
+            lancer.stepAcceleration = 8f; lancer.stepDeadzone = 0.90f;
+            lancer.comboBreathSeconds = 0.50f; lancer.readyDistanceMultiplier = 1.5f;
+            // 2.6: half a step further out than V18's 2.0 and the Judge's 2.4. The lance reaches 3.4 from
+            // here, and the verdict's band opens at 4.5 -- a player who backs off two steps invites it.
+            lancer.preferredRange = 2.6f; lancer.commitTolerance = 0.3f;
+            lancer.repositionDeadzone = 0.40f;
+            lancer.backStepSpeedMultiplier = 0.35f; lancer.strafeSpeedMultiplier = 0.40f;
+            lancer.lungeMinDistance = 0.9f; lancer.soulValue = 520;
+            // Pale gold over the albedo (EnemyVisuals tints _BaseColor every frame; a near-white keeps the
+            // texture's gold and verdigris honest). The accent is VERDIGRIS -- the parry glow's tint, the
+            // landing ring's hue, the wings' family. 1.3x: under the Dancer's 1.5x and the Judge's 1.9x,
+            // because the javelin tip (1.45) and the sentry bolt (1.6) must stay the bright things.
+            lancer.bodyColor = Hex("#EDE6D2"); lancer.emission = Hex("#3FBF9F") * 1.3f;
+            lancer.scale = 1f;
+            // 0.5 against the others' 0.7: the first boss punishes a flask half the time, so the lesson
+            // "do not drink in his face" is taught without being a wall.
+            lancer.flaskPunishChance = 0.5f;
+            // A SOULS duel, not a sentry: shootsProjectiles stays false (no ProjectileShooter, no
+            // metronome, no perch wake), rangedOnly false. The projectile fields below are what a Javelin
+            // reads when SeraphLancerJavelins fires it with this data.
+            lancer.shootsProjectiles = false; lancer.rangedOnly = false;
+            lancer.projectileAttack = slJavelin;
+            // 15 m/s: a shade UNDER the Dancer's 16 (T1 is slower than T3) and half a sentry bolt, for a
+            // duel fought inside 4.5-14 m: 8 m of flight is 0.53 s -- the same flight a span bolt gives
+            // over 17 m -- and the far edge is 0.93 s of a gold line coming down at you. Under the
+            // Encounter Report's 17.6 m/s mid gate. LaunchSpeed slows a near throw so no javelin ever
+            // arrives inside CueLead + 0.12 s.
+            lancer.projectileSpeed = 15f;
+            // 40 deg/s of homing: over a 0.5 s flight at most 20 degrees of turn, so a javelin still
+            // ARRIVES at a player who sidesteps (the parry is the answer, not the dodge -- the teaching
+            // boss must not miss) while a real dash still steps out of the line. The Dancer's discs are
+            // 0 because a bounce must be honest geometry; a straight throw from above has no such debt.
+            lancer.projectileHomingDegPerSec = 40f;
+            // 0.7 of the player's velocity: a little more lead than the Dancer's 0.6, because the homing
+            // above is small and the javelin should meet a runner, not chase them.
+            lancer.projectileLead = 0.7f;
+            // The band and the metronome are the sentries' and unused here (no ProjectileShooter);
+            // written anyway so the asset says what it means: 4.5..14, once every 10 s.
+            lancer.projectileMinRange = 4.5f; lancer.projectileMaxRange = 14f;
+            lancer.projectileInterval = 10f; lancer.projectileBurstCount = 1; lancer.projectileBurstInterval = 0.42f;
+            lancer.projectileAcquireDelay = 0.7f;
+            // The reflect: 22 health / 30 posture per Perfect-returned javelin (11% of his HP, 18% of his
+            // bar). A whole verdict reflected is 66 HP and 90 posture -- a third of him and half his bar --
+            // so the javelins are his best weapon and his worst idea against a player who deflects, which
+            // is exactly the lesson. Not the Dancer's 20/26: three sequential parries are harder to keep
+            // than one, and the pay must say so.
+            lancer.parriedProjectileDamage = 22f; lancer.parriedProjectilePosture = 30f;
+            // 2.5 m/s along the look on a Perfect: the arena nudge the Dancer pays, not the sentries' 6-9.
+            lancer.parrySpeedGain = 2.5f;
+            // The javelin mesh is its own (SeraphLancerJavelins.tipSize / javelinLength); these scale the
+            // shared trail and cue flare onto a 0.30 m tip: 0.5 x 0.41 m streak, x1.6 flare (2.3 x 0.7) --
+            // the TIP pops at the cue, the shaft is counter-scaled and never balloons.
+            lancer.projectileVisualScale = 1f; lancer.projectileTrailScale = 0.5f; lancer.projectileCueScale = 0.7f;
+            lancer.perfectBurstParriesToDestroy = 0;
+            lancer.moveset = Moveset("Legendary_SeraphLancer_Moveset", "The Seraph Lancer", new[]
+            {
+                Entry("jab-two, swing, FINISHER (the combo)",                2.2f, 0f,   3.4f, slJab2, slSwing, slFinisher),
+                // 2.9 m range + the brain's 0.5 m slack = 3.4 m reach; the band runs to 3.9 so the thrust
+                // is his answer to a player who backs off one step.
+                Entry("LANCE THRUST (the opener: one straight blue line)",   2.0f, 0f,   3.9f, slStab),
+                // The chain that replaces the Judge's red one: parry, then parry again.
+                EntryCd("jab-two into LANCE THRUST (blue chain)",            1.5f, 0f,   3.4f, 6f, slJab2, slStab),
+                EntryCd("KICK anti-turtle (blue)",                           1.2f, 0f,   2.9f, 5f, slKick),
+                EntryCd("HEAVY dive tempo break",                            1.2f, 0f,   3.6f, 7f, slHeavy),
+                // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
+                EntryCd("SHOULDER CHARGE far close (the one red)",           2.2f, 4.4f, 6.5f, 8f, slShoulder),
+                // 4.5..14: thrown when you kite. 4.5 m at 15 m/s is 0.30 s > CueLead, and LaunchSpeed slows
+                // it further; inside 4.5 he closes and thrusts instead. 10 s: about twice a bar at his
+                // tempo, a signature and never a loop -- and longer than a javelin lives (5 s) plus the
+                // 2.2 s the three releases span, so no verdict overlaps the last.
+                EntryCd("SKY VERDICT (rise, three javelins)",                2.0f, 4.5f, 14f, 10f, slVerdict),
+            });
+            lancer.combos = lancer.moveset.ToComboArray();
+            EditorUtility.SetDirty(lancer);
+
             // ---------------- Weapons ----------------
             //
             // THREE ARCHETYPES, ONE LADDER. The dagger pass collapsed every weapon into one silhouette
