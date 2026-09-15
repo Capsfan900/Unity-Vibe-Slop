@@ -67,8 +67,8 @@ namespace VibeGame1.Tests
                 Assert.That(realm.visualRadius, Is.EqualTo(visualRadii[i]).Within(Eps), Gates[i]);
                 Assert.Greater(realm.visualRadius, realm.exteriorRadius,
                     Gates[i] + " visual shell must not advance the physical portal boundary");
-                Assert.That(realm.realmFloorRadius, Is.EqualTo(25f).Within(Eps), Gates[i]);
-                Assert.That(realm.realmShellRadius, Is.EqualTo(37.5f).Within(Eps), Gates[i]);
+                Assert.That(realm.realmFloorRadius, Is.EqualTo(18f).Within(Eps), Gates[i]);
+                Assert.That(realm.realmShellRadius, Is.EqualTo(27f).Within(Eps), Gates[i]);
                 Assert.That(realm.realmWallHeight, Is.EqualTo(20f).Within(Eps), Gates[i]);
                 Assert.That(realm.realmCeilingHeight, Is.EqualTo(20f).Within(Eps), Gates[i]);
                 Assert.IsFalse(string.IsNullOrEmpty(realm.arenaPickupName), Gates[i] + " pickup");
@@ -80,22 +80,22 @@ namespace VibeGame1.Tests
         [Test]
         public void RealmCellsAreOneSizeSpacedAHundredMetresApartInCourseOrder()
         {
-            // 2026-09-14: 25 m floor, 37.5 m shell, 20 m wall and ceiling (V18 lifts 11 m), centres 100 m
+            // 2026-09-14: 18 m floor, 27 m shell, 20 m wall and ceiling (V18 lifts 11 m), centres 100 m
             // apart at x 700 in course order; every mini realm also seats a duo partner beside its occupant.
             for (int i = 0; i < Gates.Length; i++)
             {
                 var r = def.arenas.Single(a => a.gateName == Gates[i]).solarRealm;
                 Assert.That(Vector3.Distance(r.realmCenter, new Vector3(700f, 0f, 100f * i)), Is.LessThan(Eps), Gates[i] + " cell");
-                Assert.That(Vector3.Distance(r.playerEntryPosition - r.realmCenter, new Vector3(0f, 1.2f, -16.25f)), Is.LessThan(Eps), Gates[i] + " entry");
-                Assert.That(Vector3.Distance(r.enemySpawnPosition - r.realmCenter, new Vector3(0f, 0.1f, 5f)), Is.LessThan(Eps), Gates[i] + " enemy");
+                Assert.That(Vector3.Distance(r.playerEntryPosition - r.realmCenter, new Vector3(0f, 1.2f, -11.7f)), Is.LessThan(Eps), Gates[i] + " entry");
+                Assert.That(Vector3.Distance(r.enemySpawnPosition - r.realmCenter, new Vector3(0f, 0.1f, 3.6f)), Is.LessThan(Eps), Gates[i] + " enemy");
                 if (r.hasReturn)
                 {
                     Assert.IsFalse(string.IsNullOrEmpty(r.partnerSpawnerName), Gates[i] + " duo partner");
-                    Assert.That(Vector3.Distance(r.partnerSpawnPosition - r.realmCenter, new Vector3(7f, 0.1f, 3f)), Is.LessThan(Eps), Gates[i] + " partner");
+                    Assert.That(Vector3.Distance(r.partnerSpawnPosition - r.realmCenter, new Vector3(5f, 0.1f, 1.6f)), Is.LessThan(Eps), Gates[i] + " partner");
                 }
                 if (r.hasReturn)
-                    Assert.That(Vector3.Distance(r.realmExitPosition - r.realmCenter, new Vector3(0f, 1.5f, -21.5f)), Is.LessThan(Eps), Gates[i] + " exit");
-                Assert.That(Mathf.Abs(r.arenaPickupPosition.x - r.realmCenter.x), Is.EqualTo(8.75f).Within(Eps), Gates[i] + " pickup x");
+                    Assert.That(Vector3.Distance(r.realmExitPosition - r.realmCenter, new Vector3(0f, 1.5f, -15.5f)), Is.LessThan(Eps), Gates[i] + " exit");
+                Assert.That(Mathf.Abs(r.arenaPickupPosition.x - r.realmCenter.x), Is.EqualTo(6.3f).Within(Eps), Gates[i] + " pickup x");
                 // Every realm-local point keeps at least a metre of floor beyond it, and the wall top corner
                 // stays inside the opaque shell so the room never shows the campaign sky.
                 float cornerToShellCentre = Mathf.Sqrt(Mathf.Pow(r.realmFloorRadius + 0.35f + 0.5f, 2f) +

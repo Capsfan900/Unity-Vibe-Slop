@@ -1592,14 +1592,16 @@ namespace VibeGame1.EditorTools
         // 300 m far plane from the widest route deck (SolarArenaTests holds both).
         // 2026-09-14: the user found 30 / 24 a little too large; trimmed to 25 m floor, 20 m walls and
         // ceiling. V18's grab lifts 11 m, so it still clears the roof.
-        public const float RealmFloorRadius = 25f, RealmShellRadius = 37.5f;
+        // 2026-09-14 (later): "even smaller to make it harder" -- 18 m floor, 27 m shell (x0.72, about half
+        // the floor area). Walls and ceiling stay 20 m: the suplex and the Lancer's hover need the height.
+        public const float RealmFloorRadius = 18f, RealmShellRadius = 27f;
         public const float RealmWallHeight = 20f, RealmCeilingHeight = 20f;
         public const float RealmSpacing = 100f;
         // Realm-local offsets, scaled with the floor (20 -> 30): entry -13 -> -19.5, enemy +4 -> +6,
         // exit -17.5 -> -26, pickups +/-7 -> +/-10.5. Every one stays a metre inside the floor rim.
-        // Rescaled 30 -> 25 on 2026-09-14. A duo partner stands RealmPartnerX to the side of the first occupant.
-        public const float RealmEntryZ = -16.25f, RealmEnemyZ = 5f, RealmExitZ = -21.5f, RealmPickupX = 8.75f;
-        public const float RealmPartnerX = 7f;
+        // Rescaled 30 -> 25 -> 18 on 2026-09-14. A duo partner stands RealmPartnerX to the side of the first occupant.
+        public const float RealmEntryZ = -11.7f, RealmEnemyZ = 3.6f, RealmExitZ = -15.5f, RealmPickupX = 6.3f;
+        public const float RealmPartnerX = 5f;
 
         // THE DUO REALMS (user, 2026-09-14): every mini realm holds two legendaries fought at once, and
         // the T4 realm before the Warden pairs the two hardest. EnemyController's attack arbitration
@@ -2024,7 +2026,7 @@ namespace VibeGame1.EditorTools
             else if (gateName == "T2_Gate") { r.arenaPickupName = "Pickup_T2_Hook_2"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -3f); }
             else if (gateName == "T3_Gate") { r.arenaPickupName = "Pickup_T3_Surge_2"; r.arenaPickupPosition = realmCenter + new Vector3(RealmPickupX, 1.2f, -3f); }
             else if (gateName == GrapplerGate) { r.arenaPickupName = GrapplerPickup; r.arenaPickupPosition = realmCenter + new Vector3(RealmPickupX, 1.2f, -3f); }
-            else { r.arenaPickupName = "Pickup_Boss_Hook"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -7.5f); }
+            else { r.arenaPickupName = "Pickup_Boss_Hook"; r.arenaPickupPosition = realmCenter + new Vector3(-RealmPickupX, 1.2f, -5.4f); }
             r.hasReturn = hasReturn;
             r.realmExitPosition = realmCenter + new Vector3(0f, 1.5f, RealmExitZ);
             r.returnPosition = worldReturn;

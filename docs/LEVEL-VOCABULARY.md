@@ -20,8 +20,8 @@ The split name is the boss-clear timing segment: **Lancer**, **Judge**, **Dancer
 ends when that zone's boss dies. A zone carries exactly one split (the catalog and the Level Studio validator
 both hold `zone.splitName == split.name` for the split's end spawner), which is why the fourth realm made T5 a
 zone of its own rather than stretching T4. Solar Realms are the isolated boss arenas reached from their
-matching zone; since 2026-09-13 every realm is the same cell — a 30 m floor under 24 m walls inside a 45 m
-shell — and the five cells sit 100 m apart at x 700, z 0 / 100 / 200 / 300 / 400 in course order.
+matching zone; since 2026-09-13 every realm is the same cell — an 18 m-radius floor under 20 m walls inside a 27 m
+shell (2026-09-14) — and the five cells sit 100 m apart at x 700, z 0 / 100 / 200 / 300 / 400 in course order.
 
 **Ids that keep an older zone prefix.** The Warden's records were minted in T4 (`T4.Arena.01`, `T4.Gate.01`,
 `T4.BossPortal.01`, `T4.HollowWarden.01`, `T4.RunSplit.01`, `T4.Checkpoint.01`, `T4.Pickup.01`) and now sit in

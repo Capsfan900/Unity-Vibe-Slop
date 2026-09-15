@@ -454,7 +454,7 @@ namespace VibeGame1.EditorTools
                 // The sentries' rule: no flight shorter than CueLead + 0.12 s.
                 discs.launchMargin = 0.12f;
                 discs.fanDeg = 30f;
-                // 20 m: a realm is 30 m across and its walls stand at ~30 m radius from the centre; a
+                // 20 m: a realm floor is 18 m in radius (2026-09-14) with walls at its rim; a
                 // wall the disc could not reach in 1.25 s is not a bank, it is a miss.
                 discs.bankRange = 20f;
                 discs.bankProbeDeg = new[] { 40f, 65f, 90f };

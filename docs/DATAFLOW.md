@@ -2759,7 +2759,8 @@ BossArenaTrigger  = ONE mechanism for every gated fight
                                           EnemyController.MaxSimultaneousAttackers keeps one wind-up at a time.
   realm entry presentation (2026-09-14): SolarArenaPortal.Enter (mini realms only) -> IntroHold coroutine
     (IntroHoldSeconds 1.6: occupants aggroLocked, view pulled onto the pair via PlayerLook.NudgeAim, FOV
-    push-in via CameraFX.FovHold, all released by EndIntro / ResetPortal) + GameEvents.RealmFightStarted ->
+    push-in via CameraFX.FovHold, all released by EndIntro / ResetPortal; any InputReader.LookDelta over
+    IntroReleaseLookSq ends the pull and the push-in at once, occupants keep holding) + GameEvents.RealmFightStarted ->
     RealmBossBarView (HUD): souls name card (3.2 s) and one health bar per occupant, polled from Health,
     hidden 1.5 s after arena.Cleared or on PlayerRespawned. The Warden keeps BossBarView.
   run split: RunSplitDef.alsoRequiredSpawnerNames -> LevelRunScorer closes the split on whichever listed
@@ -2774,8 +2775,8 @@ SolarArenaPortal = OPTIONAL same-scene transport layered over BossArenaTrigger
     zero falls back to exteriorRadius for older definitions. Shipped visual radii are 22/23/22/22/31 m;
     physical radii are 16/17/16/16/25 m, retaining a 6 m membrane band.
   THE CELL (SolarRealmDef.realmFloorRadius / realmShellRadius / realmWallHeight / realmCeilingHeight):
-    25 m floor disc, 37.5 m opaque shell, 20 m walls, 20 m clear ceiling on every Level_01 realm (trimmed
-    from 30 / 45 / 24 on 2026-09-14; V18's grab lifts 11 m). The builder derives the rest from the ceiling height:
+    18 m floor disc, 27 m opaque shell, 20 m walls, 20 m clear ceiling on every Level_01 realm (trimmed
+    30 / 45 / 24 -> 25 / 37.5 / 20 -> 18 / 27 / 20 on 2026-09-14; V18's grab lifts 11 m). The builder derives the rest from the ceiling height:
     collider slab centre = ceiling + 0.5, solar disc = ceiling - 0.1, point light at 0.75 x ceiling with
     range max(2.2 x floor, 2.75 x ceiling), shell centre at 0.5 x ceiling. The two height fields default to
     12 / 12, which rebuilds the original 12 / 12.5 / 11.9 / 9 / +6 cell for any older definition.

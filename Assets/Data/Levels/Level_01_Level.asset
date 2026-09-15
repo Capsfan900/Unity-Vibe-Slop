@@ -1712,24 +1712,24 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 0}
-      realmFloorRadius: 25
-      realmShellRadius: 37.5
+      realmFloorRadius: 18
+      realmShellRadius: 27
       realmWallHeight: 20
       realmCeilingHeight: 20
-      playerEntryPosition: {x: 700, y: 1.2, z: -16.25}
+      playerEntryPosition: {x: 700, y: 1.2, z: -11.7}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 2.2, z: 62}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Ninja
-      enemySpawnPosition: {x: 700, y: 0.1, z: 5}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 3.6}
       enemySpawnYaw: 180
       partnerSpawnerName: Spawn_Legendary_T1_Duo
-      partnerSpawnPosition: {x: 707, y: 0.1, z: 3}
+      partnerSpawnPosition: {x: 705, y: 0.1, z: 1.5999999}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_T1_Surge
-      arenaPickupPosition: {x: 691.25, y: 1.2, z: -3}
+      arenaPickupPosition: {x: 693.7, y: 1.2, z: -3}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: -21.5}
+      realmExitPosition: {x: 700, y: 1.5, z: -15.5}
       returnPosition: {x: 10, y: 5.2, z: 151.375}
       returnYaw: 0
   - meta:
@@ -1771,24 +1771,24 @@ MonoBehaviour:
       exteriorRadius: 17
       visualRadius: 23
       realmCenter: {x: 700, y: 0, z: 100}
-      realmFloorRadius: 25
-      realmShellRadius: 37.5
+      realmFloorRadius: 18
+      realmShellRadius: 27
       realmWallHeight: 20
       realmCeilingHeight: 20
-      playerEntryPosition: {x: 700, y: 1.2, z: 83.75}
+      playerEntryPosition: {x: 700, y: 1.2, z: 88.3}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 20.2, z: 188}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Knight
-      enemySpawnPosition: {x: 700, y: 0.1, z: 105}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 103.6}
       enemySpawnYaw: 180
       partnerSpawnerName: Spawn_Legendary_T2_Duo
-      partnerSpawnPosition: {x: 707, y: 0.1, z: 103}
+      partnerSpawnPosition: {x: 705, y: 0.1, z: 101.6}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_T2_Hook_2
-      arenaPickupPosition: {x: 691.25, y: 1.2, z: 97}
+      arenaPickupPosition: {x: 693.7, y: 1.2, z: 97}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 78.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 84.5}
       returnPosition: {x: 2.75, y: 21.7, z: 268}
       returnYaw: 0
   - meta:
@@ -1830,24 +1830,24 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 200}
-      realmFloorRadius: 25
-      realmShellRadius: 37.5
+      realmFloorRadius: 18
+      realmShellRadius: 27
       realmWallHeight: 20
       realmCeilingHeight: 20
-      playerEntryPosition: {x: 700, y: 1.2, z: 183.75}
+      playerEntryPosition: {x: 700, y: 1.2, z: 188.3}
       playerEntryYaw: 0
       retryPosition: {x: -3, y: 27.2, z: 329}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_Spellsword
-      enemySpawnPosition: {x: 700, y: 0.1, z: 205}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 203.6}
       enemySpawnYaw: 180
       partnerSpawnerName: Spawn_Legendary_T3_Duo
-      partnerSpawnPosition: {x: 707, y: 0.1, z: 203}
+      partnerSpawnPosition: {x: 705, y: 0.1, z: 201.6}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_T3_Surge_2
-      arenaPickupPosition: {x: 708.75, y: 1.2, z: 197}
+      arenaPickupPosition: {x: 706.3, y: 1.2, z: 197}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 178.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 184.5}
       returnPosition: {x: 0, y: 28.2, z: 393.15}
       returnYaw: 0
   - meta:
@@ -1889,24 +1889,24 @@ MonoBehaviour:
       exteriorRadius: 16
       visualRadius: 22
       realmCenter: {x: 700, y: 0, z: 300}
-      realmFloorRadius: 25
-      realmShellRadius: 37.5
+      realmFloorRadius: 18
+      realmShellRadius: 27
       realmWallHeight: 20
       realmCeilingHeight: 20
-      playerEntryPosition: {x: 700, y: 1.2, z: 283.75}
+      playerEntryPosition: {x: 700, y: 1.2, z: 288.3}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 16.2, z: 450}
       retryYaw: 0
       enemySpawnerName: Spawn_Legendary_V18Grappler
-      enemySpawnPosition: {x: 700, y: 0.1, z: 305}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 303.6}
       enemySpawnYaw: 180
       partnerSpawnerName: Spawn_Legendary_T4_Duo
-      partnerSpawnPosition: {x: 707, y: 0.1, z: 303}
+      partnerSpawnPosition: {x: 705, y: 0.1, z: 301.6}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_T4_Grappler
-      arenaPickupPosition: {x: 708.75, y: 1.2, z: 297}
+      arenaPickupPosition: {x: 706.3, y: 1.2, z: 297}
       hasReturn: 1
-      realmExitPosition: {x: 700, y: 1.5, z: 278.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 284.5}
       returnPosition: {x: 0, y: 16.2, z: 517.6}
       returnYaw: 0
   - meta:
@@ -1948,24 +1948,24 @@ MonoBehaviour:
       exteriorRadius: 25
       visualRadius: 31
       realmCenter: {x: 700, y: 0, z: 400}
-      realmFloorRadius: 25
-      realmShellRadius: 37.5
+      realmFloorRadius: 18
+      realmShellRadius: 27
       realmWallHeight: 20
       realmCeilingHeight: 20
-      playerEntryPosition: {x: 700, y: 1.2, z: 383.75}
+      playerEntryPosition: {x: 700, y: 1.2, z: 388.3}
       playerEntryYaw: 0
       retryPosition: {x: 0, y: 16.2, z: 522}
       retryYaw: 0
       enemySpawnerName: Spawn_Boss
-      enemySpawnPosition: {x: 700, y: 0.1, z: 405}
+      enemySpawnPosition: {x: 700, y: 0.1, z: 403.6}
       enemySpawnYaw: 180
       partnerSpawnerName: 
-      partnerSpawnPosition: {x: 707, y: 0.1, z: 403}
+      partnerSpawnPosition: {x: 705, y: 0.1, z: 401.6}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_Boss_Hook
-      arenaPickupPosition: {x: 691.25, y: 1.2, z: 392.5}
+      arenaPickupPosition: {x: 693.7, y: 1.2, z: 394.6}
       hasReturn: 0
-      realmExitPosition: {x: 700, y: 1.5, z: 378.5}
+      realmExitPosition: {x: 700, y: 1.5, z: 384.5}
       returnPosition: {x: 0, y: 0, z: 0}
       returnYaw: 0
   projectileSequences:

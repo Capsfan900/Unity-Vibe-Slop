@@ -25,6 +25,8 @@ namespace VibeGame1
         /// <summary>How long a mini realm's entry holds the camera on its occupants while they stand still.</summary>
         public const float IntroHoldSeconds = 1.6f;
         public const float IntroFovPushDegrees = 14f;
+        /// <summary>Squared look delta (mouse counts / stick) that hands the camera back to the player mid-intro.</summary>
+        public const float IntroReleaseLookSq = 4f;
         Coroutine intro;
         readonly System.Collections.Generic.List<EnemyController> introLocked = new System.Collections.Generic.List<EnemyController>();
         float lastTeleportAt = -99f;
@@ -156,10 +158,19 @@ namespace VibeGame1
             LockOccupant(arena.partnerSpawner);
             var look = player != null ? player.GetComponent<PlayerLook>() : null;
             float end = Time.unscaledTime + IntroHoldSeconds;
+            bool steering = true;
             while (Time.unscaledTime < end)
             {
                 yield return null;
-                if (look == null || look.Cam == null || introLocked.Count == 0) continue;
+                if (!steering || look == null || look.Cam == null || introLocked.Count == 0) continue;
+                // The player's hand always wins: any look input ends the pull and the push-in at once, so the
+                // reveal never reads as a lock-on fighting the mouse (user, 2026-09-14). The occupants still hold.
+                if (InputReader.I != null && InputReader.I.LookDelta.sqrMagnitude > IntroReleaseLookSq)
+                {
+                    steering = false;
+                    if (CameraFX.I != null) CameraFX.I.FovHold(0f);
+                    continue;
+                }
                 Vector3 focus = Vector3.zero;
                 foreach (var e in introLocked) if (e != null) focus += e.transform.position;
                 focus = focus / introLocked.Count + Vector3.up * 1.6f;
