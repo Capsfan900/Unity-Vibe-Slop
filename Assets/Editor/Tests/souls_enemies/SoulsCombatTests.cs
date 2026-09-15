@@ -316,5 +316,66 @@ namespace VibeGame1.Tests
             Assert.Less(PuppetVisuals.DampedReturn(0.08f, 0.08f, 0.5f), 0.002f, "home by the next beat");
             Assert.AreEqual(0f, PuppetVisuals.DampedReturn(1f, 0.1f, -0.1f), 1e-6f);
         }
+
+        // ---- accuracy (souls-AI accuracy spec 2026-09-14, section 2) ----
+
+        /// <summary>Seraph Lancer numbers: edge 2.9, stalk 4.8 x 0.55, lungeMin 0.9, Jab2 T 0.55 / range 2.45 /
+        /// lunge 0.5, ShoulderCharge T 1.03 / range 3.0 / lunge 3.32.</summary>
+        static float LancerPredicted(float radial, float seconds, float lunge)
+        {
+            float stalk = EnemyController.StalkSpeed(4.8f, 0.55f);
+            float stalkSeconds = seconds - EnemyController.LungeWindow(lunge, 0.28f);
+            return EnemyController.PredictedImpactDistance(2.9f, radial, seconds, stalk, stalkSeconds, lunge, 0.9f);
+        }
+
+        [Test]
+        public void AWalkingBackpedalIsRefusedAndTheCloserIsSelected()
+        {
+            Assert.IsTrue(EnemyController.CanLand(LancerPredicted(0f, 0.55f, 0.5f), 2.45f), "standing: Jab2 lands");
+            Assert.IsTrue(EnemyController.CanLand(LancerPredicted(2f, 0.55f, 0.5f), 2.45f), "2 m/s back: the stalk still lands Jab2");
+            Assert.IsFalse(EnemyController.CanLand(LancerPredicted(4f, 0.55f, 0.5f), 2.45f), "4 m/s back: Jab2 is refused");
+            Assert.GreaterOrEqual(EnemyController.SelectDistance(2.9f, 4f, EnemyController.SelectHorizon), 4.4f,
+                "a 4 m/s retreat is read inside the charge band (4.4-6.5)");
+            Assert.IsTrue(EnemyController.CanLand(LancerPredicted(4f, 1.03f, 3.32f), 3.0f), "the red charge answers the backpedal");
+            Assert.AreEqual(2.9f, EnemyController.SelectDistance(2.9f, -3f, EnemyController.SelectHorizon), 1e-5f,
+                "an approach never pushes the read outward");
+            Assert.IsTrue(EnemyController.CanLand(99f, 0f), "a no-contact stance always lands");
+        }
+
+        [Test]
+        public void TheRadialSpeedIsRetreatPositiveAndCapped()
+        {
+            Vector3 toP = new Vector3(0f, 0f, 3f);
+            Assert.AreEqual(4f, EnemyController.RadialSpeed(new Vector3(0f, 0f, 4f), toP), 1e-5f);
+            Assert.AreEqual(-2f, EnemyController.RadialSpeed(new Vector3(0f, 0f, -2f), toP), 1e-5f);
+            Assert.AreEqual(EnemyController.LeadCap, EnemyController.RadialSpeed(new Vector3(0f, 0f, 40f), toP), 1e-5f);
+            Assert.AreEqual(0f, EnemyController.RadialSpeed(new Vector3(11f, 0f, 0f), toP), 1e-5f, "a strafe is not a retreat");
+        }
+
+        [Test]
+        public void TheCommitSnapNeverExceeds25Deg()
+        {
+            Vector3 fwd = Vector3.forward;
+            for (int deg = 0; deg <= 180; deg += 15)
+            {
+                Vector3 want = Quaternion.Euler(0f, deg, 0f) * Vector3.forward;
+                float got = Vector3.Angle(fwd, EnemyController.SnapYaw(fwd, want, EnemyController.CommitSnapDeg));
+                Assert.LessOrEqual(got, EnemyController.CommitSnapDeg + 0.01f, deg + " deg wanted");
+                Assert.AreEqual(Mathf.Min(deg, EnemyController.CommitSnapDeg), got, 0.05f, deg + " deg wanted");
+            }
+        }
+
+        [Test]
+        public void ASprintStrafeOutrunsTheCappedLead()
+        {
+            // 11 m/s lateral at 2.9 m, 0.28 s cue to impact: the aim leads only 3 m/s worth.
+            Vector3 aim = EnemyController.CommitAim(new Vector3(0f, 0f, 2.9f), new Vector3(11f, 0f, 0f), Vector3.zero,
+                                                    EnemyController.LeadCapLateral, 0.28f);
+            Assert.AreEqual(0.84f, aim.x, 1e-4f, "lead capped at 3 m/s");
+            Assert.AreEqual(16.2f, Vector3.Angle(Vector3.forward, aim), 0.2f);
+            Vector3 actual = new Vector3(11f * 0.28f, 0f, 2.9f);
+            Assert.Greater(Vector3.Angle(aim, actual), 30f, "a sprinter is 30+ deg off the frozen aim at impact");
+            Assert.AreEqual(1.75f, EnemyController.StalkTarget(0.9f, 2.45f, 0.5f), 1e-5f, "Jab2 stalk stops at 1.75");
+        }
     }
 }

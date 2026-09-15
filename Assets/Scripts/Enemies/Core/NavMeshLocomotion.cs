@@ -85,6 +85,8 @@ namespace VibeGame1
 
         public float DistanceTo(Vector3 worldPosition) => Vector3.Distance(transform.position, worldPosition);
 
+        public Vector3 Velocity => IsReady ? agent.velocity : Vector3.zero;
+
         public void Disable()
         {
             if (agent != null && agent.enabled) agent.enabled = false;

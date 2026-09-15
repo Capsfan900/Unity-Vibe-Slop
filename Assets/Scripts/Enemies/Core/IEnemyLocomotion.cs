@@ -37,6 +37,10 @@ namespace VibeGame1
 
         float DistanceTo(Vector3 worldPosition);
 
+        /// <summary>World velocity the body is travelling its path at (zero when stopped). The brain faces it
+        /// while path-following out of range, so a body never walks with a stale facing.</summary>
+        Vector3 Velocity { get; }
+
         /// <summary>Stop driving the body entirely (death).</summary>
         void Disable();
     }

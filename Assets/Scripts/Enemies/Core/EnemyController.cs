@@ -275,6 +275,120 @@ namespace VibeGame1
             return recovery <= MaxChainRecovery && dist <= band && roll < aggression;
         }
 
+        // ---- accuracy (Fable souls-AI accuracy spec 2026-09-14, A1-A6) ---------------------------------
+        // The enemy may close, aim and snap only up to the cue; from the cue the swing is a frozen commit.
+        // Walk = hit, sprint strafe = dodge, backpedal = eat the closer.
+
+        /// <summary>Cap on the player's radial speed fed into the predicted-distance gate.</summary>
+        public const float LeadCap = 6f;
+        /// <summary>Seconds of retreat the selector looks ahead, so a backpedal is SEEN where the closers live.</summary>
+        public const float SelectHorizon = 0.6f;
+        /// <summary>Seconds a landable commit may be refused in band before the enemy throws anyway.</summary>
+        public const float RefuseTimeout = 1.2f;
+        /// <summary>Cap on the player's lateral speed the cue's aim leads.</summary>
+        public const float LeadCapLateral = 3f;
+        /// <summary>The largest yaw jump the commit snap at the cue may make.</summary>
+        public const float CommitSnapDeg = 25f;
+
+        /// <summary>Speed of the wind-up stalk-in. Pure.</summary>
+        public static float StalkSpeed(float moveSpeed, float stepSpeedMultiplier) => moveSpeed * stepSpeedMultiplier;
+
+        /// <summary>The stalk stops here, so the lunge still has room to arrive. Pure.</summary>
+        public static float StalkTarget(float lungeMin, float range, float lunge) => Mathf.Max(lungeMin, range - lunge - 0.2f);
+
+        /// <summary>Player speed away from the enemy (retreat &gt; 0), clamped. Pure.</summary>
+        public static float RadialSpeed(Vector3 playerVelocity, Vector3 enemyToPlayer)
+        {
+            playerVelocity.y = 0f; enemyToPlayer.y = 0f;
+            if (enemyToPlayer.sqrMagnitude < 0.0001f) return 0f;
+            return Mathf.Clamp(Vector3.Dot(playerVelocity, enemyToPlayer.normalized), -LeadCap, LeadCap);
+        }
+
+        /// <summary>Where the player will stand, relative to the body, when the first hit lands. Pure.</summary>
+        public static float PredictedImpactDistance(float dist, float radial, float seconds, float stalkSpeed,
+                                                    float stalkSeconds, float lunge, float lungeMin)
+        {
+            return Mathf.Max(lungeMin, dist + radial * seconds - stalkSpeed * Mathf.Max(0f, stalkSeconds) - lunge);
+        }
+
+        /// <summary>A no-contact stance (range 0) always lands; a blow lands inside range + 0.5. Pure.</summary>
+        public static bool CanLand(float predicted, float range) => range <= 0f || predicted <= range + 0.5f;
+
+        /// <summary>The distance the moveset is read at: a retreat looks further away, an approach does not. Pure.</summary>
+        public static float SelectDistance(float dist, float radial, float horizon) => dist + Mathf.Max(0f, radial) * horizon;
+
+        /// <summary>Direction from <paramref name="pos"/> to the player led by a capped velocity. Pure, flat.</summary>
+        public static Vector3 CommitAim(Vector3 playerPos, Vector3 playerVelocity, Vector3 pos, float leadCap, float seconds)
+        {
+            playerVelocity.y = 0f;
+            Vector3 d = playerPos + Vector3.ClampMagnitude(playerVelocity, leadCap) * Mathf.Max(0f, seconds) - pos;
+            d.y = 0f;
+            return d;
+        }
+
+        /// <summary>Turn <paramref name="current"/> toward <paramref name="wanted"/> by at most maxDeg (flat, unit). Pure.</summary>
+        public static Vector3 SnapYaw(Vector3 current, Vector3 wanted, float maxDeg)
+        {
+            current.y = 0f; wanted.y = 0f;
+            if (wanted.sqrMagnitude < 0.0001f) return current.normalized;
+            if (current.sqrMagnitude < 0.0001f) return wanted.normalized;
+            return Vector3.RotateTowards(current.normalized, wanted.normalized, maxDeg * Mathf.Deg2Rad, 0f).normalized;
+        }
+
+        float refusedSince = -1f;
+
+        Vector3 PlayerVelocity()
+        {
+            if (playerMotor == null && player != null) playerMotor = player.GetComponent<FirstPersonMotor>();
+            return playerMotor != null ? playerMotor.Velocity : Vector3.zero;
+        }
+
+        /// <summary>Will this first hit, thrown now, arrive? The same law the stalk and lunge execute.</summary>
+        bool FirstHitCanLand(EnemyAttackData atk, float dist, float radial)
+        {
+            if (atk == null || data == null) return true;
+            float seconds = atk.windup * windupMult + atk.impactDelay;
+            float stalkSeconds = seconds - LungeWindow(atk.lungeDistance, cueLead);
+            float predicted = PredictedImpactDistance(dist, radial, seconds, StalkSpeed(data.moveSpeed * speedMult, data.stepSpeedMultiplier),
+                                                      stalkSeconds, atk.lungeDistance, data.lungeMinDistance);
+            return CanLand(predicted, atk.range);
+        }
+
+        /// <summary>Pick at the predicted distance and commit only what lands. Refused in band, the body presses in;
+        /// after RefuseTimeout it throws anyway (honest pressure, not a loop). Returns true on a commit.</summary>
+        bool TryCommit(float dist, Vector3 toP, float dt)
+        {
+            float radial = RadialSpeed(PlayerVelocity(), toP);
+            lastPickIndex = -1;   // an override's pick (the Warden's patterns) has no cooldown to undo
+            var c = ChooseCombo(SelectDistance(dist, radial, SelectHorizon));
+            if (c == null || c.hits == null || c.hits.Length == 0) return false;
+            bool timedOut = refusedSince >= 0f && Time.time - refusedSince >= RefuseTimeout;
+            // ponytail: on timeout it throws whatever was rolled this frame, not the longest-reach entry.
+            if (timedOut || FirstHitCanLand(c.hits[0], dist, radial))
+            {
+                refusedSince = -1f;
+                BeginCombo(c);
+                return true;
+            }
+            UndoLastPick();
+            if (refusedSince < 0f) refusedSince = Time.time;
+            if (locomotion != null && locomotion.IsReady && dist > data.lungeMinDistance && toP.sqrMagnitude > 0.0001f)
+                locomotion.Nudge(toP.normalized * data.moveSpeed * speedMult * dt);
+            return false;
+        }
+
+        int lastPickIndex = -1, lastPickPrevMove = -1;
+        float lastPickPrevTime;
+
+        /// <summary>A refused pick never happened: its cooldown clock and LastMoveIndex are restored.</summary>
+        void UndoLastPick()
+        {
+            if (lastPickIndex < 0 || moveLastUsedAt == null || lastPickIndex >= moveLastUsedAt.Length) return;
+            moveLastUsedAt[lastPickIndex] = lastPickPrevTime;
+            LastMoveIndex = lastPickPrevMove;
+            lastPickIndex = -1;
+        }
+
         public const float MaxChainRecovery = 1f;
         /// <summary>Phrases chained back to back before a real breath is forced.</summary>
         public const int MaxChainedPhrases = 2;
@@ -390,18 +504,26 @@ namespace VibeGame1
                         // player needs to see a wind-up start.
                         locomotion.MoveTo(mayCommit ? player.position : ReadyPosition(toP, dist));
                     }
-                    if (dist <= data.preferredRange * 1.6f) FaceTarget(toP, dt);
+                    // A1: always face something real. In range, the player; out on the path, the direction of
+                    // travel (a body used to slide its path with whatever facing it last had, and the far-band
+                    // 25 deg gate below failed on every approach).
+                    {
+                        Vector3 pathVel = locomotion != null ? locomotion.Velocity : Vector3.zero;
+                        pathVel.y = 0f;
+                        FaceTarget(dist <= data.preferredRange * 1.6f || pathVel.sqrMagnitude <= 0.04f ? toP : pathVel, dt);
+                    }
 
                     // Hold the ring: once at preferred range, circle rather than jostling inward.
                     if (mayCommit && Mathf.Abs(dist - data.preferredRange) <= data.repositionDeadzone)
                         Circle(dt);
 
+                    bool attempted = false;
                     if (mayCommit && dist <= data.preferredRange + data.commitTolerance
                         && Time.time >= nextAttackTime
                         && Vector3.Angle(transform.forward, toP) <= 50f)
                     {
-                        var c = ChooseCombo(dist);
-                        if (c != null && c.hits != null && c.hits.Length > 0) BeginCombo(c);
+                        attempted = true;
+                        TryCommit(dist, toP, dt);
                     }
                     // FAR-BAND COMMIT (2026-09-04, from play: "he needs to use his charge when you get
                     // too far"). The gate above only ever attacks inside the commit band, so a moveset
@@ -416,18 +538,28 @@ namespace VibeGame1
                     else if (mayCommit && dist > data.preferredRange + data.commitTolerance
                              && dist <= data.aggroRange
                              && Time.time >= nextAttackTime
-                             && data.moveset != null && data.moveset.HasEligible(dist)
+                             && data.moveset != null
+                             && data.moveset.HasEligible(SelectDistance(dist, RadialSpeed(PlayerVelocity(), toP), SelectHorizon))
                              && Vector3.Angle(transform.forward, toP) <= 25f)
                     {
-                        var c = ChooseCombo(dist);
-                        if (c != null && c.hits != null && c.hits.Length > 0) BeginCombo(c);
+                        attempted = true;
+                        TryCommit(dist, toP, dt);
                     }
+                    if (!attempted) refusedSince = -1f;
                     break;
 
                 case State.Windup:
                     // Heavily reduced turn rate: the swing is aimed where it was committed, so strafing
                     // around an enemy mid-wind-up genuinely works instead of being tracked perfectly.
-                    FaceTarget(toP, dt, data.windupTurnMultiplier);
+                    // From the cue on, no turning at all: the commit snap in FireCue is the last aim.
+                    if (!cued)
+                    {
+                        FaceTarget(toP, dt, data.windupTurnMultiplier);
+                        // A2: stalk in until the cue, so a step back does not turn the swing into air.
+                        if (attack != null && attack.range > 0f && !data.rangedOnly && locomotion != null && locomotion.IsReady
+                            && dist > StalkTarget(data.lungeMinDistance, attack.range, attack.lungeDistance))
+                            locomotion.Nudge(toP.normalized * StalkSpeed(data.moveSpeed * speedMult, data.stepSpeedMultiplier) * dt);
+                    }
                     if (!cued && Time.time >= cueTime) FireCue();
                     if (!lungeCommitted && Time.time >= lungeStartTime) CommitLunge();
                     ApplyLunge(dist, dt);
@@ -548,7 +680,7 @@ namespace VibeGame1
                        || (data.moveset != null && data.moveset.HasEligible(dist));
             if (!inBand) return;
             if (Random.value > chance) return;
-            PunishFlaskNow(dist);
+            PunishFlaskNow(dist, true);
         }
 
         /// <summary>
@@ -557,11 +689,20 @@ namespace VibeGame1
         /// or already committed; otherwise the recovery is cut and a combo begins this frame, with the
         /// cue still cueLead before impact like every other attack.
         /// </summary>
-        public bool PunishFlaskNow(float dist)
+        public bool PunishFlaskNow(float dist, bool requireLandable = false)
         {
             if (Current == State.Dead || Current == State.Executed || Current == State.Staggered || IsCommitted) return false;
-            var c = ChooseCombo(dist);
+            float radial = 0f;
+            if (requireLandable && player != null)
+            {
+                Vector3 toP = player.position - transform.position; toP.y = 0f;
+                radial = RadialSpeed(PlayerVelocity(), toP);
+            }
+            lastPickIndex = -1;
+            var c = ChooseCombo(SelectDistance(dist, radial, SelectHorizon));
             if (c == null || c.hits == null || c.hits.Length == 0) return false;
+            // The dice path uses the same arrival law as every commit; the harness path stays unconditional.
+            if (requireLandable && !FirstHitCanLand(c.hits[0], dist, radial)) { UndoLastPick(); return false; }
             FlaskPunishes++;
             nextFlaskPunishAt = Time.time + FlaskPunishCooldown;
             AudioManager.Play(Sfx.Tick, 0.7f, 0.8f);
@@ -733,6 +874,9 @@ namespace VibeGame1
                 int idx = ms.SelectIndex(distanceToTarget, moveLastUsedAt, Time.time, edgeRoom);
                 if (idx >= 0)
                 {
+                    lastPickIndex = idx;
+                    lastPickPrevTime = moveLastUsedAt[idx];
+                    lastPickPrevMove = LastMoveIndex;
                     moveLastUsedAt[idx] = Time.time;
                     LastMoveIndex = idx;
                     return ms.entries[idx].combo;
@@ -765,8 +909,11 @@ namespace VibeGame1
             if (!ShouldChainPhrase(Aggression, attack.recovery, dist, data.preferredRange + data.commitTolerance, Random.value))
                 return false;
             if (!MayCommitToAttack()) return false;
-            var c = ChooseCombo(dist);
+            float radial = RadialSpeed(PlayerVelocity(), toP);
+            lastPickIndex = -1;
+            var c = ChooseCombo(SelectDistance(dist, radial, SelectHorizon));
             if (c == null || c.hits == null || c.hits.Length == 0) return false;
+            if (!FirstHitCanLand(c.hits[0], dist, radial)) { UndoLastPick(); return false; }
             var from = attack;
             chainedPhrases++;
             combo = c;
@@ -806,6 +953,16 @@ namespace VibeGame1
             cued = true;
             if (attack == null) return;
 
+            // A6: the commit snap. At most CommitSnapDeg toward where the player will be at impact, then frozen.
+            if (player != null && locomotion != null && attack.range > 0f)
+            {
+                Vector3 aim = SnapYaw(transform.forward, CommitAim(player.position, PlayerVelocity(), transform.position,
+                                                                   LeadCapLateral, projectedImpact - Time.time), CommitSnapDeg);
+                locomotion.FaceTowards(aim, CommitSnapDeg / Mathf.Max(Time.deltaTime, 0.0001f));
+            }
+            // Snap -> lunge -> flash, so a lane-shaped tell freezes on the committed direction.
+            if (!lungeCommitted && Time.time >= lungeStartTime) CommitLunge();
+
             if (visuals != null) visuals.CueFlash(attack.unblockable);
             AudioManager.Play(Sfx.ParryCue, attack.unblockable ? 1f : 0.9f, attack.unblockable ? 0.75f : 1f, 0.02f);
         }
@@ -822,7 +979,10 @@ namespace VibeGame1
             float travel = Mathf.Max(0.05f, projectedImpact - Time.time);
             lungeSpeed = attack.lungeDistance / travel;
             lungeEndTime = projectedImpact;
-            lungeDir = transform.forward;
+            // A6: aimed at the led player, never more than the snap off the body's facing.
+            lungeDir = player != null
+                ? SnapYaw(transform.forward, CommitAim(player.position, PlayerVelocity(), transform.position, LeadCapLateral, travel), CommitSnapDeg)
+                : transform.forward;
             lungeDir.y = 0f;
             lungeDir = lungeDir.sqrMagnitude > 0.0001f ? lungeDir.normalized : transform.forward;
         }

@@ -1087,6 +1087,19 @@ INTERRUPT: the flask   (EnemyController.Update, before the state switch; never a
         up = an E cast; data.spellPunishChance) and PlayerAirSpentEdge (airborne with FirstPersonMotor.AirDashUsed for
         AirPunishDelay 0.25 s; data.airPunishChance). One edge per frame, flask first; one shared 4 s cooldown.
         The seven realm bosses ship 0.5 / 0.6. IsPulling (the hook) is never punished.
+ACCURACY   (2026-09-14, docs/SOULS-AI-ACCURACY-SPEC-2026-09-14.md A1-A6; close, aim and snap only up to the cue)
+   Chase facing (A1): toP inside preferredRange x 1.6, else IEnemyLocomotion.Velocity (the path) while moving.
+   Commit (A3/A4/A5) EnemyController.TryCommit, from the near band and the far band:
+        radial = RadialSpeed(FirstPersonMotor.Velocity, toP) (retreat > 0, cap 6) → ChooseCombo(SelectDistance =
+        dist + max(0, radial) x 0.6) → FirstHitCanLand: PredictedImpactDistance(dist, radial, T = windup + impactDelay,
+        StalkSpeed = moveSpeed x stepSpeedMultiplier, T − LungeWindow, lunge, lungeMin) ≤ range + 0.5 (range 0 always)
+        → BeginCombo. Refused: UndoLastPick (cooldown clock + LastMoveIndex restored), Nudge toward the player at
+        moveSpeed; after RefuseTimeout 1.2 s refused in band it throws anyway. TryChainPhrase and the dice punish
+        (PunishFlaskNow(dist, requireLandable: true)) use the same gate; the harness PunishFlaskNow(dist) does not.
+   Windup (A2): before the cue, turn at windupTurnMultiplier and stalk in (Nudge at StalkSpeed) while
+        dist > StalkTarget = max(lungeMin, range − lunge − 0.2); from the cue no turning at all.
+   FireCue (A6): snap facing ≤ CommitSnapDeg 25 toward CommitAim (player + velocity capped 3 m/s x seconds to impact)
+        → CommitLunge if due (lungeDir = the same led aim, ≤ 25 deg off facing) → visuals.CueFlash.
 PHASE 2   (EnemyController.HandleDamaged → PhaseShiftDue(Health.Ratio, data.phase2Threshold, phase2))
    once: phase2 = true, moveLastUsedAt reset, visuals.Roar(), CameraShake.Medium; a breath (Chase/Recover) becomes
    Recover Phase2RoarSeconds 0.9 — a committed swing is never cut. From then ChooseCombo reads data.phase2Moveset
