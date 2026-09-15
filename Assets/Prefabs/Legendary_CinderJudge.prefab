@@ -1843,6 +1843,7 @@ MonoBehaviour:
   - 0.4
   - 0.85
   minClipSpeed: 0.4
+  lateStartSpeed: 0.7
   walkStrideSpeed: 2.2587702
   runStrideSpeed: 3.6016936
   footstepDust: {r: 0.9, g: 0.45, b: 0.18, a: 0.35}

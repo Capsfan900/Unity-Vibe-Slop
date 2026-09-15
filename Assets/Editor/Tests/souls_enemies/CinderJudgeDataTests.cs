@@ -19,6 +19,10 @@ namespace VibeGame1.Tests
     /// </summary>
     public class CinderJudgeDataTests
     {
+        /// <summary>A fist clip that does not travel may still ship a short cue-bound step so the blow reaches
+        /// (Fable spatial spec, 2026-09-14). Anything longer must be the art's own travel.</summary>
+        const float CueStepAllowance = 0.6f;
+
         const string Fbx = "Assets/Enemies/CinderJudge.fbx";
         const string Manifest = "Assets/Enemies/CinderJudge.clips.json";
         const string Provenance = "Assets/Enemies/CinderJudge.provenance.txt";
@@ -174,11 +178,11 @@ namespace VibeGame1.Tests
         [Test]
         public void AttackTimingsAndTravel_AreTheApprovedProfile()
         {
-            AssertAttack("CinderJudge_Jab2", "Jab2", 0.50f, 0.05f, 0.16f, 0.70f, 0f);
-            AssertAttack("CinderJudge_Swing", "AttackSwing", 0.60f, 0.05f, 0.20f, 0.80f, 0f);
+            AssertAttack("CinderJudge_Jab2", "Jab2", 0.50f, 0.05f, 0.16f, 0.70f, 0.5f);
+            AssertAttack("CinderJudge_Swing", "AttackSwing", 0.60f, 0.05f, 0.20f, 0.80f, 0.5f);
             AssertAttack("CinderJudge_ComboFinisher", "ComboFinisher", 0.70f, 0.06f, 0.20f, 1.30f, 0f);
-            AssertAttack("CinderJudge_Stab", "AttackStab", 0.55f, 0.05f, 0.16f, 0.70f, 0f);
-            AssertAttack("CinderJudge_Kick", "AttackKick", 0.65f, 0.05f, 0.22f, 0.90f, 0f);
+            AssertAttack("CinderJudge_Stab", "AttackStab", 0.55f, 0.05f, 0.16f, 0.70f, 0.5f);
+            AssertAttack("CinderJudge_Kick", "AttackKick", 0.65f, 0.05f, 0.22f, 0.90f, 0.5f);
             AssertAttack("CinderJudge_Heavy", "HeavyAttack", 1.05f, 0.08f, 0.30f, 1.40f, 0.75f);
             AssertAttack("CinderJudge_ShoulderCharge", "ShoulderCharge", 1.00f, 0.08f, 0.28f, 1.10f, 3.32f);
             AssertAttack(CinderJudgeAuthoring.StormAttackName, "Roar", 1.60f, 0.45f, 3.20f, 3.20f, 0f);
@@ -210,13 +214,13 @@ namespace VibeGame1.Tests
                 float forward = SampledHipsForwardTravel(clip);
                 if (ForgeClipSplitter.ClipTravels(Fbx, h.clip))
                 {
-                    Assert.AreEqual(Mathf.Max(0f, forward), h.lungeDistance, 0.15f,
+                    Assert.That(h.lungeDistance - Mathf.Max(0f, forward), Is.InRange(-0.15f, 0.15f + (forward < 0.15f ? CueStepAllowance : 0f)),
                         h.name + ": lungeDistance " + h.lungeDistance + " but '" + h.clip + "' walks the Hips " +
                         forward.ToString("F2") + " m forward. The art and the data have drifted apart.");
                 }
                 else
                 {
-                    Assert.AreEqual(0f, h.lungeDistance, 0.001f,
+                    Assert.That(h.lungeDistance, Is.InRange(0f, CueStepAllowance),
                         h.name + ": '" + h.clip + "' does not travel in the art, so the enemy must not either.");
                 }
             }

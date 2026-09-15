@@ -41,6 +41,8 @@ namespace VibeGame1
         public Health Health { get; private set; }
         public Posture Posture { get; private set; }
         public EnemyAttackData CurrentAttack => attack;
+        /// <summary>Seconds before impact the parry cue fires (serialized per instance, 0.28 everywhere).</summary>
+        public float CueLead => cueLead;
         public bool IsStaggered => Current == State.Staggered;
         /// <summary>True once the body died to a deathblow / execute (set in Die, before the death events fire). A
         /// parkour enemy finished this way throws no flare (SentryBurst).</summary>
@@ -117,6 +119,24 @@ namespace VibeGame1
         float lungeSpeed;
         float lungeEndTime;
         Vector3 lungeDir;
+        /// <summary>When this swing's travel starts: the cue for a short lunge, earlier for a long one.</summary>
+        float lungeStartTime = float.MaxValue;
+        bool lungeCommitted;
+
+        /// <summary>The fastest a body may cover its lunge. A 4.7 m charge squeezed into the 0.28 s cue window
+        /// ran at 16.8 m/s after half a second of running in place (Fable spatial spec R2).</summary>
+        public const float MaxLungeSpeed = 9f;
+
+        /// <summary>Seconds before impact the lunge's travel starts: never later than the cue, earlier when the
+        /// distance would otherwise exceed <see cref="MaxLungeSpeed"/>. Every lunge up to 2.5 m stays cue-bound. Pure.</summary>
+        public static float LungeWindow(float lungeDistance, float cueLeadSeconds)
+        {
+            return Mathf.Max(cueLeadSeconds, Mathf.Max(0f, lungeDistance) / MaxLungeSpeed);
+        }
+
+        // ---- deflect step-back (spec R4): the body pays for being parried, not just the mesh ------------
+        public const float ParryRecoilMetres = 0.35f;
+        float recoilStepSpeed, recoilStepEnd;
 
         // ---- global attack arbitration -----------------------------------------------------------
         // The player's parry facing cone is 75 degrees, so two enemies attacking from opposite sides are
@@ -379,6 +399,7 @@ namespace VibeGame1
                     // around an enemy mid-wind-up genuinely works instead of being tracked perfectly.
                     FaceTarget(toP, dt, data.windupTurnMultiplier);
                     if (!cued && Time.time >= cueTime) FireCue();
+                    if (!lungeCommitted && Time.time >= lungeStartTime) CommitLunge();
                     ApplyLunge(dist, dt);
                     if (Time.time >= stateEnd) BeginStrike();
                     break;
@@ -386,6 +407,7 @@ namespace VibeGame1
                 case State.Strike:
                     // impactDelay can be longer than cueLead, in which case the cue lands after the wind-up ends
                     if (!cued && Time.time >= cueTime) FireCue();
+                    if (!lungeCommitted && Time.time >= lungeStartTime) CommitLunge();
                     ApplyLunge(dist, dt);
                     if (!struck && Time.time >= impactTime) { struck = true; DoImpact(toP, dist); }
                     if (Time.time >= stateEnd) NextHitOrRecover();
@@ -399,6 +421,8 @@ namespace VibeGame1
                     FaceTarget(toP, dt, 0.6f);
                     if (RepositionsDuringRecover(data.rangedOnly)) Reposition(toP, dist, dt);
                     else if (locomotion != null) locomotion.Stop();
+                    if (Time.time < recoilStepEnd && !data.rangedOnly && locomotion != null && locomotion.IsReady)
+                        locomotion.Nudge(-transform.forward * recoilStepSpeed * dt);
                     if (Time.time >= stateEnd)
                     {
                         if (resumeComboAfterRecover && CanResumeCombo(dist)) ResumeCombo();
@@ -711,6 +735,8 @@ namespace VibeGame1
             projectedImpact = stateEnd + atk.impactDelay;
             cueTime = projectedImpact - cueLead;
             cued = false;
+            lungeCommitted = false;
+            lungeStartTime = projectedImpact - LungeWindow(atk.lungeDistance, cueLead);
 
             if (visuals != null) visuals.Telegraph(atk, windup);
             // Tick is now only "an attack is starting" — the cue is what says "press now", so keep this quiet.
@@ -718,6 +744,7 @@ namespace VibeGame1
 
             // Wind-up shorter than the cue lead: there is no room to telegraph, so cue immediately.
             if (cueTime <= Time.time) FireCue();
+            if (lungeStartTime <= Time.time) CommitLunge();
         }
 
         /// <summary>Beat 2 of the telegraph: the hard visual snap + audio ping that means "parry NOW".</summary>
@@ -726,20 +753,25 @@ namespace VibeGame1
             cued = true;
             if (attack == null) return;
 
-            // Commit the travel now. Aimed where the enemy is facing at THIS instant and held there, so a
-            // player who sidesteps after the cue is genuinely missed. Sized to arrive exactly at impact.
-            if (attack.lungeDistance > 0.01f)
-            {
-                float travel = Mathf.Max(0.05f, projectedImpact - Time.time);
-                lungeSpeed = attack.lungeDistance / travel;
-                lungeEndTime = projectedImpact;
-                lungeDir = transform.forward;
-                lungeDir.y = 0f;
-                lungeDir = lungeDir.sqrMagnitude > 0.0001f ? lungeDir.normalized : transform.forward;
-            }
-
             if (visuals != null) visuals.CueFlash(attack.unblockable);
             AudioManager.Play(Sfx.ParryCue, attack.unblockable ? 1f : 0.9f, attack.unblockable ? 0.75f : 1f, 0.02f);
+        }
+
+        /// <summary>
+        /// Commit the travel. Aimed where the enemy faces at THIS instant and held there, so a player who
+        /// sidesteps after it is genuinely missed. Sized to arrive exactly at impact. At the cue for a short
+        /// lunge; up to LungeWindow before impact for a long charge, which is still a commit you answer by moving.
+        /// </summary>
+        void CommitLunge()
+        {
+            lungeCommitted = true;
+            if (attack == null || attack.lungeDistance <= 0.01f) return;
+            float travel = Mathf.Max(0.05f, projectedImpact - Time.time);
+            lungeSpeed = attack.lungeDistance / travel;
+            lungeEndTime = projectedImpact;
+            lungeDir = transform.forward;
+            lungeDir.y = 0f;
+            lungeDir = lungeDir.sqrMagnitude > 0.0001f ? lungeDir.normalized : transform.forward;
         }
 
         void BeginStrike()
@@ -829,6 +861,8 @@ namespace VibeGame1
             {
                 float recoil = data.parryRecoilSeconds * Mathf.Lerp(1f, 0.55f, Aggression);
                 SetState(State.Recover, recoil);
+                recoilStepSpeed = ParryRecoilMetres / Mathf.Max(0.05f, recoil);
+                recoilStepEnd = stateEnd;
                 nextAttackTime = stateEnd + (pressOn ? 0f : data.attackCooldown * Mathf.Lerp(1f, 0.3f, Aggression));
             }
             if (postureDamage > 0f) Posture.Add(postureDamage);

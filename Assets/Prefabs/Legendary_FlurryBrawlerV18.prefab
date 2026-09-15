@@ -300,6 +300,7 @@ MonoBehaviour:
   - 0.671
   - 0.6
   minClipSpeed: 0.4
+  lateStartSpeed: 0.7
   walkStrideSpeed: 2.6520932
   runStrideSpeed: 4.390105
   footstepDust: {r: 0.55, g: 0.5, b: 0.45, a: 0.35}
@@ -326,7 +327,7 @@ MonoBehaviour:
   entranceProbeDelay: 0.12
   entranceHoldSeconds: 0.95
   hitHoldSeconds: 0.5
-  clapRingRadius: 3.8
+  clapRingRadius: 4.1
   clapRingSeconds: 0.34
   clapSparkCount: 14
   clapSparkSpeed: 7

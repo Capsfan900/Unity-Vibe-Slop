@@ -242,5 +242,28 @@ namespace VibeGame1.Tests
             }
             finally { BoltRegistry.Reset(); }
         }
+        // ---- 2026-09-14 spatial spec: lunge window, clip entry blend, follow-through ----
+
+        [Test]
+        public void ALongChargeStartsItsTravelEarlyEnoughToStayUnderNineMetresASecond()
+        {
+            Assert.AreEqual(0.28f, EnemyController.LungeWindow(0.5f, 0.28f), 1e-4f, "a short step stays cue-bound");
+            Assert.AreEqual(0.28f, EnemyController.LungeWindow(2.5f, 0.28f), 1e-4f);
+            Assert.AreEqual(3.32f / 9f, EnemyController.LungeWindow(3.32f, 0.28f), 1e-4f, "the forge charge");
+            Assert.AreEqual(4.7f / 9f, EnemyController.LungeWindow(4.7f, 0.28f), 1e-4f, "the Halberdier charge");
+            Assert.LessOrEqual(4.7f / EnemyController.LungeWindow(4.7f, 0.28f), EnemyController.MaxLungeSpeed + 1e-3f);
+            Assert.AreEqual(0.28f, EnemyController.LungeWindow(-1f, 0.28f), 1e-4f);
+        }
+
+        [Test]
+        public void AttackClipsBlendByTheirWindupAndKeepTheirOwnTail()
+        {
+            Assert.AreEqual(0.07f, PuppetVisuals.AttackEntryBlend(0.1f, 0.07f), 1e-4f, "never under the jar blend");
+            Assert.AreEqual(0.14f, PuppetVisuals.AttackEntryBlend(0.56f, 0.07f), 1e-4f);
+            Assert.AreEqual(0.16f, PuppetVisuals.AttackEntryBlend(2f, 0.07f), 1e-4f, "never over 0.16 s");
+            Assert.AreEqual(0.6f, PuppetVisuals.FollowThrough(1.5f, 0.3f, 0.45f), 1e-4f, "a long flourish is capped");
+            Assert.AreEqual(0.45f, PuppetVisuals.FollowThrough(0.6f, 0.4f, 0.45f), 1e-4f, "a short tail keeps the default");
+            Assert.AreEqual(0.52f, PuppetVisuals.FollowThrough(1.0f, 0.48f, 0.45f), 1e-4f);
+        }
     }
 }

@@ -126,6 +126,9 @@ namespace VibeGame1
                  "clamp the contact frame no longer lines up with the blow, which is an ART bug — so it " +
                  "is logged rather than hidden.")]
         public float minClipSpeed = 0.4f;
+        [Tooltip("Rate a clip plays at when its run-in is too short for the wind-up and it starts LATE. 0.7 keeps a " +
+                 "3-7 frame anticipation from reading as slow motion (Fable spatial spec R3, 2026-09-14).")]
+        public float lateStartSpeed = 0.7f;
 
         [Header("Locomotion (2026-09-13 fluidity pass)")]
         [Tooltip("Metres per second the Walk clip's stride covers at rate 1, measured on the imported clip by " +
@@ -242,6 +245,8 @@ namespace VibeGame1
         /// <see cref="ClipStartDelay"/>): the clip and the scaled time it starts at. MaxValue = none.</summary>
         string pendingClip;
         float pendingClipAt = float.MaxValue;
+        float pendingSpeed = 1f, pendingBlend = 0.07f;
+        bool pendingFilled;
 
         protected override void Awake()
         {
@@ -280,7 +285,10 @@ namespace VibeGame1
 
         public override void Strike(float lunge, float seconds)
         {
-            base.Strike(lunge, seconds);
+            // The brain already carries the travel and the clip carries the swing. Popping LungeRoot a second
+            // lungeDistance on top was a 45 m/s mesh jump on the Halberdier's charge and a positional pulse on
+            // every Marionette pass (Fable spatial spec R1).
+            base.Strike(0f, seconds);
             // The pass has landed. Hand the whirl back to free rotation so it carries THROUGH rather
             // than stopping on the blow; the next Telegraph re-anchors it (see BeginPass).
             passInFlight = false;
@@ -468,6 +476,12 @@ namespace VibeGame1
         /// </summary>
         void ClipFor(EnemyAttackData atk, out string clip, out float contact)
         {
+            float length;
+            ClipFor(atk, out clip, out contact, out length);
+        }
+
+        void ClipFor(EnemyAttackData atk, out string clip, out float contact, out float length)
+        {
             // An EXPLICIT clip on the attack wins over every heuristic below, including the spin prefix:
             // it is the one case where the data says outright which art this attack is. Generated
             // per-character clips have no canonical name the pipeline could map, so this is the only way
@@ -479,7 +493,8 @@ namespace VibeGame1
                 if (i >= 0)
                 {
                     clip = namedClips[i];
-                    contact = namedClipLengths[i] * Mathf.Clamp01(namedClipHits[i]);
+                    length = namedClipLengths[i];
+                    contact = length * Mathf.Clamp01(namedClipHits[i]);
                     return;
                 }
                 if (warnedClips == null) warnedClips = new System.Collections.Generic.HashSet<string>();
@@ -491,6 +506,7 @@ namespace VibeGame1
             if (IsSpinPass(atk))
             {
                 clip = clipSpin;
+                length = spinClipLength;
                 contact = spinClipLength * Mathf.Clamp01(spinHitNormalized);
                 return;
             }
@@ -498,22 +514,26 @@ namespace VibeGame1
             if (!string.IsNullOrEmpty(clipStab) && n.EndsWith("_Stab"))
             {
                 clip = clipStab;
+                length = stabClipLength;
                 contact = stabClipLength * Mathf.Clamp01(stabHitNormalized);
                 return;
             }
             if (!string.IsNullOrEmpty(clipKick) && n.EndsWith("_Kick"))
             {
                 clip = clipKick;
+                length = kickClipLength;
                 contact = kickClipLength * Mathf.Clamp01(kickHitNormalized);
                 return;
             }
             if (atk.unblockable || atk.windup >= 0.9f)
             {
                 clip = clipHeavy;
+                length = attackClipLength;
                 contact = attackClipLength * Mathf.Clamp01(attackHitNormalized);
                 return;
             }
             clip = clipAttack;
+            length = attackClipLength;
             contact = attackClipLength * Mathf.Clamp01(attackHitNormalized);
         }
 
@@ -559,17 +579,17 @@ namespace VibeGame1
         {
             if (animator == null || animator.runtimeAnimatorController == null) return;
 
-            string clip; float contact;
-            ClipFor(atk, out clip, out contact);
+            string clip; float contact, length;
+            ClipFor(atk, out clip, out contact, out length);
             float speed = contact / Mathf.Max(0.02f, secondsToImpact);
-            float delay = ClipStartDelay(contact, secondsToImpact, minClipSpeed);
+            float delay = ClipStartDelay(contact, secondsToImpact, lateStartSpeed);
+            float blend = AttackEntryBlend(secondsToImpact, clipBlend);
 
             if (delay > 0f)
             {
                 // Hold whatever the body is doing (the previous hit's follow-through, the idle) and start
-                // the clip when its floor-rate run-in exactly reaches the impact. See Update.
-                pendingClip = clip;
-                pendingClipAt = Time.time + delay;
+                // the clip when its late-start-rate run-in exactly reaches the impact. See Update.
+                QueueClip(clip, lateStartSpeed, Time.time + delay, blend);
             }
             else
             {
@@ -583,14 +603,40 @@ namespace VibeGame1
                     speed = maxClipSpeed;
                 }
                 animator.speed = speed;
-                animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
+                animator.CrossFadeInFixedTime(clip, blend, 0, 0f);
             }
             softHold = false;
             // Own the Animator through the follow-through, so locomotion cannot stomp the swing; the
             // scale above lasts only until the contact frame (see Update), then the clip runs at its
             // authored rate.
             attackImpactAt = Time.time + secondsToImpact;
-            clipHold = attackImpactAt + followThroughSeconds;
+            clipHold = attackImpactAt + FollowThrough(length, contact, followThroughSeconds);
+        }
+
+        /// <summary>Crossfade into an attack clip: longer for a longer wind-up so a chained phrase never snaps
+        /// out of the previous clip's tail, never shorter than the jar blend, never over 0.16 s. Pure.</summary>
+        public static float AttackEntryBlend(float secondsToImpact, float minBlend)
+        {
+            return Mathf.Clamp(0.25f * secondsToImpact, minBlend, Mathf.Max(minBlend, 0.16f));
+        }
+
+        /// <summary>How long the attack clip keeps the Animator after its contact: its own authored tail, at
+        /// least the default and at most 0.6 s, so a finisher's flourish is not cut mid-motion. Pure.</summary>
+        public static float FollowThrough(float clipLength, float contact, float fallback)
+        {
+            float tail = clipLength - contact;
+            return tail > 0f ? Mathf.Clamp(tail, fallback, Mathf.Max(fallback, 0.6f)) : fallback;
+        }
+
+        /// <summary>Start a clip at a rate at a scaled time, holding (or idling) until then. Profiles call this
+        /// AFTER ReserveAnimatorUntil, which clears any pending clip.</summary>
+        protected void QueueClip(string clip, float speed, float at, float blend)
+        {
+            pendingClip = clip;
+            pendingSpeed = speed;
+            pendingBlend = blend;
+            pendingClipAt = at;
+            pendingFilled = false;
         }
 
         void PlayOneShot(string clip, float speed, float hold = 0f)
@@ -745,12 +791,25 @@ namespace VibeGame1
             lastRootPos = rootPos;
             locoSpeed = Mathf.Lerp(locoSpeed, inst, 1f - Mathf.Exp(-8f * dt));
 
-            // A late-started attack clip: its floor-rate run-in now reaches the impact exactly.
+            // A late-started attack clip: its run-in now reaches the impact exactly.
             if (Time.time >= pendingClipAt && animator != null && animator.runtimeAnimatorController != null)
             {
                 pendingClipAt = float.MaxValue;
-                animator.speed = minClipSpeed;
-                animator.CrossFadeInFixedTime(pendingClip, clipBlend, 0, 0f);
+                animator.speed = pendingSpeed;
+                animator.CrossFadeInFixedTime(pendingClip, pendingBlend, 0, 0f);
+            }
+            else if (pendingClipAt < float.MaxValue && !pendingFilled && animator != null &&
+                     animator.runtimeAnimatorController != null && !animator.IsInTransition(0))
+            {
+                // Waiting on a late start while the previous one-shot sits clamped on its last frame reads as
+                // a hitch: breathe on the idle instead (spec R3b). Once per pending clip.
+                var cur = animator.GetCurrentAnimatorStateInfo(0);
+                if (!cur.loop && cur.normalizedTime >= 1f)
+                {
+                    pendingFilled = true;
+                    animator.speed = 1f;
+                    animator.CrossFadeInFixedTime(clipIdle, clipBlend * 2.5f, 0, 0f);
+                }
             }
 
             // The blow has landed: hand the clip back its own rate for the follow-through.

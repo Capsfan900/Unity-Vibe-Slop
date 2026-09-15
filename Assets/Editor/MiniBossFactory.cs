@@ -235,7 +235,7 @@ namespace VibeGame1.EditorTools
                 v18.entranceProbeDelay = 0.12f;
                 v18.entranceHoldSeconds = 0.95f;
                 v18.hitHoldSeconds = 0.50f;
-                v18.clapRingRadius = 3.8f;
+                v18.clapRingRadius = 4.1f;   // = reach 3.6 + the brain slack 0.5 (spatial spec)
                 v18.clapRingSeconds = 0.34f;
                 v18.clapSparkCount = 14;
                 v18.clapSparkSpeed = 7f;
@@ -527,7 +527,7 @@ namespace VibeGame1.EditorTools
                 // 120 deg/s: the brain does not turn during Strike, so the hovering body tracks you
                 // itself -- fast enough to keep the arm on a circling player, slow enough to read as a
                 // body turning, never a snap.
-                sl.hoverTrackDegPerSec = 120f;
+                sl.hoverTrackDegPerSec = 220f;   // 120 lost a strafing player inside 6 m (spatial spec)
                 // From the manifest's Jump events: OnJumpTakeoff 0.28, OnJumpLand 0.85; the apex is the
                 // midpoint of the airborne window.
                 sl.jumpTakeoffNormalized = 0.28f;
@@ -545,7 +545,7 @@ namespace VibeGame1.EditorTools
                 // The dive's hop: 0.8 m over the Heavy's 1.13 s, peaking at the Jump-to-HeavyAttack
                 // switch and back on the floor exactly at the impact. A third of the verdict's height:
                 // a hop, unmistakably not the rise.
-                sl.diveHopHeight = 0.8f;
+                sl.diveHopHeight = 1.1f;
                 // Light-wings: three blades of light a side, 1.6 m long, fanned 28 degrees apart from
                 // 18 degrees above the horizontal and raked 25 degrees back. Additive on a runtime
                 // material normalised to a 1.0 peak -- under the 1.05 bloom threshold by construction,
@@ -1297,8 +1297,11 @@ namespace VibeGame1.EditorTools
             // ---- locomotion stride speeds (2026-09-13 fluidity pass, rule 9) ---------------------
             // Measured on the IMPORTED clip (the sidecar under-reports travel on these rigs), so the
             // Walk/Run playback rate can match the body's real speed instead of sliding the feet.
-            pv.walkStrideSpeed = StrideSpeed(fbx, pv.clipWalk);
-            pv.runStrideSpeed = StrideSpeed(fbx, pv.clipRun);
+            // An in-place Walk/Run has no measured stride: use the forge's nominal one so the feet do not slide 1.7x (spec R5).
+            float walkStride = StrideSpeed(fbx, pv.clipWalk), runStride = StrideSpeed(fbx, pv.clipRun);
+            pv.walkStrideSpeed = walkStride > 0f ? walkStride : 1.9f;
+            pv.runStrideSpeed = runStride > 0f ? runStride : 3.4f;
+            pv.lateStartSpeed = 0.7f;
             // Footfall dust only on the two forge bodies the user asked to feel more alive; every older
             // mini-boss keeps alpha 0 (no dust) so its look is unchanged.
             pv.footstepDust = name == FlurryBrawlerV18Authoring.EnemyName ? new Color(0.55f, 0.5f, 0.45f, 0.35f)

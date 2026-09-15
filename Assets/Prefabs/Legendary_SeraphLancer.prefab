@@ -424,6 +424,7 @@ MonoBehaviour:
   - 0.2
   - 0.696
   minClipSpeed: 0.4
+  lateStartSpeed: 0.7
   walkStrideSpeed: 1.8200631
   runStrideSpeed: 3.0602098
   footstepDust: {r: 0.85, g: 0.78, b: 0.55, a: 0.3}
@@ -454,7 +455,7 @@ MonoBehaviour:
   hoverHeight: 3
   hoverDescendSeconds: 0.45
   hoverFallSeconds: 0.22
-  hoverTrackDegPerSec: 120
+  hoverTrackDegPerSec: 220
   jumpTakeoffNormalized: 0.28
   jumpApexNormalized: 0.56
   jumpLandNormalized: 0.85
@@ -465,7 +466,7 @@ MonoBehaviour:
   landingSparkCount: 12
   landingSparkSpeed: 6
   landingSparkSpread: 110
-  diveHopHeight: 0.8
+  diveHopHeight: 1.1
   feathersPerWing: 3
   wingLength: 1.6
   wingChord: 0.42

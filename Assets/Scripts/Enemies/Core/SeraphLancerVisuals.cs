@@ -286,8 +286,12 @@ namespace VibeGame1
                 shoulderImpactAt = impactAt;
                 shoulderClipAt = Mathf.Max(Time.time, impactAt - contactSeconds);
                 shoulderClipPending = true;
-                PlayPresentationClip(clipRun, 1f);
+                // Idle through the wind-up, Run only from the moment the brain starts the travel (spec R2):
+                // a Run started at the tell ran in place for half a second before the body moved.
+                PlayPresentationClip(clipIdle, 1f);
                 ReserveAnimatorUntil(impactAt + followThroughSeconds);
+                float cueLeadSeconds = controller != null ? controller.CueLead : 0.28f;
+                QueueClip(clipRun, 1f, Mathf.Min(shoulderClipAt, impactAt - EnemyController.LungeWindow(atk.lungeDistance, cueLeadSeconds)), clipBlend * 2f);
                 Vector3 feet = transform.root.position + Vector3.up * 0.05f;
                 SlashFx.Ring(feet, Vector3.up, accentHue * 0.6f, 1.2f, 0.30f);
                 SlashFx.Sparks(feet, -transform.root.forward + Vector3.up * 0.4f, accentHue, 8, 5f, 55f);

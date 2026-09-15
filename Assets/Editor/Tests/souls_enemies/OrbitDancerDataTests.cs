@@ -20,6 +20,10 @@ namespace VibeGame1.Tests
     /// </summary>
     public class OrbitDancerDataTests
     {
+        /// <summary>A fist clip that does not travel may still ship a short cue-bound step so the blow reaches
+        /// (Fable spatial spec, 2026-09-14). Anything longer must be the art's own travel.</summary>
+        const float CueStepAllowance = 0.6f;
+
         const string Fbx = "Assets/Enemies/OrbitDancer.fbx";
         const string Manifest = "Assets/Enemies/OrbitDancer.clips.json";
         const string Provenance = "Assets/Enemies/OrbitDancer.provenance.txt";
@@ -210,11 +214,11 @@ namespace VibeGame1.Tests
         [Test]
         public void AttackTimingsAndTravel_AreTheApprovedProfile()
         {
-            AssertAttack("OrbitDancer_Jab2", "Jab2", 0.45f, 0.05f, 0.14f, 0.55f, 0f);
-            AssertAttack("OrbitDancer_Swing", "AttackSwing", 0.50f, 0.05f, 0.18f, 0.65f, 0f);
+            AssertAttack("OrbitDancer_Jab2", "Jab2", 0.45f, 0.05f, 0.14f, 0.55f, 0.5f);
+            AssertAttack("OrbitDancer_Swing", "AttackSwing", 0.50f, 0.05f, 0.18f, 0.65f, 0.5f);
             AssertAttack("OrbitDancer_ComboFinisher", "ComboFinisher", 0.60f, 0.06f, 0.18f, 1.10f, 0f);
-            AssertAttack("OrbitDancer_Stab", "AttackStab", 0.50f, 0.05f, 0.14f, 0.60f, 0f);
-            AssertAttack("OrbitDancer_Kick", "AttackKick", 0.55f, 0.05f, 0.20f, 0.80f, 0f);
+            AssertAttack("OrbitDancer_Stab", "AttackStab", 0.50f, 0.05f, 0.14f, 0.60f, 0.5f);
+            AssertAttack("OrbitDancer_Kick", "AttackKick", 0.55f, 0.05f, 0.20f, 0.80f, 0.5f);
             AssertAttack("OrbitDancer_Heavy", "HeavyAttack", 0.95f, 0.08f, 0.28f, 1.30f, 0.75f);
             AssertAttack("OrbitDancer_ShoulderCharge", "ShoulderCharge", 0.90f, 0.08f, 0.26f, 1.00f, 3.32f);
             AssertAttack(OrbitDancerAuthoring.DiscThrowAttackName, "DiscThrow", 0.70f, 0.06f, 0.20f, 0.90f, 0f);
@@ -251,13 +255,13 @@ namespace VibeGame1.Tests
                 float forward = SampledHipsForwardTravel(clip);
                 if (ForgeClipSplitter.ClipTravels(Fbx, h.clip))
                 {
-                    Assert.AreEqual(Mathf.Max(0f, forward), h.lungeDistance, 0.15f,
+                    Assert.That(h.lungeDistance - Mathf.Max(0f, forward), Is.InRange(-0.15f, 0.15f + (forward < 0.15f ? CueStepAllowance : 0f)),
                         h.name + ": lungeDistance " + h.lungeDistance + " but '" + h.clip + "' walks the Hips " +
                         forward.ToString("F2") + " m forward in Unity. Ship " + Mathf.Max(0f, forward).ToString("F2") + ".");
                 }
                 else
                 {
-                    Assert.AreEqual(0f, h.lungeDistance, 0.001f,
+                    Assert.That(h.lungeDistance, Is.InRange(0f, CueStepAllowance),
                         h.name + ": '" + h.clip + "' does not travel in the art, so the enemy must not either.");
                 }
             }

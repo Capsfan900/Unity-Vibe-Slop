@@ -453,6 +453,9 @@ namespace VibeGame1
             if (alertMarker != null) alertMarker.SetActive(false);
         }
 
+        /// <summary>Cap on LungeRoot's forward pop for primitive bodies: a lean, never a second lunge.</summary>
+        public const float MaxVisualLunge = 0.35f;
+
         /// <summary>The enemy is knocked back by a perfect parry.</summary>
         public virtual void Recoil()
         {
@@ -470,7 +473,8 @@ namespace VibeGame1
             SlashFx.Flare(parryAt, ParryGlow, 0.5f, 0.16f);
             SlashFx.Sparks(parryAt, -ArmDirection(), ParryGlow, 10, 8f, 44f);
             if (alertMarker != null) alertMarker.SetActive(false);
-            StartMotion(LungeCo(-0.5f, 0.25f));
+            // A small visual jar; the body's real step back is the brain's (EnemyController.OnParried, spec R4).
+            StartMotion(LungeCo(-0.18f, 0.25f));
         }
 
         /// <summary>
@@ -708,6 +712,8 @@ namespace VibeGame1
         IEnumerator LungeCo(float dist, float seconds)
         {
             bool recoiling = dist < 0f;
+            // The brain moves the root the full lungeDistance; the mesh only leans into it (spec R1).
+            dist = Mathf.Min(dist, MaxVisualLunge);
             float t = 0f;
             Vector3 from = lungeRoot != null ? lungeRoot.localPosition : Vector3.zero;
             Quaternion fromRot = lungeRoot != null ? lungeRoot.localRotation : Quaternion.identity;

@@ -54,7 +54,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 6decfbb402e7e3844bfc072ae21c2d17, type: 2}
     weight: 1.5
     minRange: 3.5
-    maxRange: 8
+    maxRange: 6
     cooldown: 0
   - label: KICK (unblockable, anti-turtle)
     combo:

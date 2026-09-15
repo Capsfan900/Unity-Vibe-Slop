@@ -1110,13 +1110,18 @@ EnemyController  = the BRAIN ONLY. Rig-agnostic: it knows states, timings and di
             in range + off cooldown + MayCommitToAttack() → Windup
   Windup  → FaceTowards at a CAPPED turn rate (circling works, commits stay committed)
             telegraph; cue fires cueLead (0.28s) before impact
-  Strike  → the attack's lungeDistance translates the BODY along the facing frozen at cue time
+  Strike  → the attack's lungeDistance translates the BODY along the facing frozen at commit time
             (previously the lunge only moved a child transform, so attacks only landed in your face)
+            commit (CommitLunge) at impact − LungeWindow(lunge, cueLead) = max(cueLead, lunge / 9 m/s):
+            the cue for any lunge ≤ 2.5 m, earlier for a charge (3.32 m → 0.37 s, 4.7 m → 0.52 s).
+            Charge profiles hold Idle and QueueClip(Run) at that moment (2026-09-14, spatial spec R2).
+            The mesh no longer lunges again: PuppetVisuals.Strike passes 0, primitives cap at 0.35 m (R1).
             phrase ends → TryChainPhrase (2026-09-14): ShouldChainPhrase(aggression, recovery ≤ 1.0, dist ≤
             preferredRange + commitTolerance, Random.value) + facing ≤ 50° + MayCommitToAttack, at most
             MaxChainedPhrases (2) back to back → BeginWindup(next phrase hit 0, NextGap) with no Recover.
             Otherwise the breath below. BeginCombo from Chase resets the chain count.
   Recover → Reposition: step in if you fled, back off if inside its own range, strafe when settled
+            after a deflect (OnParried) the body also steps back ParryRecoilMetres 0.35 over the recoil (R4)
             then resume combo OR (aggroLocked ? Idle : Chase)
   Staggered → deathblow available     Executed / Dead
 
@@ -1294,12 +1299,13 @@ EnemyController.BeginWindup(atk, gap)
                  else               → clipAttack    which is what used to happen.
              Each clip carries its OWN baked length + anchor, or it would be stretched
              onto a different clip's contact frame and land its blow at the wrong moment.
-             speed = contact / secondsToImpact, floored at minClipSpeed (0.4). Under the floor
-             the clip is NOT clamped-and-started-now (that landed the forge ComboFinisher's
-             0.30 s contact 0.1-0.15 s early on the Judge, the Dancer and the Lancer): it
-             starts LATE, at the floor rate, after PuppetVisuals.ClipStartDelay seconds, so
-             the contact frame still lands on the impact (2026-09-14). Only speed > max
-             (3.5) is still clamped and logged.
+             speed = contact / secondsToImpact. Under lateStartSpeed (0.7) the clip is NOT
+             slowed to a crawl: it starts LATE (QueueClip after PuppetVisuals.ClipStartDelay s)
+             and plays at 0.7, so the contact frame still lands on the impact; while it waits a
+             clamped one-shot crossfades to Idle once. Entry blend = AttackEntryBlend
+             (clamp(0.25 × toImpact, 0.07, 0.16)); the clip keeps the Animator for
+             FollowThrough(length, contact) = its own tail in [0.45, 0.6] s (2026-09-14 R3/R6).
+             Only speed > max (3.5) is still clamped and logged.
         → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
              BeginPass  re-anchors WITHOUT changing speed. The rate is constant; the ARC is
                         what gets chosen -- the whole number of revolutions whose implied

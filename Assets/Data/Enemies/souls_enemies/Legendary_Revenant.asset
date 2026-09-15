@@ -40,7 +40,7 @@ MonoBehaviour:
   repositionDeadzone: 0.5
   backStepSpeedMultiplier: 0.3
   strafeSpeedMultiplier: 0.28
-  lungeMinDistance: 2.2
+  lungeMinDistance: 1.6
   shootsProjectiles: 0
   rangedOnly: 0
   projectileAttack: {fileID: 0}

@@ -201,8 +201,12 @@ namespace VibeGame1
                 shoulderImpactAt = impactAt;
                 shoulderClipAt = Mathf.Max(Time.time, impactAt - contactSeconds);
                 shoulderClipPending = true;
-                PlayPresentationClip(clipRun, 1f);
+                // Idle through the wind-up, Run only from the moment the brain starts the travel (spec R2):
+                // a Run started at the tell ran in place for half a second before the body moved.
+                PlayPresentationClip(clipIdle, 1f);
                 ReserveAnimatorUntil(impactAt + followThroughSeconds);
+                float cueLeadSeconds = controller != null ? controller.CueLead : 0.28f;
+                QueueClip(clipRun, 1f, Mathf.Min(shoulderClipAt, impactAt - EnemyController.LungeWindow(atk.lungeDistance, cueLeadSeconds)), clipBlend * 2f);
                 // Ember push-off (2026-09-13 VFX pass): sparks kicked back off the floor as the charge commits.
                 Vector3 feet = transform.root.position + Vector3.up * 0.05f;
                 SlashFx.Ring(feet, Vector3.up, new Color(0.95f, 0.45f, 0.15f, 0.4f), 1.3f, 0.35f);

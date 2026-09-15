@@ -20,7 +20,7 @@ MonoBehaviour:
   range: 2.4
   coneDeg: 55
   damage: 15
-  lungeDistance: 0
+  lungeDistance: 0.5
   comboGap: 0.24
   parryPostureMultiplier: 1
   unblockable: 1

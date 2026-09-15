@@ -959,6 +959,7 @@ namespace VibeGame1.EditorTools
                 // out" is never the optimal line: retreating past its reach is precisely what SELECTS
                 // this move, and it cannot be parried, only walked out of.
                 a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.3f; a.recovery = 1.5f;
+                a.clip = "AttackStab";   // a reach-out reads as a lash; the overhead did not
                 a.range = 8.0f; a.coneDeg = 175f; a.damage = 30f; a.lungeDistance = 0f;
                 a.comboGap = 0.45f; a.unblockable = true;
             });
@@ -1198,7 +1199,7 @@ namespace VibeGame1.EditorTools
             revenant.preferredRange = 3.4f; revenant.commitTolerance = 0.7f;
             revenant.repositionDeadzone = 0.5f;
             revenant.backStepSpeedMultiplier = 0.3f; revenant.strafeSpeedMultiplier = 0.28f;
-            revenant.lungeMinDistance = 2.2f;
+            revenant.lungeMinDistance = 1.6f;   // 2.2 stopped the greatsword a metre short (spatial spec)
             revenant.soulValue = 400;
             // Charcoal body so the fire inside it has something to read against. EmberAura supplies the
             // glow; this is the UNLIT colour, and it is dark on purpose -- a bright body with a bright
@@ -1215,7 +1216,7 @@ namespace VibeGame1.EditorTools
                 // back, so sidestepping the first puts you in front of the second.
                 Entry("slash into THRUST",               2f,   0f,  7f, revSlash, revStab),
                 EntryCd("OVERHEAD (the big punish)",     1.5f, 0f,  6f, 6f, revOverhead),
-                Entry("thrust from range",               1.5f, 3.5f, 8f, revStab),
+                Entry("thrust from range",               1.5f, 3.5f, 6f, revStab),
                 EntryCd("KICK (unblockable, anti-turtle)", 1.2f, 0f,  5f, 5f, revKick),
                 EntryCd("slash into the kick",           1f,   0f,  5f, 5f, revSlash, revKick),
             });
@@ -1833,35 +1834,35 @@ namespace VibeGame1.EditorTools
             {
                 a.clip = "AttackSwing";
                 a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.75f;
-                a.range = 2.45f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0f;
+                a.range = 2.45f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.22f; a.parryPostureMultiplier = 1.15f;
             });
             var br18Overhead = Attack("BrawlerV18_Overhead", a =>
             {
                 a.clip = "AttackOverhead";
                 a.windup = 0.95f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.00f;
-                a.range = 2.55f; a.coneDeg = 70f; a.damage = 34f; a.lungeDistance = 0f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 34f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.8f;
             });
             var br18Stab = Attack("BrawlerV18_Stab", a =>
             {
                 a.clip = "AttackStab";
                 a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
-                a.range = 2.45f; a.coneDeg = 40f; a.damage = 20f; a.lungeDistance = 0f;
+                a.range = 2.45f; a.coneDeg = 40f; a.damage = 20f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.22f; a.parryPostureMultiplier = 1.4f;
             });
             var br18Kick = Attack("BrawlerV18_Kick", a =>
             {
                 a.clip = "AttackKick";
                 a.windup = 0.65f; a.impactDelay = 0.05f; a.strikeDuration = 0.22f; a.recovery = 0.90f;
-                a.range = 2.45f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 0f;
+                a.range = 2.45f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.28f; a.unblockable = true;
             });
             var br18Jab2 = Attack("BrawlerV18_Jab2", a =>
             {
                 a.clip = "Jab2";
                 a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
-                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0f;
+                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
             });
             var br18Dash = Attack("BrawlerV18_Dash", a =>
@@ -1986,7 +1987,7 @@ namespace VibeGame1.EditorTools
                 // -0.28, dz -0.10, measured); TravelRoot cancels it and nothing lunges backward: 0.
                 a.clip = "Jab2";
                 a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
-                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0f;
+                a.range = 2.35f; a.coneDeg = 65f; a.damage = 14f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
             });
             var cjSwing = Attack("CinderJudge_Swing", a =>
@@ -1994,7 +1995,7 @@ namespace VibeGame1.EditorTools
                 // 0.60 against V18's 0.55 and 20 against 18: the same cut, a beat heavier.
                 a.clip = "AttackSwing";
                 a.windup = 0.60f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.80f;
-                a.range = 2.55f; a.coneDeg = 70f; a.damage = 20f; a.lungeDistance = 0f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 20f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.24f; a.parryPostureMultiplier = 1.15f;
             });
             var cjFinisher = Attack("CinderJudge_ComboFinisher", a =>
@@ -2011,14 +2012,14 @@ namespace VibeGame1.EditorTools
             {
                 a.clip = "AttackStab";
                 a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.70f;
-                a.range = 2.45f; a.coneDeg = 40f; a.damage = 20f; a.lungeDistance = 0f;
+                a.range = 2.45f; a.coneDeg = 40f; a.damage = 20f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.22f; a.parryPostureMultiplier = 1.4f;
             });
             var cjKick = Attack("CinderJudge_Kick", a =>
             {
                 a.clip = "AttackKick";
                 a.windup = 0.65f; a.impactDelay = 0.05f; a.strikeDuration = 0.22f; a.recovery = 0.90f;
-                a.range = 2.45f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 0f;
+                a.range = 2.45f; a.coneDeg = 55f; a.damage = 18f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.28f; a.unblockable = true;
             });
             var cjHeavy = Attack("CinderJudge_Heavy", a =>
@@ -2166,7 +2167,7 @@ namespace VibeGame1.EditorTools
                 // wind-up floor (SoulsCombatTests): the fastest jab any body throws, on the fastest body.
                 a.clip = "Jab2";
                 a.windup = 0.45f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.55f;
-                a.range = 2.30f; a.coneDeg = 65f; a.damage = 12f; a.lungeDistance = 0f;
+                a.range = 2.30f; a.coneDeg = 65f; a.damage = 12f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.16f; a.parryPostureMultiplier = 1.15f;
             });
             var odSwing = Attack("OrbitDancer_Swing", a =>
@@ -2174,7 +2175,7 @@ namespace VibeGame1.EditorTools
                 // 0.50 against the Judge's 0.60 and 16 against 20: the same cut, a beat lighter.
                 a.clip = "AttackSwing";
                 a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.65f;
-                a.range = 2.50f; a.coneDeg = 70f; a.damage = 16f; a.lungeDistance = 0f;
+                a.range = 2.50f; a.coneDeg = 70f; a.damage = 16f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.18f; a.parryPostureMultiplier = 1.15f;
             });
             var odFinisher = Attack("OrbitDancer_ComboFinisher", a =>
@@ -2191,7 +2192,7 @@ namespace VibeGame1.EditorTools
             {
                 a.clip = "AttackStab";
                 a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.14f; a.recovery = 0.60f;
-                a.range = 2.40f; a.coneDeg = 40f; a.damage = 16f; a.lungeDistance = 0f;
+                a.range = 2.40f; a.coneDeg = 40f; a.damage = 16f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.18f; a.parryPostureMultiplier = 1.4f;
             });
             var odKick = Attack("OrbitDancer_Kick", a =>
@@ -2200,7 +2201,7 @@ namespace VibeGame1.EditorTools
                 // and never answers the body eats this.
                 a.clip = "AttackKick";
                 a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.80f;
-                a.range = 2.40f; a.coneDeg = 55f; a.damage = 15f; a.lungeDistance = 0f;
+                a.range = 2.40f; a.coneDeg = 55f; a.damage = 15f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.24f; a.unblockable = true;
             });
             var odHeavy = Attack("OrbitDancer_Heavy", a =>
@@ -2389,7 +2390,7 @@ namespace VibeGame1.EditorTools
                 // is the fastest body's number; the first boss reads at the Judge's pace).
                 a.clip = "Jab2";
                 a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.16f; a.recovery = 0.65f;
-                a.range = 2.35f; a.coneDeg = 65f; a.damage = 13f; a.lungeDistance = 0f;
+                a.range = 2.45f; a.coneDeg = 65f; a.damage = 13f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.20f; a.parryPostureMultiplier = 1.15f;
             });
             var slSwing = Attack("SeraphLancer_Swing", a =>
@@ -2397,7 +2398,7 @@ namespace VibeGame1.EditorTools
                 // 0.55 between the Dancer's 0.50 and the Judge's 0.60; 18 between her 16 and his 20.
                 a.clip = "AttackSwing";
                 a.windup = 0.55f; a.impactDelay = 0.05f; a.strikeDuration = 0.18f; a.recovery = 0.72f;
-                a.range = 2.55f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0f;
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 18f; a.lungeDistance = 0.5f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.22f; a.parryPostureMultiplier = 1.15f;
             });
             var slFinisher = Attack("SeraphLancer_ComboFinisher", a =>

@@ -138,11 +138,11 @@ namespace VibeGame1.Tests
         [Test]
         public void AttackTimingsAndTravel_AreTheApprovedV18Profile()
         {
-            AssertAttack("BrawlerV18_Swing", "AttackSwing", 0.55f, 0.05f, 0.20f, 0.75f, 0f);
-            AssertAttack("BrawlerV18_Overhead", "AttackOverhead", 0.95f, 0.08f, 0.28f, 1.00f, 0f);
-            AssertAttack("BrawlerV18_Stab", "AttackStab", 0.55f, 0.05f, 0.16f, 0.70f, 0f);
-            AssertAttack("BrawlerV18_Kick", "AttackKick", 0.65f, 0.05f, 0.22f, 0.90f, 0f);
-            AssertAttack("BrawlerV18_Jab2", "Jab2", 0.50f, 0.05f, 0.16f, 0.70f, 0f);
+            AssertAttack("BrawlerV18_Swing", "AttackSwing", 0.55f, 0.05f, 0.20f, 0.75f, 0.4f);
+            AssertAttack("BrawlerV18_Overhead", "AttackOverhead", 0.95f, 0.08f, 0.28f, 1.00f, 0.4f);
+            AssertAttack("BrawlerV18_Stab", "AttackStab", 0.55f, 0.05f, 0.16f, 0.70f, 0.4f);
+            AssertAttack("BrawlerV18_Kick", "AttackKick", 0.65f, 0.05f, 0.22f, 0.90f, 0.4f);
+            AssertAttack("BrawlerV18_Jab2", "Jab2", 0.50f, 0.05f, 0.16f, 0.70f, 0.4f);
             AssertAttack("BrawlerV18_Dash", "Dash", 0.60f, 0.05f, 0.22f, 1.00f, 1.77f);
             AssertAttack("BrawlerV18_ShoulderCharge", "ShoulderCharge", 1.00f, 0.08f, 0.28f, 1.10f, 4.12f);
             AssertAttack("BrawlerV18_LevitateClap", "Clap", 2.00f, 0.20f, 0.30f, 1.50f, 0f);

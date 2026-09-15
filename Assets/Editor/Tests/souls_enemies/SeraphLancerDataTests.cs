@@ -21,6 +21,10 @@ namespace VibeGame1.Tests
     /// </summary>
     public class SeraphLancerDataTests
     {
+        /// <summary>A fist clip that does not travel may still ship a short cue-bound step so the blow reaches
+        /// (Fable spatial spec, 2026-09-14). Anything longer must be the art's own travel.</summary>
+        const float CueStepAllowance = 0.6f;
+
         const string Fbx = "Assets/Enemies/SeraphLancer.fbx";
         const string Manifest = "Assets/Enemies/SeraphLancer.clips.json";
         const string Provenance = "Assets/Enemies/SeraphLancer.provenance.txt";
@@ -243,8 +247,8 @@ namespace VibeGame1.Tests
         [Test]
         public void AttackTimingsAndTravel_AreTheApprovedProfile()
         {
-            AssertAttack("SeraphLancer_Jab2", "Jab2", 0.50f, 0.05f, 0.16f, 0.65f, 0f);
-            AssertAttack("SeraphLancer_Swing", "AttackSwing", 0.55f, 0.05f, 0.18f, 0.72f, 0f);
+            AssertAttack("SeraphLancer_Jab2", "Jab2", 0.50f, 0.05f, 0.16f, 0.65f, 0.5f);
+            AssertAttack("SeraphLancer_Swing", "AttackSwing", 0.55f, 0.05f, 0.18f, 0.72f, 0.5f);
             AssertAttack("SeraphLancer_ComboFinisher", "ComboFinisher", 0.65f, 0.06f, 0.20f, 1.20f, 0f);
             AssertAttack("SeraphLancer_Stab", "AttackStab", 0.60f, 0.05f, 0.16f, 0.80f, 0f);
             AssertAttack("SeraphLancer_Kick", "AttackKick", 0.60f, 0.05f, 0.20f, 0.85f, 0f);
@@ -292,13 +296,13 @@ namespace VibeGame1.Tests
                 float forward = SampledHipsForwardTravel(clip);
                 if (ForgeClipSplitter.ClipTravels(Fbx, h.clip))
                 {
-                    Assert.AreEqual(Mathf.Max(0f, forward), h.lungeDistance, 0.15f,
+                    Assert.That(h.lungeDistance - Mathf.Max(0f, forward), Is.InRange(-0.15f, 0.15f + (forward < 0.15f ? CueStepAllowance : 0f)),
                         h.name + ": lungeDistance " + h.lungeDistance + " but '" + h.clip + "' walks the Hips " +
                         forward.ToString("F2") + " m forward in Unity. Ship " + Mathf.Max(0f, forward).ToString("F2") + ".");
                 }
                 else
                 {
-                    Assert.AreEqual(0f, h.lungeDistance, 0.001f,
+                    Assert.That(h.lungeDistance, Is.InRange(0f, CueStepAllowance),
                         h.name + ": '" + h.clip + "' does not travel in the art, so the enemy must not either.");
                 }
             }
@@ -705,12 +709,12 @@ namespace VibeGame1.Tests
             Assert.AreEqual(3.0f, v.hoverHeight, 0.001f);
             Assert.AreEqual(0.45f, v.hoverDescendSeconds, 0.001f);
             Assert.AreEqual(0.22f, v.hoverFallSeconds, 0.001f);
-            Assert.AreEqual(120f, v.hoverTrackDegPerSec, 0.001f);
+            Assert.AreEqual(220f, v.hoverTrackDegPerSec, 0.001f);
             Assert.AreEqual(0.28f, v.jumpTakeoffNormalized, 0.001f);
             Assert.AreEqual(0.56f, v.jumpApexNormalized, 0.001f);
             Assert.AreEqual(0.85f, v.jumpLandNormalized, 0.001f);
             Assert.AreEqual(0.25f, v.throwFollowThroughSeconds, 0.001f);
-            Assert.AreEqual(0.8f, v.diveHopHeight, 0.001f);
+            Assert.AreEqual(1.1f, v.diveHopHeight, 0.001f);
             Assert.Less(v.diveHopHeight, v.hoverHeight * 0.5f, "a hop, unmistakably not the rise");
             Assert.AreEqual(3, v.feathersPerWing);
             Assert.AreEqual(1.6f, v.wingLength, 0.001f);
