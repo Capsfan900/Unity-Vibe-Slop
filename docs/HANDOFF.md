@@ -6,7 +6,14 @@
 FeatureTests 793/0/2 (797 before — 4 fewer checks, not yet traced). Unplayed. Build Level from MCP: use
 `LevelDefinitionBuilder.BuildCanonicalHeadless()` — `BuildSelected()` needs a Project selection (else a dialog).
 
-**All three Fable 5.1 specs are committed (next: implement, lead lanes first):**
+**Souls AI accuracy spec IMPLEMENTED** (tag `pre-accuracy-2026-09-14`): `51bdb3e` specials bands + reach hygiene
+(Sonnet), `403f3d2` brain A1-A6 (lead), `1c440f7` Signature Sigil floor tells (Sonnet). EditMode 1377/1377,
+FeatureTests 793/0/2. **Unplayed.** Playtest: walking back from a boss gets the red closer, not a whiff; Verdict/Storm
+at 2-3 m; sigils read. Open from it: Grunt/Heavy/Ninja still ship 99 m string bands (A7 not applied); the 1.3 LANE
+end-cap needs an over-1.0 flare primitive; optional `signaturePressureSeconds` (spec 3) not built.
+**Next: implement the parry-and-projectile spec, then realm arenas.**
+
+**The three Fable 5.1 specs:**
 - `docs/PARRY-AND-PROJECTILE-SPEC-2026-09-14.md` — Sekiro/Lies of P parry impact (hitstop, shake, sparks, audio,
   streaks, posture break) + volumetric, readable enemy projectiles (javelins, discs, sentry bolts).
 - `docs/REALM-ARENAS-SPEC-2026-09-14.md` — a theme per realm + 1-2 fair environmental hazards each, safe-area math.
