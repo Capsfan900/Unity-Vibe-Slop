@@ -2,14 +2,11 @@
 
 ## RESUME HERE (2026-09-14, late) — contracts were slimmed; this is a clear-context resume point
 
-**In flight, uncommitted (do first):** T1 and T2 realms become SOLO showcases (T1 Seraph Lancer, T2 Orbit Dancer);
-T3/T4 stay duos. Code is written in `LevelDefinitionAuthoring.cs` (RealmPartners T3/T4 only; stale
-`Spawn_Legendary_T1/T2_Duo` spawns removed; splits T1/T2 without alsoRequired; requiredRunSouls 5640 -> 4790),
-`LevelRunScoringTests.cs`, `SolarArenaTests.cs`. NOT yet applied: needs Unity OUT of play mode (the user was
-playing -- ask first), then compile, `8a Rework Level_01` -> `8 Build Level` -> `Rebuild NavMesh`, Full EditMode,
-FeatureTests, commit `[Astra]`.
+**Done:** `0898f58` T1/T2 realms are SOLO showcases (T3/T4 duos), Level_01 rebuilt; EditMode 1367/1367,
+FeatureTests 793/0/2 (797 before — 4 fewer checks, not yet traced). Unplayed. Build Level from MCP: use
+`LevelDefinitionBuilder.BuildCanonicalHeadless()` — `BuildSelected()` needs a Project selection (else a dialog).
 
-**Three Fable 5.1 planners were running (read-only), each writing one spec:**
+**All three Fable 5.1 specs are committed (next: implement, lead lanes first):**
 - `docs/PARRY-AND-PROJECTILE-SPEC-2026-09-14.md` — Sekiro/Lies of P parry impact (hitstop, shake, sparks, audio,
   streaks, posture break) + volumetric, readable enemy projectiles (javelins, discs, sentry bolts).
 - `docs/REALM-ARENAS-SPEC-2026-09-14.md` — a theme per realm + 1-2 fair environmental hazards each, safe-area math.
