@@ -21,6 +21,24 @@
   - S5 Lancer 4 javelins (strike 3.85, liveCap 5); Dancer whirl 3 discs / 4 bounces; Judge Aegis = raise, bash, Heavy.
   - Not done by user choice: V18 higher suplex. Skipped (low): S6 Marionette tempo, S7 whiff false-positive.
 
+## Later the same session (2026-09-14, after the d04a8ec playtest build)
+
+Build: `Builds/vibegame1-windows-playtest-2026-09-14-d04a8ec.zip`, tag `playtest-2026-09-14-d04a8ec` pushed. The
+GitHub Release itself was NOT created (`gh` not logged in); the user can upload the zip at the tag. The radio mp3 was
+held out of that build and restored.
+
+Committed after it (Fable 5.1 spec `docs/BOSS-SPATIAL-SPEC-2026-09-14.md`, implemented by the lead):
+- `07f435c` realms 25 -> 18 m floor / 27 m shell; realm intro camera pull ends on any mouse input (the "weird lock-on").
+- `102754e` motion: no double lunge (R1), long charges travel from LungeWindow at <= 9 m/s with Run queued then (R2),
+  late-start at 0.7 instead of x0.4 slow-mo + entry blend + follow-through (R3/R6), deflect step-back (R4), stride fallback,
+  fist reach steps.
+- `bde8d38` + `f691c5c` deadlier: signature cooldown/weight/damage table, phase 2 at 50 % (_P2 movesets), held heavies
+  (not the Halberdier), arena wall bias, spell-cast and spent-air-dash punishes.
+- `5ac295b` procedural layer on PoseRoot (anticipation, cue hitch, lunge lean, overshoot, recoil, strafe roll).
+Verified after the last: Full EditMode 1367/1367, FeatureTests 797/0/2. **All feel unplayed.**
+Not done from the spec: Dancer SpinThrow as a real whirl, Marionette reach retune, V18 Combo2 retime, P5 torso yaw,
+P6 landing squash, held-wind-up freeze presentation. Known: phase-2 Lancer verdict cooldown (4.25 s) < javelin life.
+
 ## Verification (this session, against `162c40a`)
 
 - Full EditMode 1361/1361 · FeatureTests 797/0/2 · Projectile Encounter Report PASS.
@@ -35,7 +53,7 @@ shield in T4; the red V18 grab.
 
 ## Next action
 
-1. User playtest of the list above; retune from their notes.
+1. User playtest: realm size, charges, phase 2 turns, held heavies, the procedural layer; retune from their notes.
 2. Rebuild Windows clean (`build_inputs_dirty=no`), then **ask the user** before
    `Tools/publish/Publish-WindowsRelease.ps1` — they asked to be asked, not pre-approved.
 3. Leftovers, not started: spell-orb readability capture, disc/wing SFX, V18 carry aim assist, boss-intro
