@@ -1,60 +1,84 @@
-# Handoff — duo realms (2026-09-14)
+# Handoff — duo realms follow-up + boss AI review (2026-09-14/15)
 
 ## Current state
 
-Committed on `master`, one commit after tag `pre-duo-realms-2026-09-14`:
+`master` is at `4723f60` (`[Astra] Handoff: realm boss intro done`) — the duo-realms + realm-boss-intro
+work from the previous session, unchanged this session. **Nothing from this session is committed.**
 
-- **Realms trimmed** (the user: "a little too large"). Every Level_01 cell is now 25 m floor, 37.5 m shell and
-  20 m walls/ceiling (was 30 / 45 / 24). V18's grab lifts 11 m, so it still fits.
-- **Two mini-bosses per realm, fought at once** (the user, 2026-09-14). `LevelDefinitionAuthoring.RealmPartners`:
-  - T1: Seraph Lancer + Thirteenth Shade (`Spawn_Legendary_T1_Duo`)
-  - T2: Orbit Dancer + Argent Halberdier (`_T2_Duo`)
-  - T3: Ember Revenant + Pale Marionette (`_T3_Duo`)
-  - T4: V18 Grappler + Cinder Judge (`_T4_Duo`). The two hardest, placed before the Warden.
-  - Bench: Iron Penitent, Ashen Chorister, Drillmaster, Flurry Brawler v15.
-- **Mechanism:**
-  - `SolarRealmDef.partnerSpawnerName/Position/Yaw` → builder `MoveIntoRealm` → `BossArenaTrigger.partnerSpawner`
-    (clears only when both are dead).
-  - `RunSplitDef.alsoRequiredSpawnerNames` → `LevelRunScorer` closes the split on the last of the pair to die.
-  - Existing `EnemyController.MaxSimultaneousAttackers = 1` keeps one wind-up at a time.
-- **Numbers:** requiredRunSouls 5640. Splits renamed Lancer / Dancer / Revenant / Grappler / Warden, with
-  S pars 65 / 70 / 80 / 75 / 40 (placeholders).
-- **Core-system note:** none of the listed core systems were changed (motor, combat resolution,
-  TimeScaleController, InputReader, enemy brains). Touched: `BossArenaTrigger`, `LevelRunScorer`,
-  `LevelDefinition`, the builder and authoring.
+This session did no direct code edits. It ran three side investigations and one review/correction pass,
+all as background agents, in response to the user reporting live bugs while playing the just-shipped duo
+realms:
 
-Generators run: 8a Rework, 8 Build From Definition (Level_01), Rebuild NavMesh.
+- **T1 exit portal not reopening** and **can't pick up an item in the realm** — both investigated (read-only,
+  no edits). Likely the **same root cause**: `BossArenaTrigger` only reopens the realm exit once **both**
+  T1 duo bosses (Seraph Lancer + Thirteenth Shade) are dead, and 5 of 12 level pickups — including
+  `Pickup_Boss_Hook` — sit inside the realm bubbles, so an uncleared realm reads as "can't pick up" too.
+  **Not yet confirmed** — the user has not said whether they killed both T1 bosses or just one. Second
+  candidate: Seraph Lancer's `ComboFinisher` animation clip was clamped out of its allowed range (a live
+  Unity console warning), which could mean it doesn't cleanly register a kill. See "Open questions" below.
+- **Fable combat-designer pass, still running at handoff time (background agent, not a subtask I can
+  resume from a new session).** Directive: review + correct the new duo-realm bosses' AI/movesets
+  (Seraph Lancer, Orbit Dancer, Cinder Judge, V18 Grappler, Argent Halberdier, Ember Revenant, Pale
+  Marionette) starting from the Seraph Lancer clip-clamp warning, **plus** a design direction the user gave
+  mid-pass and I relayed to it: movesets need more fluid transitions between attacks, more aggression
+  overall, and bosses should be "absurd but fair/doable" — see `[[combat-difficulty-direction]]` in memory,
+  this applies to all future boss/enemy work, not just this pass.
+  - **As of this handoff it is still editing** — working tree currently has uncommitted changes to
+    `Assets/Editor/Tests/PuppetSpinTests.cs`, `Assets/Scripts/Enemies/Core/PuppetVisuals.cs`,
+    `Assets/Scripts/Enemies/parkour_enemies/Projectile.cs` (82 insertions / 12 deletions so far, growing).
+    **Do not commit yet.** Per the project's worker-pass rule, the lead reviews the full diff, re-runs the
+    generators the report names plus both test suites, then makes ONE commit prefixed `[combat-designer]`
+    with a `Model: Fable 5.1 (Claude Code)` trailer (and note the lead model too).
+  - If a new session opens and this agent is gone (background agents don't survive a session boundary),
+    the uncommitted diff above is its unfinished work — read it, decide whether to finish it yourself or
+    ask the user, then commit or discard deliberately. Don't leave it uncommitted indefinitely.
+- **A Windows build was run and succeeded** (`Builds/Windows/vibegame1.exe`, 112.5 MB, 43 s, 3 scenes, 0
+  compile errors, 1 warning) — but it was built from the **dirty** tree above (Fable's in-progress edits),
+  so `build-info.txt` shows `git_dirty=YES`. **Publishing to GitHub is deliberately blocked and the user
+  chose to be asked again once the tree is clean** — do not tag/push/create a GitHub Release without
+  checking with the user first, even once the tree is clean.
+
+Generators run this session: none (no data/prefab changes were made outside Fable's still-running pass).
 
 ## Verification (2026-09-14, this session)
 
-- Full EditMode: **1357/1357** (new `DuoSplitClosesOnWhicheverPartnerDiesLastAndNeitherIsARegularKill`).
-- Play-mode FeatureTests on Level_01 (`GameManager.I` set, timeScale 1): **797 passed, 0 failed, 2 skipped**.
-  The gate loop now also kills the partner and checks `DuoSealedWhilePartnerAlive`.
-- Not re-run: Level Arc Report, Projectile Encounter Report, Health Check. Realms only shrank and route
-  geometry is untouched, but run them once.
-- **Human-only:**
-  - duo difficulty and fairness (both at full HP)
-  - whether the 20 m ceiling crowds the Lancer's hover or the Judge's storm
-  - the placeholder split pars
+Re-ran the three checks flagged as outstanding in the previous handoff, against the `4723f60` tree
+(before Fable's pass started):
+
+- **Health Check:** 0 errors, 3338 warnings — all the same pre-existing "may be wired at runtime"
+  HUD.prefab noise, nothing new.
+- **Level Arc Report:** `VERDICT: every authored traversal has a clean arc.`
+- **Projectile Encounter Report:** `VERDICT: PASS` (every sequence READY at all three route speeds).
+
+Not re-run since: EditMode/FeatureTests suites (last known-good numbers are the previous session's
+1357/1357 EditMode, 797/0/2 FeatureTests — inherited, not re-verified this session), and nothing has been
+re-run against Fable's in-progress edits yet — that's required before committing them.
+
+**Human-only, still open:**
+- Whether both T1 duo bosses were actually killed (see below).
+- Duo difficulty/fairness in general — untested since the shrink.
+- Whether the 20 m ceiling crowds the Lancer's hover or the Judge's storm.
 
 ## Next action
 
-0. **Done in `e2dc0dc`:** the name card and camera hold on realm entry (`SolarArenaPortal.IntroHold`, 1.6 s,
-   14 deg FOV push-in), and duo health bars (`RealmBossBarView`). V18 is renamed "THE V18 GRAPPLER".
-   Suites: 1357/1357 EditMode, 797/0/2 FeatureTests. Still unplayed by the user.
-   Watch-out: the bosses stand 21 m from the entry, so they are small during the hold.
-1. **"The fights need to be cinematic like a souls game."** The user picked the name card and duo bars (both
-   done). Not picked yet, so ask before building:
-   - boss intro (name card, fog-gate style entry, camera hold)
-   - boss HP bars for BOTH duo members
-   - music stingers and phase-change music
-   - a deathblow/kill cam and slow-mo on the final kill
-   - an arena-clear "VICTORY ACHIEVED" banner
+1. **Resolve the portal/pickup question.** Ask the user (or check live) whether they killed both T1 bosses.
+   If yes and the realm still didn't clear, the Seraph Lancer death-registration theory (tied to the
+   ComboFinisher clip) becomes the live suspect — check whether Fable's pass already fixed it.
+2. **Check on the Fable combat-designer pass** (background agent in the previous session; if this is a
+   fresh session it will not be resumable — read the uncommitted diff instead). When it's done: review the
+   diff against its brief and `[[combat-difficulty-direction]]`, re-run the generators it names plus both
+   EditMode and FeatureTests suites, then commit as ONE `[combat-designer]` commit.
+3. **Rebuild clean and ask the user before publishing.** Once the tree is clean and the pass is committed,
+   rebuild Windows, confirm `build_inputs_dirty=no`, then check with the user before running
+   `Tools/publish/Publish-WindowsRelease.ps1` — they explicitly asked to be asked again, not pre-approved.
+4. Leftovers from 09-13/09-14, still not started: spell-orb readability capture, disc/wing SFX, V18 carry
+   aim assist, the boss-intro follow-ups not yet picked (music stingers, deathblow/kill-cam + slow-mo,
+   "VICTORY ACHIEVED" banner — see previous handoff, still undecided).
 
-   Check what already exists first (`HUDController` boss bar, `SolarTransition`, `TimeScaleController` for slow-mo)
-   before building. HUD lives in the ui-designer lane; music in audio-engineer.
-2. The user plays the four duo realms and reports. Retune HP and damage from data, not code.
-3. Leftovers from 09-13: spell-orb readability capture, disc/wing SFX, V18 carry aim assist.
+## Open questions for the user
+
+- Did you kill **both** T1 duo bosses (Seraph Lancer + Thirteenth Shade), or just one, before the exit
+  didn't reopen and the item wouldn't pick up? This determines whether there's a real bug left to fix.
 
 ## Working rules learned
 
@@ -63,6 +87,11 @@ Generators run: 8a Rework, 8 Build From Definition (Level_01), Rebuild NavMesh.
   poll `isCompiling` and a reflection probe for the new symbol.
 - **Never `git stash` with the editor open.**
 - **Ask before stopping play mode.** The user may be playing.
+- **`execute_code` calls need an explicit `"action"` field** (e.g. `{"action":"execute","code":"..."}`) —
+  omitting it fails validation even though other tools like `manage_editor` also gate on `"action"`.
+- **The `session-handoff` skill is currently disabled for model invocation** (`skillOverrides` in
+  `.claude/settings.local.json`, same as `dashboard` per CLAUDE.md) — this handoff was written by following
+  `.claude/skills/session-handoff/SKILL.md` manually. Worth re-enabling if this keeps happening.
 
 ## Preserved user-owned files
 
