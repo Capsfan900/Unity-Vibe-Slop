@@ -382,7 +382,9 @@ namespace VibeGame1
             if (ProjectileVisualMath.CanOffset(transform, visual)) visual.localPosition = Vector3.zero;
             UpdateTrail(dt);
             if (shooter == null || !shooter.IsAlive) { Spend(); return; }
-            Vector3 shooterChest = Chest(shooter.transform);
+            // The VISIBLE chest, not the root's: a Lancer hovering 3 m up, a Judge in his storm. The
+            // reflect is the lesson ("back into him") and it has to be seen landing on the body.
+            Vector3 shooterChest = shooter.BodyPoint(1.2f);
             Vector3 shooterStart = hasTargetHistory
                 ? ProjectileMath.ContinuousTargetStart(previousTargetChest, shooterChest, Vector3.zero, dt)
                 : shooterChest;
@@ -448,7 +450,7 @@ namespace VibeGame1
                 {
                     // Deflected: back it goes. The incoming obligation is already resolved.
                     reflected = true;
-                    dir = ProjectileMath.ReflectDirection(transform.position, Chest(shooter.transform), -dir);
+                    dir = ProjectileMath.ReflectDirection(transform.position, shooter.BodyPoint(1.2f), -dir);
                     speed *= reflectSpeedScale;
                     ResetTargetHistory(shooter.transform);
                     if (visual != null)

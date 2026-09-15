@@ -163,7 +163,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(5.4f, d.moveSpeed, 0.001f);
             Assert.AreEqual(2.2f, d.preferredRange, 0.001f);
             Assert.AreEqual(18f, d.aggroRange, 0.001f);
-            Assert.AreEqual(0.78f, d.aggression, 0.001f);
+            Assert.AreEqual(0.85f, d.aggression, 0.001f);
             Assert.AreEqual(0.55f, d.strafeSpeedMultiplier, 0.001f, "she circles: the walls are hers.");
             Assert.AreEqual(1f, d.scale, 0.001f);
             Assert.AreEqual(0.7f, d.flaskPunishChance, 0.001f);

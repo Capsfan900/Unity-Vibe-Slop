@@ -149,7 +149,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(4.6f, d.moveSpeed, 0.001f);
             Assert.AreEqual(2.4f, d.preferredRange, 0.001f);
             Assert.AreEqual(18f, d.aggroRange, 0.001f);
-            Assert.AreEqual(0.70f, d.aggression, 0.001f);
+            Assert.AreEqual(0.80f, d.aggression, 0.001f);
             Assert.AreEqual(1f, d.scale, 0.001f);
             Assert.IsFalse(d.shootsProjectiles);
             Assert.IsFalse(d.rangedOnly);
@@ -181,7 +181,7 @@ namespace VibeGame1.Tests
             AssertAttack("CinderJudge_Kick", "AttackKick", 0.65f, 0.05f, 0.22f, 0.90f, 0f);
             AssertAttack("CinderJudge_Heavy", "HeavyAttack", 1.05f, 0.08f, 0.30f, 1.40f, 0.75f);
             AssertAttack("CinderJudge_ShoulderCharge", "ShoulderCharge", 1.00f, 0.08f, 0.28f, 1.10f, 3.32f);
-            AssertAttack(CinderJudgeAuthoring.StormAttackName, "Roar", 1.60f, 0.45f, 3.20f, 3.00f, 0f);
+            AssertAttack(CinderJudgeAuthoring.StormAttackName, "Roar", 1.60f, 0.45f, 3.20f, 3.20f, 0f);
 
             Assert.IsTrue(Atk("CinderJudge_Kick").unblockable);
             Assert.IsTrue(Atk("CinderJudge_ShoulderCharge").unblockable);

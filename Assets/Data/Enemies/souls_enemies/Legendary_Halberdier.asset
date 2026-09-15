@@ -24,9 +24,9 @@ MonoBehaviour:
   turnSpeed: 320
   aggroRange: 18
   attackRange: 3
-  attackCooldown: 0.3
+  attackCooldown: 0.2
   parryRecoilSeconds: 0.3
-  aggression: 0.85
+  aggression: 0.9
   flaskPunishChance: 0.6
   windupTurnMultiplier: 0.28
   stepSpeedMultiplier: 0.55

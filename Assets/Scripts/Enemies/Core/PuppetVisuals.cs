@@ -23,8 +23,9 @@ namespace VibeGame1
     /// played at its authored rate: <see cref="PlayAttackClip"/> scales <c>Animator.speed</c> so the
     /// clip's OWN contact frame (<see cref="attackHitNormalized"/>, read out of the forge manifest at
     /// build time) lands exactly on the data's impact moment. If a clip is the wrong length the clip
-    /// loses. The scale is clamped, and a clamp is LOGGED rather than swallowed — a clip that had to be
-    /// clamped is a clip whose contact no longer lines up with the blow, which is a real art bug.</para>
+    /// loses. A clip too SHORT to be slowed to the floor starts late instead (<see cref="ClipStartDelay"/>),
+    /// so its contact still lands on the blow; a clip too LONG is clamped, and that clamp is LOGGED rather
+    /// than swallowed — its contact no longer lines up with the blow, which is a real art bug.</para>
     ///
     /// <para><b>The whirl is presentation and nothing else.</b> It writes one local yaw on
     /// <see cref="spinRoot"/> and touches no timing, no collider and no damage. That is the entire
@@ -237,6 +238,10 @@ namespace VibeGame1
         /// <summary>When the attack clip in flight reaches its contact frame; the speed drops to
         /// <see cref="recoverySpeed"/> there. MaxValue when nothing is in flight.</summary>
         float attackImpactAt = float.MaxValue;
+        /// <summary>An attack clip whose run-in is shorter than the wind-up starts LATE (see
+        /// <see cref="ClipStartDelay"/>): the clip and the scaled time it starts at. MaxValue = none.</summary>
+        string pendingClip;
+        float pendingClipAt = float.MaxValue;
 
         protected override void Awake()
         {
@@ -304,6 +309,7 @@ namespace VibeGame1
         {
             base.ClearTelegraph();
             passInFlight = false;
+            pendingClipAt = float.MaxValue;
         }
 
         public override void Slump(bool on)
@@ -526,8 +532,28 @@ namespace VibeGame1
         System.Collections.Generic.HashSet<string> warnedClips;
 
         /// <summary>
+        /// Seconds to WAIT before starting an attack clip whose run-in (<paramref name="contact"/>, its
+        /// contact frame at 1x) is too short for <paramref name="secondsToImpact"/> to be covered by slowing
+        /// it to <paramref name="minSpeed"/>. 0 when slowing is enough.
+        ///
+        /// <para>The forge's ComboFinisher (the Judge, the Dancer, the Lancer: 36 frames, contact at 0.2 =
+        /// 0.30 s of run-in) under a 0.71-0.86 s wind-up wanted x0.35-0.41. Clamping to the floor started
+        /// the clip at once and landed its contact 0.1-0.15 s BEFORE the blow -- on the string's 1.6x
+        /// posture hit. Starting late at the floor rate keeps the contact on the blow; the tell is not the
+        /// clip's (the base colour sink and the cue are on the data clock), so nothing the player reads
+        /// moves. Pure, for the tests.</para>
+        /// </summary>
+        public static float ClipStartDelay(float contact, float secondsToImpact, float minSpeed)
+        {
+            secondsToImpact = Mathf.Max(0.02f, secondsToImpact);
+            if (contact / secondsToImpact >= minSpeed) return 0f;
+            return Mathf.Max(0f, secondsToImpact - contact / Mathf.Max(0.01f, minSpeed));
+        }
+
+        /// <summary>
         /// Play the attack clip so that its own contact frame lands on the data's impact. The clip is
-        /// stretched or squeezed to fit; the data is never touched.
+        /// stretched or squeezed to fit -- or, when it cannot be slowed enough, started late
+        /// (<see cref="ClipStartDelay"/>); the data is never touched.
         /// </summary>
         void PlayAttackClip(EnemyAttackData atk, float secondsToImpact)
         {
@@ -536,18 +562,29 @@ namespace VibeGame1
             string clip; float contact;
             ClipFor(atk, out clip, out contact);
             float speed = contact / Mathf.Max(0.02f, secondsToImpact);
+            float delay = ClipStartDelay(contact, secondsToImpact, minClipSpeed);
 
-            if (speed < minClipSpeed || speed > maxClipSpeed)
+            if (delay > 0f)
             {
-                Debug.LogWarning("[PuppetVisuals] '" + clip + "' had to be clamped to fit " +
-                    atk.name + " (wanted x" + speed.ToString("F2") + ", allowed " + minClipSpeed +
-                    ".." + maxClipSpeed + "). The clip's contact frame will NOT line up with the blow. " +
-                    "Fix the ART or pick a different clip — do not retune the attack to suit it.", this);
-                speed = Mathf.Clamp(speed, minClipSpeed, maxClipSpeed);
+                // Hold whatever the body is doing (the previous hit's follow-through, the idle) and start
+                // the clip when its floor-rate run-in exactly reaches the impact. See Update.
+                pendingClip = clip;
+                pendingClipAt = Time.time + delay;
             }
-
-            animator.speed = speed;
-            animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
+            else
+            {
+                pendingClipAt = float.MaxValue;
+                if (speed > maxClipSpeed)
+                {
+                    Debug.LogWarning("[PuppetVisuals] '" + clip + "' had to be clamped to fit " +
+                        atk.name + " (wanted x" + speed.ToString("F2") + ", allowed up to x" + maxClipSpeed +
+                        "). The clip's contact frame will NOT line up with the blow. " +
+                        "Fix the ART or pick a different clip — do not retune the attack to suit it.", this);
+                    speed = maxClipSpeed;
+                }
+                animator.speed = speed;
+                animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
+            }
             softHold = false;
             // Own the Animator through the follow-through, so locomotion cannot stomp the swing; the
             // scale above lasts only until the contact frame (see Update), then the clip runs at its
@@ -563,6 +600,7 @@ namespace VibeGame1
             animator.CrossFadeInFixedTime(clip, clipBlend, 0, 0f);
             clipHold = Time.time + (hold > 0f ? hold : 0.35f);
             attackImpactAt = float.MaxValue;   // a one-shot owns the speed; no impact switch pending
+            pendingClipAt = float.MaxValue;
             softHold = false;
         }
 
@@ -576,6 +614,7 @@ namespace VibeGame1
         {
             clipHold = until;
             attackImpactAt = float.MaxValue;
+            pendingClipAt = float.MaxValue;
             softHold = false;
         }
 
@@ -588,6 +627,7 @@ namespace VibeGame1
         {
             clipHold = until;
             attackImpactAt = float.MaxValue;
+            pendingClipAt = float.MaxValue;
             softHold = true;
         }
 
@@ -599,6 +639,7 @@ namespace VibeGame1
         protected void ReanchorAnimatorImpact(float until)
         {
             float tail = attackImpactAt < float.MaxValue ? Mathf.Max(0f, clipHold - attackImpactAt) : 0f;
+            if (pendingClipAt < float.MaxValue && attackImpactAt < float.MaxValue) pendingClipAt += until - attackImpactAt;
             attackImpactAt = until;
             clipHold = until + tail;
         }
@@ -608,6 +649,7 @@ namespace VibeGame1
             if (animator == null || animator.runtimeAnimatorController == null || string.IsNullOrEmpty(clip)) return;
             animator.speed = 1f;
             animator.CrossFadeInFixedTime(clip, clipBlend * 2f, 0, 0f);
+            pendingClipAt = float.MaxValue;
             locoState = clip == clipRun ? PuppetLocomotion.Run : clip == clipWalk ? PuppetLocomotion.Walk : PuppetLocomotion.Idle;
         }
 
@@ -702,6 +744,14 @@ namespace VibeGame1
             float inst = (rootPos - lastRootPos).magnitude / dt;
             lastRootPos = rootPos;
             locoSpeed = Mathf.Lerp(locoSpeed, inst, 1f - Mathf.Exp(-8f * dt));
+
+            // A late-started attack clip: its floor-rate run-in now reaches the impact exactly.
+            if (Time.time >= pendingClipAt && animator != null && animator.runtimeAnimatorController != null)
+            {
+                pendingClipAt = float.MaxValue;
+                animator.speed = minClipSpeed;
+                animator.CrossFadeInFixedTime(pendingClip, clipBlend, 0, 0f);
+            }
 
             // The blow has landed: hand the clip back its own rate for the follow-through.
             if (Time.time >= attackImpactAt && animator != null)

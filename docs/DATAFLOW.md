@@ -1287,6 +1287,12 @@ EnemyController.BeginWindup(atk, gap)
                  else               → clipAttack    which is what used to happen.
              Each clip carries its OWN baked length + anchor, or it would be stretched
              onto a different clip's contact frame and land its blow at the wrong moment.
+             speed = contact / secondsToImpact, floored at minClipSpeed (0.4). Under the floor
+             the clip is NOT clamped-and-started-now (that landed the forge ComboFinisher's
+             0.30 s contact 0.1-0.15 s early on the Judge, the Dancer and the Lancer): it
+             starts LATE, at the floor rate, after PuppetVisuals.ClipStartDelay seconds, so
+             the contact frame still lands on the impact (2026-09-14). Only speed > max
+             (3.5) is still clamped and logged.
         → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
              BeginPass  re-anchors WITHOUT changing speed. The rate is constant; the ARC is
                         what gets chosen -- the whole number of revolutions whose implied
@@ -1396,7 +1402,7 @@ CinderJudgeStorm.Update (root, beside the brain)                            ─�
      yaw unwinds FORWARD to the next full turn (SquaringRate) so touchdown is square-on.
 EnemyController: Strike ends → NextHitOrRecover → ClearTelegraph → Settle    ── the LANDING
    → CinderJudgeVisuals.ClearTelegraph on the strike-end frame = Land(): ring + sparks in the accent,
-     Sfx.Land, tornado off. Recovery 3.00 × (1 − 0.65 × 0.70) = 1.64 s of real opening: the punish.
+     Sfx.Land, tornado off. Recovery 3.20 × (1 − 0.65 × 0.80) = 1.54 s of real opening: the punish.
 Anything that leaves Strike early (HandleBroken → Staggered, Die, execute)
    → CinderJudgeStorm goes inactive on the next frame (its active test IS the brain's state);
      CinderJudgeVisuals cancels: tornado off, the body FALLS (stormFallSeconds 0.22) and unwinds.
@@ -1462,7 +1468,7 @@ SeraphLancerJavelins.Update → releases at ImpactTime + n·1.10 (n < 3), Launch
    aim = LeadTarget(RightHand bone, chest, v, 15, 0.7), speed = ProjectileMath.LaunchSpeed(path, 15, CueLead, 0.12)
 Javelin (= Projectile): cue 0.28 s before arrival; homing 40°/s; world hit → JavelinRelic (1.5 s), spend
    arrival → Projectile.Arrive → PlayerCombat.ReceiveAttack (Block / Hit 14 / Perfect → reflect 22 HP / 30 posture)
-strike − 0.45 s → descent, wings fold, Land(): ring + sparks; 1.46 s real punish
+strike − 0.45 s → descent, wings fold, Land(): ring + sparks; 1.31 s real punish (2.40 × (1 − 0.65 × 0.70))
 Lancer dead/Staggered → incoming javelins destroyed; PlayerRespawned → all destroyed; maxLife 5 s.
 ```
 
@@ -1485,7 +1491,7 @@ EnemyWeaponTrail.LateUpdate()          (MiniBossFactory.WireBladeTrail, ModelSpe
   the parry keep the light budget. The contact sparks (4) stay under the parry's ten.
 - **Scaled time.** The strip freezes in hitstop with the puppet.
 - **Aggression is asserted as EFFECTIVE values.** A recovery that looks like an opening in DataFactory is
-  played at ×0.45 at aggression 0.85; `HalberdierBehaviourTests.TheHeavyIsStillAPunishAfterTheAggressionScaling`
+  played at ×0.415 at aggression 0.90; `HalberdierBehaviourTests.TheHeavyIsStillAPunishAfterTheAggressionScaling`
   holds the number the player actually gets.
 
 ### parkour_enemies — the sentries shoot, and a deflect is a boost
@@ -1602,7 +1608,8 @@ Projectile.Update()  (scaled time: hitstop freezes it)
                   a run at 11 becomes 20 and bleeds toward the 17.6 air soft cap -- a boost, not a new cruise)
                   CameraFX.FovKick(4); ReceiveAttack already did the deflect sparks / hitstop / OnParried
         Blocked / Hit / None → spent (the chip / damage / posture landed in ReceiveAttack as usual)
-   reflected ordinary bolt reaches the shooter → Health.TakeDamage(parriedProjectileDamage) + Posture.Add(parriedProjectilePosture),
+   reflected ordinary bolt flies at shooter.BodyPoint(1.2) -- the VISIBLE chest, so it lands on a hovering Lancer, not under him --
+   reaches it → Health.TakeDamage(parriedProjectileDamage) + Posture.Add(parriedProjectilePosture),
                                         sparks, Sfx.Hit, spent
 ```
 

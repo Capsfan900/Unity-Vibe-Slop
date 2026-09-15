@@ -192,5 +192,24 @@ namespace VibeGame1.Tests
                         "slice " + i + " covers a different angle than the others — that is an ease.");
             }
         }
+
+        // ------------------------------------------------------------------ clip fit (2026-09-14)
+
+        [Test]
+        public void AClipWithAShortRunInStartsLateAndStillLandsItsContactOnTheBlow()
+        {
+            // The shipped case: the forge ComboFinisher (1.5 s, contact 0.2 = 0.30 s) as the third hit of
+            // the Lancer's string: 0.65 + 0.147 gap + 0.06 = 0.857 s to impact, wanted x0.35 under the 0.4
+            // floor. Late start at the floor rate: contact lands exactly on the impact.
+            const float contact = 1.5f * 0.2f, toImpact = 0.857f, floor = 0.4f;
+            float delay = PuppetVisuals.ClipStartDelay(contact, toImpact, floor);
+            Assert.Greater(delay, 0f);
+            Assert.AreEqual(toImpact, delay + contact / floor, 1e-4f, "the contact frame must land on the impact.");
+
+            // A clip that fits by slowing is never delayed (the Judge's stab: 0.34 s under 0.60 s = x0.57).
+            Assert.AreEqual(0f, PuppetVisuals.ClipStartDelay(0.625f * 0.55f, 0.60f, floor), 1e-6f);
+            // Exactly at the floor: no delay either.
+            Assert.AreEqual(0f, PuppetVisuals.ClipStartDelay(0.4f, 1.0f, floor), 1e-6f);
+        }
     }
 }

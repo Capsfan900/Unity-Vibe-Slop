@@ -180,7 +180,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(4.8f, d.moveSpeed, 0.001f);
             Assert.AreEqual(2.6f, d.preferredRange, 0.001f);
             Assert.AreEqual(18f, d.aggroRange, 0.001f);
-            Assert.AreEqual(0.60f, d.aggression, 0.001f);
+            Assert.AreEqual(0.70f, d.aggression, 0.001f);
             Assert.AreEqual(0.40f, d.strafeSpeedMultiplier, 0.001f);
             Assert.AreEqual(1f, d.scale, 0.001f);
             Assert.AreEqual(0.5f, d.flaskPunishChance, 0.001f, "the first boss punishes a flask half the time");

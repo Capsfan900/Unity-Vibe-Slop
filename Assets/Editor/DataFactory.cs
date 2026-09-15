@@ -1180,11 +1180,13 @@ namespace VibeGame1.EditorTools
             revenant.postureRegenDelay = 2.5f; revenant.staggerSeconds = 4.5f;
             revenant.moveSpeed = 3.4f; revenant.turnSpeed = 220f; revenant.aggroRange = 20f;
             revenant.attackRange = 3.2f;
-            revenant.attackCooldown = 0.75f;
-            // parryRecoilSeconds x lerp(1, 0.55, 0.38) = 0.35 x 0.829 = 0.29 s. It is NOT held to the
+            revenant.attackCooldown = 0.5f;
+            // parryRecoilSeconds x lerp(1, 0.55, 0.55) = 0.35 x 0.7525 = 0.26 s. It is NOT held to the
             // Marionette's beat identity because this fight is not a cadence -- a visible stumble after
-            // a deflect is the reward here, not a metronome that must not drift.
-            revenant.parryRecoilSeconds = 0.35f; revenant.aggression = 0.38f;
+            // a deflect is the reward here, not a metronome that must not drift. 0.55 (2026-09-14 tempo
+            // pass, from 0.38): over EnemyController's 0.5 press-on line, so a deflect mid-string is
+            // answered by the rest of the string, every hit still cued; the wind-ups are untouched.
+            revenant.parryRecoilSeconds = 0.35f; revenant.aggression = 0.55f;
             revenant.windupTurnMultiplier = 0.35f; revenant.stepSpeedMultiplier = 0.35f;
             revenant.stepAcceleration = 5f; revenant.stepDeadzone = 1f;
             revenant.comboBreathSeconds = 0.35f; revenant.readyDistanceMultiplier = 1.5f;
@@ -1387,8 +1389,8 @@ namespace VibeGame1.EditorTools
             // fights from is only a threat if he can re-establish it.
             halberdier.moveSpeed = 5.8f; halberdier.turnSpeed = 320f; halberdier.aggroRange = 18f;
             halberdier.attackRange = 3.0f;
-            halberdier.attackCooldown = 0.3f;
-            halberdier.parryRecoilSeconds = 0.3f; halberdier.aggression = 0.85f;
+            halberdier.attackCooldown = 0.2f;
+            halberdier.parryRecoilSeconds = 0.3f; halberdier.aggression = 0.9f;
             // windupTurnMultiplier stays LOW: a committed swing that tracked you would make the
             // sidestep (the answer to the thrust and the charge) stop working at exactly the moment the
             // aggression makes it matter most.
@@ -1925,11 +1927,12 @@ namespace VibeGame1.EditorTools
             brawler18.maxHP = 190f; brawler18.maxPosture = 160f; brawler18.postureRegen = 6f;
             brawler18.postureRegenDelay = 3f; brawler18.staggerSeconds = 4f;
             brawler18.moveSpeed = 5.2f; brawler18.turnSpeed = 340f; brawler18.aggroRange = 18f;
-            brawler18.attackRange = 1.9f; brawler18.attackCooldown = 0.25f;
-            brawler18.parryRecoilSeconds = 0.28f; brawler18.aggression = 0.80f;
+            brawler18.attackRange = 1.9f; brawler18.attackCooldown = 0.18f;
+            // 0.90 (2026-09-14 tempo pass; the v15 above keeps 0.80): the hardest pair's brawler.
+            brawler18.parryRecoilSeconds = 0.28f; brawler18.aggression = 0.90f;
             brawler18.windupTurnMultiplier = 0.30f; brawler18.stepSpeedMultiplier = 0.60f;
             brawler18.stepAcceleration = 8f; brawler18.stepDeadzone = 0.90f;
-            brawler18.comboBreathSeconds = 0.35f; brawler18.readyDistanceMultiplier = 1.5f;
+            brawler18.comboBreathSeconds = 0.28f; brawler18.readyDistanceMultiplier = 1.5f;
             brawler18.preferredRange = 2.0f; brawler18.commitTolerance = 0.3f;
             brawler18.repositionDeadzone = 0.40f;
             brawler18.backStepSpeedMultiplier = 0.35f; brawler18.strafeSpeedMultiplier = 0.45f;
@@ -1967,7 +1970,7 @@ namespace VibeGame1.EditorTools
             // on into a storm you must LEAVE -- then lands into the biggest opening he has.
             //
             // What is DIFFERENT from V18, on purpose (the "spice"):
-            //   1. Heavier profile: 240 HP / 200 posture, 4.6 m/s, preferredRange 2.4, aggression 0.70.
+            //   1. Heavier profile: 240 HP / 200 posture, 4.6 m/s, preferredRange 2.4, aggression 0.80.
             //      A judge is deliberate. Every wind-up is 0.05-0.10 s longer than V18's and pays more.
             //   2. A RED chain at contact range: jab-two into SHOULDER. Parry the jab, then DO NOT parry --
             //      the unblockable charge follows 0.18 s later, and the answer is a sidestep. V18's jab
@@ -2052,11 +2055,13 @@ namespace VibeGame1.EditorTools
                 //                    and 11 x 6 x 0.5 x 1.5 = 49.5 posture for a player who never moves:
                 //                    lethal to stand in, never a stagger machine (player bar 100).
                 //                    The last 0.35 s of the strike is the descent.
-                //   recovery 3.00    the punish. Aggression 0.70 scales it to 3.0 x (1 - 0.65 x 0.70) =
-                //                    1.64 s of real opening on the floor -- bigger than the Heavy's.
+                //   recovery 3.20    the punish. Aggression 0.80 scales it to 3.2 x (1 - 0.65 x 0.80) =
+                //                    1.54 s of real opening on the floor -- bigger than the Heavy's, and
+                //                    never under 1.5 (the 2026-09-14 tempo pass raised the data recovery
+                //                    with the aggression so the landing stayed the biggest punish).
                 // damage 6 is PER TICK, the Minecraft-lava number: small, repeated, unmistakable.
                 a.clip = "Roar";
-                a.windup = 1.60f; a.impactDelay = 0.45f; a.strikeDuration = 3.20f; a.recovery = 3.00f;
+                a.windup = 1.60f; a.impactDelay = 0.45f; a.strikeDuration = 3.20f; a.recovery = 3.20f;
                 a.range = 3.10f; a.coneDeg = 360f; a.damage = 6f; a.lungeDistance = 0f;
                 a.comboGap = 0.35f; a.unblockable = true;
             });
@@ -2090,11 +2095,11 @@ namespace VibeGame1.EditorTools
             judge.maxHP = 240f; judge.maxPosture = 200f; judge.postureRegen = 5f;
             judge.postureRegenDelay = 3f; judge.staggerSeconds = 3.5f;
             judge.moveSpeed = 4.6f; judge.turnSpeed = 300f; judge.aggroRange = 18f;
-            judge.attackRange = 2.2f; judge.attackCooldown = 0.35f;
-            judge.parryRecoilSeconds = 0.32f; judge.aggression = 0.70f;
+            judge.attackRange = 2.2f; judge.attackCooldown = 0.25f;
+            judge.parryRecoilSeconds = 0.32f; judge.aggression = 0.80f;
             judge.windupTurnMultiplier = 0.30f; judge.stepSpeedMultiplier = 0.55f;
             judge.stepAcceleration = 8f; judge.stepDeadzone = 0.90f;
-            judge.comboBreathSeconds = 0.45f; judge.readyDistanceMultiplier = 1.5f;
+            judge.comboBreathSeconds = 0.35f; judge.readyDistanceMultiplier = 1.5f;
             // 2.4: inside the storm's 3.6 m radius, so a player at fighting distance IS in the zone
             // when it ignites and has to move. V18 holds 2.0.
             judge.preferredRange = 2.4f; judge.commitTolerance = 0.3f;
@@ -2269,11 +2274,11 @@ namespace VibeGame1.EditorTools
             dancer.maxHP = 170f; dancer.maxPosture = 150f; dancer.postureRegen = 6f;
             dancer.postureRegenDelay = 3f; dancer.staggerSeconds = 3.0f;
             dancer.moveSpeed = 5.4f; dancer.turnSpeed = 380f; dancer.aggroRange = 18f;
-            dancer.attackRange = 2.1f; dancer.attackCooldown = 0.22f;
-            dancer.parryRecoilSeconds = 0.26f; dancer.aggression = 0.78f;
+            dancer.attackRange = 2.1f; dancer.attackCooldown = 0.18f;
+            dancer.parryRecoilSeconds = 0.26f; dancer.aggression = 0.85f;
             dancer.windupTurnMultiplier = 0.30f; dancer.stepSpeedMultiplier = 0.62f;
             dancer.stepAcceleration = 9f; dancer.stepDeadzone = 0.90f;
-            dancer.comboBreathSeconds = 0.32f; dancer.readyDistanceMultiplier = 1.5f;
+            dancer.comboBreathSeconds = 0.28f; dancer.readyDistanceMultiplier = 1.5f;
             // 2.2: a hair further than V18's 2.0 so the whirl's 2.6 m reach still lands from her
             // preferred stand, and a half-step nearer than the Judge (2.4): she is in your face.
             dancer.preferredRange = 2.2f; dancer.commitTolerance = 0.3f;
@@ -2466,8 +2471,8 @@ namespace VibeGame1.EditorTools
                 //                    SeraphLancer_Javelin (below).
                 //   strike 2.75      2 x 1.10 of cadence (three releases at 0 / 1.10 / 2.20), 0.10 s of
                 //                    hover, then the last 0.45 s is the DESCENT (Jump lands, wings fold).
-                //   recovery 2.40    the punish. Aggression 0.60 scales it to 2.4 x (1 - 0.65 x 0.60) =
-                //                    1.46 s of real opening on the floor, with the last javelin still in
+                //   recovery 2.40    the punish. Aggression 0.70 scales it to 2.4 x (1 - 0.65 x 0.70) =
+                //                    1.31 s of real opening on the floor, with the last javelin still in
                 //                    the air when he touches down -- reflect it, then run in.
                 // The clip weight-shifts 0.18 m in the art (dx +0.16, dz +0.09, forward 0.09): under the
                 // test's tolerance and meaningless in the air, so lunge 0.
@@ -2499,14 +2504,15 @@ namespace VibeGame1.EditorTools
             lancer.maxHP = 200f; lancer.maxPosture = 170f; lancer.postureRegen = 6f;
             lancer.postureRegenDelay = 3f; lancer.staggerSeconds = 3.2f;
             lancer.moveSpeed = 4.8f; lancer.turnSpeed = 320f; lancer.aggroRange = 18f;
-            lancer.attackRange = 2.2f; lancer.attackCooldown = 0.35f;
-            // 0.60: the lowest aggression of the four. Recoveries stay real (a Heavy's 1.40 is 0.85 s of
-            // real opening, the verdict's 2.40 is 1.46) because the first boss is where the punish is
+            lancer.attackRange = 2.2f; lancer.attackCooldown = 0.25f;
+            // 0.70: still the lowest aggression of the four (2026-09-14 tempo pass: every boss a step
+            // harder, wind-ups untouched). Recoveries stay real (a Heavy's 1.40 is 0.76 s of real
+            // opening, the verdict's 2.40 is 1.31) because the first boss is where the punish is
             // learned. Parry recoil 0.34: a beat longer than the Dancer's 0.26, so a deflect reads.
-            lancer.parryRecoilSeconds = 0.34f; lancer.aggression = 0.60f;
+            lancer.parryRecoilSeconds = 0.34f; lancer.aggression = 0.70f;
             lancer.windupTurnMultiplier = 0.30f; lancer.stepSpeedMultiplier = 0.55f;
             lancer.stepAcceleration = 8f; lancer.stepDeadzone = 0.90f;
-            lancer.comboBreathSeconds = 0.50f; lancer.readyDistanceMultiplier = 1.5f;
+            lancer.comboBreathSeconds = 0.40f; lancer.readyDistanceMultiplier = 1.5f;
             // 2.6: half a step further out than V18's 2.0 and the Judge's 2.4. The lance reaches 3.4 from
             // here, and the verdict's band opens at 4.5 -- a player who backs off two steps invites it.
             lancer.preferredRange = 2.6f; lancer.commitTolerance = 0.3f;
