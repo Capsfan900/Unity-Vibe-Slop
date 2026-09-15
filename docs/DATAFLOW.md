@@ -1322,6 +1322,16 @@ EnemyController.BeginWindup(atk, gap)
              (clamp(0.25 × toImpact, 0.07, 0.16)); the clip keeps the Animator for
              FollowThrough(length, contact) = its own tail in [0.45, 0.6] s (2026-09-14 R3/R6).
              Only speed > max (3.5) is still clamped and logged.
+        → BeginProceduralAttack (2026-09-14): arms the PROCEDURAL LAYER on PoseRoot (MiniBossFactory inserts it
+             between SpinRoot and TravelRoot/the model; PuppetVisuals.UpdateProceduralLayer is its only writer):
+             P1 anticipation (z -0.06, y -0.04, pitch -5 over min(0.18, 0.3 x wind-up), held to the cue),
+             P2 cue hitch (CueFlash: z +0.03, pitch +3, instant), P3 lunge lean (LeanForLungeSpeed(lunge /
+             LungeWindow) = speed x 2.2 deg, capped by leanCapDeg, in 0.08 s from the travel start, out 0.12 s
+             after impact), P4 overshoot (DampedReturn z 0.08 / pitch 4, tau 0.08 from impact), P7 deflect
+             recoil (Recoil: z -0.18 / pitch -8, tau 0.1), P8 strafe roll (+-5 deg from the root's lateral speed).
+             Scaled by proceduralScale (Revenant 1.4, Judge/Halberdier 1.2, Lancer/Dancer 0.8). Silent while the
+             whirl owns the body (a pass in flight) or the body is slumped/dead. Scaled time: hitstop freezes it.
+             Presentation only -- no timing, collider or damage.
         → name starts with spinAttackPrefix ? BeginPass(...) : UnwindToSquare()
              BeginPass  re-anchors WITHOUT changing speed. The rate is constant; the ARC is
                         what gets chosen -- the whole number of revolutions whose implied

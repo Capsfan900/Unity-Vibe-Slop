@@ -426,7 +426,7 @@ Transform:
   - {fileID: 2567590991192162014}
   - {fileID: 682189705176990665}
   - {fileID: 2141972029636713575}
-  m_Father: {fileID: 2464830263264401133}
+  m_Father: {fileID: 374187214123654819}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!95 &8258435484968295972
 Animator:
@@ -904,6 +904,38 @@ Transform:
   - {fileID: 3768854200945253118}
   m_Father: {fileID: 3806249223708044618}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3488852453464320372
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 374187214123654819}
+  m_Layer: 0
+  m_Name: PoseRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &374187214123654819
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3488852453464320372}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4865918036840720015}
+  m_Father: {fileID: 2464830263264401133}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3674775070832679175
 GameObject:
   m_ObjectHideFlags: 0
@@ -997,7 +1029,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4865918036840720015}
+  - {fileID: 374187214123654819}
   m_Father: {fileID: 9163184066050321049}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4878821192573102500
@@ -1513,6 +1545,9 @@ MonoBehaviour:
   footstepDust: {r: 0, g: 0, b: 0, a: 0}
   maxClipSpeed: 3.5
   clipBlend: 0.07
+  poseRoot: {fileID: 374187214123654819}
+  proceduralScale: 1
+  leanCapDeg: 8
   recoverySpeed: 1
   followThroughSeconds: 0.45
   spinAttackPrefix: Marionette_Spin

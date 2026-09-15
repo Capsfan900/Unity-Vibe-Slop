@@ -290,5 +290,31 @@ namespace VibeGame1.Tests
             Assert.AreEqual(3f, SolarArenaPortal.EdgeRoom(new Vector3(15f, 5f, 0f), Vector3.zero, 18f), 1e-4f);
             Assert.AreEqual(0f, SolarArenaPortal.EdgeRoom(new Vector3(30f, 0f, 0f), Vector3.zero, 18f), 1e-4f);
         }
+        // ---- 2026-09-14 procedural layer ----
+
+        [Test]
+        public void TheLungeLeanScalesWithSpeedAndStopsAtItsCap()
+        {
+            Assert.AreEqual(0f, PuppetVisuals.LeanForLungeSpeed(0f, 22f), 1e-4f);
+            Assert.AreEqual(3.93f, PuppetVisuals.LeanForLungeSpeed(0.5f / 0.28f, 22f), 0.01f, "a 0.5 m step leans ~4 deg");
+            Assert.AreEqual(22f, PuppetVisuals.LeanForLungeSpeed(12f, 22f), 1e-4f, "a fast charge leans to the cap");
+            Assert.AreEqual(8f, PuppetVisuals.LeanForLungeSpeed(9f, 8f), 1e-4f);
+        }
+
+        [Test]
+        public void ADampedReturnStartsAtItsAmplitudeAndNeverOvershoots()
+        {
+            Assert.AreEqual(0.08f, PuppetVisuals.DampedReturn(0.08f, 0.08f, 0f), 1e-5f);
+            float prev = 0.08f;
+            for (float t = 0.02f; t < 0.6f; t += 0.02f)
+            {
+                float v = PuppetVisuals.DampedReturn(0.08f, 0.08f, t);
+                Assert.GreaterOrEqual(v, 0f, "no overshoot past rest");
+                Assert.LessOrEqual(v, prev + 1e-6f, "monotone home");
+                prev = v;
+            }
+            Assert.Less(PuppetVisuals.DampedReturn(0.08f, 0.08f, 0.5f), 0.002f, "home by the next beat");
+            Assert.AreEqual(0f, PuppetVisuals.DampedReturn(1f, 0.1f, -0.1f), 1e-6f);
+        }
     }
 }

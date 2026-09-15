@@ -143,6 +143,15 @@ namespace VibeGame1
         [Tooltip("Crossfade into a clip, in seconds. Short: a deflect must read as an instant jar.")]
         public float clipBlend = 0.07f;
 
+        [Header("Procedural layer (2026-09-14) — Unity sells the weight the simple clips cannot")]
+        [Tooltip("An empty between SpinRoot and the model, written ONLY by the procedural layer below: anticipation, " +
+                 "cue hitch, lunge lean, overshoot, deflect recoil, strafe weight shift. Null = no layer.")]
+        public Transform poseRoot;
+        [Tooltip("Amplitude multiplier on the layer's positional and pitch beats. 1 = the spec's default body.")]
+        public float proceduralScale = 1f;
+        [Tooltip("Cap on the forward lean into a lunge, degrees.")]
+        public float leanCapDeg = 22f;
+
         [Header("Follow-through — the clip runs at its own rate once the blow has landed")]
         [Tooltip("Animator speed from the attack's IMPACT onward. The wind-up is scaled so the contact " +
                  "frame lands on the data's impact (x0.55-0.7 on most generated clips); keeping that " +
@@ -248,6 +257,30 @@ namespace VibeGame1
         float pendingSpeed = 1f, pendingBlend = 0.07f;
         bool pendingFilled;
 
+        // ---- procedural layer state (scaled time throughout: hitstop freezes it with the body) ----
+        float antStart = -1f, antDur, antUntil;
+        float cueHitchUntil;
+        float poseImpactAt = -1f, leanStart, leanDeg;
+        float overshootAt = -1f, recoilAt = -1f, recoilTau = 0.1f;
+        float strafeRoll;
+        Vector3 lastPoseRootPos;
+
+        public const float LeanDegPerMetrePerSecond = 2.2f;
+
+        /// <summary>Forward lean for a lunge covered at <paramref name="speed"/> m/s, capped. Pure.</summary>
+        public static float LeanForLungeSpeed(float speed, float capDeg)
+        {
+            return Mathf.Clamp(speed * LeanDegPerMetrePerSecond, 0f, Mathf.Max(0f, capDeg));
+        }
+
+        /// <summary>Critically damped return from <paramref name="amplitude"/>: no overshoot, 0 by ~4 tau. Pure.</summary>
+        public static float DampedReturn(float amplitude, float tau, float t)
+        {
+            if (t < 0f) return 0f;
+            float k = t / Mathf.Max(0.001f, tau);
+            return amplitude * Mathf.Exp(-k) * (1f + k);
+        }
+
         protected override void Awake()
         {
             base.Awake();
@@ -272,6 +305,7 @@ namespace VibeGame1
             if (atk == null) return;
 
             float toImpact = Mathf.Max(0.05f, seconds + atk.impactDelay);
+            BeginProceduralAttack(atk, seconds, toImpact);
             if (UseDefaultAttackClipPlayback(atk)) PlayAttackClip(atk, toImpact);
             if (IsSpinPass(atk)) BeginPass(toImpact);
             else UnwindToSquare();
@@ -299,9 +333,22 @@ namespace VibeGame1
             if (!spinHalted) freeSpin = ResolveRate();
         }
 
+        public override void CueFlash(bool unblockable)
+        {
+            base.CueFlash(unblockable);
+            // P2: the hitch is instant, never eased -- the cue is a snap, and the anticipation releases into it.
+            antUntil = Time.time;
+            cueHitchUntil = poseImpactAt > Time.time ? poseImpactAt : Time.time + 0.1f;
+        }
+
         public override void Recoil()
         {
             base.Recoil();
+            recoilAt = Time.time;
+            antUntil = Time.time;
+            cueHitchUntil = 0f;
+            poseImpactAt = -1f;
+            overshootAt = -1f;
             // Deflected. The clip is a jar, NOT a stop — the spin survives a deflect and only the
             // posture bar records it. Stopping here would make one deflect look like the win.
             PlayOneShot(clipHit, 1f);
@@ -316,6 +363,8 @@ namespace VibeGame1
         public override void ClearTelegraph()
         {
             base.ClearTelegraph();
+            antUntil = Mathf.Min(antUntil, Time.time);
+            cueHitchUntil = 0f;
             passInFlight = false;
             pendingClipAt = float.MaxValue;
         }
@@ -730,6 +779,78 @@ namespace VibeGame1
         /// <summary>Last presentation hook after Generic-rig XZ compensation; default bodies do nothing.</summary>
         protected virtual void AfterTravelCompensated() { }
 
+        /// <summary>Arm the procedural beats for one attack. Everything is derived from the data clock.</summary>
+        void BeginProceduralAttack(EnemyAttackData atk, float windupSeconds, float toImpact)
+        {
+            if (poseRoot == null) return;
+            antStart = Time.time;
+            antDur = Mathf.Min(0.18f, 0.30f * Mathf.Max(0.05f, windupSeconds));
+            antUntil = float.MaxValue;
+            cueHitchUntil = 0f;
+            poseImpactAt = Time.time + toImpact;
+            overshootAt = poseImpactAt;
+            float window = EnemyController.LungeWindow(atk.lungeDistance, 0.28f);
+            leanStart = poseImpactAt - window;
+            leanDeg = atk.lungeDistance > 0.01f ? LeanForLungeSpeed(atk.lungeDistance / window, leanCapDeg) : 0f;
+        }
+
+        /// <summary>Sum the beats onto PoseRoot. Presentation only: no timing, collider or damage is touched.</summary>
+        void UpdateProceduralLayer(float dt)
+        {
+            if (poseRoot == null) return;
+            float now = Time.time;
+            float s = proceduralScale;
+            float z = 0f, y = 0f, pitch = 0f;
+
+            // The whirl owns the body while it spins, and a slumped or dead body owns its own fall.
+            bool quiet = spinHalted || passInFlight || !squaring;
+            if (!quiet)
+            {
+                // P1 anticipation: settle back, chest up, held until the cue.
+                if (antStart >= 0f && now < antUntil)
+                {
+                    float k = Mathf.Clamp01((now - antStart) / Mathf.Max(0.01f, antDur));
+                    float e = 1f - (1f - k) * (1f - k);
+                    z -= 0.06f * s * e; y -= 0.04f * s * e; pitch -= 5f * s * e;
+                }
+                // P2 cue hitch.
+                if (now < cueHitchUntil) { z += 0.03f * s; pitch += 3f * s; }
+                // P3 lunge lean: in over 0.08 s from the travel start, out over 0.12 s after impact.
+                if (leanDeg > 0f && poseImpactAt > 0f && now >= leanStart)
+                {
+                    float into = Mathf.Clamp01((now - leanStart) / 0.08f);
+                    float outOf = now > poseImpactAt ? 1f - Mathf.Clamp01((now - poseImpactAt) / 0.12f) : 1f;
+                    pitch += leanDeg * into * outOf;
+                }
+                // P4 overshoot and settle through the blow.
+                if (overshootAt > 0f && now >= overshootAt)
+                {
+                    float t = now - overshootAt;
+                    z += DampedReturn(0.08f * s, 0.08f, t);
+                    pitch += DampedReturn(4f * s, 0.08f, t);
+                    if (t > 0.5f) overshootAt = -1f;
+                }
+            }
+            // P7 deflect recoil: jarred back and chest-up, damped home.
+            if (recoilAt >= 0f)
+            {
+                float t = now - recoilAt;
+                float k = Mathf.Clamp01(t / 0.05f);
+                z -= DampedReturn(0.18f * s, recoilTau, Mathf.Max(0f, t - 0.05f)) * k;
+                pitch -= DampedReturn(8f * s, recoilTau, Mathf.Max(0f, t - 0.05f)) * k;
+                if (t > 0.8f) recoilAt = -1f;
+            }
+            // P8 strafe weight shift: roll into the sideways motion of the root.
+            Vector3 rootPos = transform.root.position;
+            float lateral = dt > 0f ? Vector3.Dot(rootPos - lastPoseRootPos, transform.root.right) / dt : 0f;
+            lastPoseRootPos = rootPos;
+            float wantRoll = quiet ? 0f : Mathf.Clamp(-lateral * 2.5f, -5f, 5f);
+            strafeRoll = Mathf.Lerp(strafeRoll, wantRoll, 1f - Mathf.Exp(-6f * dt));
+
+            poseRoot.localPosition = new Vector3(0f, y, z);
+            poseRoot.localRotation = Quaternion.Euler(pitch, 0f, strafeRoll);
+        }
+
         // ---------------------------------------------------------------- tick
 
         protected override void Update()
@@ -781,6 +902,8 @@ namespace VibeGame1
                 }
                 spinRoot.localRotation = Quaternion.Euler(0f, -spinPhase, 0f);
             }
+
+            UpdateProceduralLayer(dt);
 
             // ---- locomotion clips -------------------------------------------------------------
             // Measured off the ROOT rather than asked of the locomotion component: this class is only

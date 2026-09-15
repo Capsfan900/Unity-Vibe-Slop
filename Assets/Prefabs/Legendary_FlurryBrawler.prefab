@@ -178,6 +178,9 @@ MonoBehaviour:
   footstepDust: {r: 0, g: 0, b: 0, a: 0}
   maxClipSpeed: 3.5
   clipBlend: 0.07
+  poseRoot: {fileID: 9100071106347810251}
+  proceduralScale: 1
+  leanCapDeg: 22
   recoverySpeed: 1
   followThroughSeconds: 0.45
   spinAttackPrefix: 
@@ -417,6 +420,38 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &1680799150706706223
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9100071106347810251}
+  m_Layer: 0
+  m_Name: PoseRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9100071106347810251
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1680799150706706223}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1254436977385870430}
+  m_Father: {fileID: 8591473281368380830}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2020864798127486968
 GameObject:
   m_ObjectHideFlags: 0
@@ -1247,7 +1282,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1254436977385870430}
+  - {fileID: 9100071106347810251}
   m_Father: {fileID: 8601976512026017210}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5325167801313766153
@@ -1280,7 +1315,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8542185203703778116}
-  m_Father: {fileID: 8591473281368380830}
+  m_Father: {fileID: 9100071106347810251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5435212185014417918
 GameObject:

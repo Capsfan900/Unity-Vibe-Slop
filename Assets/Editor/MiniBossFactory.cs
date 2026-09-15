@@ -1222,6 +1222,18 @@ namespace VibeGame1.EditorTools
             modelRoot.SetParent(spin.transform, false);
             pv.spinRoot = spin.transform;
 
+            // ---- PoseRoot: the procedural layer's one transform (2026-09-14) --------------------
+            // Between SpinRoot and TravelRoot/the model. Written only by PuppetVisuals.UpdateProceduralLayer:
+            // the anticipation, lean, overshoot and recoil ride the whirl's yaw and never share its channel.
+            var pose = new GameObject("PoseRoot");
+            pose.transform.SetParent(spin.transform, false);
+            pose.transform.localPosition = Vector3.zero;
+            pose.transform.localRotation = Quaternion.identity;
+            modelRoot.SetParent(pose.transform, false);
+            pv.poseRoot = pose.transform;
+            pv.proceduralScale = ProceduralScaleFor(name);
+            pv.leanCapDeg = LeanCapFor(name);
+
             // ---- a DEDICATED transform for cancelling clip travel -------------------------------
             // Only for models whose manifest has travelling clips. Same rule as SpinRoot: one
             // transform, one writer. PuppetVisuals.CompensateTravel is the writer.
@@ -1238,7 +1250,7 @@ namespace VibeGame1.EditorTools
                 else
                 {
                     var travel = new GameObject("TravelRoot");
-                    travel.transform.SetParent(spin.transform, false);
+                    travel.transform.SetParent(pose.transform, false);
                     travel.transform.localPosition = Vector3.zero;
                     travel.transform.localRotation = Quaternion.identity;
                     modelRoot.SetParent(travel.transform, false);
@@ -1464,6 +1476,23 @@ namespace VibeGame1.EditorTools
         /// frame to last, horizontal). 0 when the clip is missing, has no Hips, or does not travel — the
         /// puppet then keeps the authored rate.
         /// </summary>
+        /// <summary>Per-body weight of the procedural layer (Fable spatial spec section 3): heavy bodies move more.</summary>
+        static float ProceduralScaleFor(string name)
+        {
+            if (name.Contains("Revenant")) return 1.4f;
+            if (name.Contains("CinderJudge") || name.Contains("Halberdier")) return 1.2f;
+            if (name.Contains("SeraphLancer") || name.Contains("OrbitDancer")) return 0.8f;
+            return 1f;
+        }
+
+        static float LeanCapFor(string name)
+        {
+            if (name.Contains("Marionette")) return 8f;
+            if (name.Contains("Revenant")) return 12f;
+            if (name.Contains("SeraphLancer") || name.Contains("OrbitDancer")) return 18f;
+            return 22f;
+        }
+
         static float StrideSpeed(string fbxPath, string clipName)
         {
             if (string.IsNullOrEmpty(clipName)) return 0f;
