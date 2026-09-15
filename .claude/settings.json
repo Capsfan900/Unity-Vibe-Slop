@@ -45,5 +45,8 @@
         ]
       }
     ]
+  },
+  "env": {
+    "CLAUDE_CONTEXT_WINDOW": "1000000"
   }
 }

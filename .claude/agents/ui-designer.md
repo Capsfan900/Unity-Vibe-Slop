@@ -19,8 +19,8 @@ layout numbers in the builder; panes toggled by their root; a readout must never
 `docs/ENGINEERING-LOG.md`; audit every readout (health, posture incl. near-break, stamina, flask, spells, timer/par,
 parry result, deathblow prompts, sentry loop, lock-on, boss bars, death, level complete) for presence, timing, size
 near the crosshair, truth and language; research Sekiro / Lies of P / Neon White / Ultrakill HUDs (cite); rank; fix
-with a test per layout fact; update DATAFLOW's HUD map. For 3+ independent file-disjoint parts, run lanes via the
-`astra-engineering-company` skill, verify each diff yourself, return one report.
+with a test per layout fact; update DATAFLOW's HUD map. For 3+ independent file-disjoint parts, run lanes per
+`.claude/skills/astra-engineering-company/SKILL.md` (read it; the skill is disabled for auto-invocation), verify each diff yourself, return one report.
 
 **Verify offline:** both `dotnet build` csprojs; name generators (5 Build HUD / 9 Main Menu). **Report** (under
 ~900 words): ranked findings (fixed / proposed / needs a getter), files, tests, generators, top three open.

@@ -7,6 +7,12 @@ deflect combat, dark-fantasy presentation. All code is namespace `VibeGame1`. Sh
 read it directly). Edit rules HERE, never in a per-tool copy. It loads into every session, so it holds only
 what every session needs; depth lives in `docs/`. Start a session at [docs/HANDOFF.md](docs/HANDOFF.md).
 
+**Contracts load once, at session start.** When `AGENTS.md`, `CLAUDE.md`, a brief in `.claude/agents/` or a
+skill changes, a running session is still carrying the old copy. Finish or park the task in flight, write
+`docs/HANDOFF.md` (what is in flight, the next step), commit, then **clear context** (`/clear` or a new
+session) and **resume from HANDOFF.md** so the current, slimmer contracts are what you work under. A spawned
+subagent always reads the current brief; never resume an old agent across a contract change.
+
 ## Where to look
 
 | Read this | When |
@@ -131,7 +137,7 @@ Unity; `Tools/level_arc_offline.py` proves level geometry; `Tools/measure_forge_
 Briefs in `.claude/agents/*.md`, each with its ownership boundary and do-not-touch list: `level-designer` (level
 shape, Level Studio use), `enemy-designer` (a new enemy as data + prefab), `combat-designer` (combat review and
 plans; plans only by default), `vfx-art-team`, `audio-engineer`, `ui-designer`, `editor-controls` (F10 editor
-controls only), `unbuilt-asks` (read-only audit of asked-but-unbuilt work). Skills in `.claude/skills/*/SKILL.md`:
+controls only), `unbuilt-asks` (read-only audit of asked-but-unbuilt work). Skills in `.claude/skills/*/SKILL.md` (read the file directly if a harness has one disabled):
 `unity-editor`, `session-handoff`, `dashboard`, `astra-engineering-company` (cost-aware lead/worker orchestration).
 
 **Without a Claude Code harness:** read the brief or skill and follow it yourself, including its do-not-touch list.

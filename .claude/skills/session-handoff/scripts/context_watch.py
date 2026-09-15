@@ -71,6 +71,8 @@ def main() -> int:
     # The transcript records "claude-opus-5" for both the 200k and the 1M variant,
     # so the window is inferred from what we have already exceeded rather than
     # from the model name. An explicit override wins.
+    # The project's default model is the 1M-context variant (settings.json env CLAUDE_CONTEXT_WINDOW). Without it,
+    # a 1M session was warned at 65/80/90 % of 200k -- three false "hand off now" alarms at 13-18 % real use.
     window = int(os.environ.get("CLAUDE_CONTEXT_WINDOW") or 0)
     if window <= 0:
         window = 1_000_000 if used > 190_000 else 200_000
@@ -103,8 +105,8 @@ def main() -> int:
         90: "Hand off immediately -- the next summarisation may lose detail.",
     }[band]
     note = (f"CONTEXT AT {pct}% ({used:,} of {window:,} tokens). {urgency} "
-            f"Run the `session-handoff` skill: it writes docs/HANDOFF.md, commits the tree, "
-            f"and tells the user how to start the next session.")
+            f"Follow .claude/skills/session-handoff/SKILL.md (read the file; the skill may be disabled for "
+            f"auto-invocation): write docs/HANDOFF.md, commit, tell the user how to resume.")
 
     print(json.dumps({
         "hookSpecificOutput": {
