@@ -1890,7 +1890,7 @@ namespace VibeGame1.EditorTools
                 a.comboGap = 0.35f; a.parryPostureMultiplier = 2.0f;
                 Pose(a, Vector3.zero, Vector3.zero, new Vector3(0f, 1.60f, 0f), Vector3.zero, 0.45f);
             });
-            // SKYFALL SUPLEX (2026-09-13, boss roster; V18Grapple). A BLUE, cued two-handed grab reusing the
+            // SKYFALL SUPLEX (2026-09-13, boss roster; V18Grapple). A RED (since 09-14), cued two-handed grab reusing the
             // Clap clip's reach. Perfect = deflected, no grab. Dodged = no contact. Blocked or Hit = caught:
             // strike 2.0 holds the brain committed through the lift (0.9) + hold (0.35) + throw; the landing
             // slam is BrawlerV18_GrabSlam, unblockable, sent by V18Grapple on first ground contact.
@@ -1900,6 +1900,8 @@ namespace VibeGame1.EditorTools
                 a.windup = 0.85f; a.impactDelay = 0.05f; a.strikeDuration = 2.00f; a.recovery = 1.40f;
                 a.range = 2.40f; a.coneDeg = 60f; a.damage = 6f; a.lungeDistance = 0f;
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.5f;
+                // RED (2026-09-14, user): a grab that punishes a Block must read as perilous -- dodge it.
+                a.unblockable = true;
             });
             var br18GrabSlam = Attack("BrawlerV18_GrabSlam", a =>
             {
@@ -2111,6 +2113,8 @@ namespace VibeGame1.EditorTools
             judge.bodyColor = Hex("#F2EEE8"); judge.emission = Hex("#FF7A1E") * 1.9f;
             judge.scale = 1f; judge.flaskPunishChance = 0.7f;
             judge.shootsProjectiles = false; judge.rangedOnly = false;
+            // T4 duo (2026-09-14, user): the shield raise holds no slot, so V18 presses while the Judge stands.
+            judge.stanceFreesPartner = true;
             judge.moveset = Moveset("Legendary_CinderJudge_Moveset", "The Cinder Judge", new[]
             {
                 // "combo": the user's word maps to the three-hit STRING, since the export has no Combo
@@ -2126,7 +2130,7 @@ namespace VibeGame1.EditorTools
                 // health bar at the Judge's tempo, so it stays a signature and never a loop.
                 EntryCd("STORM JUDGEMENT (float, spin, ticking ring)",       1.0f, 0f,   4.5f, 14f, cjStorm),
                 // Close band, 11 s: a stance you wait out, bait with a Perfect on the bash, or break with a thrown blade.
-                EntryCd("AEGIS OF JUDGEMENT (shield raise, then BASH)",      1.3f, 0f,   3.6f, 11f, cjShieldRaise, cjShieldBash),
+                EntryCd("AEGIS OF JUDGEMENT (shield raise, then BASH)",      1.3f, 0f,   3.6f, 11f, cjShieldRaise, cjShieldBash, cjHeavy),
             });
             judge.combos = judge.moveset.ToComboArray();
             EditorUtility.SetDirty(judge);
@@ -2469,7 +2473,7 @@ namespace VibeGame1.EditorTools
                 //                    releases javelin 1 on it and 2 and 3 at 1.10 s cadence after it,
                 //                    each a Projectile through PlayerCombat.ReceiveAttack carrying
                 //                    SeraphLancer_Javelin (below).
-                //   strike 2.75      2 x 1.10 of cadence (three releases at 0 / 1.10 / 2.20), 0.10 s of
+                //   strike 3.85      3 x 1.10 of cadence (four releases at 0 / 1.10 / 2.20 / 3.30; 2026-09-14), 0.10 s of
                 //                    hover, then the last 0.45 s is the DESCENT (Jump lands, wings fold).
                 //   recovery 2.40    the punish. Aggression 0.70 scales it to 2.4 x (1 - 0.65 x 0.70) =
                 //                    1.31 s of real opening on the floor, with the last javelin still in
@@ -2477,7 +2481,7 @@ namespace VibeGame1.EditorTools
                 // The clip weight-shifts 0.18 m in the art (dx +0.16, dz +0.09, forward 0.09): under the
                 // test's tolerance and meaningless in the air, so lunge 0.
                 a.clip = "JavelinThrow";
-                a.windup = 1.10f; a.impactDelay = 0.90f; a.strikeDuration = 2.75f; a.recovery = 2.40f;
+                a.windup = 1.10f; a.impactDelay = 0.90f; a.strikeDuration = 3.85f; a.recovery = 2.40f;
                 a.range = 0f; a.coneDeg = 0f; a.damage = 0f; a.lungeDistance = 0f;
                 a.comboGap = 0.35f; a.parryPostureMultiplier = 1f;
             });

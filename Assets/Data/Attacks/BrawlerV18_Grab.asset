@@ -23,7 +23,7 @@ MonoBehaviour:
   lungeDistance: 0
   comboGap: 0.3
   parryPostureMultiplier: 1.5
-  unblockable: 0
+  unblockable: 1
   clip: Clap
   windupPose:
     authored: 0

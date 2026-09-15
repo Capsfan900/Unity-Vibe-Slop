@@ -250,7 +250,7 @@ namespace VibeGame1.Tests
             AssertAttack("SeraphLancer_Kick", "AttackKick", 0.60f, 0.05f, 0.20f, 0.85f, 0f);
             AssertAttack("SeraphLancer_Heavy", "HeavyAttack", 1.05f, 0.08f, 0.30f, 1.40f, 0.75f);
             AssertAttack("SeraphLancer_ShoulderCharge", "ShoulderCharge", 0.95f, 0.08f, 0.27f, 1.05f, 3.32f);
-            AssertAttack(SeraphLancerAuthoring.SkyVerdictAttackName, "JavelinThrow", 1.10f, 0.90f, 2.75f, 2.40f, 0f);
+            AssertAttack(SeraphLancerAuthoring.SkyVerdictAttackName, "JavelinThrow", 1.10f, 0.90f, 3.85f, 2.40f, 0f);
 
             // ONE red, and it is the far-band shoulder. The kick is blue: T1 has no unblockable inside
             // arm's reach.
@@ -380,7 +380,7 @@ namespace VibeGame1.Tests
             // Releases at impact + n x cadence for n < count; the last must be inside the strike, and the
             // descent must begin after it (the last javelin is in the air while he lands).
             float lastRelease = SeraphLancerJavelins.ThrowTime(0f, launcher.javelinsPerVerdict - 1, launcher.javelinCadence);
-            Assert.AreEqual(2.20f, lastRelease, 0.001f);
+            Assert.AreEqual(3.30f, lastRelease, 0.001f);   // four releases since 2026-09-14
             float descentAt = verdict.strikeDuration - v.hoverDescendSeconds;
             Assert.Greater(descentAt, lastRelease, "the descent must not begin before the last release");
             Assert.Less(descentAt - lastRelease, launcher.javelinCadence, "and the strike must not hang in the air past one cadence after it");
@@ -412,12 +412,12 @@ namespace VibeGame1.Tests
             var launcher = Prefab().GetComponent<SeraphLancerJavelins>();
             Assert.IsNotNull(launcher, "run VibeGame1/4b. Build Mini-Bosses");
 
-            // A whole verdict unguarded: three of the Judge's jabs, never a bar, never a posture break.
+            // A whole verdict unguarded (four javelins since 2026-09-14), never a bar, never a posture break.
             var stats = Stats();
             float hitPostureMult = stats != null ? stats.hitPostureMultiplier : 0.5f;
             float worstHealth = launcher.javelinsPerVerdict * javelin.damage;
             float worstPosture = launcher.javelinsPerVerdict * javelin.damage * hitPostureMult;
-            Assert.AreEqual(42f, worstHealth, 0.001f);
+            Assert.AreEqual(56f, worstHealth, 0.001f);
             Assert.Less(worstHealth, 100f, "a verdict must be survivable from full health");
             Assert.Greater(worstHealth, 25f, "and must be worth answering");
             Assert.Less(worstPosture, PlayerPostureMax, "never a stagger machine");
@@ -427,8 +427,8 @@ namespace VibeGame1.Tests
             // A whole verdict Perfect-reflected into him: a third of him, half his bar, never all of either.
             float reflectHealth = launcher.javelinsPerVerdict * d.parriedProjectileDamage;
             float reflectPosture = launcher.javelinsPerVerdict * d.parriedProjectilePosture;
-            Assert.AreEqual(66f, reflectHealth, 0.001f);
-            Assert.AreEqual(90f, reflectPosture, 0.001f);
+            Assert.AreEqual(88f, reflectHealth, 0.001f);
+            Assert.AreEqual(120f, reflectPosture, 0.001f);
             Assert.Less(reflectHealth, d.maxHP, "one verdict reflected must not kill him outright");
             Assert.Less(reflectPosture, d.maxPosture, "nor break him outright");
             Assert.GreaterOrEqual(reflectHealth, d.maxHP * 0.25f, "but the reflect must be his worst idea");
@@ -666,9 +666,9 @@ namespace VibeGame1.Tests
             var launcher = p.GetComponent<SeraphLancerJavelins>();
             Assert.IsNotNull(launcher, "the launcher lives on the root beside the brain.");
             Assert.AreEqual(SeraphLancerAuthoring.SkyVerdictAttackName, launcher.skyVerdictAttack);
-            Assert.AreEqual(3, launcher.javelinsPerVerdict);
+            Assert.AreEqual(4, launcher.javelinsPerVerdict);
             Assert.AreEqual(1.10f, launcher.javelinCadence, 0.001f);
-            Assert.AreEqual(4, launcher.liveCap);
+            Assert.AreEqual(5, launcher.liveCap);
             Assert.AreEqual(5f, launcher.javelinLifetime, 0.001f);
             Assert.AreEqual(1.6f, launcher.javelinLength, 0.001f);
             Assert.AreEqual(0.05f, launcher.shaftDiameter, 0.001f);

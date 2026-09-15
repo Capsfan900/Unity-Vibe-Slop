@@ -201,5 +201,46 @@ namespace VibeGame1.Tests
                 Object.DestroyImmediate(playerObject);
             }
         }
+        // ---- 2026-09-14 boss AI pass: phrase chaining, stance slot, projectile arbitration ----
+
+        [Test]
+        public void APhraseChainsOnlyOffAShortRecovery_InsideTheBand_AtTheAggressionRate()
+        {
+            Assert.IsTrue(EnemyController.ShouldChainPhrase(0.8f, 0.9f, 2.5f, 2.7f, 0.5f));
+            Assert.IsFalse(EnemyController.ShouldChainPhrase(0.8f, 2.4f, 2.5f, 2.7f, 0.1f), "a signature's big recovery stays the punish");
+            Assert.IsFalse(EnemyController.ShouldChainPhrase(0.8f, 0.9f, 4.0f, 2.7f, 0.1f), "a player who backed out of the band gets the breath");
+            Assert.IsFalse(EnemyController.ShouldChainPhrase(0.8f, 0.9f, 2.5f, 2.7f, 0.85f), "rolled above aggression");
+            Assert.IsFalse(EnemyController.ShouldChainPhrase(0f, 0.1f, 1f, 2.7f, 0f), "a passive enemy never chains");
+        }
+
+        [Test]
+        public void OnlyANoContactStanceOnAFlaggedEnemyFreesTheAttackSlot()
+        {
+            var d = ScriptableObject.CreateInstance<EnemyData>();
+            var stance = Atk("stance", 0.55f); stance.range = 0f;
+            var blow = Atk("blow", 0.55f); blow.range = 2.6f;
+            try
+            {
+                Assert.IsFalse(EnemyController.HoldsFreeStance(d, stance), "unflagged (T1 Lancer): strictly sequential");
+                d.stanceFreesPartner = true;
+                Assert.IsTrue(EnemyController.HoldsFreeStance(d, stance));
+                Assert.IsFalse(EnemyController.HoldsFreeStance(d, blow), "a blow always holds the slot");
+            }
+            finally { Object.DestroyImmediate(d); Object.DestroyImmediate(stance); Object.DestroyImmediate(blow); }
+        }
+
+        [Test]
+        public void ABoltLandingInsideTheCommitHorizonBlocksACommit()
+        {
+            BoltRegistry.Reset();
+            try
+            {
+                Assert.IsFalse(BoltRegistry.AnyImpactBefore(10f + EnemyController.ProjectileCommitHorizon));
+                BoltRegistry.Report(BoltRegistry.NextId(), float.MaxValue, 10.8f);
+                Assert.IsTrue(BoltRegistry.AnyImpactBefore(10f + EnemyController.ProjectileCommitHorizon));
+                Assert.IsFalse(BoltRegistry.AnyImpactBefore(9.8f + EnemyController.ProjectileCommitHorizon), "a bolt past the horizon does not");
+            }
+            finally { BoltRegistry.Reset(); }
+        }
     }
 }

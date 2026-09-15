@@ -28,6 +28,7 @@ MonoBehaviour:
   parryRecoilSeconds: 0.32
   aggression: 0.8
   flaskPunishChance: 0.7
+  stanceFreesPartner: 1
   windupTurnMultiplier: 0.3
   stepSpeedMultiplier: 0.55
   stepAcceleration: 8
@@ -90,3 +91,4 @@ MonoBehaviour:
   - hits:
     - {fileID: 11400000, guid: 8d7561328c4e9004690a4847e2229514, type: 2}
     - {fileID: 11400000, guid: 078ab5eceb21e424fb6811c6bc62019b, type: 2}
+    - {fileID: 11400000, guid: 4252a47ef75d1f8488cfe50ff91d57a7, type: 2}

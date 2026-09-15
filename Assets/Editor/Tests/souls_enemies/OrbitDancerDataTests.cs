@@ -544,9 +544,9 @@ namespace VibeGame1.Tests
             Assert.AreEqual(OrbitDancerAuthoring.DiscThrowAttackName, launcher.discThrowAttack);
             Assert.AreEqual(OrbitDancerAuthoring.SpinThrowAttackName, launcher.spinThrowAttack);
             Assert.AreEqual(3, launcher.volleyCount);
-            Assert.AreEqual(2, launcher.whirlCount);
+            Assert.AreEqual(3, launcher.whirlCount);
             Assert.AreEqual(4, launcher.liveCap);
-            Assert.AreEqual(3, launcher.maxBounces);
+            Assert.AreEqual(4, launcher.maxBounces);
             Assert.AreEqual(4f, launcher.discLifetime, 0.001f);
             Assert.AreEqual(900f, launcher.spinDegPerSec, 0.001f);
             Assert.AreEqual(0.60f, launcher.discDiameter, 0.001f);

@@ -1112,11 +1112,18 @@ EnemyController  = the BRAIN ONLY. Rig-agnostic: it knows states, timings and di
             telegraph; cue fires cueLead (0.28s) before impact
   Strike  → the attack's lungeDistance translates the BODY along the facing frozen at cue time
             (previously the lunge only moved a child transform, so attacks only landed in your face)
+            phrase ends → TryChainPhrase (2026-09-14): ShouldChainPhrase(aggression, recovery ≤ 1.0, dist ≤
+            preferredRange + commitTolerance, Random.value) + facing ≤ 50° + MayCommitToAttack, at most
+            MaxChainedPhrases (2) back to back → BeginWindup(next phrase hit 0, NextGap) with no Recover.
+            Otherwise the breath below. BeginCombo from Chase resets the chain count.
   Recover → Reposition: step in if you fled, back off if inside its own range, strafe when settled
             then resume combo OR (aggroLocked ? Idle : Chase)
   Staggered → deathblow available     Executed / Dead
 
   arbitration: static activeEnemies; only MaxSimultaneousAttackers (1) may be mid-swing.
+               MayCommitToAttack is also false while BoltRegistry has any bolt/disc/javelin impact within
+               ProjectileCommitHorizon (0.9 s). An enemy with EnemyData.stanceFreesPartner (the Cinder Judge)
+               does not count while its attack has range 0 (the Aegis raise), so its T4 partner may press.
 ```
 
 ### Wind-up silhouettes — one pose per attack

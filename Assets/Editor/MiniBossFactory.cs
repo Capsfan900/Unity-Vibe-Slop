@@ -436,13 +436,13 @@ namespace VibeGame1.EditorTools
                 // you are already inside her reach. Not 4-5: the global cap below would swallow the
                 // second volley, and three lines from three sides is the most a first-person frame reads.
                 discs.volleyCount = 3;
-                discs.whirlCount = 2;
+                discs.whirlCount = 3;   // 2026-09-14 escalation (was 2)
                 // 4 alive, any thrower (the plan's number): a volley plus one straggler; a second throw
                 // inside the first's 4 s life launches only what fits, so the screen never fills.
                 discs.liveCap = 4;
                 // 3 walls, then it shatters: enough for a corridor to skip a disc back twice, few enough
                 // that a disc never becomes furniture.
-                discs.maxBounces = 3;
+                discs.maxBounces = 4;   // 2026-09-14 escalation (was 3)
                 // 4 s at 16 m/s is 64 m of travel: three bounces across a 30 m realm fit, a disc that
                 // found no wall is gone before the next volley (6 s cooldown).
                 discs.discLifetime = 4f;
@@ -580,14 +580,15 @@ namespace VibeGame1.EditorTools
                 javelins.skyVerdictAttack = SeraphLancerAuthoring.SkyVerdictAttackName;
                 // 3 a verdict, one after another: one to see, one to parry, one to confirm. Not the
                 // Dancer's three at once -- the first boss teaches the beat, not the chaos.
-                javelins.javelinsPerVerdict = 3;
+                // 4 since 2026-09-14 (user: "absurd but fair"); the 1.10 s cadence is unchanged.
+                javelins.javelinsPerVerdict = 4;
                 // 1.10 s between releases = 0.57 s of arm-back (the clip's own anticipation, the readable
                 // tell) + 0.25 s of follow-through + 0.28 s of HoverHold breath. With 0.4-0.9 s of
                 // flight each, arrivals are 1.10 s apart: well over the parry contract's 0.69 s floor.
                 javelins.javelinCadence = 1.10f;
                 // 4 alive, any thrower: the three of one verdict plus one still flying BACK after a
                 // Perfect, so a reflect can never cost him his third throw.
-                javelins.liveCap = 4;
+                javelins.liveCap = 5;
                 // 5 s at 15 m/s is 75 m: a javelin that found nothing is gone long before the next
                 // verdict (10 s cooldown), and a reflected one always reaches him.
                 javelins.javelinLifetime = 5f;

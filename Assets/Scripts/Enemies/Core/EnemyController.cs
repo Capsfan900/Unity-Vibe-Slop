@@ -200,15 +200,42 @@ namespace VibeGame1
         /// </summary>
         bool MayCommitToAttack()
         {
+            // A bolt, disc or javelin landing inside the earliest possible wind-up + parry window is an attack
+            // in progress too: committing now would stack two answers on one beat.
+            if (BoltRegistry.AnyImpactBefore(Time.time + ProjectileCommitHorizon)) return false;
             int committed = 0;
             for (int i = 0; i < activeEnemies.Count; i++)
             {
                 var e = activeEnemies[i];
                 if (e == null || e == this || !e.IsAlive) continue;
-                if (e.IsCommitted) committed++;
+                if (e.IsCommitted && !HoldsFreeStance(e.data, e.attack)) committed++;
             }
             return committed < Mathf.Max(1, MaxSimultaneousAttackers);
         }
+
+        /// <summary>Shortest wind-up floor (0.45) + impact slack (0.05) + parry window (0.4).</summary>
+        public const float ProjectileCommitHorizon = 0.9f;
+
+        /// <summary>A no-contact stance on an enemy authored to free its partner does not hold the attack slot.</summary>
+        public static bool HoldsFreeStance(EnemyData d, EnemyAttackData atk)
+        {
+            return d != null && d.stanceFreesPartner && atk != null && atk.range <= 0f;
+        }
+
+        /// <summary>
+        /// Chain straight into the next phrase instead of Recover -> Chase -> walk -> commit. Only off a
+        /// short-recovery phrase (a signature's big recovery stays the punish), only with the player still in
+        /// the commit band, and only as often as the enemy is aggressive. Every hit is still cued.
+        /// </summary>
+        public static bool ShouldChainPhrase(float aggression, float recovery, float dist, float band, float roll)
+        {
+            return recovery <= MaxChainRecovery && dist <= band && roll < aggression;
+        }
+
+        public const float MaxChainRecovery = 1f;
+        /// <summary>Phrases chained back to back before a real breath is forced.</summary>
+        public const int MaxChainedPhrases = 2;
+        int chainedPhrases;
 
         protected virtual void Awake()
         {
@@ -646,8 +673,31 @@ namespace VibeGame1
             combo = c;
             comboIndex = 0;
             parryStreak = 0;
+            chainedPhrases = 0;
             resumeComboAfterRecover = false;
             BeginWindup(c.hits[0], 0f);
+        }
+
+        bool TryChainPhrase()
+        {
+            if (data == null || data.rangedOnly || aggroLocked || player == null || attack == null) return false;
+            if (chainedPhrases >= MaxChainedPhrases) return false;
+            Vector3 toP = player.position - transform.position; toP.y = 0f;
+            float dist = toP.magnitude;
+            if (Vector3.Angle(transform.forward, toP) > 50f) return false;
+            if (!ShouldChainPhrase(Aggression, attack.recovery, dist, data.preferredRange + data.commitTolerance, Random.value))
+                return false;
+            if (!MayCommitToAttack()) return false;
+            var c = ChooseCombo(dist);
+            if (c == null || c.hits == null || c.hits.Length == 0) return false;
+            var from = attack;
+            chainedPhrases++;
+            combo = c;
+            comboIndex = 0;
+            parryStreak = 0;
+            resumeComboAfterRecover = false;
+            BeginWindup(c.hits[0], NextGap(from));
+            return true;
         }
 
         void BeginWindup(EnemyAttackData atk, float gap)
@@ -725,6 +775,8 @@ namespace VibeGame1
                 BeginWindup(combo.hits[comboIndex], NextGap(attack));
                 return;
             }
+            if (TryChainPhrase()) return;
+            chainedPhrases = 0;
             combo = null;
             parryStreak = 0;
             if (visuals != null) visuals.ClearTelegraph();

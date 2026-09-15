@@ -278,8 +278,9 @@ namespace VibeGame1.Tests
 
             MovesetEntry entry = null;
             foreach (var e in Data().moveset.entries)
-                if (e.combo.hits.Length == 2 && e.combo.hits[0] == raise && e.combo.hits[1] == bash) entry = e;
-            Assert.IsNotNull(entry, "raise then bash is one schedule");
+                if (e.combo.hits.Length == 3 && e.combo.hits[0] == raise && e.combo.hits[1] == bash
+                    && e.combo.hits[2] == Atk("CinderJudge_Heavy")) entry = e;
+            Assert.IsNotNull(entry, "raise, bash, then the Heavy dive is one schedule (2026-09-14)");
             Assert.Greater(entry.cooldown, 8f, "a signature, not a loop");
 
             var shield = Prefab().GetComponent<CinderJudgeShield>();

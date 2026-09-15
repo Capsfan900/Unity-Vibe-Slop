@@ -15,7 +15,7 @@ MonoBehaviour:
   attackName: SeraphLancer_SkyVerdict
   windup: 1.1
   impactDelay: 0.9
-  strikeDuration: 2.75
+  strikeDuration: 3.85
   recovery: 2.4
   range: 0
   coneDeg: 0

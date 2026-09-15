@@ -24,13 +24,13 @@ namespace VibeGame1.Tests
         }
 
         [Test]
-        public void ShippedGrabIsABlueCuedGrabWithAnUnblockableSlam()
+        public void ShippedGrabIsARedCuedGrabWithAnUnblockableSlam()
         {
             var grab = AssetDatabase.LoadAssetAtPath<EnemyAttackData>("Assets/Data/Attacks/BrawlerV18_Grab.asset");
             var slam = AssetDatabase.LoadAssetAtPath<EnemyAttackData>("Assets/Data/Attacks/BrawlerV18_GrabSlam.asset");
             Assert.IsNotNull(grab, "run VibeGame1/3. Create Data");
             Assert.IsNotNull(slam);
-            Assert.IsFalse(grab.unblockable, "a Perfect parry must be able to stop the grab");
+            Assert.IsTrue(grab.unblockable, "the grab punishes a Block, so it must read RED: dodge it (2026-09-14)");
             Assert.GreaterOrEqual(grab.windup, 0.7f, "the reach is telegraphed");
             Assert.GreaterOrEqual(grab.strikeDuration, 0.9f + 0.35f + 0.3f, "the brain stays committed through lift + hold + throw");
             Assert.IsTrue(slam.unblockable);

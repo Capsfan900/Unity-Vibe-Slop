@@ -40,6 +40,10 @@ namespace VibeGame1
                  "on a 4 s per-enemy cooldown so the flask is a decision, not a trap. Ignored by sentries.")]
         [Range(0f, 1f)] public float flaskPunishChance = 0f;
 
+        [Tooltip("While this enemy holds a NO-CONTACT stance (an attack with range 0, e.g. the Judge's shield " +
+                 "raise) it does not take the duo attack slot, so its partner may attack. Off = strictly sequential.")]
+        public bool stanceFreesPartner = false;
+
         [Header("Weight — aggressive should read as deliberate, not twitchy")]
         [Tooltip("Turn rate multiplier while winding up. Well under 1 so a committed attack stays committed " +
                  "and circling the enemy is a real answer. This is the main thing separating pressure from unfairness.")]

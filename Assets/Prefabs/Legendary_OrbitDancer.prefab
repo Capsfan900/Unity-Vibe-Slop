@@ -1622,9 +1622,9 @@ MonoBehaviour:
   discThrowAttack: OrbitDancer_DiscThrow
   spinThrowAttack: OrbitDancer_SpinThrow
   volleyCount: 3
-  whirlCount: 2
+  whirlCount: 3
   liveCap: 4
-  maxBounces: 3
+  maxBounces: 4
   discLifetime: 4
   spinDegPerSec: 900
   discDiameter: 0.6
