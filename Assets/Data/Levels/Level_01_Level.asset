@@ -17,7 +17,7 @@ MonoBehaviour:
   sceneName: Level_01
   parTime: 225
   orderIndex: 0
-  requiredRunSouls: 5640
+  requiredRunSouls: 4790
   requiredRegularKills: 4
   gradeBonuses:
     dSouls: 0
@@ -32,8 +32,7 @@ MonoBehaviour:
       zoneIdOverride: 
     name: Lancer
     endSpawnerName: Spawn_Legendary_Ninja
-    alsoRequiredSpawnerNames:
-    - Spawn_Legendary_T1_Duo
+    alsoRequiredSpawnerNames: []
     sSeconds: 65
     aSeconds: 74.75
     bSeconds: 84.5
@@ -44,8 +43,7 @@ MonoBehaviour:
       zoneIdOverride: 
     name: Dancer
     endSpawnerName: Spawn_Legendary_Knight
-    alsoRequiredSpawnerNames:
-    - Spawn_Legendary_T2_Duo
+    alsoRequiredSpawnerNames: []
     sSeconds: 70
     aSeconds: 80.5
     bSeconds: 91
@@ -1193,24 +1191,6 @@ MonoBehaviour:
     yaw: 180
     isBoss: 0
   - meta:
-      objectId: T1.ThirteenthShade.01
-      friendlyName: 
-      zoneIdOverride: 
-    name: Spawn_Legendary_T1_Duo
-    prefabKey: Legendary_Ninja
-    position: {x: 0, y: 6, z: 87.3}
-    yaw: 180
-    isBoss: 0
-  - meta:
-      objectId: T2.Halberdier.01
-      friendlyName: 
-      zoneIdOverride: 
-    name: Spawn_Legendary_T2_Duo
-    prefabKey: Legendary_Halberdier
-    position: {x: 0, y: 22, z: 215.8}
-    yaw: 180
-    isBoss: 0
-  - meta:
       objectId: T3.Marionette.01
       friendlyName: 
       zoneIdOverride: 
@@ -1723,7 +1703,7 @@ MonoBehaviour:
       enemySpawnerName: Spawn_Legendary_Ninja
       enemySpawnPosition: {x: 700, y: 0.1, z: 3.6}
       enemySpawnYaw: 180
-      partnerSpawnerName: Spawn_Legendary_T1_Duo
+      partnerSpawnerName: 
       partnerSpawnPosition: {x: 705, y: 0.1, z: 1.5999999}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_T1_Surge
@@ -1782,7 +1762,7 @@ MonoBehaviour:
       enemySpawnerName: Spawn_Legendary_Knight
       enemySpawnPosition: {x: 700, y: 0.1, z: 103.6}
       enemySpawnYaw: 180
-      partnerSpawnerName: Spawn_Legendary_T2_Duo
+      partnerSpawnerName: 
       partnerSpawnPosition: {x: 705, y: 0.1, z: 101.6}
       partnerSpawnYaw: 180
       arenaPickupName: Pickup_T2_Hook_2

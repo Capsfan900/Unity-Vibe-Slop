@@ -997,19 +997,19 @@ namespace VibeGame1.EditorTools
         /// <summary>Writes the campaign run contract as level data, never as a scorer-side level special case.</summary>
         static void ApplyRunScoring(LevelDefinition def)
         {
-            // User contract: every scored run answers all eight duo legendaries, the Warden, and any four
-            // authored regular enemies. Duo realms 2026-09-14: Lancer 520 + Shade 400 | Dancer 560 +
-            // Halberdier 450 | Revenant 400 + Marionette 550 | V18 480 + Judge 620 | Warden 1500 + (4 * 40)
-            // = 5640 baseline souls. Split bonuses are additional rewards and never substitute for the gates.
-            def.requiredRunSouls = 5640;
+            // User contract: every scored run answers every realm legendary, the Warden, and any four
+            // authored regular enemies. 2026-09-14 (later): T1 and T2 are solo showcases again, T3 and T4
+            // stay duos: Lancer 520 | Dancer 560 | Revenant 400 + Marionette 550 | V18 480 + Judge 620 |
+            // Warden 1500 + (4 * 40) = 4790 baseline souls. Split bonuses never substitute for the gates.
+            def.requiredRunSouls = 4790;
             def.requiredRegularKills = 4;
             def.gradeBonuses = new RunGradeBonusDef { dSouls = 0, cSouls = 25, bSouls = 50, aSouls = 75, sSouls = 100 };
             def.runSplits = new[]
             {
                 // Spawner names are the stable contract; the occupants are the 2026-09-13 roster.
                 // Duo realms close their split on whichever of the pair dies last. Pars are placeholders.
-                Split("Lancer", "Spawn_Legendary_Ninja", 65f, "Spawn_Legendary_T1_Duo"),
-                Split("Dancer", "Spawn_Legendary_Knight", 70f, "Spawn_Legendary_T2_Duo"),
+                Split("Lancer", "Spawn_Legendary_Ninja", 65f),
+                Split("Dancer", "Spawn_Legendary_Knight", 70f),
                 Split("Revenant", "Spawn_Legendary_Spellsword", 80f, "Spawn_Legendary_T3_Duo"),
                 Split("Grappler", GrapplerSpawner, 75f, "Spawn_Legendary_T4_Duo"),
                 Split("Warden", "Spawn_Boss", 40f),
@@ -1603,13 +1603,12 @@ namespace VibeGame1.EditorTools
         public const float RealmEntryZ = -11.7f, RealmEnemyZ = 3.6f, RealmExitZ = -15.5f, RealmPickupX = 6.3f;
         public const float RealmPartnerX = 5f;
 
-        // THE DUO REALMS (user, 2026-09-14): every mini realm holds two legendaries fought at once, and
-        // the T4 realm before the Warden pairs the two hardest. EnemyController's attack arbitration
+        // THE DUO REALMS (user, 2026-09-14): T3 and T4 hold two legendaries fought at once, and the T4 realm
+        // before the Warden pairs the two hardest. T1 (Seraph Lancer) and T2 (Orbit Dancer) went back to solo
+        // showcases for the reworked bosses the same day. EnemyController's attack arbitration
         // (MaxSimultaneousAttackers) keeps one of them winding up at a time. {gate, partner spawner, prefab}.
         public static readonly string[][] RealmPartners =
         {
-            new[] { "T1_Gate", "Spawn_Legendary_T1_Duo", "Legendary_Ninja" },
-            new[] { "T2_Gate", "Spawn_Legendary_T2_Duo", "Legendary_Halberdier" },
             new[] { "T3_Gate", "Spawn_Legendary_T3_Duo", "Legendary_Marionette" },
             new[] { "T4_Gate", "Spawn_Legendary_T4_Duo", "Legendary_CinderJudge" },
         };
@@ -1683,6 +1682,9 @@ namespace VibeGame1.EditorTools
         static void EnsureRealmPartners(LevelDefinition def)
         {
             var spawns = new List<SpawnDef>(def.spawns ?? new SpawnDef[0]);
+            // A realm that is no longer a duo (T1, T2 since 2026-09-14) must not keep its old partner spawner.
+            spawns.RemoveAll(s => s != null && s.name.StartsWith("Spawn_Legendary_T") && s.name.EndsWith("_Duo") &&
+                                  System.Array.Find(RealmPartners, p => p[1] == s.name) == null);
             foreach (var seat in RealmPartners)
             {
                 var spawn = spawns.Find(s => s != null && s.name == seat[1]);

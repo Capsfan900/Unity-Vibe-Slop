@@ -314,9 +314,11 @@ namespace VibeGame1.Tests
             try
             {
                 LevelDefinitionAuthoring.Apply(def);
-                Assert.AreEqual(5640, def.requiredRunSouls,
-                    "eight duo legendaries (920 + 1010 + 950 + 1100) + Warden 1500 + four 40-soul regulars define the Level_01 baseline");
-                CollectionAssert.AreEqual(new[] { "Spawn_Legendary_T1_Duo" }, def.runSplits[0].alsoRequiredSpawnerNames);
+                Assert.AreEqual(4790, def.requiredRunSouls,
+                    "Lancer 520 + Dancer 560 + the T3 duo 950 + the T4 duo 1100 + Warden 1500 + four 40-soul regulars define the Level_01 baseline");
+                CollectionAssert.IsEmpty(def.runSplits[0].alsoRequiredSpawnerNames, "T1 is a solo showcase");
+                CollectionAssert.IsEmpty(def.runSplits[1].alsoRequiredSpawnerNames, "T2 is a solo showcase");
+                CollectionAssert.AreEqual(new[] { "Spawn_Legendary_T3_Duo" }, def.runSplits[2].alsoRequiredSpawnerNames);
                 Assert.AreEqual(4, def.requiredRegularKills);
                 CollectionAssert.AreEqual(new[] { "Spawn_Legendary_Ninja", "Spawn_Legendary_Knight",
                     "Spawn_Legendary_Spellsword", "Spawn_Legendary_V18Grappler", "Spawn_Boss" },
@@ -366,7 +368,7 @@ namespace VibeGame1.Tests
         public void ShippedAssetCarriesTheRunContractAfterAuthoring()
         {
             var def = AssetDatabase.LoadAssetAtPath<LevelDefinition>(LevelDefinitionAuthoring.Level01);
-            Assert.AreEqual(5640, def.requiredRunSouls);
+            Assert.AreEqual(4790, def.requiredRunSouls);
             Assert.AreEqual(4, def.requiredRegularKills);
             Assert.AreEqual(5, def.runSplits.Length);
             CollectionAssert.AreEqual(new[] { "Lancer", "Dancer", "Revenant", "Grappler", "Warden" },
@@ -398,7 +400,7 @@ namespace VibeGame1.Tests
                 }
                 Assert.IsNotNull(scorer, "rebuild Level_01 after adding LevelRunScorer");
                 Assert.IsNotNull(scorer.definition);
-                Assert.AreEqual(5640, scorer.definition.requiredRunSouls);   // duo realms (2026-09-14)
+                Assert.AreEqual(4790, scorer.definition.requiredRunSouls);   // T1/T2 solo, T3/T4 duos (2026-09-14)
                 Assert.IsNotNull(scorer.registry);
             }
             finally

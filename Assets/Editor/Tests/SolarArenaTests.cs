@@ -88,7 +88,10 @@ namespace VibeGame1.Tests
                 Assert.That(Vector3.Distance(r.realmCenter, new Vector3(700f, 0f, 100f * i)), Is.LessThan(Eps), Gates[i] + " cell");
                 Assert.That(Vector3.Distance(r.playerEntryPosition - r.realmCenter, new Vector3(0f, 1.2f, -11.7f)), Is.LessThan(Eps), Gates[i] + " entry");
                 Assert.That(Vector3.Distance(r.enemySpawnPosition - r.realmCenter, new Vector3(0f, 0.1f, 3.6f)), Is.LessThan(Eps), Gates[i] + " enemy");
-                if (r.hasReturn)
+                bool duo = Gates[i] != "T1_Gate" && Gates[i] != "T2_Gate";   // T1/T2 solo showcases (2026-09-14)
+                if (r.hasReturn && !duo)
+                    Assert.IsTrue(string.IsNullOrEmpty(r.partnerSpawnerName), Gates[i] + " is a solo showcase");
+                if (r.hasReturn && duo)
                 {
                     Assert.IsFalse(string.IsNullOrEmpty(r.partnerSpawnerName), Gates[i] + " duo partner");
                     Assert.That(Vector3.Distance(r.partnerSpawnPosition - r.realmCenter, new Vector3(5f, 0.1f, 1.6f)), Is.LessThan(Eps), Gates[i] + " partner");
