@@ -2,8 +2,18 @@
 
 ## Current state
 
-`master` is at `4723f60` (`[Astra] Handoff: realm boss intro done`) — the duo-realms + realm-boss-intro
-work from the previous session, unchanged this session. **Nothing from this session is committed.**
+`master` is at `b8dcf5c` (`[Astra] Handoff: duo-realm bugs investigated, boss AI review in flight`).
+**Nothing from Fable's pass is committed yet.**
+
+**Mid-session policy change, apply going forward:** the user said Fable-tier should do judgment/design
+only, never implementation typing — see `[[fable-brain-only]]` in memory. Fable's still-running pass was
+redirected mid-flight: finish only what's already started to a clean stopping point, then switch to a
+written spec (no more code) for the rest of its brief; a cheaper (sonnet-tier) worker implements the spec
+next, Fable reviews the diff after. **Also:** the user pushed back on agent token cost generally ("shave
+down on the agent contracts... they eat tokens and not help") — decision was to keep the `.claude/agents/*`
+brief files as-is but tighten delegation habit: prefer `fork` over a fresh agent whenever conversation
+context matters, reserve fresh agents for genuinely context-independent work, see the reaffirmed
+`[[token-cost-inline-first]]`. No AGENTS.md change — user chose behavior-only, not a project-doc edit.
 
 This session did no direct code edits. It ran three side investigations and one review/correction pass,
 all as background agents, in response to the user reporting live bugs while playing the just-shipped duo
@@ -23,12 +33,17 @@ realms:
   mid-pass and I relayed to it: movesets need more fluid transitions between attacks, more aggression
   overall, and bosses should be "absurd but fair/doable" — see `[[combat-difficulty-direction]]` in memory,
   this applies to all future boss/enemy work, not just this pass.
-  - **As of this handoff it is still editing** — working tree currently has uncommitted changes to
-    `Assets/Editor/Tests/PuppetSpinTests.cs`, `Assets/Scripts/Enemies/Core/PuppetVisuals.cs`,
-    `Assets/Scripts/Enemies/parkour_enemies/Projectile.cs` (82 insertions / 12 deletions so far, growing).
-    **Do not commit yet.** Per the project's worker-pass rule, the lead reviews the full diff, re-runs the
-    generators the report names plus both test suites, then makes ONE commit prefixed `[combat-designer]`
-    with a `Model: Fable 5.1 (Claude Code)` trailer (and note the lead model too).
+  - **As of this handoff it is still editing** — working tree currently has uncommitted changes across 17
+    files (138 insertions / 62 deletions), including `Assets/Editor/DataFactory.cs`, `PuppetVisuals.cs`,
+    `Projectile.cs`, three `souls_enemies` test files, `PuppetSpinTests.cs`, and — because it edited
+    `DataFactory.cs` — the regenerated `.asset` data it writes: `Legendary_{CinderJudge,FlurryBrawlerV18,
+    Halberdier,OrbitDancer,Revenant,SeraphLancer}.asset`, `CinderJudge_StormJudgement.asset`, and
+    `DeflectSigil/Grapple/Rebound.asset`. Regenerating shipped assets from a `DataFactory` edit is the
+    project's correct pattern (hard rule 9), not a mistake — but it means the diff is real gameplay data,
+    not just code. **Do not commit yet.** Per the project's worker-pass rule, the lead reviews the full
+    diff, re-runs the generators the report names plus both test suites, then makes ONE commit prefixed
+    `[combat-designer]` with a `Model: Fable 5.1 (Claude Code)` trailer (and note the lead model too).
+    Run `git diff --stat` first to see the current size before assuming this list is still accurate.
   - If a new session opens and this agent is gone (background agents don't survive a session boundary),
     the uncommitted diff above is its unfinished work — read it, decide whether to finish it yourself or
     ask the user, then commit or discard deliberately. Don't leave it uncommitted indefinitely.
