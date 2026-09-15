@@ -88,8 +88,11 @@ namespace VibeGame1
         void Update()
         {
             if (!triggered || cleared || clearSpawner == null) return;
-            if (!IsSpawnDead(clearSpawner, ref sawAlive)) return;
-            if (partnerSpawner != null && !IsSpawnDead(partnerSpawner, ref sawPartnerAlive)) return;
+            // Evaluate BOTH every frame: a short-circuit left the partner's seen-alive latch unset while
+            // the main enemy lived, so a partner killed first (and destroyed 1.5 s later) never counted.
+            bool mainDead = IsSpawnDead(clearSpawner, ref sawAlive);
+            bool partnerDead = partnerSpawner == null || IsSpawnDead(partnerSpawner, ref sawPartnerAlive);
+            if (!mainDead || !partnerDead) return;
 
             cleared = true;
             // Both gates drop: the seal is broken, not merely a door unlocked.
