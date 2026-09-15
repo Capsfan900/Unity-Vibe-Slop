@@ -22,6 +22,11 @@ namespace VibeGame1
         public bool hasReturn;
 
         const float TeleportDebounce = 0.25f;
+        /// <summary>How long a mini realm's entry holds the camera on its occupants while they stand still.</summary>
+        public const float IntroHoldSeconds = 1.6f;
+        public const float IntroFovPushDegrees = 14f;
+        Coroutine intro;
+        readonly System.Collections.Generic.List<EnemyController> introLocked = new System.Collections.Generic.List<EnemyController>();
         float lastTeleportAt = -99f;
         bool exitShown;
         PlayerCombat occupant;
@@ -102,6 +107,12 @@ namespace VibeGame1
             AudioManager.Play(Sfx.SolarWarp, 1f, 1f, 0f);
             lastTeleportAt = Time.unscaledTime;
             occupant = player;
+            if (!IsFinalBossPortal)
+            {
+                EndIntro();
+                if (isActiveAndEnabled) intro = StartCoroutine(IntroHold(player));
+                GameEvents.RaiseRealmFightStarted(arena);
+            }
             return true;
         }
 
@@ -128,9 +139,57 @@ namespace VibeGame1
                 Teleport(occupant, worldRetry);
             occupant = null;
             lastTeleportAt = -99f;
+            EndIntro();
             SetExit(false);
             // A reset undoes a crossing; a cover armed for it must not outlive it.
             if (ScreenFlash.I != null) ScreenFlash.I.ClearCurtain();
+        }
+
+        /// <summary>
+        /// The souls "boss reveal": the occupants hold (aggroLocked) while the view is pulled onto them.
+        /// Runs after PlayerLook.Update each frame and steers through NudgeAim, the sanctioned camera API.
+        /// </summary>
+        System.Collections.IEnumerator IntroHold(PlayerCombat player)
+        {
+            introLocked.Clear();
+            LockOccupant(arena.clearSpawner);
+            LockOccupant(arena.partnerSpawner);
+            var look = player != null ? player.GetComponent<PlayerLook>() : null;
+            float end = Time.unscaledTime + IntroHoldSeconds;
+            while (Time.unscaledTime < end)
+            {
+                yield return null;
+                if (look == null || look.Cam == null || introLocked.Count == 0) continue;
+                Vector3 focus = Vector3.zero;
+                foreach (var e in introLocked) if (e != null) focus += e.transform.position;
+                focus = focus / introLocked.Count + Vector3.up * 1.6f;
+                Vector3 to = focus - look.Cam.position;
+                float wantYaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+                float wantPitch = -Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg;
+                float k = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
+                look.NudgeAim(Mathf.DeltaAngle(look.Yaw, wantYaw) * k, (wantPitch - look.Pitch) * k);
+                // A slow push-in on the pair. CameraFX.FovHold's only other writer is the slide, and the
+                // player arrives standing, so the channel is free for the hold's duration.
+                if (CameraFX.I != null) CameraFX.I.FovHold(-IntroFovPushDegrees);
+            }
+            EndIntro();
+        }
+
+        void LockOccupant(EnemySpawner spawner)
+        {
+            var inst = spawner != null ? spawner.Instance : null;
+            var enemy = inst != null ? inst.GetComponent<EnemyController>() : null;
+            if (enemy == null || enemy.aggroLocked) return;
+            enemy.aggroLocked = true;
+            introLocked.Add(enemy);
+        }
+
+        void EndIntro()
+        {
+            if (intro != null) { StopCoroutine(intro); intro = null; }
+            if (introLocked.Count > 0 && CameraFX.I != null) CameraFX.I.FovHold(0f);
+            foreach (var e in introLocked) if (e != null) e.aggroLocked = false;
+            introLocked.Clear();
         }
 
         static bool Teleport(PlayerCombat player, Transform destination)

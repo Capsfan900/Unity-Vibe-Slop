@@ -120,7 +120,7 @@ namespace VibeGame1.Tests
         {
             var d = Data();
             Assert.IsNotNull(d, "run VibeGame1/3. Create Data");
-            Assert.AreEqual("THE FLURRY BRAWLER V18 (TEST)", d.displayName);
+            Assert.AreEqual("THE V18 GRAPPLER", d.displayName);
             Assert.AreEqual(190f, d.maxHP, 0.001f);
             Assert.AreEqual(160f, d.maxPosture, 0.001f);
             Assert.AreEqual(4f, d.staggerSeconds, 0.001f);

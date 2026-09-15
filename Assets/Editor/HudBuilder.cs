@@ -146,6 +146,7 @@ namespace VibeGame1.EditorTools
             var pause = root.AddComponent<PauseMenu>();
             var levelUp = root.AddComponent<LevelUpMenu>();
             var bossBar = root.AddComponent<BossBarView>();
+            var realmBar = root.AddComponent<RealmBossBarView>();
             var testMenu = root.AddComponent<TestMenu>();
             var wandMenu = root.AddComponent<WandSelectMenu>();
             var settings = root.AddComponent<SettingsMenu>();
@@ -529,6 +530,44 @@ namespace VibeGame1.EditorTools
                 Rect(pip.gameObject, TopCenter, TopCenter, Center, new Vector2(x, -78f), new Vector2(14f, 14f));
                 bossBar.pips[i] = pip;
             }
+
+            // ---------------- Realm boss bars (2026-09-14) ----------------
+            // The mini realms' own pane, in the Warden bar's place (the two fights never overlap). One
+            // slot per occupant; a duo realm fills both, a single occupant hides the second.
+            var realmGroup = Group("RealmBossBars", t, TopCenter, TopCenter, TopCenter, new Vector2(0f, -92f), new Vector2(940f, 120f));
+            var realmPane = PaneInto(realmGroup, null, 12f);
+            realmBar.root = realmGroup.gameObject;
+            realmBar.slots = new GameObject[2];
+            realmBar.slotNames = new TMP_Text[2];
+            realmBar.slotHealth = new BarView[2];
+            for (int i = 0; i < 2; i++)
+            {
+                var slot = Group("Slot" + i, realmPane, TopCenter, TopCenter, TopCenter, new Vector2(0f, -8f - i * 54f), new Vector2(900f, 50f));
+                realmBar.slots[i] = slot.gameObject;
+                var slotName = Txt("Name", slot, "BOSS", 18f, Bone, TextAlignmentOptions.Center);
+                slotName.fontStyle = FontStyles.Bold;
+                slotName.characterSpacing = 6f;
+                Rect(slotName.gameObject, TopCenter, TopCenter, TopCenter, new Vector2(0f, 0f), new Vector2(900f, 24f));
+                realmBar.slotNames[i] = slotName;
+                var health = Bar("Health", slot, BossRed, true, false);
+                Rect(health.gameObject, TopCenter, TopCenter, TopCenter, new Vector2(0f, -28f), new Vector2(900f, 12f));
+                realmBar.slotHealth[i] = health;
+            }
+
+            // The name card: a dark band across the screen's upper-middle and the names in bone, spaced wide.
+            var cardGroup = Group("RealmNameCard", t, Center, Center, Center, new Vector2(0f, 150f), new Vector2(2400f, 230f));
+            realmBar.card = cardGroup.gameObject.AddComponent<CanvasGroup>();
+            realmBar.card.alpha = 0f;
+            realmBar.card.blocksRaycasts = false;
+            realmBar.card.interactable = false;
+            var band = Img("Band", cardGroup, new Color(0f, 0f, 0f, 0.55f));
+            band.raycastTarget = false;
+            Stretch(band.gameObject);
+            realmBar.cardText = Txt("Names", cardGroup, "", 48f, Bone, TextAlignmentOptions.Center);
+            realmBar.cardText.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            realmBar.cardText.characterSpacing = 12f;
+            realmBar.cardText.lineSpacing = -10f;
+            Stretch(realmBar.cardText.gameObject);
 
             // ---------------- Screen flash (after gameplay widgets, before menus) ----------------
             var flashImg = Img("ScreenFlash", t, new Color(1f, 1f, 1f, 0f));

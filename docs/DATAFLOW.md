@@ -2743,6 +2743,11 @@ BossArenaTrigger  = ONE mechanism for every gated fight
   duo arena (partnerSpawner set, 2026-09-14) -> both spawners must be dead (each with its own seen-alive
                                           latch). Wired by the builder from SolarRealmDef.partnerSpawnerName;
                                           EnemyController.MaxSimultaneousAttackers keeps one wind-up at a time.
+  realm entry presentation (2026-09-14): SolarArenaPortal.Enter (mini realms only) -> IntroHold coroutine
+    (IntroHoldSeconds 1.6: occupants aggroLocked, view pulled onto the pair via PlayerLook.NudgeAim, FOV
+    push-in via CameraFX.FovHold, all released by EndIntro / ResetPortal) + GameEvents.RealmFightStarted ->
+    RealmBossBarView (HUD): souls name card (3.2 s) and one health bar per occupant, polled from Health,
+    hidden 1.5 s after arena.Cleared or on PlayerRespawned. The Warden keeps BossBarView.
   run split: RunSplitDef.alsoRequiredSpawnerNames -> LevelRunScorer closes the split on whichever listed
     spawner dies last; none of them counts as a regular kill.
 

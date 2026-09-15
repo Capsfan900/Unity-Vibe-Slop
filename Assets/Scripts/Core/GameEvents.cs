@@ -21,6 +21,8 @@ namespace VibeGame1
         public static event Action<Checkpoint> CheckpointReached;
         public static event Action<EnemyController> EnemyKilled;
         public static event Action<BossController> BossStarted;
+        /// <summary>A mini-boss solar realm was entered (2026-09-14): the name card, camera hold and duo bars key off it.</summary>
+        public static event Action<BossArenaTrigger> RealmFightStarted;
         public static event Action<float, float, int> BossHealthChanged;
         public static event Action<float, float> BossPostureChanged;
         public static event Action BossDefeated;
@@ -71,6 +73,7 @@ namespace VibeGame1
         public static void RaiseCheckpointReached(Checkpoint c) => CheckpointReached?.Invoke(c);
         public static void RaiseEnemyKilled(EnemyController e) => EnemyKilled?.Invoke(e);
         public static void RaiseBossStarted(BossController b) => BossStarted?.Invoke(b);
+        public static void RaiseRealmFightStarted(BossArenaTrigger a) => RealmFightStarted?.Invoke(a);
         public static void RaiseBossHealthChanged(float c, float m, int seg) => BossHealthChanged?.Invoke(c, m, seg);
         public static void RaiseBossPostureChanged(float c, float m) => BossPostureChanged?.Invoke(c, m);
         public static void RaiseBossDefeated() => BossDefeated?.Invoke();
@@ -114,7 +117,7 @@ namespace VibeGame1
         {
             PlayerHealthChanged = null; PyreChanged = null; WandCooldownChanged = null; FlaskChanged = null; SoulsChanged = null;
             WeaponChanged = null; WandChanged = null; ParryResolved = null; PlayerDamaged = null; PlayerDied = null;
-            PlayerRespawned = null; CheckpointReached = null; EnemyKilled = null; BossStarted = null;
+            PlayerRespawned = null; CheckpointReached = null; EnemyKilled = null; BossStarted = null; RealmFightStarted = null;
             BossHealthChanged = null; BossPostureChanged = null; BossDefeated = null; PromptChanged = null;
             UltimateUsed = null; PlayerPostureChanged = null; PlayerPostureBroken = null; DeathblowReady = null;
             ItemsChanged = null; ItemPickedUp = null; ItemUsed = null; RiposteLanded = null;

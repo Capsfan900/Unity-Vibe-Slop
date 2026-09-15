@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74862f2a130ae08439a78375868d4d9b, type: 3}
   m_Name: Legendary_FlurryBrawlerV18
   m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyData
-  displayName: THE FLURRY BRAWLER V18 (TEST)
+  displayName: THE V18 GRAPPLER
   maxHP: 190
   maxPosture: 160
   postureRegen: 6

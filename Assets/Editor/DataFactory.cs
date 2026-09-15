@@ -1920,7 +1920,7 @@ namespace VibeGame1.EditorTools
             });
 
             var brawler18 = GetOrCreate<EnemyData>(EnemyPaths.Data(FlurryBrawlerV18Authoring.EnemyName));
-            brawler18.displayName = "THE FLURRY BRAWLER V18 (TEST)";
+            brawler18.displayName = "THE V18 GRAPPLER";
             // Initial comparison holds the v15 vitals exactly. Everything else remains a separate asset.
             brawler18.maxHP = 190f; brawler18.maxPosture = 160f; brawler18.postureRegen = 6f;
             brawler18.postureRegenDelay = 3f; brawler18.staggerSeconds = 4f;
