@@ -1,5 +1,28 @@
 # Handoff — boss AI pass shipped, realm portal fixed (2026-09-14)
 
+## RESUME HERE (2026-09-14, late) — contracts were slimmed; this is a clear-context resume point
+
+**In flight, uncommitted (do first):** T1 and T2 realms become SOLO showcases (T1 Seraph Lancer, T2 Orbit Dancer);
+T3/T4 stay duos. Code is written in `LevelDefinitionAuthoring.cs` (RealmPartners T3/T4 only; stale
+`Spawn_Legendary_T1/T2_Duo` spawns removed; splits T1/T2 without alsoRequired; requiredRunSouls 5640 -> 4790),
+`LevelRunScoringTests.cs`, `SolarArenaTests.cs`. NOT yet applied: needs Unity OUT of play mode (the user was
+playing -- ask first), then compile, `8a Rework Level_01` -> `8 Build Level` -> `Rebuild NavMesh`, Full EditMode,
+FeatureTests, commit `[Astra]`.
+
+**Three Fable 5.1 planners were running (read-only), each writing one spec:**
+- `docs/PARRY-AND-PROJECTILE-SPEC-2026-09-14.md` — Sekiro/Lies of P parry impact (hitstop, shake, sparks, audio,
+  streaks, posture break) + volumetric, readable enemy projectiles (javelins, discs, sentry bolts).
+- `docs/REALM-ARENAS-SPEC-2026-09-14.md` — a theme per realm + 1-2 fair environmental hazards each, safe-area math.
+- `docs/SOULS-AI-ACCURACY-SPEC-2026-09-14.md` — why souls enemies miss (approach, facing, lunge aim), specials used
+  far more, and a distinct visual cue for every special.
+If a file is missing, its agent did not finish: re-run that planner (combat-designer / level-designer brief,
+model fable, read-only, one spec file). **User's ask:** Fable plans the math, implement with Opus (lead: core
+systems — PlayerCombat, TimeScaleController, EnemyController) and Sonnet workers (fenced presentation/data lanes
+from each spec's lane table). One commit per lane pass after generators + both suites.
+
+**Also user asks still open from this batch:** the playtest zip `Builds/vibegame1-windows-playtest-2026-09-14-0418b39.zip`
+(tag pushed) is for the user to upload; a scoped-test filter for `QuickTestRunner` was offered, not built.
+
 ## Current state
 
 `master` is clean (apart from the preserved user-owned files below). This session committed:
