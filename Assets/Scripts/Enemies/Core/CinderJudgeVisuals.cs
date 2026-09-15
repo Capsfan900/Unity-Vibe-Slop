@@ -185,6 +185,10 @@ namespace VibeGame1
             return atk == null || (atk.name != shoulderChargeAttack && atk.name != stormAttack && atk.name != shieldRaiseAttack);
         }
 
+        /// <summary>The storm already stages its own ground ring, growing to the tick radius, via
+        /// <see cref="CinderJudgeStormFx"/> — the base Signature Sigil would double it.</summary>
+        protected override bool DrawsOwnSigil(EnemyAttackData atk) => atk != null && atk.name == stormAttack;
+
         public override void Telegraph(EnemyAttackData atk, float seconds)
         {
             CancelSpecialPresentation(false);

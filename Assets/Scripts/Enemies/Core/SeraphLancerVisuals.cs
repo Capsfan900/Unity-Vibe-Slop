@@ -96,6 +96,10 @@ namespace VibeGame1
         [Tooltip("Seconds the wings flick open on the wake hop: the tell shown once, harmlessly.")]
         public float entranceWingSeconds = 0.5f;
 
+        // Verdict hand charge (Signature Sigil): root-local RightHand offset, like the Dancer's Crackle.
+        static readonly Vector3 verdictHandOffset = new Vector3(0.35f, 1.35f, 0.30f);
+        const float verdictChargeInterval = 0.06f, verdictChargeMinSize = 0.08f, verdictChargeMaxSize = 0.30f;
+
         [Header("Verdigris seams (this class is the aura's only writer)")]
         [ColorUsage(true, true)] public Color verdigrisHot = new Color(0.25f, 0.75f, 0.62f, 1f) * 1.3f;
         [Range(0f, 1f)] public float glowAtRest = 0.14f;
@@ -129,6 +133,10 @@ namespace VibeGame1
         float wingsOpenAt = float.MaxValue, wingsCloseAt = float.MaxValue, entranceWingsUntil = -1f;
         float nextChargeSparkAt;
         bool landingPending, hoverClipPending;
+
+        // Verdict hand charge (Signature Sigil): a growing flare on the throwing hand over the wind-up,
+        // the RightHand answer to the Judge's crackle and the Dancer's Crackle.
+        float verdictChargeStartAt, verdictChargeEndAt, nextVerdictChargeAt = float.MaxValue;
 
         EnemyController controller;
         SeraphLancerJavelins javelins;
@@ -339,6 +347,13 @@ namespace VibeGame1
                 PlayPresentationClipFrom(jumpClip, 0f,
                     Mathf.Clamp(toApex / Mathf.Max(0.05f, seconds), minClipSpeed, maxClipSpeed));
                 ReserveAnimatorUntil(verdictEndAt + landingHoldSeconds);
+
+                // No-contact stance (range <= 0): the floor sigil draws nothing for this attack, so the
+                // tell is a hand charge instead — gold, growing over the wind-up, same idea as the
+                // Dancer's Crackle.
+                verdictChargeStartAt = Time.time;
+                verdictChargeEndAt = Time.time + Mathf.Max(0.05f, seconds);
+                nextVerdictChargeAt = Time.time;
             }
         }
 
@@ -424,6 +439,25 @@ namespace VibeGame1
 
             UpdateVerdict();
             UpdateAura();
+            UpdateVerdictHandCharge();
+        }
+
+        /// <summary>The Sky Verdict's RightHand tell: a gold flare re-spawned on an interval, growing
+        /// <see cref="verdictChargeMinSize"/> to <see cref="verdictChargeMaxSize"/> over the wind-up —
+        /// the same repeated-burst-reads-as-continuous trick <see cref="Crackle"/> already uses.</summary>
+        void UpdateVerdictHandCharge()
+        {
+            if (Time.time >= verdictChargeEndAt) { nextVerdictChargeAt = float.MaxValue; return; }
+            if (Time.time < nextVerdictChargeAt) return;
+
+            nextVerdictChargeAt = Time.time + verdictChargeInterval;
+            float k = verdictChargeEndAt > verdictChargeStartAt
+                ? Mathf.Clamp01((Time.time - verdictChargeStartAt) / (verdictChargeEndAt - verdictChargeStartAt))
+                : 1f;
+            float size = Mathf.Lerp(verdictChargeMinSize, verdictChargeMaxSize, k);
+            Vector3 at = transform.root.position + transform.root.right * verdictHandOffset.x
+                       + Vector3.up * verdictHandOffset.y + transform.root.forward * verdictHandOffset.z;
+            SlashFx.Flare(at, accentHue, size, verdictChargeInterval * 1.4f);
         }
 
         public override void ClearTelegraph()
@@ -836,6 +870,7 @@ namespace VibeGame1
             divePending = false;
             entrancePending = false;
             activeAttack = null;
+            nextVerdictChargeAt = float.MaxValue;
 
             bool verdictActive = Phase != VerdictPhase.None && Phase != VerdictPhase.Falling;
             if (!verdictActive)

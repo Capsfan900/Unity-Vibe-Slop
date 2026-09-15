@@ -175,6 +175,19 @@ namespace VibeGame1
         Quaternion weaponBaseRot = Quaternion.identity;
         ArmPose currentPose;
 
+        // ---- the Signature Sigil (2026-09-14 souls-AI-accuracy spec section 4) --------------------
+        // A shared floor/hand tell for a special attack, driven from THIS base class so every body —
+        // puppet or primitive — speaks it. See EnemySigilFx. One instance per enemy, lazily created.
+        Color rawEmission = Color.white;   // EnemyData.emission, UNnormalised — SigilShape hue reads this
+        EnemySigilFx sigilFx;
+        EnemyAttackData sigilAttack;
+        float sigilStartAt, sigilGrowEndAt;
+        bool sigilFrozen, sigilHolding, sigilFadingOut;
+        float sigilFrozenForwardDeg;
+        float sigilAlpha;
+        float sigilFadeStartAt, sigilFadeFromAlpha;
+        float sigilHoldUntil;
+
         /// <summary>
         /// Set by CueFlash so the still-running wind-up coroutine stops lerping and HOLDS at the peak.
         /// Without this the cue's silhouette hitch was overwritten on the very next frame — the cue fires
@@ -248,7 +261,15 @@ namespace VibeGame1
         protected virtual void OnDestroy()
         {
             if (hpRef != null) hpRef.OnDamaged -= OnHealthDamaged;
+            if (sigilFx != null) { sigilFx.Dispose(); sigilFx = null; }
         }
+
+        /// <summary>
+        /// True when this profile draws its OWN tell for <paramref name="atk"/> already (the Judge's
+        /// storm ring, staged by <see cref="CinderJudgeStormFx"/>) — the base sigil must not double it.
+        /// Override per attack name, not per body: a profile with no special tells never needs to.
+        /// </summary>
+        protected virtual bool DrawsOwnSigil(EnemyAttackData atk) => false;
 
         /// <summary>
         /// The scaled half of the hit reaction: reads the real blow off <see cref="Health.OnDamaged"/> so
@@ -332,6 +353,7 @@ namespace VibeGame1
             flash.SetRenderers(new Renderer[0]);
 
             bodyBase = d.bodyColor;
+            rawEmission = d.emission;
             accent = d.emission.maxColorComponent > 0.001f
                 ? d.emission / d.emission.maxColorComponent
                 : Color.white;
@@ -346,6 +368,7 @@ namespace VibeGame1
         {
             // Boss phases change the colour of the PARRY glow and a faint base tint — they no longer
             // make the boss self-illuminate.
+            rawEmission = emission;
             accent = emission.maxColorComponent > 0.001f ? emission / emission.maxColorComponent : Color.white;
             bodyBase = Color.Lerp(bodyBase, accent * 0.10f, 0.5f);
             WriteBody();
@@ -404,6 +427,7 @@ namespace VibeGame1
             tintBoost = 0f;
             if (alertMarker != null) alertMarker.SetActive(unblockable);
             StartMotion(WindupCo(seconds));
+            BeginSigil(atk, seconds);
         }
 
         /// <summary>
@@ -432,6 +456,7 @@ namespace VibeGame1
             if (alertMarker != null) alertMarker.SetActive(unblockable);
             cuePeak = true;
             SetArm(currentPose.windup * 1.12f, currentPose.weaponLag);
+            FreezeSigilAtCue();
         }
 
         /// <summary>Beat 3: the swing itself. <paramref name="seconds"/> is authoritative (contract rule 1).</summary>
@@ -443,6 +468,7 @@ namespace VibeGame1
             chargeDark = 0f;
             if (alertMarker != null) alertMarker.SetActive(false);
             StartMotion(LungeCo(lunge, seconds));
+            OnStrikeSigil(seconds);
         }
 
         /// <summary>Abandon an in-flight telegraph (combo ended, parried, staggered).</summary>
@@ -451,6 +477,7 @@ namespace VibeGame1
             cuePeak = false;
             chargeDark = 0f;
             if (alertMarker != null) alertMarker.SetActive(false);
+            EndSigil();
         }
 
         /// <summary>Cap on LungeRoot's forward pop for primitive bodies: a lean, never a second lunge.</summary>
@@ -461,6 +488,7 @@ namespace VibeGame1
         {
             cuePeak = false;
             chargeDark = 0f;
+            EndSigil();
             // THE one moment an enemy emits light in this entire game. Nothing else on an enemy glows,
             // so this reads instantly as "you deflected that" rather than as ambient noise.
             glowColor = ParryGlow * Color.Lerp(Color.white, accent, 0.25f);
@@ -513,6 +541,7 @@ namespace VibeGame1
         public virtual void Slump(bool on)
         {
             slumped = on;
+            EndSigil();
             if (on)
             {
                 // Staggered reads through POSE (the guard drops), a slow base-colour breath applied in
@@ -603,6 +632,7 @@ namespace VibeGame1
             if (alertMarker != null) alertMarker.SetActive(false);
             SetDeathblowReady(false);
             StartMotion(DieCo());
+            EndSigil();
         }
 
         /// <summary>
@@ -889,7 +919,127 @@ namespace VibeGame1
             if (slumped) dirty = true;   // the stagger breath animates continuously
 
             if (dirty) WriteBody();
+            UpdateSigil();
         }
 
+        // ---------------------------------------------------------------- Signature Sigil
+
+        void EnsureSigilFx()
+        {
+            if (sigilFx == null) sigilFx = new EnemySigilFx(gameObject.name);
+        }
+
+        /// <summary>
+        /// Telegraph hook: starts the sigil for <paramref name="atk"/>, or clears any stale one, when
+        /// this attack draws no sigil (no shape, a no-contact stance, or a profile that stages its own
+        /// tell — <see cref="DrawsOwnSigil"/>).
+        /// </summary>
+        void BeginSigil(EnemyAttackData atk, float seconds)
+        {
+            sigilFadingOut = false;
+            sigilHolding = false;
+            sigilFrozen = false;
+            sigilAttack = null;
+
+            if (atk == null || DrawsOwnSigil(atk)) { if (sigilFx != null) sigilFx.SetVisible(false); return; }
+            var shape = SigilShape.For(atk);
+            if (shape == SigilShape.Kind.None) { if (sigilFx != null) sigilFx.SetVisible(false); return; }
+
+            EnsureSigilFx();
+            sigilAttack = atk;
+            sigilStartAt = Time.time;
+            sigilGrowEndAt = sigilStartAt + Mathf.Min(0.5f * Mathf.Max(0.01f, seconds), EnemySigilFx.MaxGrowSeconds);
+            sigilAlpha = EnemySigilFx.MinAlpha;
+            sigilFx.Begin(shape, EnemySigilFx.HueFor(atk.unblockable, rawEmission));
+            DrawSigilNow(transform.root.eulerAngles.y, 0.3f);
+            AudioManager.Play(Sfx.Tension, 0.55f, 0.8f, 0f);
+        }
+
+        /// <summary>CueFlash hook: freeze the geometry (the commit snap already turned the root by now),
+        /// snap the alpha, and flare the LANE's end-cap.</summary>
+        void FreezeSigilAtCue()
+        {
+            if (sigilFx == null || sigilAttack == null || sigilFrozen) return;
+            sigilFrozen = true;
+            sigilFrozenForwardDeg = transform.root.eulerAngles.y;
+            sigilAlpha = EnemySigilFx.CueAlpha;
+            if (SigilShape.For(sigilAttack) == SigilShape.Kind.Lane)
+            {
+                // SlashFx.Flare normalises under 1.0, so the spec's 1.3 end-cap peak is not reachable without editing SlashFx.
+                float len = EnemySigilFx.LaneLength(sigilAttack.range, sigilAttack.lungeDistance);
+                Vector3 end = EnemySigilFx.LaneEnd(transform.root.position, sigilFrozenForwardDeg, len);
+                Color flareHue = EnemySigilFx.HueFor(sigilAttack.unblockable, rawEmission);
+                SlashFx.Flare(end, flareHue, EnemySigilFx.EndCapFlareSize, EnemySigilFx.EndCapFlareSeconds);
+            }
+            DrawSigilNow(sigilFrozenForwardDeg, 1f);
+        }
+
+        /// <summary>Strike hook: RING/FAN with a strike long enough to be worth holding stay up until it
+        /// ends; everything else starts fading immediately (contract: 0.10 s).</summary>
+        void OnStrikeSigil(float seconds)
+        {
+            if (sigilFx == null || sigilAttack == null) return;
+            var shape = SigilShape.For(sigilAttack);
+            bool holdable = shape == SigilShape.Kind.Ring || shape == SigilShape.Kind.Fan;
+            if (holdable && seconds > 0.5f)
+            {
+                sigilHolding = true;
+                sigilHoldUntil = Time.time + seconds;
+            }
+            else
+            {
+                StartSigilFade();
+            }
+        }
+
+        void StartSigilFade()
+        {
+            if (sigilAttack == null || sigilFadingOut) return;
+            sigilFadingOut = true;
+            sigilHolding = false;
+            sigilFadeStartAt = Time.time;
+            sigilFadeFromAlpha = sigilAlpha;
+        }
+
+        /// <summary>ClearTelegraph/Recoil/Slump/Die hook: gone at once, no fade.</summary>
+        void EndSigil()
+        {
+            if (sigilFx != null) sigilFx.SetVisible(false);
+            sigilAttack = null;
+            sigilFrozen = false;
+            sigilHolding = false;
+            sigilFadingOut = false;
+        }
+
+        void DrawSigilNow(float forwardDeg, float growth)
+        {
+            sigilFx.Draw(transform.root.position, forwardDeg, sigilAttack.range, sigilAttack.lungeDistance,
+                         sigilAttack.coneDeg, growth, sigilAlpha);
+        }
+
+        void UpdateSigil()
+        {
+            if (sigilFx == null || sigilAttack == null) return;
+            float now = Time.time;
+
+            if (!sigilFrozen)
+            {
+                float growth = sigilGrowEndAt > sigilStartAt
+                    ? Mathf.Lerp(0.3f, 1f, Mathf.Clamp01(Mathf.InverseLerp(sigilStartAt, sigilGrowEndAt, now)))
+                    : 1f;
+                DrawSigilNow(transform.root.eulerAngles.y, growth);
+                return;
+            }
+
+            if (sigilHolding && now >= sigilHoldUntil) StartSigilFade();
+
+            if (sigilFadingOut)
+            {
+                float k = Mathf.Clamp01((now - sigilFadeStartAt) / EnemySigilFx.FadeSeconds);
+                sigilAlpha = Mathf.Lerp(sigilFadeFromAlpha, 0f, k);
+                if (k >= 1f) { EndSigil(); return; }
+            }
+            DrawSigilNow(sigilFrozenForwardDeg, 1f);
+        }
     }
 }

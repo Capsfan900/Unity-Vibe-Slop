@@ -737,6 +737,19 @@ including a pitched eye, and the authored shape values.
 green ~142°, ice cyan ~186°). They are static 0.013–0.082 albedo surfaces and this is a moving
 additive hoop for 0.18 s, so confusion is not expected — but that is reasoned, not seen.
 
+### 3.13 The Signature Sigil — floor/hand tell for specials ✅ 2026-09-14
+
+`EnemySigilFx` (modelled on `CinderJudgeStormFx`: scene-level root, ≤ 4 LineRenderers, one URP/Unlit additive
+material per body), driven from base `EnemyVisuals` Telegraph/CueFlash/Strike/ClearTelegraph/Recoil/Slump/Die.
+Shape is derived, never authored (`SigilShape.For`): cone ≥ 300 → RING at `range + 0.5`; 90-300 with windup ≥ 0.9
+or unblockable → FAN; cone < 90 with lunge ≥ 1.5 → LANE (1 m wide, `range + lunge + 0.5`, frozen at the cue after the
+brain's commit snap, end-cap flare); unblockable short lunge → DISC; ordinary blows and `range <= 0` stances → none
+(the Lancer's Sky Verdict grows a gold RightHand flare instead). Hue `SlashFx.NormaliseColor(emission)`, always
+alert red `(1, 0.2, 0.15)` when unblockable. Alpha 0.25 growing 30 → 100 % over `min(0.5 x windup, 0.45 s)`, 0.6 at
+the cue (instant), RING/FAN hold through a strike > 0.5 s, else fade 0.10 s. `Sfx.Tension` 0.55 / pitch 0.8 at
+wind-up start. A profile staging its own tell overrides `DrawsOwnSigil` (the Judge's storm).
+Deviation: the spec's 1.3 end-cap peak is unreachable — `SlashFx.Flare` normalises under 1.0.
+
 ## 4. Standing rules for this project's effects
 
 1. **Effects run on unscaled time.** They must keep moving while hitstop holds the world, or the pause
