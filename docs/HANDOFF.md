@@ -39,8 +39,12 @@ Generators run: 8a Rework, 8 Build From Definition (Level_01), Rebuild NavMesh.
 
 ## Next action
 
-1. **New request, not started. The user said: "the fights need to be cinematic like a souls game."** Scope it
-   with them first. Likely pieces:
+0. **Done in `e2dc0dc`:** the name card and camera hold on realm entry (`SolarArenaPortal.IntroHold`, 1.6 s,
+   14 deg FOV push-in), and duo health bars (`RealmBossBarView`). V18 is renamed "THE V18 GRAPPLER".
+   Suites: 1357/1357 EditMode, 797/0/2 FeatureTests. Still unplayed by the user.
+   Watch-out: the bosses stand 21 m from the entry, so they are small during the hold.
+1. **"The fights need to be cinematic like a souls game."** The user picked the name card and duo bars (both
+   done). Not picked yet, so ask before building:
    - boss intro (name card, fog-gate style entry, camera hold)
    - boss HP bars for BOTH duo members
    - music stingers and phase-change music
