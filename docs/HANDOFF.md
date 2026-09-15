@@ -53,7 +53,44 @@ realms:
   chose to be asked again once the tree is clean** — do not tag/push/create a GitHub Release without
   checking with the user first, even once the tree is clean.
 
-Generators run this session: none (no data/prefab changes were made outside Fable's still-running pass).
+**Fable's pass reported back complete** (report received, not yet independently verified by the lead):
+- **A1 (fixed):** root cause of the `ComboFinisher` clip-clamp warning was a shared timing bug in
+  `PuppetVisuals.PlayAttackClip` (attack strings with a short run-in start the clip too early at the clamp
+  floor). Fix holds the pose and starts the clip late so contact still lands on the blow. New
+  `PuppetVisuals.ClipStartDelay`, test `PuppetSpinTests.AClipWithAShortRunInStartsLateAndStillLandsItsContactOnTheBlow`.
+- **A2 (fixed):** Seraph Lancer's reflected javelin flew under his hover-lifted body (`Projectile.cs`
+  aimed at root+1.2m, `SeraphLancerVisuals` lifts 3m) — now uses `shooter.BodyPoint(1.2f)`.
+- **A3 (traced, not fixed — new lead for the portal bug):** NOT the boss AI. `BossArenaTrigger`'s
+  `sawPartnerAlive` latch (`BossArenaTrigger.cs:107-118`) only latches if `partnerSpawner.Instance != null`
+  is observed *after* `triggered` — if the T1 duo partner spawner has no live instance at that exact
+  moment, the realm never clears even with both bosses dead. **This supersedes the earlier "did you kill
+  both bosses" theory as the more precise next thing to check** — still don't know if the user killed
+  both; either way this latch-timing bug is worth checking directly in `BossArenaTrigger.cs`.
+- **A4 (finished, was already in-flight before the redirect):** a tempo/aggression data pass across all 7
+  new bosses via `DataFactory.cs` (wind-ups untouched — the parry contract — only recovery/combo-gap/
+  cooldown/press-on tightened). Full per-boss numbers are in Fable's report text above this doc entry in
+  session scrollback; if that's gone, re-ask Fable's agent (name `a39f6769566585318`, if still alive) to
+  restate table A4.
+- **Gotcha surfaced, worth remembering:** running `3. Create Data` alone (without `3b`/`4` after it)
+  clears `viewmodelPrefab` on `DeflectSigil/Grapple/Rebound.asset`. Fable restored those 3 files from HEAD
+  this time — verify they're still intact (`git diff Assets/Data/Items/`) before assuming the tree is
+  clean, and always run Create Data as part of `3 -> 3b -> 4` or `0. Rebuild Everything`, never alone.
+- **B: a full spec (S1-S7) for a cheaper model to implement next**, ranked, covering: duo arbitration
+  ignoring in-flight projectiles (S1, high), chaining attack phrases for fluid/aggressive transitions (S2,
+  high — this is the direct answer to the user's "more fluid, more aggressive" direction), whether the
+  Judge's shield/storm stances should stop blocking the duo partner (S3), whether V18's grab should be red
+  (unblockable) since it currently punishes a Block which breaks the "never punish a guard on a blue" rule
+  (S4), concrete "absurd" spectacle escalations for each boss (S5), Marionette tempo math (S6, low), a
+  harmless false-positive in whiff scoring (S7, ignore unless reported). Full detail is in Fable's report
+  in scrollback — if starting a fresh session, ask Fable's agent to restate section B verbatim before
+  implementing, don't reconstruct from memory.
+- **Before committing (not done yet):** re-run Full EditMode Tests + Level_01 FeatureTests (Fable only ran
+  Quick EditMode: 1317/1317, both assemblies compile). No generator re-run needed for A1-A4; S5(i)/(iii)
+  will need `Projectile Encounter Report` re-run if implemented (live-cap changes only).
+
+Generators run this session: `3. Create Data` (by Fable, as part of A4 — see gotcha above). Level Arc
+Report, Projectile Encounter Report and Health Check earlier this session were run against the pre-Fable
+tree (`4723f60`) and are now stale for the changed files; re-run is only required for S5(i)/(iii) per above.
 
 ## Verification (2026-09-14, this session)
 
@@ -76,17 +113,27 @@ re-run against Fable's in-progress edits yet — that's required before committi
 
 ## Next action
 
-1. **Resolve the portal/pickup question.** Ask the user (or check live) whether they killed both T1 bosses.
-   If yes and the realm still didn't clear, the Seraph Lancer death-registration theory (tied to the
-   ComboFinisher clip) becomes the live suspect — check whether Fable's pass already fixed it.
-2. **Check on the Fable combat-designer pass** (background agent in the previous session; if this is a
-   fresh session it will not be resumable — read the uncommitted diff instead). When it's done: review the
-   diff against its brief and `[[combat-difficulty-direction]]`, re-run the generators it names plus both
-   EditMode and FeatureTests suites, then commit as ONE `[combat-designer]` commit.
-3. **Rebuild clean and ask the user before publishing.** Once the tree is clean and the pass is committed,
-   rebuild Windows, confirm `build_inputs_dirty=no`, then check with the user before running
+1. **Fix the actual portal bug now identified:** `BossArenaTrigger.cs:107-118`'s `sawPartnerAlive` latch —
+   check whether it's null-observed too early for the T1 duo partner spawner. This is a small, targeted fix
+   (implementation, not design judgment — a cheaper model can do it) once confirmed. Still worth asking the
+   user whether they killed both T1 bosses, as a second data point.
+2. **Review and commit Fable's finished A1/A2/A3(trace)/A4 pass:**
+   - Verify: `git diff --stat` (expect ~17 files: PuppetVisuals.cs, Projectile.cs, DataFactory.cs, 3 test
+     files, PuppetSpinTests.cs, DATAFLOW.md, 7 regenerated `.asset` files under Data/Attacks and
+     Data/Enemies/souls_enemies), confirm `Assets/Data/Items/{DeflectSigil,Grapple,Rebound}.asset` were
+     NOT left with cleared `viewmodelPrefab` (Fable says it restored them from HEAD).
+   - Run Full EditMode Tests + Level_01 FeatureTests (only Quick EditMode 1317/1317 has been run so far).
+   - Commit as ONE `[combat-designer]` commit, trailer `Model: Fable 5.1 (Claude Code), lead: <session
+     model> (Claude Code)`.
+   - Human playtest still needed: the Lancer's Jab2/Swing/Finisher string feel, in Sandbox.
+3. **Implement spec B (S1-S7)** with a cheaper model once A/A4 is committed — S2 (chained attack phrases)
+   is the direct answer to the user's "more fluid, more aggressive" request and should probably go first;
+   S3/S4/S5 need the user's taste call per Fable's own notes (see report in scrollback / ask
+   `a39f6769566585318` to restate section B if it's gone). Fable reviews the implementer's diff after.
+4. **Rebuild clean and ask the user before publishing.** Once the tree is clean and both passes are
+   committed, rebuild Windows, confirm `build_inputs_dirty=no`, then check with the user before running
    `Tools/publish/Publish-WindowsRelease.ps1` — they explicitly asked to be asked again, not pre-approved.
-4. Leftovers from 09-13/09-14, still not started: spell-orb readability capture, disc/wing SFX, V18 carry
+5. Leftovers from 09-13/09-14, still not started: spell-orb readability capture, disc/wing SFX, V18 carry
    aim assist, the boss-intro follow-ups not yet picked (music stingers, deathblow/kill-cam + slow-mo,
    "VICTORY ACHIEVED" banner — see previous handoff, still undecided).
 
