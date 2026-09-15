@@ -24,6 +24,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.3
     cooldown: 0
+    wallBias: 1
   - label: stab
     combo:
       hits:
@@ -32,6 +33,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.3
     cooldown: 0
+    wallBias: 1
   - label: jab-two into SPIN THROW (whirl, then BLOCK the discs)
     combo:
       hits:
@@ -41,6 +43,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.2
     cooldown: 7
+    wallBias: 1
   - label: KICK anti-turtle
     combo:
       hits:
@@ -49,6 +52,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 2.9
     cooldown: 5
+    wallBias: 1
   - label: HEAVY tempo break
     combo:
       hits:
@@ -57,6 +61,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.5
     cooldown: 8
+    wallBias: 1
   - label: SHOULDER CHARGE far close
     combo:
       hits:
@@ -64,20 +69,32 @@ MonoBehaviour:
     weight: 2.2
     minRange: 4.4
     maxRange: 6.5
-    cooldown: 7
+    cooldown: 5
+    wallBias: 2.5
   - label: ORBIT STORM (three ricochet discs)
     combo:
       hits:
       - {fileID: 11400000, guid: 24334078c32e15a45b8922554ddeb606, type: 2}
-    weight: 2
+    weight: 2.6
     minRange: 4.5
     maxRange: 12
-    cooldown: 6
+    cooldown: 4
+    wallBias: 0.5
   - label: SPIN THROW (close whirl, two banked discs)
     combo:
       hits:
       - {fileID: 11400000, guid: 53bb0ed84075a3649887606cef89e865, type: 2}
-    weight: 1
+    weight: 1.5
     minRange: 0
     maxRange: 3.2
-    cooldown: 8
+    cooldown: 5
+    wallBias: 1.5
+  - label: HELD HEAVY tempo break (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 7f56042342ae85247a8b1bbc7cdf9b45, type: 2}
+    weight: 0.6
+    minRange: 0
+    maxRange: 3.5
+    cooldown: 6
+    wallBias: 1

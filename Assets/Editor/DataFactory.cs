@@ -949,7 +949,7 @@ namespace VibeGame1.EditorTools
                 // own lunge to bail it out. Caught by MarionetteDataTests at 3.4: it landed in play
                 // only because 1.7 m of lunge closed the gap first, which is a coincidence, not a
                 // design. The narrow 65 deg cone is what keeps it distinct from the 200 deg passes.
-                a.range = 3.7f; a.coneDeg = 65f; a.damage = 40f; a.lungeDistance = 1.7f;
+                a.range = 3.7f; a.coneDeg = 65f; a.damage = 44f; a.lungeDistance = 1.7f;
                 a.comboGap = 0.35f; a.parryPostureMultiplier = 1.9f;
             });
             var marLash = Attack("Marionette_Lash", a =>
@@ -960,7 +960,7 @@ namespace VibeGame1.EditorTools
                 // this move, and it cannot be parried, only walked out of.
                 a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.3f; a.recovery = 1.5f;
                 a.clip = "AttackStab";   // a reach-out reads as a lash; the overhead did not
-                a.range = 8.0f; a.coneDeg = 175f; a.damage = 30f; a.lungeDistance = 0f;
+                a.range = 8.0f; a.coneDeg = 175f; a.damage = 34f; a.lungeDistance = 0f;
                 a.comboGap = 0.45f; a.unblockable = true;
             });
 
@@ -1036,11 +1036,11 @@ namespace VibeGame1.EditorTools
                       marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
                       marSpinOut),
                 // The tempo break. One square-on 1.0 s wind-up, no whirl at all.
-                EntryCd("OVERHEAD (the tempo break)",                  1.2f, 0f,   99f, 7f, marOverhead),
+                EntryCd("OVERHEAD (the tempo break)",                  1.8f, 0f,   99f, 4f, marOverhead),
                 Entry("overhead into the spin",                        1f,   0f,   6f,
                       marOverhead, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
                 // Far band only: what a player who backed out of spin range gets instead of a rest.
-                EntryCd("STRING LASH (punishes waiting it out)",       1.6f, 5f,   99f, 5f, marLash),
+                EntryCd("STRING LASH (punishes waiting it out)",       2.2f, 5f,   99f, 3f, marLash),
                 Entry("LASH into the spin (drags you back in)",        1f,   5.5f, 99f,
                       marLash, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
             });
@@ -1137,7 +1137,7 @@ namespace VibeGame1.EditorTools
                 // the biggest opening any enemy in the game offers, because this is where a new player
                 // learns that a whiffed heavy is free damage.
                 a.windup = 0.95f; a.impactDelay = 0.07f; a.strikeDuration = 0.22f; a.recovery = 1.4f;
-                a.range = 3.6f; a.coneDeg = 70f; a.damage = 38f; a.lungeDistance = 1.3f;
+                a.range = 3.6f; a.coneDeg = 70f; a.damage = 44f; a.lungeDistance = 1.3f;
                 a.comboGap = 0.3f; a.parryPostureMultiplier = 1.8f;
                 // SILHOUETTE, MEASURED: centre 0.19 bh UP and crown 0.16 bh up -- the ONLY wind-up in
                 // the moveset that goes up at all; every other one drops. Squared to the player (no
@@ -1215,9 +1215,9 @@ namespace VibeGame1.EditorTools
                 // The read: a wide cut, then the thrust down the middle. Two different cones back to
                 // back, so sidestepping the first puts you in front of the second.
                 Entry("slash into THRUST",               2f,   0f,  7f, revSlash, revStab),
-                EntryCd("OVERHEAD (the big punish)",     1.5f, 0f,  6f, 6f, revOverhead),
+                EntryCd("OVERHEAD (the big punish)",     2.2f, 0f,  6f, 3.5f, revOverhead),
                 Entry("thrust from range",               1.5f, 3.5f, 6f, revStab),
-                EntryCd("KICK (unblockable, anti-turtle)", 1.2f, 0f,  5f, 5f, revKick),
+                EntryCd("KICK (unblockable, anti-turtle)", 1.6f, 0f,  5f, 3f, revKick),
                 EntryCd("slash into the kick",           1f,   0f,  5f, 5f, revSlash, revKick),
             });
             revenant.combos = revenant.moveset.ToComboArray();
@@ -1324,7 +1324,7 @@ namespace VibeGame1.EditorTools
                 // It inherited the role from the removed heavy, whose clip never struck.
                 a.clip = "AttackOverhead";
                 a.windup = 0.95f; a.impactDelay = 0.06f; a.strikeDuration = 0.20f; a.recovery = 2.2f;
-                a.range = 2.8f; a.coneDeg = 60f; a.damage = 38f; a.lungeDistance = 1.1f;
+                a.range = 2.8f; a.coneDeg = 60f; a.damage = 42f; a.lungeDistance = 1.1f;
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.8f;
             });
             var halCharge = Attack("Halberdier_Charge", a =>
@@ -1364,7 +1364,7 @@ namespace VibeGame1.EditorTools
                 // you see it coming from across the arena.
                 a.clip = "LeapSlam";
                 a.windup = 1.0f; a.impactDelay = 0.07f; a.strikeDuration = 0.22f; a.recovery = 1.5f;
-                a.range = 2.8f; a.coneDeg = 75f; a.damage = 34f; a.lungeDistance = 2.40f;   // the clip's travel
+                a.range = 2.8f; a.coneDeg = 75f; a.damage = 38f; a.lungeDistance = 2.40f;   // the clip's travel
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.6f;
             });
             var halSpin = Attack("Halberdier_Spin", a =>
@@ -1431,13 +1431,13 @@ namespace VibeGame1.EditorTools
                 Entry("sweep, thrust (the fast pair)",                    2f,   0f,   3.6f, halSweep, halThrust),
                 Entry("sweep",                                            1.2f, 0f,   3.6f, halSweep),
                 Entry("thrust down the middle",                           1.2f, 0f,   3.6f, halThrust),
-                EntryCd("OVERHEAD SLAM (the punish)",                     0.8f, 0f,   3.6f, 6f, halSlam),
-                EntryCd("the SPIN (all round)",                           1f,   0f,   3.6f, 7f, halSpin),
+                EntryCd("OVERHEAD SLAM (the punish)",                     0.8f, 0f,   3.6f, 4f, halSlam),
+                EntryCd("the SPIN (all round)",                           1f,   0f,   3.6f, 4f, halSpin),
                 EntryCd("KICK (unblockable, anti-turtle)",                1.2f, 0f,   3.0f, 5f, halKick),
                 Entry("CHARGE into sweep, THRUST (unblockable opener)",   5f,   5f,   8f,   halCharge, halSweep, halThrust),
                 Entry("CHARGE into SLAM (unblockable opener)",            4f,   5f,   8f,   halCharge, halSlam),
                 Entry("SHOULDER CHARGE (unblockable, to the aggro edge)", 2f,   5f,   18f,  halCharge),
-                EntryCd("LEAP SLAM from range",                           1.2f, 4.5f, 8f, 6f, halLeap),
+                EntryCd("LEAP SLAM from range",                           1.8f, 4.5f, 8f, 3.5f, halLeap),
             });
             halberdier.combos = halberdier.moveset.ToComboArray();
             halberdier.flaskPunishChance = 0.6f;
@@ -1841,7 +1841,7 @@ namespace VibeGame1.EditorTools
             {
                 a.clip = "AttackOverhead";
                 a.windup = 0.95f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.00f;
-                a.range = 2.55f; a.coneDeg = 70f; a.damage = 34f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
+                a.range = 2.55f; a.coneDeg = 70f; a.damage = 38f; a.lungeDistance = 0.4f;   // a cue-bound step so the fist reaches (spatial spec, 2026-09-14)
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.8f;
             });
             var br18Stab = Attack("BrawlerV18_Stab", a =>
@@ -1887,7 +1887,7 @@ namespace VibeGame1.EditorTools
                 // therefore lands exactly on the one data-scheduled blast, never on an AnimationEvent.
                 a.clip = "Clap";
                 a.windup = 2.00f; a.impactDelay = 0.20f; a.strikeDuration = 0.30f; a.recovery = 1.50f;
-                a.range = 3.60f; a.coneDeg = 180f; a.damage = 28f; a.lungeDistance = 0f;
+                a.range = 3.60f; a.coneDeg = 180f; a.damage = 32f; a.lungeDistance = 0f;
                 a.comboGap = 0.35f; a.parryPostureMultiplier = 2.0f;
                 Pose(a, Vector3.zero, Vector3.zero, new Vector3(0f, 1.60f, 0f), Vector3.zero, 0.45f);
             });
@@ -1911,7 +1911,7 @@ namespace VibeGame1.EditorTools
                 // bound that ParryImpactTests reads off every shipped EnemyAttackData.
                 a.clip = "AttackOverhead";
                 a.windup = 0.50f; a.impactDelay = 0.05f; a.strikeDuration = 0.20f; a.recovery = 0.70f;
-                a.range = 0f; a.coneDeg = 0f; a.damage = 26f; a.lungeDistance = 0f;
+                a.range = 0f; a.coneDeg = 0f; a.damage = 32f; a.lungeDistance = 0f;
                 a.comboGap = 0.20f; a.unblockable = true;
             });
             var br18Combo2 = Attack("BrawlerV18_Combo2", a =>
@@ -1949,12 +1949,12 @@ namespace VibeGame1.EditorTools
                 Entry("stab",                                                1.4f, 0f,   3.4f, br18Stab),
                 EntryCd("OVERHEAD tempo break",                              1.2f, 0f,   3.4f, 6f, br18Overhead),
                 EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.8f, 5f, br18Kick),
-                EntryCd("LEVITATE CLAP wide blast",                          1.1f, 0f,   3.8f, 8f, br18Clap),
+                EntryCd("LEVITATE CLAP wide blast",                          1.5f, 0f,   3.8f, 5f, br18Clap),
                 Entry("DASH close",                                          2.6f, 2.6f, 4.7f, br18Dash),
-                EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 7.1f, 7f, br18Shoulder),
+                EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 7.1f, 5f, br18Shoulder),
                 EntryCd("COMBO2 held performance (one contact)",              0.45f, 0f, 2.7f, 8f, br18Combo2),
                 // Close band, 10 s: the grab that lifts you into the sky and slams you back down.
-                EntryCd("SKYFALL SUPLEX (grab, fly, throw)",                 1.2f, 0f,   2.8f, 10f, br18Grab),
+                EntryCd("SKYFALL SUPLEX (grab, fly, throw)",                 2f, 0f,   2.8f, 6f, br18Grab),
             });
             // br18GrabSlam is never scheduled by the brain: MiniBossFactory wires it onto V18Grapple.slamAttack.
             EditorUtility.SetDirty(br18GrabSlam);
@@ -2030,7 +2030,7 @@ namespace VibeGame1.EditorTools
                 // channel, so the FORWARD component ships and TravelRoot cancels the rest.
                 a.clip = "HeavyAttack";
                 a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.30f; a.recovery = 1.40f;
-                a.range = 2.70f; a.coneDeg = 80f; a.damage = 36f; a.lungeDistance = 0.75f;
+                a.range = 2.70f; a.coneDeg = 80f; a.damage = 40f; a.lungeDistance = 0.75f;
                 a.comboGap = 0.32f; a.parryPostureMultiplier = 1.9f;
             });
             var cjShoulder = Attack("CinderJudge_ShoulderCharge", a =>
@@ -2065,7 +2065,7 @@ namespace VibeGame1.EditorTools
                 // damage 6 is PER TICK, the Minecraft-lava number: small, repeated, unmistakable.
                 a.clip = "Roar";
                 a.windup = 1.60f; a.impactDelay = 0.45f; a.strikeDuration = 3.20f; a.recovery = 3.20f;
-                a.range = 3.10f; a.coneDeg = 360f; a.damage = 6f; a.lungeDistance = 0f;
+                a.range = 3.10f; a.coneDeg = 360f; a.damage = 7f; a.lungeDistance = 0f;
                 a.comboGap = 0.35f; a.unblockable = true;
             });
             // AEGIS OF JUDGEMENT (2026-09-13, boss roster): the Judge raises a magic ember dome that
@@ -2086,7 +2086,7 @@ namespace VibeGame1.EditorTools
             {
                 a.clip = "ShieldBash";
                 a.windup = 0.75f; a.impactDelay = 0.06f; a.strikeDuration = 0.25f; a.recovery = 1.20f;
-                a.range = 2.60f; a.coneDeg = 70f; a.damage = 22f; a.lungeDistance = 0f;
+                a.range = 2.60f; a.coneDeg = 70f; a.damage = 26f; a.lungeDistance = 0f;
                 a.comboGap = 0.30f;
             });
 
@@ -2126,12 +2126,12 @@ namespace VibeGame1.EditorTools
                 EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.9f, 5f, cjKick),
                 EntryCd("HEAVY tempo break",                                 1.2f, 0f,   3.6f, 6f, cjHeavy),
                 // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
-                EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 6.5f, 7f, cjShoulder),
+                EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 6.5f, 5f, cjShoulder),
                 // 0..4.5: thrown when you are near enough to be inside the ring. 14 s: about once per
                 // health bar at the Judge's tempo, so it stays a signature and never a loop.
-                EntryCd("STORM JUDGEMENT (float, spin, ticking ring)",       1.0f, 0f,   4.5f, 14f, cjStorm),
+                EntryCd("STORM JUDGEMENT (float, spin, ticking ring)",       1.6f, 0f,   4.5f, 9f, cjStorm),
                 // Close band, 11 s: a stance you wait out, bait with a Perfect on the bash, or break with a thrown blade.
-                EntryCd("AEGIS OF JUDGEMENT (shield raise, then BASH)",      1.3f, 0f,   3.6f, 11f, cjShieldRaise, cjShieldBash, cjHeavy),
+                EntryCd("AEGIS OF JUDGEMENT (shield raise, then BASH)",      1.8f, 0f,   3.6f, 7f, cjShieldRaise, cjShieldBash, cjHeavy),
             });
             judge.combos = judge.moveset.ToComboArray();
             EditorUtility.SetDirty(judge);
@@ -2212,7 +2212,7 @@ namespace VibeGame1.EditorTools
                 // the forward component ships, TravelRoot cancels the rest.
                 a.clip = "HeavyAttack";
                 a.windup = 0.95f; a.impactDelay = 0.08f; a.strikeDuration = 0.28f; a.recovery = 1.30f;
-                a.range = 2.65f; a.coneDeg = 80f; a.damage = 30f; a.lungeDistance = 0.75f;
+                a.range = 2.65f; a.coneDeg = 80f; a.damage = 34f; a.lungeDistance = 0.75f;
                 a.comboGap = 0.30f; a.parryPostureMultiplier = 1.9f;
             });
             var odShoulder = Attack("OrbitDancer_ShoulderCharge", a =>
@@ -2267,7 +2267,7 @@ namespace VibeGame1.EditorTools
                 // are unused: the flight is the wind-up and Projectile.CueLead is the cue.
                 a.clip = "";
                 a.windup = 0.5f; a.impactDelay = 0f; a.strikeDuration = 0.05f; a.recovery = 0.2f;
-                a.range = 30f; a.coneDeg = 20f; a.damage = 12f; a.lungeDistance = 0f;
+                a.range = 30f; a.coneDeg = 20f; a.damage = 14f; a.lungeDistance = 0f;
                 a.comboGap = 0.2f; a.parryPostureMultiplier = 1.2f;
             });
 
@@ -2340,12 +2340,12 @@ namespace VibeGame1.EditorTools
                 EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.9f, 5f, odKick),
                 EntryCd("HEAVY tempo break",                                 1.0f, 0f,   3.5f, 8f, odHeavy),
                 // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
-                EntryCd("SHOULDER CHARGE far close",                         2.2f, 4.4f, 6.5f, 7f, odShoulder),
+                EntryCd("SHOULDER CHARGE far close",                         2.2f, 4.4f, 6.5f, 5f, odShoulder),
                 // 4.5..12: thrown when you kite. 4.5 m at 16 m/s is 0.28 s = exactly CueLead, and
                 // LaunchSpeed slows it further; inside 4.5 she closes and whirls instead. 6 s: the volley
                 // is the signature, seen twice a bar, never a loop -- and never inside the 4 s a disc lives.
-                EntryCd("ORBIT STORM (three ricochet discs)",                2.0f, 4.5f, 12f, 6f, odDiscThrow),
-                EntryCd("SPIN THROW (close whirl, two banked discs)",        1.0f, 0f,   3.2f, 8f, odSpinThrow),
+                EntryCd("ORBIT STORM (three ricochet discs)",                2.6f, 4.5f, 12f, 4f, odDiscThrow),
+                EntryCd("SPIN THROW (close whirl, two banked discs)",        1.5f, 0f,   3.2f, 5f, odSpinThrow),
             });
             dancer.combos = dancer.moveset.ToComboArray();
             EditorUtility.SetDirty(dancer);
@@ -2443,7 +2443,7 @@ namespace VibeGame1.EditorTools
                 // cancels the rest. 1.05 = the Judge's wind-up: the dive needs the rise.
                 a.clip = "HeavyAttack";
                 a.windup = 1.05f; a.impactDelay = 0.08f; a.strikeDuration = 0.30f; a.recovery = 1.40f;
-                a.range = 2.70f; a.coneDeg = 80f; a.damage = 32f; a.lungeDistance = 0.75f;
+                a.range = 2.70f; a.coneDeg = 80f; a.damage = 36f; a.lungeDistance = 0.75f;
                 a.comboGap = 0.32f; a.parryPostureMultiplier = 1.9f;
             });
             var slShoulder = Attack("SeraphLancer_ShoulderCharge", a =>
@@ -2496,7 +2496,7 @@ namespace VibeGame1.EditorTools
                 // bolt's and are unused: the flight is the wind-up and Projectile.CueLead is the cue.
                 a.clip = "";
                 a.windup = 0.5f; a.impactDelay = 0f; a.strikeDuration = 0.05f; a.recovery = 0.2f;
-                a.range = 30f; a.coneDeg = 20f; a.damage = 14f; a.lungeDistance = 0f;
+                a.range = 30f; a.coneDeg = 20f; a.damage = 16f; a.lungeDistance = 0f;
                 a.comboGap = 0.2f; a.parryPostureMultiplier = 1.2f; a.unblockable = false;
             });
 
@@ -2579,17 +2579,44 @@ namespace VibeGame1.EditorTools
                 // The chain that replaces the Judge's red one: parry, then parry again.
                 EntryCd("jab-two into LANCE THRUST (blue chain)",            1.5f, 0f,   3.4f, 6f, slJab2, slStab),
                 EntryCd("KICK anti-turtle (blue)",                           1.2f, 0f,   2.9f, 5f, slKick),
-                EntryCd("HEAVY dive tempo break",                            1.2f, 0f,   3.6f, 7f, slHeavy),
+                EntryCd("HEAVY dive tempo break",                            1.5f, 0f,   3.6f, 5f, slHeavy),
                 // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
-                EntryCd("SHOULDER CHARGE far close (the one red)",           2.2f, 4.4f, 6.5f, 8f, slShoulder),
+                EntryCd("SHOULDER CHARGE far close (the one red)",           2.2f, 4.4f, 6.5f, 6f, slShoulder),
                 // 4.5..14: thrown when you kite. 4.5 m at 15 m/s is 0.30 s > CueLead, and LaunchSpeed slows
                 // it further; inside 4.5 he closes and thrusts instead. 10 s: about twice a bar at his
                 // tempo, a signature and never a loop -- and longer than a javelin lives (5 s) plus the
                 // 2.2 s the three releases span, so no verdict overlaps the last.
-                EntryCd("SKY VERDICT (rise, three javelins)",                2.0f, 4.5f, 14f, 10f, slVerdict),
+                EntryCd("SKY VERDICT (rise, four javelins)",                2.6f, 4.5f, 14f, 8.5f, slVerdict),   // 8.5 > last release 3.3 + javelin life 5
             });
             lancer.combos = lancer.moveset.ToComboArray();
             EditorUtility.SetDirty(lancer);
+
+            // ---------------- The realm bosses' deadlier kit (2026-09-14, user: "more deadly and actually using
+            // their special crazy abilities more"; docs/BOSS-SPATIAL-SPEC-2026-09-14.md section 4) ----------------
+            // Wall bias: a player pinned at the realm wall draws the charge and the area signatures.
+            WallBias(lancer.moveset, "SHOULDER CHARGE", 2.5f);
+            WallBias(dancer.moveset, "SHOULDER CHARGE", 2.5f);
+            WallBias(dancer.moveset, "ORBIT STORM", 0.5f);
+            WallBias(dancer.moveset, "SPIN THROW (close whirl", 1.5f);
+            WallBias(judge.moveset, "SHOULDER CHARGE", 2.5f);
+            WallBias(judge.moveset, "STORM JUDGEMENT", 2.0f);
+            WallBias(brawler18.moveset, "SHOULDER CHARGE", 2.5f);
+            WallBias(brawler18.moveset, "SKYFALL SUPLEX", 2.0f);
+            WallBias(halberdier.moveset, "SHOULDER CHARGE", 2.5f);
+            WallBias(halberdier.moveset, "CHARGE into", 2.5f);
+            WallBias(halberdier.moveset, "LEAP SLAM", 2.0f);
+            WallBias(marionette.moveset, "STRING LASH", 2.0f);
+            // One held (roll-catch) heavy each: +0.40 s of wind-up, +10 % damage, same clip, same cue lead.
+            // Then phase 2 at half health: every signature (an entry with a cooldown) weighs double on half the cooldown.
+            BossKit(lancer, slHeavy, "SeraphLancer_HeavyHeld", 0.5f, 0.1f);
+            BossKit(dancer, odHeavy, "OrbitDancer_HeavyHeld", 0.5f, 0.1f);
+            BossKit(judge, cjHeavy, "CinderJudge_HeavyHeld", 0.5f, 0.1f);
+            BossKit(brawler18, br18Overhead, "BrawlerV18_OverheadHeld", 0.5f, 0.1f);
+            // The Halberdier keeps one clip per attack and strings that outweigh his singles: phase 2 only.
+            BossKit(halberdier, null, null, 0.5f, 0.1f);
+            BossKit(revenant, revOverhead, "Revenant_OverheadHeld", 0.6f, 0.1f);
+            // No aggression bonus on the Marionette: her 0.69 s spin beat is derived from her aggression.
+            BossKit(marionette, marOverhead, "Marionette_OverheadHeld", 0.5f, 0f);
 
             // ---------------- Weapons ----------------
             //
@@ -3153,6 +3180,76 @@ namespace VibeGame1.EditorTools
 
         /// <summary>One weighted, range-gated combo. Terse on purpose so a moveset stays readable inline.</summary>
         /// <summary>An entry with a per-move cooldown: a signature that never comes twice running.</summary>
+        static void WallBias(EnemyMoveset moveset, string labelStart, float bias)
+        {
+            int n = 0;
+            foreach (var e in moveset.entries)
+                if (e != null && e.label.StartsWith(labelStart)) { e.wallBias = bias; n++; }
+            if (n == 0) throw new System.InvalidOperationException(moveset.name + " has no entry starting '" + labelStart + "'.");
+            EditorUtility.SetDirty(moveset);
+        }
+
+        /// <summary>
+        /// The boss kit: a held variant of <paramref name="heavy"/> added to the moveset beside the heavy's own
+        /// entry, and a phase-2 moveset (same entries; each signature, i.e. each entry with a cooldown, at double
+        /// weight and half cooldown) that the brain swaps in at <paramref name="threshold"/> health.
+        /// </summary>
+        static void BossKit(EnemyData d, EnemyAttackData heavy, string heldName, float threshold, float aggressionBonus)
+        {
+            var ms = d.moveset;
+            if (heavy != null) AddHeld(ms, heavy, heldName);
+            d.combos = ms.ToComboArray();
+
+            var p2 = new MovesetEntry[ms.entries.Length];
+            for (int i = 0; i < p2.Length; i++)
+            {
+                var e = ms.entries[i];
+                bool signature = e.cooldown > 0f;
+                p2[i] = new MovesetEntry
+                {
+                    label = e.label,
+                    combo = new AttackCombo(e.combo.hits),
+                    weight = signature ? e.weight * 2f : e.weight,
+                    minRange = e.minRange,
+                    maxRange = e.maxRange,
+                    cooldown = e.cooldown * 0.5f,
+                    wallBias = e.wallBias,
+                };
+            }
+            d.phase2Moveset = Moveset(ms.name + "_P2", ms.displayName + " (phase 2)", p2);
+            d.phase2Threshold = threshold;
+            d.phase2AggressionBonus = aggressionBonus;
+            d.spellPunishChance = 0.5f;
+            d.airPunishChance = 0.6f;
+            EditorUtility.SetDirty(d);
+        }
+
+        static void AddHeld(EnemyMoveset ms, EnemyAttackData heavy, string heldName)
+        {
+            var held = Attack(heldName, a =>
+            {
+                EditorUtility.CopySerialized(heavy, a);
+                a.name = heldName;
+                a.attackName = heldName;
+                a.windup = heavy.windup + HeldWindupExtra;
+                a.damage = Mathf.Round(heavy.damage * 1.1f);
+            });
+
+            MovesetEntry src = null;
+            foreach (var e in ms.entries)
+                if (e != null && e.combo != null && e.combo.hits != null && e.combo.hits.Length == 1 && e.combo.hits[0] == heavy) { src = e; break; }
+            if (src == null) throw new System.InvalidOperationException(ms.name + " has no single-hit entry for " + heavy.name + ".");
+            var list = new System.Collections.Generic.List<MovesetEntry>(ms.entries);
+            var heldEntry = EntryCd("HELD " + src.label + " (roll-catch)", 0.6f, src.minRange, src.maxRange, 6f, held);
+            heldEntry.wallBias = src.wallBias;
+            list.Add(heldEntry);
+            ms.entries = list.ToArray();
+            EditorUtility.SetDirty(ms);
+        }
+
+        /// <summary>Extra wind-up on a held (roll-catch) variant. Wind-ups only ever get longer.</summary>
+        public const float HeldWindupExtra = 0.40f;
+
         static MovesetEntry EntryCd(string label, float weight, float minRange, float maxRange, float cooldown, params EnemyAttackData[] hits)
         {
             var e = Entry(label, weight, minRange, maxRange, hits);

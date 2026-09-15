@@ -26,7 +26,7 @@ namespace VibeGame1.Tests
         {
             "BrawlerV18_Swing", "BrawlerV18_Overhead", "BrawlerV18_Stab", "BrawlerV18_Kick",
             "BrawlerV18_Jab2", "BrawlerV18_Dash", "BrawlerV18_ShoulderCharge",
-            "BrawlerV18_LevitateClap", "BrawlerV18_Combo2", "BrawlerV18_Grab",
+            "BrawlerV18_LevitateClap", "BrawlerV18_Combo2", "BrawlerV18_Grab", "BrawlerV18_OverheadHeld",
         };
 
         static EnemyData Data() => AssetDatabase.LoadAssetAtPath<EnemyData>(

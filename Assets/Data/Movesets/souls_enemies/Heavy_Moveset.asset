@@ -23,6 +23,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: step-sweep-OVERHEAD (the long phrase)
     combo:
       hits:
@@ -33,6 +34,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 6
+    wallBias: 1
   - label: sweep-sweep-overhead (tempo then break)
     combo:
       hits:
@@ -43,6 +45,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: step-overhead (closes then commits)
     combo:
       hits:
@@ -52,3 +55,4 @@ MonoBehaviour:
     minRange: 2.8
     maxRange: 99
     cooldown: 0
+    wallBias: 1

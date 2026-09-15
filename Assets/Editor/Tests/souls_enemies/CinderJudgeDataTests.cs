@@ -37,6 +37,7 @@ namespace VibeGame1.Tests
             "CinderJudge_Kick", "CinderJudge_Heavy", "CinderJudge_ShoulderCharge",
             CinderJudgeAuthoring.StormAttackName,
             CinderJudgeAuthoring.ShieldRaiseAttackName, CinderJudgeAuthoring.ShieldBashAttackName,
+            "CinderJudge_HeavyHeld",
         };
 
         static EnemyData Data() => AssetDatabase.LoadAssetAtPath<EnemyData>(
@@ -235,7 +236,7 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(storm, "run VibeGame1/3. Create Data");
             Assert.IsTrue(storm.unblockable, "a tick is a place, not a swing: parry must never answer it.");
             Assert.AreEqual(360f, storm.coneDeg, 0.001f, "the brain's one contact must not care where you stand.");
-            Assert.AreEqual(6f, storm.damage, 0.001f, "damage is PER TICK.");
+            Assert.AreEqual(7f, storm.damage, 0.001f, "damage is PER TICK (6 -> 7, 2026-09-14 deadlier pass).");
             Assert.AreEqual(0f, storm.lungeDistance, 0.001f);
             Assert.IsFalse(storm.windupPose.authored, "the lift is StormRoot's, never LungeRoot's pose.");
 
@@ -260,10 +261,10 @@ namespace VibeGame1.Tests
             }
             Assert.AreEqual(1, uses, "the storm is one standalone EnemyController schedule.");
             Assert.AreEqual(1, entry.combo.hits.Length);
-            Assert.AreEqual(1.0f, entry.weight, 0.001f);
+            Assert.AreEqual(1.6f, entry.weight, 0.001f);
             Assert.AreEqual(0f, entry.minRange, 0.001f);
             Assert.AreEqual(4.5f, entry.maxRange, 0.001f);
-            Assert.AreEqual(14f, entry.cooldown, 0.001f);
+            Assert.AreEqual(9f, entry.cooldown, 0.001f);
         }
 
         [Test]
@@ -285,7 +286,7 @@ namespace VibeGame1.Tests
                 if (e.combo.hits.Length == 3 && e.combo.hits[0] == raise && e.combo.hits[1] == bash
                     && e.combo.hits[2] == Atk("CinderJudge_Heavy")) entry = e;
             Assert.IsNotNull(entry, "raise, bash, then the Heavy dive is one schedule (2026-09-14)");
-            Assert.Greater(entry.cooldown, 8f, "a signature, not a loop");
+            Assert.Greater(entry.cooldown, 6f, "a signature, not a loop (11 -> 7, 2026-09-14)");
 
             var shield = Prefab().GetComponent<CinderJudgeShield>();
             Assert.IsNotNull(shield, "CinderJudgeShield on the root");
@@ -318,7 +319,7 @@ namespace VibeGame1.Tests
             int ticks = CinderJudgeStorm.TicksAfterImpact(storm.strikeDuration, zone.tickInterval);
             Assert.AreEqual(10, ticks, "3.20 / 0.30 -> ten ticks after the brain's impact");
             float worst = CinderJudgeStorm.MaxDamage(storm.damage, storm.strikeDuration, zone.tickInterval);
-            Assert.AreEqual(66f, worst, 0.001f);
+            Assert.AreEqual(77f, worst, 0.001f);
 
             // Standing in it the whole time must HURT (a real fraction of a bar) without breaking the
             // player's posture on its own: the storm is "leave", not "stagger, then die".

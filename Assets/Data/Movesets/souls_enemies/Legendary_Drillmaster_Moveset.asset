@@ -23,6 +23,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: jab-jab-cross (the longer rhythm)
     combo:
       hits:
@@ -33,6 +34,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: FEINT...cross (the pause is a lie)
     combo:
       hits:
@@ -42,6 +44,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 5
+    wallBias: 1
   - label: DELAYED OVERHEAD (the tempo break)
     combo:
       hits:
@@ -50,6 +53,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 7
+    wallBias: 1
   - label: jab-KICK (unblockable, anti-turtle)
     combo:
       hits:
@@ -59,6 +63,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 6
+    wallBias: 1
   - label: LUNGE (closes from range)
     combo:
       hits:
@@ -67,6 +72,7 @@ MonoBehaviour:
     minRange: 4.5
     maxRange: 9
     cooldown: 4
+    wallBias: 1
   - label: lunge-jab-DELAYED OVERHEAD (closes, then breaks tempo)
     combo:
       hits:
@@ -77,3 +83,4 @@ MonoBehaviour:
     minRange: 4.5
     maxRange: 9
     cooldown: 8
+    wallBias: 1

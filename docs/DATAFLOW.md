@@ -1083,6 +1083,22 @@ INTERRUPT: the flask   (EnemyController.Update, before the state switch; never a
         moveset.HasEligible(dist), Random.value ≤ chance → PunishFlaskNow(dist): FlaskPunishes++, BeginCombo(ChooseCombo)
         -- the recovery is CUT and the wind-up starts this frame; the cue is still cueLead before impact.
         Refused inside Windup/Strike/Staggered (one attack at a time). Legendaries 0.5-0.75, Warden 0.7, Drillmaster 1.0.
+   2026-09-14: the same TryPunish(dist, chance) also fires on PlayerSpellEdge (WandController.CooldownRemaining jumps
+        up = an E cast; data.spellPunishChance) and PlayerAirSpentEdge (airborne with FirstPersonMotor.AirDashUsed for
+        AirPunishDelay 0.25 s; data.airPunishChance). One edge per frame, flask first; one shared 4 s cooldown.
+        The seven realm bosses ship 0.5 / 0.6. IsPulling (the hook) is never punished.
+PHASE 2   (EnemyController.HandleDamaged → PhaseShiftDue(Health.Ratio, data.phase2Threshold, phase2))
+   once: phase2 = true, moveLastUsedAt reset, visuals.Roar(), CameraShake.Medium; a breath (Chase/Recover) becomes
+   Recover Phase2RoarSeconds 0.9 — a committed swing is never cut. From then ChooseCombo reads data.phase2Moveset
+   (DataFactory.BossKit: same entries, every entry with a cooldown at x2 weight and x0.5 cooldown) and Aggression
+   adds phase2AggressionBonus (0.1; 0 on the Marionette, whose spin beat derives from aggression). Thresholds 0.5,
+   Revenant 0.6. Each boss except the Halberdier also carries a HELD heavy (+HeldWindupExtra 0.40 s wind-up, +10 %
+   damage, same clip, cue still cueLead before impact): the roll-catch.
+ARENA WALL BIAS   (EnemyMoveset.SelectIndex(dist, lastUsed, now, edgeRoom))
+   edgeRoom = SolarArenaPortal.EdgeRoom(player) = realm floor radius − horizontal distance from the realm centre while
+   the player is inside a realm (set on Enter, cleared on Exit / ResetPortal), MaxValue elsewhere. Each entry weight
+   x WallWeight(wallBias, edgeRoom) = lerp(wallBias, 1, edgeRoom / 4 m): charges 2.5, Storm / Suplex / Leap / Lash 2.0,
+   Dancer whirl 1.5, Dancer volley 0.5 (banks want room).
 NEAR-BREAK read   (EnemyPostureBar.LateUpdate + EnemyVisuals.SetPostureRatio)
    posture ratio ≥ NearBreakRatio 0.8 and not broken → the fill and the eye beat toward white at NearBreakHz 4.5,
    amplitude rising to the break. Hue, not brightness: the eye's peak stays 1.4 (bloom budget untouched).

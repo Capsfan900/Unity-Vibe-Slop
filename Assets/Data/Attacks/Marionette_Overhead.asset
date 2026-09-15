@@ -19,7 +19,7 @@ MonoBehaviour:
   recovery: 1
   range: 3.7
   coneDeg: 65
-  damage: 40
+  damage: 44
   lungeDistance: 1.7
   comboGap: 0.35
   parryPostureMultiplier: 1.9

@@ -22,3 +22,4 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1

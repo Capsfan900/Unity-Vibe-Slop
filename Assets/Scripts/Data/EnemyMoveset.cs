@@ -61,9 +61,16 @@ namespace VibeGame1
         /// </summary>
         public int SelectIndex(float distanceToTarget, float[] lastUsedAt, float now)
         {
+            return SelectIndex(distanceToTarget, lastUsedAt, now, float.MaxValue);
+        }
+
+        /// <summary>As above, with <paramref name="edgeRoom"/> = metres between the player and the arena wall
+        /// (MaxValue outside an arena): entries with a <see cref="MovesetEntry.wallBias"/> weigh more near the wall.</summary>
+        public int SelectIndex(float distanceToTarget, float[] lastUsedAt, float now, float edgeRoom)
+        {
             if (entries == null || entries.Length == 0) return -1;
-            int idx = WeightedPick(distanceToTarget, lastUsedAt, now, true);
-            if (idx < 0) idx = WeightedPick(distanceToTarget, lastUsedAt, now, false);
+            int idx = WeightedPick(distanceToTarget, lastUsedAt, now, true, edgeRoom);
+            if (idx < 0) idx = WeightedPick(distanceToTarget, lastUsedAt, now, false, edgeRoom);
             if (idx >= 0) return idx;
             for (int i = 0; i < entries.Length; i++)
                 if (entries[i] != null && entries[i].combo != null && entries[i].combo.hits != null && entries[i].combo.hits.Length > 0)
@@ -78,7 +85,17 @@ namespace VibeGame1
             return lastUsedAt[i] <= -1e8f || now - lastUsedAt[i] >= e.cooldown;
         }
 
-        int WeightedPick(float distance, float[] lastUsedAt, float now, bool honourCooldowns)
+        /// <summary>Within <see cref="WallBiasMetres"/> of the wall an entry's weight scales toward its wallBias:
+        /// full bias against the wall, none at 4 m or more. Pure.</summary>
+        public static float WallWeight(float wallBias, float edgeRoom)
+        {
+            float bias = wallBias > 0f ? wallBias : 1f;
+            return Mathf.Lerp(bias, 1f, Mathf.Clamp01(edgeRoom / WallBiasMetres));
+        }
+
+        public const float WallBiasMetres = 4f;
+
+        int WeightedPick(float distance, float[] lastUsedAt, float now, bool honourCooldowns, float edgeRoom)
         {
             float total = 0f;
             for (int i = 0; i < entries.Length; i++)
@@ -86,7 +103,7 @@ namespace VibeGame1
                 var e = entries[i];
                 if (e == null || !e.IsEligible(distance) || e.weight <= 0f) continue;
                 if (honourCooldowns && !OffCooldown(i, lastUsedAt, now)) continue;
-                total += e.weight;
+                total += e.weight * WallWeight(e.wallBias, edgeRoom);
             }
             if (total <= 0f) return -1;
             float roll = UnityEngine.Random.value * total;
@@ -95,7 +112,7 @@ namespace VibeGame1
                 var e = entries[i];
                 if (e == null || !e.IsEligible(distance) || e.weight <= 0f) continue;
                 if (honourCooldowns && !OffCooldown(i, lastUsedAt, now)) continue;
-                roll -= e.weight;
+                roll -= e.weight * WallWeight(e.wallBias, edgeRoom);
                 if (roll <= 0f) return i;
             }
             return -1;
@@ -179,6 +196,10 @@ namespace VibeGame1
                  "5-8 s on a signature so it never comes twice running and stays a surprise; leave the " +
                  "filler rhythm at 0. Relaxed automatically when everything in band is cooling.")]
         [Min(0f)] public float cooldown = 0f;
+
+        [Tooltip("Weight multiplier when the player is pinned against a realm wall (fades out by 4 m of room). " +
+                 "Charges and area signatures > 1 punish a cornered player; a bank shot that needs room < 1.")]
+        [Min(0f)] public float wallBias = 1f;
 
         public bool IsEligible(float distance)
         {

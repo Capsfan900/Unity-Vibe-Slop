@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_Revenant_Moveset_P2
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Ember Revenant (phase 2)
+  entries:
+  - label: slash
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
+    weight: 3
+    minRange: 0
+    maxRange: 6
+    cooldown: 0
+    wallBias: 1
+  - label: slash, slash
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
+      - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 6
+    cooldown: 0
+    wallBias: 1
+  - label: slash into THRUST
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
+      - {fileID: 11400000, guid: 6decfbb402e7e3844bfc072ae21c2d17, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 7
+    cooldown: 0
+    wallBias: 1
+  - label: OVERHEAD (the big punish)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 8d032d4d468dcac4188e1225923f30f2, type: 2}
+    weight: 4.4
+    minRange: 0
+    maxRange: 6
+    cooldown: 1.75
+    wallBias: 1
+  - label: thrust from range
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 6decfbb402e7e3844bfc072ae21c2d17, type: 2}
+    weight: 1.5
+    minRange: 3.5
+    maxRange: 6
+    cooldown: 0
+    wallBias: 1
+  - label: KICK (unblockable, anti-turtle)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 506b0356d18ec6249b2dc04cd250322d, type: 2}
+    weight: 3.2
+    minRange: 0
+    maxRange: 5
+    cooldown: 1.5
+    wallBias: 1
+  - label: slash into the kick
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
+      - {fileID: 11400000, guid: 506b0356d18ec6249b2dc04cd250322d, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 5
+    cooldown: 2.5
+    wallBias: 1
+  - label: HELD OVERHEAD (the big punish) (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 72ff235826832cd489bc1254d309eb3e, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 6
+    cooldown: 3
+    wallBias: 1

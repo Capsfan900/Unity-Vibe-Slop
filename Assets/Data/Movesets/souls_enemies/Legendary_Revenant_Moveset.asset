@@ -22,6 +22,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 6
     cooldown: 0
+    wallBias: 1
   - label: slash, slash
     combo:
       hits:
@@ -31,6 +32,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 6
     cooldown: 0
+    wallBias: 1
   - label: slash into THRUST
     combo:
       hits:
@@ -40,14 +42,16 @@ MonoBehaviour:
     minRange: 0
     maxRange: 7
     cooldown: 0
+    wallBias: 1
   - label: OVERHEAD (the big punish)
     combo:
       hits:
       - {fileID: 11400000, guid: 8d032d4d468dcac4188e1225923f30f2, type: 2}
-    weight: 1.5
+    weight: 2.2
     minRange: 0
     maxRange: 6
-    cooldown: 6
+    cooldown: 3.5
+    wallBias: 1
   - label: thrust from range
     combo:
       hits:
@@ -56,14 +60,16 @@ MonoBehaviour:
     minRange: 3.5
     maxRange: 6
     cooldown: 0
+    wallBias: 1
   - label: KICK (unblockable, anti-turtle)
     combo:
       hits:
       - {fileID: 11400000, guid: 506b0356d18ec6249b2dc04cd250322d, type: 2}
-    weight: 1.2
+    weight: 1.6
     minRange: 0
     maxRange: 5
-    cooldown: 5
+    cooldown: 3
+    wallBias: 1
   - label: slash into the kick
     combo:
       hits:
@@ -73,3 +79,13 @@ MonoBehaviour:
     minRange: 0
     maxRange: 5
     cooldown: 5
+    wallBias: 1
+  - label: HELD OVERHEAD (the big punish) (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 72ff235826832cd489bc1254d309eb3e, type: 2}
+    weight: 0.6
+    minRange: 0
+    maxRange: 6
+    cooldown: 6
+    wallBias: 1

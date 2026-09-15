@@ -24,6 +24,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.6
     cooldown: 0
+    wallBias: 1
   - label: thrust, sweep, thrust
     combo:
       hits:
@@ -34,6 +35,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.6
     cooldown: 0
+    wallBias: 1
   - label: sweep, thrust (the fast pair)
     combo:
       hits:
@@ -43,6 +45,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.6
     cooldown: 0
+    wallBias: 1
   - label: sweep
     combo:
       hits:
@@ -51,6 +54,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.6
     cooldown: 0
+    wallBias: 1
   - label: thrust down the middle
     combo:
       hits:
@@ -59,6 +63,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.6
     cooldown: 0
+    wallBias: 1
   - label: OVERHEAD SLAM (the punish)
     combo:
       hits:
@@ -66,7 +71,8 @@ MonoBehaviour:
     weight: 0.8
     minRange: 0
     maxRange: 3.6
-    cooldown: 6
+    cooldown: 4
+    wallBias: 1
   - label: the SPIN (all round)
     combo:
       hits:
@@ -74,7 +80,8 @@ MonoBehaviour:
     weight: 1
     minRange: 0
     maxRange: 3.6
-    cooldown: 7
+    cooldown: 4
+    wallBias: 1
   - label: KICK (unblockable, anti-turtle)
     combo:
       hits:
@@ -83,6 +90,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3
     cooldown: 5
+    wallBias: 1
   - label: CHARGE into sweep, THRUST (unblockable opener)
     combo:
       hits:
@@ -93,6 +101,7 @@ MonoBehaviour:
     minRange: 5
     maxRange: 8
     cooldown: 0
+    wallBias: 2.5
   - label: CHARGE into SLAM (unblockable opener)
     combo:
       hits:
@@ -102,6 +111,7 @@ MonoBehaviour:
     minRange: 5
     maxRange: 8
     cooldown: 0
+    wallBias: 2.5
   - label: SHOULDER CHARGE (unblockable, to the aggro edge)
     combo:
       hits:
@@ -110,11 +120,13 @@ MonoBehaviour:
     minRange: 5
     maxRange: 18
     cooldown: 0
+    wallBias: 2.5
   - label: LEAP SLAM from range
     combo:
       hits:
       - {fileID: 11400000, guid: 4768ebaf9a66edc41a8bcabf3caf1330, type: 2}
-    weight: 1.2
+    weight: 1.8
     minRange: 4.5
     maxRange: 8
-    cooldown: 6
+    cooldown: 3.5
+    wallBias: 2

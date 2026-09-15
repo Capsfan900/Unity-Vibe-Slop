@@ -24,6 +24,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 0
+    wallBias: 1
   - label: 'LANCE THRUST (the opener: one straight blue line)'
     combo:
       hits:
@@ -32,6 +33,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.9
     cooldown: 0
+    wallBias: 1
   - label: jab-two into LANCE THRUST (blue chain)
     combo:
       hits:
@@ -41,6 +43,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 6
+    wallBias: 1
   - label: KICK anti-turtle (blue)
     combo:
       hits:
@@ -49,14 +52,16 @@ MonoBehaviour:
     minRange: 0
     maxRange: 2.9
     cooldown: 5
+    wallBias: 1
   - label: HEAVY dive tempo break
     combo:
       hits:
       - {fileID: 11400000, guid: 8d1505a1f67185648af2a6f30b2c07cc, type: 2}
-    weight: 1.2
+    weight: 1.5
     minRange: 0
     maxRange: 3.6
-    cooldown: 7
+    cooldown: 5
+    wallBias: 1
   - label: SHOULDER CHARGE far close (the one red)
     combo:
       hits:
@@ -64,12 +69,23 @@ MonoBehaviour:
     weight: 2.2
     minRange: 4.4
     maxRange: 6.5
-    cooldown: 8
-  - label: SKY VERDICT (rise, three javelins)
+    cooldown: 6
+    wallBias: 2.5
+  - label: SKY VERDICT (rise, four javelins)
     combo:
       hits:
       - {fileID: 11400000, guid: 4a9506cf8ea3f02468438630aac7ee96, type: 2}
-    weight: 2
+    weight: 2.6
     minRange: 4.5
     maxRange: 14
-    cooldown: 10
+    cooldown: 8.5
+    wallBias: 1
+  - label: HELD HEAVY dive tempo break (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 11dba70558bd0db459d928df8072934a, type: 2}
+    weight: 0.6
+    minRange: 0
+    maxRange: 3.6
+    cooldown: 6
+    wallBias: 1

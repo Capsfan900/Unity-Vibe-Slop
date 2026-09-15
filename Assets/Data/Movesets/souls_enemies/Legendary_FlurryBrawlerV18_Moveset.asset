@@ -23,6 +23,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 0
+    wallBias: 1
   - label: stab
     combo:
       hits:
@@ -31,6 +32,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 0
+    wallBias: 1
   - label: OVERHEAD tempo break
     combo:
       hits:
@@ -39,6 +41,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 3.4
     cooldown: 6
+    wallBias: 1
   - label: KICK anti-turtle
     combo:
       hits:
@@ -47,14 +50,16 @@ MonoBehaviour:
     minRange: 0
     maxRange: 2.8
     cooldown: 5
+    wallBias: 1
   - label: LEVITATE CLAP wide blast
     combo:
       hits:
       - {fileID: 11400000, guid: 4d02fca56cddeb34b81ef59b5a18eeca, type: 2}
-    weight: 1.1
+    weight: 1.5
     minRange: 0
     maxRange: 3.8
-    cooldown: 8
+    cooldown: 5
+    wallBias: 1
   - label: DASH close
     combo:
       hits:
@@ -63,6 +68,7 @@ MonoBehaviour:
     minRange: 2.6
     maxRange: 4.7
     cooldown: 0
+    wallBias: 1
   - label: SHOULDER CHARGE far close
     combo:
       hits:
@@ -70,7 +76,8 @@ MonoBehaviour:
     weight: 2.4
     minRange: 4.4
     maxRange: 7.1
-    cooldown: 7
+    cooldown: 5
+    wallBias: 2.5
   - label: COMBO2 held performance (one contact)
     combo:
       hits:
@@ -79,11 +86,22 @@ MonoBehaviour:
     minRange: 0
     maxRange: 2.7
     cooldown: 8
+    wallBias: 1
   - label: SKYFALL SUPLEX (grab, fly, throw)
     combo:
       hits:
       - {fileID: 11400000, guid: b8ceb3f10f5863a4a995ffd3e5a2cd2f, type: 2}
-    weight: 1.2
+    weight: 2
     minRange: 0
     maxRange: 2.8
-    cooldown: 10
+    cooldown: 6
+    wallBias: 2
+  - label: HELD OVERHEAD tempo break (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 98f8cbdf0ece17e439caec205c696088, type: 2}
+    weight: 0.6
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 6
+    wallBias: 1

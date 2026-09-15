@@ -23,6 +23,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: jab-jab-HEAVY (the signature bait)
     combo:
       hits:
@@ -33,6 +34,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 5
+    wallBias: 1
   - label: slash-heavy (slow, slower)
     combo:
       hits:
@@ -42,6 +44,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: jab-slash-jab (fast, slow, fast)
     combo:
       hits:
@@ -52,3 +55,4 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1

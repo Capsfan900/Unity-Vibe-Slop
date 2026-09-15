@@ -102,7 +102,30 @@ namespace VibeGame1
         int parryStreak;
 
         /// <summary>0 = stock passive behaviour, 1 = maximum pressure. Never affects telegraph readability.</summary>
-        protected float Aggression => data != null ? Mathf.Clamp01(data.aggression) : 0f;
+        protected float Aggression => data != null
+            ? Mathf.Clamp01(data.aggression + (phase2 ? data.phase2AggressionBonus : 0f)) : 0f;
+
+        // ---- phase 2 ----
+        bool phase2;
+        /// <summary>True once health crossed <see cref="EnemyData.phase2Threshold"/>. Tests and the HUD read it.</summary>
+        public bool InPhase2 => phase2;
+        public const float Phase2RoarSeconds = 0.9f;
+
+        /// <summary>Phase 2 is due exactly once, when the ratio first reaches the threshold. Pure.</summary>
+        public static bool PhaseShiftDue(float healthRatio, float threshold, bool already)
+        {
+            return !already && threshold > 0f && healthRatio <= threshold && healthRatio > 0f;
+        }
+
+        EnemyMoveset ActiveMoveset => data == null ? null
+            : phase2 && data.phase2Moveset != null ? data.phase2Moveset : data.moveset;
+
+        // ---- punish edges beyond the flask (spec 4.5) ----
+        WandController playerWand;
+        FirstPersonMotor playerMotor;
+        float lastWandCooldown;
+        float airSpentSeconds;
+        public const float AirPunishDelay = 0.25f;
 
         /// <summary>Damped speed of the Recover-state step-in, so closing the gap accelerates rather than snapping.</summary>
         float stepSpeed;
@@ -331,7 +354,14 @@ namespace VibeGame1
             // phrases (Chase or Recover), is FromSoft's heal punish -- chance-based, per-enemy cooldown,
             // never for a sentry, never from inside a wind-up (one attack at a time, the tell stays true).
             bool drinkEdge = PlayerDrinkEdge();
-            if (drinkEdge && (Current == State.Chase || Current == State.Recover)) TryPunishFlask(dist);
+            bool spellEdge = PlayerSpellEdge();
+            bool airEdge = PlayerAirSpentEdge(dt);
+            if (Current == State.Chase || Current == State.Recover)
+            {
+                if (drinkEdge) TryPunish(dist, data.flaskPunishChance);
+                else if (spellEdge) TryPunish(dist, data.spellPunishChance);
+                else if (airEdge) TryPunish(dist, data.airPunishChance);
+            }
 
             switch (Current)
             {
@@ -487,15 +517,37 @@ namespace VibeGame1
             return edge;
         }
 
-        void TryPunishFlask(float dist)
+        /// <summary>A spell cast is the wand cooldown jumping up this frame.</summary>
+        bool PlayerSpellEdge()
         {
-            if (data == null || data.flaskPunishChance <= 0f || data.rangedOnly || aggroLocked) return;
+            if (playerWand == null && player != null) playerWand = player.GetComponent<WandController>();
+            if (playerWand == null) return false;
+            float cd = playerWand.CooldownRemaining;
+            bool edge = cd > lastWandCooldown + 0.05f;
+            lastWandCooldown = cd;
+            return edge;
+        }
+
+        /// <summary>Fires once when the player has been airborne with the air dash spent for AirPunishDelay.</summary>
+        bool PlayerAirSpentEdge(float dt)
+        {
+            if (playerMotor == null && player != null) playerMotor = player.GetComponent<FirstPersonMotor>();
+            if (playerMotor == null) return false;
+            if (playerMotor.IsGrounded || !playerMotor.AirDashUsed) { airSpentSeconds = 0f; return false; }
+            float before = airSpentSeconds;
+            airSpentSeconds += dt;
+            return before < AirPunishDelay && airSpentSeconds >= AirPunishDelay;
+        }
+
+        void TryPunish(float dist, float chance)
+        {
+            if (data == null || chance <= 0f || data.rangedOnly || aggroLocked) return;
             if (Time.time < nextFlaskPunishAt || dist > data.aggroRange) return;
             if (!MayCommitToAttack()) return;
             bool inBand = dist <= data.preferredRange + data.commitTolerance * 2f
                        || (data.moveset != null && data.moveset.HasEligible(dist));
             if (!inBand) return;
-            if (Random.value > data.flaskPunishChance) return;
+            if (Random.value > chance) return;
             PunishFlaskNow(dist);
         }
 
@@ -669,7 +721,7 @@ namespace VibeGame1
             if (data == null) return null;
             // History-aware when a moveset is authored: per-entry cooldowns keep a signature from coming
             // twice running (EnemyMoveset.SelectIndex). The clock is this instance's, never the asset's.
-            var ms = data.moveset;
+            var ms = ActiveMoveset;
             if (ms != null && ms.entries != null && ms.entries.Length > 0)
             {
                 if (moveLastUsedAt == null || moveLastUsedAt.Length != ms.entries.Length)
@@ -677,7 +729,8 @@ namespace VibeGame1
                     moveLastUsedAt = new float[ms.entries.Length];
                     for (int i = 0; i < moveLastUsedAt.Length; i++) moveLastUsedAt[i] = -1e9f;
                 }
-                int idx = ms.SelectIndex(distanceToTarget, moveLastUsedAt, Time.time);
+                float edgeRoom = player != null ? SolarArenaPortal.EdgeRoom(player.position) : float.MaxValue;
+                int idx = ms.SelectIndex(distanceToTarget, moveLastUsedAt, Time.time, edgeRoom);
                 if (idx >= 0)
                 {
                     moveLastUsedAt[idx] = Time.time;
@@ -876,8 +929,29 @@ namespace VibeGame1
         protected virtual void HandleDamaged(DamageInfo d)
         {
             if (Current == State.Dead) return;
+            if (data != null && Health != null && PhaseShiftDue(Health.Ratio, data.phase2Threshold, phase2)) EnterPhase2();
             if (visuals != null) visuals.HitFlash();
             if (Current == State.Idle && !aggroLocked) SetState(State.Chase);
+        }
+
+        /// <summary>
+        /// Phase 2: a roar beat, then heavier signatures on shorter cooldowns and a step more aggression. A
+        /// committed swing is never interrupted (its cue stays true); the beat only replaces a breath.
+        /// </summary>
+        void EnterPhase2()
+        {
+            phase2 = true;
+            moveLastUsedAt = null;   // every signature is available the moment the phase turns
+            if (visuals != null) visuals.Roar();
+            if (CameraShake.I) CameraShake.I.Medium();
+            if (Current == State.Chase || Current == State.Recover)
+            {
+                combo = null;
+                parryStreak = 0;
+                resumeComboAfterRecover = false;
+                SetState(State.Recover, Phase2RoarSeconds);
+                nextAttackTime = stateEnd;
+            }
         }
 
         protected virtual void HandleBroken()

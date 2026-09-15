@@ -44,6 +44,20 @@ namespace VibeGame1
                  "raise) it does not take the duo attack slot, so its partner may attack. Off = strictly sequential.")]
         public bool stanceFreesPartner = false;
 
+        [Header("Boss phase 2 (2026-09-14)")]
+        [Tooltip("Health ratio at or under which phase 2 begins (once). 0 = no phase 2.")]
+        [Range(0f, 1f)] public float phase2Threshold = 0f;
+        [Tooltip("Moveset used from phase 2 on (signatures heavier and on shorter cooldowns). Null = keep the first.")]
+        public EnemyMoveset phase2Moveset;
+        [Tooltip("Added to aggression in phase 2 (clamped to 1). Wind-ups and the cue are untouched.")]
+        [Range(0f, 0.5f)] public float phase2AggressionBonus = 0f;
+
+        [Header("Punishing player states (the flask punish's siblings)")]
+        [Tooltip("Chance to attack at once when the player casts a spell (E) inside aggro range. Shares the flask cooldown.")]
+        [Range(0f, 1f)] public float spellPunishChance = 0f;
+        [Tooltip("Chance to attack at once when the player is airborne with the air dash already spent. Shares the flask cooldown.")]
+        [Range(0f, 1f)] public float airPunishChance = 0f;
+
         [Header("Weight — aggressive should read as deliberate, not twitchy")]
         [Tooltip("Turn rate multiplier while winding up. Well under 1 so a committed attack stays committed " +
                  "and circling the enemy is a real answer. This is the main thing separating pressure from unfairness.")]

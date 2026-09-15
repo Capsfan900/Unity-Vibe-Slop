@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf920586387c85409f84ff5ebecd759, type: 3}
+  m_Name: Legendary_SeraphLancer_Moveset_P2
+  m_EditorClassIdentifier: Assembly-CSharp::VibeGame1.EnemyMoveset
+  displayName: The Seraph Lancer (phase 2)
+  entries:
+  - label: jab-two, swing, FINISHER (the combo)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 87d97e32e2b37744fa6a4d65acf6f5af, type: 2}
+      - {fileID: 11400000, guid: e683c1fbbad6fa44193abd4945ad3f97, type: 2}
+      - {fileID: 11400000, guid: 923ea408d355fa64e94b09338bbecef2, type: 2}
+    weight: 2.2
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 0
+    wallBias: 1
+  - label: 'LANCE THRUST (the opener: one straight blue line)'
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 710f476441d69094095095862e63fe2a, type: 2}
+    weight: 2
+    minRange: 0
+    maxRange: 3.9
+    cooldown: 0
+    wallBias: 1
+  - label: jab-two into LANCE THRUST (blue chain)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 87d97e32e2b37744fa6a4d65acf6f5af, type: 2}
+      - {fileID: 11400000, guid: 710f476441d69094095095862e63fe2a, type: 2}
+    weight: 3
+    minRange: 0
+    maxRange: 3.4
+    cooldown: 3
+    wallBias: 1
+  - label: KICK anti-turtle (blue)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: c78f1c607e32c4746abc90abd5f79b22, type: 2}
+    weight: 2.4
+    minRange: 0
+    maxRange: 2.9
+    cooldown: 2.5
+    wallBias: 1
+  - label: HEAVY dive tempo break
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 8d1505a1f67185648af2a6f30b2c07cc, type: 2}
+    weight: 3
+    minRange: 0
+    maxRange: 3.6
+    cooldown: 2.5
+    wallBias: 1
+  - label: SHOULDER CHARGE far close (the one red)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: b96ae5a340dc2924b92a6fd66dd4c876, type: 2}
+    weight: 4.4
+    minRange: 4.4
+    maxRange: 6.5
+    cooldown: 3
+    wallBias: 2.5
+  - label: SKY VERDICT (rise, four javelins)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 4a9506cf8ea3f02468438630aac7ee96, type: 2}
+    weight: 5.2
+    minRange: 4.5
+    maxRange: 14
+    cooldown: 4.25
+    wallBias: 1
+  - label: HELD HEAVY dive tempo break (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: 11dba70558bd0db459d928df8072934a, type: 2}
+    weight: 1.2
+    minRange: 0
+    maxRange: 3.6
+    cooldown: 3
+    wallBias: 1

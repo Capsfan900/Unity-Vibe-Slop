@@ -41,6 +41,7 @@ namespace VibeGame1.Tests
             "SeraphLancer_Jab2", "SeraphLancer_Swing", "SeraphLancer_ComboFinisher", "SeraphLancer_Stab",
             "SeraphLancer_Kick", "SeraphLancer_Heavy", "SeraphLancer_ShoulderCharge",
             SeraphLancerAuthoring.SkyVerdictAttackName,
+            "SeraphLancer_HeavyHeld",
         };
 
         static EnemyData Data() => AssetDatabase.LoadAssetAtPath<EnemyData>(
@@ -318,7 +319,7 @@ namespace VibeGame1.Tests
             var javelin = Atk(SeraphLancerAuthoring.JavelinAttackName);
             Assert.IsNotNull(javelin);
             Assert.AreSame(javelin, d.projectileAttack, "a Javelin arrives with EnemyData.projectileAttack.");
-            Assert.AreEqual(14f, javelin.damage, 0.001f, "the Judge's jab per javelin");
+            Assert.AreEqual(16f, javelin.damage, 0.001f, "a heavy jab per javelin (14 -> 16, 2026-09-14)");
             Assert.IsFalse(javelin.unblockable, "a javelin is Block or Perfect, never a red: he is the teaching boss.");
             Assert.AreEqual(1.2f, javelin.parryPostureMultiplier, 0.001f);
             Assert.AreEqual(15f, d.projectileSpeed, 0.001f, "a shade under the Dancer's disc; half a sentry bolt");
@@ -352,10 +353,10 @@ namespace VibeGame1.Tests
             Assert.AreEqual(1, verdictUses, "the verdict is one standalone EnemyController schedule, never inside a string.");
             var entry = VerdictEntry();
             Assert.IsNotNull(entry, "the verdict entry");
-            Assert.AreEqual(2.0f, entry.weight, 0.001f);
+            Assert.AreEqual(2.6f, entry.weight, 0.001f);
             Assert.AreEqual(4.5f, entry.minRange, 0.001f);
             Assert.AreEqual(14f, entry.maxRange, 0.001f);
-            Assert.AreEqual(10f, entry.cooldown, 0.001f);
+            Assert.AreEqual(8.5f, entry.cooldown, 0.001f);
             Assert.LessOrEqual(entry.maxRange, Data().aggroRange, "a far band beyond aggro can never fire.");
             // The nearest throw at full speed is more than one cue lead of flight; LaunchSpeed slows it
             // further, so no javelin ever arrives inside its own cue.
@@ -421,7 +422,7 @@ namespace VibeGame1.Tests
             float hitPostureMult = stats != null ? stats.hitPostureMultiplier : 0.5f;
             float worstHealth = launcher.javelinsPerVerdict * javelin.damage;
             float worstPosture = launcher.javelinsPerVerdict * javelin.damage * hitPostureMult;
-            Assert.AreEqual(56f, worstHealth, 0.001f);
+            Assert.AreEqual(64f, worstHealth, 0.001f);
             Assert.Less(worstHealth, 100f, "a verdict must be survivable from full health");
             Assert.Greater(worstHealth, 25f, "and must be worth answering");
             Assert.Less(worstPosture, PlayerPostureMax, "never a stagger machine");

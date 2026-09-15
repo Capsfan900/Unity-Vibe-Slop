@@ -36,6 +36,7 @@ namespace VibeGame1.Tests
             "OrbitDancer_Jab2", "OrbitDancer_Swing", "OrbitDancer_ComboFinisher", "OrbitDancer_Stab",
             "OrbitDancer_Kick", "OrbitDancer_Heavy", "OrbitDancer_ShoulderCharge",
             OrbitDancerAuthoring.DiscThrowAttackName, OrbitDancerAuthoring.SpinThrowAttackName,
+            "OrbitDancer_HeavyHeld",
         };
 
         static EnemyData Data() => AssetDatabase.LoadAssetAtPath<EnemyData>(
@@ -277,7 +278,7 @@ namespace VibeGame1.Tests
             var disc = Atk(OrbitDancerAuthoring.DiscAttackName);
             Assert.IsNotNull(disc);
             Assert.AreSame(disc, d.projectileAttack, "a BouncingDisc arrives with EnemyData.projectileAttack.");
-            Assert.AreEqual(12f, disc.damage, 0.001f, "a jab's worth per disc");
+            Assert.AreEqual(14f, disc.damage, 0.001f, "a jab's worth per disc (12 -> 14, 2026-09-14)");
             Assert.IsFalse(disc.unblockable, "a disc is Block or Perfect, never a red.");
             Assert.AreEqual(1.2f, disc.parryPostureMultiplier, 0.001f);
             Assert.AreEqual(16f, d.projectileSpeed, 0.001f, "half a sentry bolt, for a duel inside 3-12 m");
@@ -319,10 +320,10 @@ namespace VibeGame1.Tests
             }
             Assert.AreEqual(1, volleyUses, "the volley is one standalone EnemyController schedule, never inside a string.");
             Assert.IsNotNull(volleyEntry, "the volley entry");
-            Assert.AreEqual(2.0f, volleyEntry.weight, 0.001f);
+            Assert.AreEqual(2.6f, volleyEntry.weight, 0.001f);
             Assert.AreEqual(4.5f, volleyEntry.minRange, 0.001f);
             Assert.AreEqual(12f, volleyEntry.maxRange, 0.001f);
-            Assert.AreEqual(6f, volleyEntry.cooldown, 0.001f);
+            Assert.AreEqual(4f, volleyEntry.cooldown, 0.001f);
             Assert.LessOrEqual(volleyEntry.maxRange, Data().aggroRange, "a far band beyond aggro can never fire.");
             // The nearest direct throw at full speed is exactly one cue lead of flight; LaunchSpeed slows
             // it further, so no disc ever arrives inside its own cue.
@@ -331,7 +332,7 @@ namespace VibeGame1.Tests
             Assert.IsNotNull(whirlEntry, "the standalone whirl");
             Assert.AreEqual(0f, whirlEntry.minRange, 0.001f);
             Assert.AreEqual(3.2f, whirlEntry.maxRange, 0.001f);
-            Assert.AreEqual(8f, whirlEntry.cooldown, 0.001f);
+            Assert.AreEqual(5f, whirlEntry.cooldown, 0.001f);
 
             Assert.IsNotNull(chain, "jab-two into SPIN THROW replaces the Judge's red chain");
             Assert.AreSame(Atk("OrbitDancer_Jab2"), chain.combo.hits[0]);
@@ -351,7 +352,7 @@ namespace VibeGame1.Tests
             float hitPostureMult = stats != null ? stats.hitPostureMultiplier : 0.5f;
             float worstHealth = launcher.volleyCount * disc.damage;
             float worstPosture = launcher.volleyCount * disc.damage * hitPostureMult;
-            Assert.AreEqual(36f, worstHealth, 0.001f);
+            Assert.AreEqual(42f, worstHealth, 0.001f);
             Assert.Less(worstHealth, 100f, "a volley must be survivable from full health");
             Assert.Greater(worstHealth, 25f, "and must be worth answering");
             Assert.Less(worstPosture, PlayerPostureMax);

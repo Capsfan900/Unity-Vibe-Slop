@@ -32,6 +32,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 6
     cooldown: 0
+    wallBias: 1
   - label: short spin (same beat, five passes)
     combo:
       hits:
@@ -46,14 +47,16 @@ MonoBehaviour:
     minRange: 0
     maxRange: 6
     cooldown: 0
+    wallBias: 1
   - label: OVERHEAD (the tempo break)
     combo:
       hits:
       - {fileID: 11400000, guid: 73cc539979856704199329beb5a6a7c0, type: 2}
-    weight: 1.2
+    weight: 1.8
     minRange: 0
     maxRange: 99
-    cooldown: 7
+    cooldown: 4
+    wallBias: 1
   - label: overhead into the spin
     combo:
       hits:
@@ -67,14 +70,16 @@ MonoBehaviour:
     minRange: 0
     maxRange: 6
     cooldown: 0
+    wallBias: 1
   - label: STRING LASH (punishes waiting it out)
     combo:
       hits:
       - {fileID: 11400000, guid: 306c9105d3911544687bcc2d897f2389, type: 2}
-    weight: 1.6
+    weight: 2.2
     minRange: 5
     maxRange: 99
-    cooldown: 5
+    cooldown: 3
+    wallBias: 2
   - label: LASH into the spin (drags you back in)
     combo:
       hits:
@@ -89,3 +94,13 @@ MonoBehaviour:
     minRange: 5.5
     maxRange: 99
     cooldown: 0
+    wallBias: 1
+  - label: HELD OVERHEAD (the tempo break) (roll-catch)
+    combo:
+      hits:
+      - {fileID: 11400000, guid: e7e9d6d8cc783d64ba2da79726fbf8c0, type: 2}
+    weight: 0.6
+    minRange: 0
+    maxRange: 99
+    cooldown: 6
+    wallBias: 1

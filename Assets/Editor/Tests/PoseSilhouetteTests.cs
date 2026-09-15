@@ -250,7 +250,7 @@ namespace VibeGame1.Tests
         {
             AssertTiming(Slash, 0.62f, 0.05f, 0.16f, 0.55f, 3.4f, 95f, 20f, 0.9f);
             AssertTiming(Stab, 0.55f, 0.04f, 0.12f, 0.50f, 3.9f, 40f, 24f, 1.5f);
-            AssertTiming(Overhead, 0.95f, 0.07f, 0.22f, 1.40f, 3.6f, 70f, 38f, 1.3f);
+            AssertTiming(Overhead, 0.95f, 0.07f, 0.22f, 1.40f, 3.6f, 70f, 44f, 1.3f);   // damage 38 -> 44, 2026-09-14 deadlier pass
             AssertTiming(Kick, 0.70f, 0.05f, 0.18f, 0.90f, 3.2f, 55f, 18f, 1.1f);
             Assert.IsTrue(Atk(Kick).unblockable, "the kick is still the designated anti-turtle");
         }

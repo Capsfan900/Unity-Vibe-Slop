@@ -29,6 +29,11 @@ MonoBehaviour:
   aggression: 0.55
   flaskPunishChance: 0.6
   stanceFreesPartner: 0
+  phase2Threshold: 0
+  phase2Moveset: {fileID: 0}
+  phase2AggressionBonus: 0
+  spellPunishChance: 0
+  airPunishChance: 0
   windupTurnMultiplier: 0.35
   stepSpeedMultiplier: 0.26
   stepAcceleration: 4.5

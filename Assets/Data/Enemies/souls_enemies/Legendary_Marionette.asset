@@ -29,6 +29,11 @@ MonoBehaviour:
   aggression: 0.62
   flaskPunishChance: 0.6
   stanceFreesPartner: 0
+  phase2Threshold: 0.5
+  phase2Moveset: {fileID: 11400000, guid: a14be4c57005ff2459e64df3156da32c, type: 2}
+  phase2AggressionBonus: 0
+  spellPunishChance: 0.5
+  airPunishChance: 0.6
   windupTurnMultiplier: 0.28
   stepSpeedMultiplier: 0.3
   stepAcceleration: 6
@@ -110,3 +115,5 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: 511114218820d4141a80743e016d2b33, type: 2}
     - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
+  - hits:
+    - {fileID: 11400000, guid: e7e9d6d8cc783d64ba2da79726fbf8c0, type: 2}

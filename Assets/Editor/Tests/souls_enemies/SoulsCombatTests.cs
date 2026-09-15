@@ -265,5 +265,30 @@ namespace VibeGame1.Tests
             Assert.AreEqual(0.45f, PuppetVisuals.FollowThrough(0.6f, 0.4f, 0.45f), 1e-4f, "a short tail keeps the default");
             Assert.AreEqual(0.52f, PuppetVisuals.FollowThrough(1.0f, 0.48f, 0.45f), 1e-4f);
         }
+        // ---- 2026-09-14 deadlier kit: phase 2, arena wall bias ----
+
+        [Test]
+        public void PhaseTwoTurnsOnceAtTheThreshold()
+        {
+            Assert.IsFalse(EnemyController.PhaseShiftDue(0.51f, 0.5f, false));
+            Assert.IsTrue(EnemyController.PhaseShiftDue(0.5f, 0.5f, false));
+            Assert.IsTrue(EnemyController.PhaseShiftDue(0.2f, 0.5f, false), "a big hit through the line still turns it");
+            Assert.IsFalse(EnemyController.PhaseShiftDue(0.2f, 0.5f, true), "never twice");
+            Assert.IsFalse(EnemyController.PhaseShiftDue(0.2f, 0f, false), "0 = no phase 2");
+            Assert.IsFalse(EnemyController.PhaseShiftDue(0f, 0.5f, false), "not on the killing blow");
+        }
+
+        [Test]
+        public void WallBiasOnlyBindsInsideFourMetresOfTheWall()
+        {
+            Assert.AreEqual(2.5f, EnemyMoveset.WallWeight(2.5f, 0f), 1e-4f, "pinned: full bias");
+            Assert.AreEqual(1.75f, EnemyMoveset.WallWeight(2.5f, 2f), 1e-4f);
+            Assert.AreEqual(1f, EnemyMoveset.WallWeight(2.5f, 4f), 1e-4f, "4 m of room: none");
+            Assert.AreEqual(1f, EnemyMoveset.WallWeight(2.5f, float.MaxValue), 1e-4f, "outside a realm");
+            Assert.AreEqual(0.5f, EnemyMoveset.WallWeight(0.5f, 0f), 1e-4f, "a bank shot wants room");
+            Assert.AreEqual(1f, EnemyMoveset.WallWeight(0f, 0f), 1e-4f, "an unset bias is neutral");
+            Assert.AreEqual(3f, SolarArenaPortal.EdgeRoom(new Vector3(15f, 5f, 0f), Vector3.zero, 18f), 1e-4f);
+            Assert.AreEqual(0f, SolarArenaPortal.EdgeRoom(new Vector3(30f, 0f, 0f), Vector3.zero, 18f), 1e-4f);
+        }
     }
 }

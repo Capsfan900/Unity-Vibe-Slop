@@ -45,6 +45,35 @@ namespace VibeGame1
         }
 
         public bool IsFinalBossPortal { get { return arena != null && arena.clearSpawner == null; } }
+
+        // ---- the realm the player is inside, for arena-aware attack selection (EnemyMoveset.wallBias) ----
+        static bool arenaActive;
+        static Vector3 arenaCenter;
+        static float arenaFloorRadius;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void ResetActiveArena() { arenaActive = false; }
+
+        /// <summary>Metres from <paramref name="p"/> to the active realm's wall, or MaxValue outside a realm.</summary>
+        public static float EdgeRoom(Vector3 p)
+        {
+            if (!arenaActive) return float.MaxValue;
+            return EdgeRoom(p, arenaCenter, arenaFloorRadius);
+        }
+
+        /// <summary>Horizontal room between a point and a circular wall. Pure.</summary>
+        public static float EdgeRoom(Vector3 p, Vector3 center, float floorRadius)
+        {
+            float dx = p.x - center.x, dz = p.z - center.z;
+            return Mathf.Max(0f, floorRadius - Mathf.Sqrt(dx * dx + dz * dz));
+        }
+
+        void SetActiveArena(bool on)
+        {
+            float floor = definition != null && definition.realmFloorRadius > 0f ? definition.realmFloorRadius : 0f;
+            arenaActive = on && realmBoundsCenter != null && floor > 0f;
+            if (arenaActive) { arenaCenter = realmBoundsCenter.position; arenaFloorRadius = floor; }
+        }
         public bool ExitAvailable { get { return hasReturn && arena != null && arena.Cleared; } }
         public Vector3 RealmEntryPosition { get { return realmEntry != null ? realmEntry.position : Vector3.zero; } }
         public Vector3 WorldReturnPosition { get { return worldReturn != null ? worldReturn.position : Vector3.zero; } }
@@ -109,6 +138,7 @@ namespace VibeGame1
             AudioManager.Play(Sfx.SolarWarp, 1f, 1f, 0f);
             lastTeleportAt = Time.unscaledTime;
             occupant = player;
+            SetActiveArena(true);
             if (!IsFinalBossPortal)
             {
                 EndIntro();
@@ -128,6 +158,7 @@ namespace VibeGame1
             SolarTransition.Cut(ThemeKey);
             lastTeleportAt = Time.unscaledTime;
             occupant = null;
+            SetActiveArena(false);
             return true;
         }
 
@@ -141,6 +172,7 @@ namespace VibeGame1
                 Teleport(occupant, worldRetry);
             occupant = null;
             lastTeleportAt = -99f;
+            SetActiveArena(false);
             EndIntro();
             SetExit(false);
             // A reset undoes a crossing; a cover armed for it must not outlive it.

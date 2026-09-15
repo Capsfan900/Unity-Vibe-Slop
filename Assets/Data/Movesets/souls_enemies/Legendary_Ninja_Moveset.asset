@@ -24,6 +24,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: cut-cross-cut-FALL (ride it, then it breaks)
     combo:
       hits:
@@ -35,6 +36,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: cut-cross-REAP (the cadence baits the sweep)
     combo:
       hits:
@@ -45,6 +47,7 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 6
+    wallBias: 1
   - label: rush-cut-cut (closes, then flurries)
     combo:
       hits:
@@ -55,6 +58,7 @@ MonoBehaviour:
     minRange: 3.4
     maxRange: 99
     cooldown: 0
+    wallBias: 1
   - label: cut-cut-cross-cut-FALL (the long string)
     combo:
       hits:
@@ -67,3 +71,4 @@ MonoBehaviour:
     minRange: 0
     maxRange: 99
     cooldown: 7
+    wallBias: 1
