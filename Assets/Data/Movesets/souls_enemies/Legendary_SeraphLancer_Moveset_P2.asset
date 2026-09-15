@@ -76,7 +76,7 @@ MonoBehaviour:
       hits:
       - {fileID: 11400000, guid: 4a9506cf8ea3f02468438630aac7ee96, type: 2}
     weight: 5.2
-    minRange: 4.5
+    minRange: 2.5
     maxRange: 14
     cooldown: 4.25
     wallBias: 1

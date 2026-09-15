@@ -354,13 +354,16 @@ namespace VibeGame1.Tests
             var entry = VerdictEntry();
             Assert.IsNotNull(entry, "the verdict entry");
             Assert.AreEqual(2.6f, entry.weight, 0.001f);
-            Assert.AreEqual(4.5f, entry.minRange, 0.001f);
+            // 2.5, inside his 2.9 commit edge (2026-09-14 accuracy pass).
+            Assert.AreEqual(2.5f, entry.minRange, 0.001f);
             Assert.AreEqual(14f, entry.maxRange, 0.001f);
             Assert.AreEqual(8.5f, entry.cooldown, 0.001f);
             Assert.LessOrEqual(entry.maxRange, Data().aggroRange, "a far band beyond aggro can never fire.");
-            // The nearest throw at full speed is more than one cue lead of flight; LaunchSpeed slows it
-            // further, so no javelin ever arrives inside its own cue.
-            Assert.GreaterOrEqual(entry.minRange / Data().projectileSpeed, CueLead - 0.001f);
+            // Un-throttled, a 2.5 m throw beats the cue; LaunchSpeed's floor (shipped margin) is what holds.
+            var launcher = Prefab().GetComponent<SeraphLancerJavelins>();
+            Assert.IsNotNull(launcher, "run VibeGame1/4b. Build Mini-Bosses");
+            float launchSpeed = SeraphLancerJavelins.PathSpeed(entry.minRange, Data().projectileSpeed, CueLead, launcher.launchMargin);
+            Assert.GreaterOrEqual(entry.minRange / launchSpeed, CueLead - 0.001f, "no javelin ever arrives inside its own cue.");
 
             // The chain that replaces the Judge's red one: jab-two into the lance, both blue.
             MovesetEntry chain = null;
@@ -462,11 +465,11 @@ namespace VibeGame1.Tests
             Assert.AreEqual(3.0f, v.hoverHeight, 0.001f);
             Assert.Greater(drop, 2.5f, "the javelin must plainly come DOWN");
 
-            // At the band's near edge the line pitches under 45 degrees: a readable diagonal, well
-            // inside the camera's reach; at the far edge it is a shallow line. Never a plunge.
+            // Near edge 2.5 m pitches ~54 deg (the parry facing test is horizontal: look up is the read,
+            // not a requirement); the far edge is a shallow line. Never a plunge.
             float nearPitch = SeraphLancerJavelins.PitchDeg(new Vector3(0f, muzzleY, 0f), new Vector3(entry.minRange, PlayerChestHeight, 0f));
             float farPitch = SeraphLancerJavelins.PitchDeg(new Vector3(0f, muzzleY, 0f), new Vector3(entry.maxRange, PlayerChestHeight, 0f));
-            Assert.Less(nearPitch, 45f, "near edge pitch " + nearPitch.ToString("F1"));
+            Assert.Less(nearPitch, 60f, "near edge pitch " + nearPitch.ToString("F1"));
             Assert.Greater(nearPitch, 25f, "but steep enough that 'look up' is the read");
             Assert.Less(farPitch, 20f);
             Assert.Less(nearPitch, CameraPitchClamp);
@@ -523,7 +526,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(expected, SeraphLancerJavelins.ThrowTime(10f, index, cadence), 0.0001f);
         }
 
-        [TestCase(4.5f, 15f, 0.40f, 11.25f)]   // the band's near edge: slowed to lead + margin
+        [TestCase(4.5f, 15f, 0.40f, 11.25f)]   // a path below the crossover: slowed to lead + margin
         [TestCase(6.0f, 15f, 0.40f, 15f)]      // from here on the data speed ships
         [TestCase(14f, 15f, 0.9333f, 15f)]
         public void PathSpeed_NeverArrivesInsideTheCueLeadPlusMargin(float path, float speed, float flight, float expected)

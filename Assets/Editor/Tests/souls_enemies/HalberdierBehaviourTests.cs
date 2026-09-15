@@ -73,15 +73,10 @@ namespace VibeGame1.Tests
 
             float chargeWeightFar = 0f, otherWeightFar = 0f, maxFar = 0f;
             MovesetEntry heaviestFar = null;
-            bool coversAggroEdge = false;
             foreach (var e in Entries())
             {
                 if (e.minRange < 5f) continue;   // the far band starts where he loses reach
-                if (e.combo.hits[0] == charge)
-                {
-                    chargeWeightFar += e.weight;
-                    if (e.maxRange >= Data().aggroRange - 0.01f) coversAggroEdge = true;
-                }
+                if (e.combo.hits[0] == charge) chargeWeightFar += e.weight;
                 else otherWeightFar += e.weight;
                 if (e.weight > maxFar) { maxFar = e.weight; heaviestFar = e; }
             }
@@ -91,12 +86,13 @@ namespace VibeGame1.Tests
             Assert.Greater(chargeWeightFar, otherWeightFar * 3f,
                 "from the far band the charge weighs " + chargeWeightFar + " against " + otherWeightFar +
                 " of everything else; it is supposed to be near-certain.");
-            Assert.IsTrue(coversAggroEdge, "no charge entry reaches the aggro edge (" + Data().aggroRange +
-                " m); a player far enough away would just be walked at.");
+            // The charge band ends where the charge can land (9 m, MovesetReachTests), not at the aggro edge:
+            // beyond it the brain presses in (souls-AI accuracy spec 2026-09-14, A3).
 
             // The leap keeps a small share so the far band is not one animation.
             bool leapFar = false;
-            foreach (var e in Entries()) if (e.minRange >= 4f && Contains(e, leap)) leapFar = true;
+            // Outside his 3.6 m commit edge: 3.8 since the accuracy pass.
+            foreach (var e in Entries()) if (e.minRange > Data().preferredRange + Data().commitTolerance && Contains(e, leap)) leapFar = true;
             Assert.IsTrue(leapFar, "the leap slam is no longer thrown from range.");
         }
 

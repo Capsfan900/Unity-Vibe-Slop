@@ -30,7 +30,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
     weight: 4
     minRange: 0
-    maxRange: 6
+    maxRange: 5.9
     cooldown: 0
     wallBias: 1
   - label: short spin (same beat, five passes)
@@ -45,7 +45,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
     weight: 2
     minRange: 0
-    maxRange: 6
+    maxRange: 5.9
     cooldown: 0
     wallBias: 1
   - label: OVERHEAD (the tempo break)
@@ -54,7 +54,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 73cc539979856704199329beb5a6a7c0, type: 2}
     weight: 3.6
     minRange: 0
-    maxRange: 99
+    maxRange: 6.9
     cooldown: 2
     wallBias: 1
   - label: overhead into the spin
@@ -77,7 +77,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 306c9105d3911544687bcc2d897f2389, type: 2}
     weight: 4.4
     minRange: 5
-    maxRange: 99
+    maxRange: 9.5
     cooldown: 1.5
     wallBias: 2
   - label: LASH into the spin (drags you back in)
@@ -92,7 +92,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: ebc58cc0711a58f49812bfa01835dd5a, type: 2}
     weight: 1
     minRange: 5.5
-    maxRange: 99
+    maxRange: 9.5
     cooldown: 0
     wallBias: 1
   - label: HELD OVERHEAD (the tempo break) (roll-catch)
@@ -101,6 +101,6 @@ MonoBehaviour:
       - {fileID: 11400000, guid: e7e9d6d8cc783d64ba2da79726fbf8c0, type: 2}
     weight: 1.2
     minRange: 0
-    maxRange: 99
+    maxRange: 6.9
     cooldown: 3
     wallBias: 1

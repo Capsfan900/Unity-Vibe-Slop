@@ -118,7 +118,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: f13ceab49af8fd148994b9a8dd33c276, type: 2}
     weight: 2
     minRange: 5
-    maxRange: 18
+    maxRange: 9
     cooldown: 0
     wallBias: 2.5
   - label: LEAP SLAM from range
@@ -126,7 +126,7 @@ MonoBehaviour:
       hits:
       - {fileID: 11400000, guid: 4768ebaf9a66edc41a8bcabf3caf1330, type: 2}
     weight: 3.6
-    minRange: 4.5
-    maxRange: 8
+    minRange: 3.8
+    maxRange: 6.7
     cooldown: 1.75
     wallBias: 2

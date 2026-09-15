@@ -20,7 +20,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
     weight: 3
     minRange: 0
-    maxRange: 6
+    maxRange: 5.5
     cooldown: 0
     wallBias: 1
   - label: slash, slash
@@ -30,7 +30,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: e26457473897edb4f8047f392401f1d6, type: 2}
     weight: 2
     minRange: 0
-    maxRange: 6
+    maxRange: 5.5
     cooldown: 0
     wallBias: 1
   - label: slash into THRUST
@@ -40,7 +40,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 6decfbb402e7e3844bfc072ae21c2d17, type: 2}
     weight: 2
     minRange: 0
-    maxRange: 7
+    maxRange: 5.5
     cooldown: 0
     wallBias: 1
   - label: OVERHEAD (the big punish)
@@ -58,7 +58,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 6decfbb402e7e3844bfc072ae21c2d17, type: 2}
     weight: 1.5
     minRange: 3.5
-    maxRange: 6
+    maxRange: 6.5
     cooldown: 0
     wallBias: 1
   - label: KICK (unblockable, anti-turtle)
@@ -67,7 +67,7 @@ MonoBehaviour:
       - {fileID: 11400000, guid: 506b0356d18ec6249b2dc04cd250322d, type: 2}
     weight: 3.2
     minRange: 0
-    maxRange: 5
+    maxRange: 4.8
     cooldown: 1.5
     wallBias: 1
   - label: slash into the kick

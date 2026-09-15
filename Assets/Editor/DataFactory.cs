@@ -1024,7 +1024,8 @@ namespace VibeGame1.EditorTools
                 // not theorised. 6 m is preferredRange (3.7) plus commitTolerance (0.7) plus room for
                 // the player to have backed off a step, and it is under the lash's 5 m floor by enough
                 // that the two bands genuinely overlap rather than leaving a dead zone.
-                Entry("SPIN-UP + 9 passes + OUT (the cadence)",        4f,   0f,   6f,
+                // Bands obey reach hygiene: maxRange <= range + 0.5 + lunge + 1.0 (MovesetReachTests).
+                Entry("SPIN-UP + 9 passes + OUT (the cadence)",        4f,   0f,   5.9f,
                       marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
                       marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
                 // The short spin: same beat, fewer passes, so the LENGTH of a spin is not predictable
@@ -1032,16 +1033,16 @@ namespace VibeGame1.EditorTools
                 // four keeps it just under the six needed to break — so the short spin is the one that
                 // can NEVER be broken through, and a player who has learned to count is still made to
                 // watch for the exit.
-                Entry("short spin (same beat, five passes)",           2f,   0f,   6f,
+                Entry("short spin (same beat, five passes)",           2f,   0f,   5.9f,
                       marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinPass,
                       marSpinOut),
                 // The tempo break. One square-on 1.0 s wind-up, no whirl at all.
-                EntryCd("OVERHEAD (the tempo break)",                  1.8f, 0f,   99f, 4f, marOverhead),
+                EntryCd("OVERHEAD (the tempo break)",                  1.8f, 0f,   6.9f, 4f, marOverhead),
                 Entry("overhead into the spin",                        1f,   0f,   6f,
                       marOverhead, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
                 // Far band only: what a player who backed out of spin range gets instead of a rest.
-                EntryCd("STRING LASH (punishes waiting it out)",       2.2f, 5f,   99f, 3f, marLash),
-                Entry("LASH into the spin (drags you back in)",        1f,   5.5f, 99f,
+                EntryCd("STRING LASH (punishes waiting it out)",       2.2f, 5f,   9.5f, 3f, marLash),
+                Entry("LASH into the spin (drags you back in)",        1f,   5.5f, 9.5f,
                       marLash, marSpinUp, marSpinPass, marSpinPass, marSpinPass, marSpinPass, marSpinOut),
             });
             marionette.combos = marionette.moveset.ToComboArray();
@@ -1210,14 +1211,14 @@ namespace VibeGame1.EditorTools
             revenant.scale = 1f;
             revenant.moveset = Moveset("Legendary_Revenant_Moveset", "The Ember Revenant", new[]
             {
-                Entry("slash",                           3f,   0f,  6f, revSlash),
-                Entry("slash, slash",                    2f,   0f,  6f, revSlash, revSlash),
+                Entry("slash",                           3f,   0f,  5.5f, revSlash),
+                Entry("slash, slash",                    2f,   0f,  5.5f, revSlash, revSlash),
                 // The read: a wide cut, then the thrust down the middle. Two different cones back to
                 // back, so sidestepping the first puts you in front of the second.
-                Entry("slash into THRUST",               2f,   0f,  7f, revSlash, revStab),
+                Entry("slash into THRUST",               2f,   0f,  5.5f, revSlash, revStab),
                 EntryCd("OVERHEAD (the big punish)",     2.2f, 0f,  6f, 3.5f, revOverhead),
-                Entry("thrust from range",               1.5f, 3.5f, 6f, revStab),
-                EntryCd("KICK (unblockable, anti-turtle)", 1.6f, 0f,  5f, 3f, revKick),
+                Entry("thrust from range",               1.5f, 3.5f, 6.5f, revStab),
+                EntryCd("KICK (unblockable, anti-turtle)", 1.6f, 0f,  4.8f, 3f, revKick),
                 EntryCd("slash into the kick",           1f,   0f,  5f, 5f, revSlash, revKick),
             });
             revenant.combos = revenant.moveset.ToComboArray();
@@ -1436,8 +1437,8 @@ namespace VibeGame1.EditorTools
                 EntryCd("KICK (unblockable, anti-turtle)",                1.2f, 0f,   3.0f, 5f, halKick),
                 Entry("CHARGE into sweep, THRUST (unblockable opener)",   5f,   5f,   8f,   halCharge, halSweep, halThrust),
                 Entry("CHARGE into SLAM (unblockable opener)",            4f,   5f,   8f,   halCharge, halSlam),
-                Entry("SHOULDER CHARGE (unblockable, to the aggro edge)", 2f,   5f,   18f,  halCharge),
-                EntryCd("LEAP SLAM from range",                           1.8f, 4.5f, 8f, 3.5f, halLeap),
+                Entry("SHOULDER CHARGE (unblockable, to the aggro edge)", 2f,   5f,   9f,   halCharge),
+                EntryCd("LEAP SLAM from range",                           1.8f, 3.8f, 6.7f, 3.5f, halLeap),
             });
             halberdier.combos = halberdier.moveset.ToComboArray();
             halberdier.flaskPunishChance = 0.6f;
@@ -1950,7 +1951,7 @@ namespace VibeGame1.EditorTools
                 EntryCd("OVERHEAD tempo break",                              1.2f, 0f,   3.4f, 6f, br18Overhead),
                 EntryCd("KICK anti-turtle",                                  1.2f, 0f,   2.8f, 5f, br18Kick),
                 EntryCd("LEVITATE CLAP wide blast",                          1.5f, 0f,   3.8f, 5f, br18Clap),
-                Entry("DASH close",                                          2.6f, 2.6f, 4.7f, br18Dash),
+                Entry("DASH close",                                          2.6f, 2.3f, 4.7f, br18Dash),
                 EntryCd("SHOULDER CHARGE far close",                         2.4f, 4.4f, 7.1f, 5f, br18Shoulder),
                 EntryCd("COMBO2 held performance (one contact)",              0.45f, 0f, 2.7f, 8f, br18Combo2),
                 // Close band, 10 s: the grab that lifts you into the sky and slams you back down.
@@ -2341,10 +2342,9 @@ namespace VibeGame1.EditorTools
                 EntryCd("HEAVY tempo break",                                 1.0f, 0f,   3.5f, 8f, odHeavy),
                 // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
                 EntryCd("SHOULDER CHARGE far close",                         2.2f, 4.4f, 6.5f, 5f, odShoulder),
-                // 4.5..12: thrown when you kite. 4.5 m at 16 m/s is 0.28 s = exactly CueLead, and
-                // LaunchSpeed slows it further; inside 4.5 she closes and whirls instead. 6 s: the volley
-                // is the signature, seen twice a bar, never a loop -- and never inside the 4 s a disc lives.
-                EntryCd("ORBIT STORM (three ricochet discs)",                2.6f, 4.5f, 12f, 4f, odDiscThrow),
+                // 2.5..12 (2026-09-14, from 4.5): from her commit edge (2.2 + 0.3), not only when you kite.
+                // LaunchSpeed floors a near throw's flight at cueLead + margin. Never inside the 4 s a disc lives.
+                EntryCd("ORBIT STORM (three ricochet discs)",                2.6f, 2.5f, 12f, 4f, odDiscThrow),
                 EntryCd("SPIN THROW (close whirl, two banked discs)",        1.5f, 0f,   3.2f, 5f, odSpinThrow),
             });
             dancer.combos = dancer.moveset.ToComboArray();
@@ -2582,11 +2582,11 @@ namespace VibeGame1.EditorTools
                 EntryCd("HEAVY dive tempo break",                            1.5f, 0f,   3.6f, 5f, slHeavy),
                 // Far band: 3.32 m lunge + 2.7 m range + the brain's 0.5 m slack = 6.5 m reach.
                 EntryCd("SHOULDER CHARGE far close (the one red)",           2.2f, 4.4f, 6.5f, 6f, slShoulder),
-                // 4.5..14: thrown when you kite. 4.5 m at 15 m/s is 0.30 s > CueLead, and LaunchSpeed slows
-                // it further; inside 4.5 he closes and thrusts instead. 10 s: about twice a bar at his
+                // 2.5..14 (2026-09-14, from 4.5): inside his commit edge (2.6 + 0.3), not only when you kite.
+                // LaunchSpeed floors a near throw's flight at cueLead + margin. 8.5 s: about twice a bar at his
                 // tempo, a signature and never a loop -- and longer than a javelin lives (5 s) plus the
                 // 2.2 s the three releases span, so no verdict overlaps the last.
-                EntryCd("SKY VERDICT (rise, four javelins)",                2.6f, 4.5f, 14f, 8.5f, slVerdict),   // 8.5 > last release 3.3 + javelin life 5
+                EntryCd("SKY VERDICT (rise, four javelins)",                2.6f, 2.5f, 14f, 8.5f, slVerdict),   // 8.5 > last release 3.3 + javelin life 5
             });
             lancer.combos = lancer.moveset.ToComboArray();
             EditorUtility.SetDirty(lancer);

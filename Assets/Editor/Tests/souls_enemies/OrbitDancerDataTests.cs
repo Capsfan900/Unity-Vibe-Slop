@@ -321,13 +321,16 @@ namespace VibeGame1.Tests
             Assert.AreEqual(1, volleyUses, "the volley is one standalone EnemyController schedule, never inside a string.");
             Assert.IsNotNull(volleyEntry, "the volley entry");
             Assert.AreEqual(2.6f, volleyEntry.weight, 0.001f);
-            Assert.AreEqual(4.5f, volleyEntry.minRange, 0.001f);
+            // 2.5 = her commit edge (2026-09-14 accuracy pass).
+            Assert.AreEqual(2.5f, volleyEntry.minRange, 0.001f);
             Assert.AreEqual(12f, volleyEntry.maxRange, 0.001f);
             Assert.AreEqual(4f, volleyEntry.cooldown, 0.001f);
             Assert.LessOrEqual(volleyEntry.maxRange, Data().aggroRange, "a far band beyond aggro can never fire.");
-            // The nearest direct throw at full speed is exactly one cue lead of flight; LaunchSpeed slows
-            // it further, so no disc ever arrives inside its own cue.
-            Assert.GreaterOrEqual(volleyEntry.minRange / Data().projectileSpeed, CueLead - 0.001f);
+            // Un-throttled, a 2.5 m throw beats the cue; LaunchSpeed's floor (shipped margin) is what holds.
+            var launcher = Prefab().GetComponent<OrbitDancerDiscs>();
+            Assert.IsNotNull(launcher, "run VibeGame1/4b. Build Mini-Bosses");
+            float launchSpeed = OrbitDancerDiscs.PathSpeed(volleyEntry.minRange, Data().projectileSpeed, CueLead, launcher.launchMargin);
+            Assert.GreaterOrEqual(volleyEntry.minRange / launchSpeed, CueLead - 0.001f, "no disc ever arrives inside its own cue.");
 
             Assert.IsNotNull(whirlEntry, "the standalone whirl");
             Assert.AreEqual(0f, whirlEntry.minRange, 0.001f);
@@ -449,7 +452,7 @@ namespace VibeGame1.Tests
             Assert.AreEqual(1f, right.magnitude, 0.0001f);
         }
 
-        [TestCase(4.5f, 16f, 0.40f, 11.25f)]   // the volley's nearest band edge: slowed to lead + margin
+        [TestCase(4.5f, 16f, 0.40f, 11.25f)]   // a path below the crossover: slowed to lead + margin
         [TestCase(6.4f, 16f, 0.40f, 16f)]      // from here on the data speed ships
         [TestCase(12f, 16f, 0.75f, 16f)]
         public void PathSpeed_NeverArrivesInsideTheCueLeadPlusMargin(float path, float speed, float flight, float expected)
